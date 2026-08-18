@@ -1,6 +1,6 @@
-import React, { useEffect, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useNavigate, Routes, Route } from 'react-router-dom';
-import { Calendar, Printer, Plus, Eye, Edit, Trash2, Filter, Download, Loader2 } from 'lucide-react';
+import { Calendar, Printer, Plus, Edit, Trash2, Filter, Download, Loader2 } from 'lucide-react';
 import { ExtruderEntry } from './extruder-entry';
 import { LoomEntry } from './loom-entry';
 import { FabricEntry } from './fabric-entry';
