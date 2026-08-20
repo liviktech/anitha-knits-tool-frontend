@@ -15,6 +15,7 @@ import { useDayWiseProduction } from './day-wise-queries';
 import { DayDetails } from './day-details';
 import { NewEntry } from './new-entry';
 import { ProductionDesign2 } from './production-design-2';
+import { ProductionDesign3 } from './production-design-3';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import {
@@ -451,6 +452,7 @@ export function ProductionDetails() {
       <Route path="fabric" element={<FabricRoute />} />
       <Route path="day-details" element={<DayDetailsRoute />} />
       <Route path="design-2" element={<ProductionDesign2 />} />
+      <Route path="design-3" element={<ProductionDesign3 />} />
     </Routes>
   );
 }

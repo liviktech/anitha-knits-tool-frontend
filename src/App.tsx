@@ -12,7 +12,10 @@ const navItems = [
     to: '/production',
     label: 'Production details',
     icon: BarChart2,
-    children: [{ to: '/production/design-2', label: 'Production Design 2' }],
+    children: [
+      { to: '/production/design-2', label: 'Production Design 2' },
+      { to: '/production/design-3', label: 'Production Design 3' },
+    ],
   },
   { to: '/employees', label: 'Employees', icon: Users },
   { to: '/expenses', label: 'Expenses', icon: Wallet },
