@@ -1,7 +1,7 @@
 import { useMemo } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { fetchJson } from '@/lib/api-client';
-import type { MasterDataRef, PaginationMeta } from '@/lib/api-types';
+import type { MasterDataRef, PaginationMeta, WastageRecordSummary } from '@/lib/api-types';
 
 export type LoomsStatus = 'DRAFT' | 'SUBMITTED' | 'PENDING_APPROVAL' | 'APPROVED' | 'REJECTED';
 
@@ -13,7 +13,9 @@ export interface LoomDetail {
 /**
  * Matches the real API's LoomsProduction schema (see /api/docs). Unlike
  * Extruder, this stage has no edit/approve/reject endpoints yet — only
- * create/list/get — so there's no update payload type here.
+ * create/list/get — so there's no update payload type here. loomsWasteKg is
+ * NOT a field on `loom` — it's stored as a separate WastageRecord in
+ * `wastages` (code LOOMS_WASTE).
  */
 export interface LoomsProductionItem {
   id: string;
@@ -25,6 +27,7 @@ export interface LoomsProductionItem {
   color: MasterDataRef;
   size: MasterDataRef;
   loom: LoomDetail;
+  wastages: WastageRecordSummary[];
   createdAt: string;
   createdBy: string;
   updatedAt: string;
@@ -44,6 +47,7 @@ export interface LoomsCreatePayload {
   sizeId: string;
   yarnInputKg: number;
   fabricOutputKg: number;
+  loomsWasteKg: number;
   remarks?: string;
 }
 
@@ -52,10 +56,11 @@ export const loomsKeys = {
   list: (query: string) => [...loomsKeys.all, 'list', query] as const,
 };
 
-export function useLoomsProductions(query: string = '') {
+export function useLoomsProductions(query: string = '', enabled: boolean = true) {
   return useQuery({
     queryKey: loomsKeys.list(query),
     queryFn: () => fetchJson<LoomsProductionsResponse>(`/production/looms${query}`),
+    enabled,
   });
 }
 

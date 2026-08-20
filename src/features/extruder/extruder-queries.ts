@@ -1,7 +1,7 @@
 import { useMemo } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { fetchJson } from '@/lib/api-client';
-import type { MasterDataRef, PaginationMeta } from '@/lib/api-types';
+import type { MasterDataRef, PaginationMeta, WastageRecordSummary } from '@/lib/api-types';
 import { useLookups, findIdByName, type Lookups, type LookupItem } from '@/lib/lookups';
 
 export { useLookups, findIdByName, type Lookups, type LookupItem };
@@ -19,7 +19,11 @@ export interface ExtruderDetail {
   overrideReason: string | null;
 }
 
-/** Matches the real API's ExtruderProduction schema (see /api/docs). */
+/**
+ * Matches the real API's ExtruderProduction schema (see /api/docs). Note
+ * lumpsKg/yarnWasteKg are NOT fields on `extruder` — the backend stores them
+ * as separate WastageRecords in `wastages` (codes LUMPS / YARN_WASTE).
+ */
 export interface ExtruderProductionItem {
   id: string;
   stage: 'EXTRUDER';
@@ -30,6 +34,7 @@ export interface ExtruderProductionItem {
   color: MasterDataRef;
   size: MasterDataRef;
   extruder: ExtruderDetail;
+  wastages: WastageRecordSummary[];
   createdAt: string;
   createdBy: string;
   updatedAt: string;
@@ -53,22 +58,29 @@ export interface ExtruderCreatePayload {
   chemicalKg: number;
   colorConsumedKg?: number;
   yarnOutputKg: number;
+  lumpsKg: number;
+  yarnWasteKg: number;
   remarks?: string;
   overrideReason?: string;
 }
 
-/** Matches ExtruderUpdateRequest — every field optional, only allowed while PENDING_APPROVAL. */
-export type ExtruderUpdatePayload = Partial<ExtruderCreatePayload>;
+/**
+ * Matches ExtruderUpdateRequest — every field optional, only allowed while
+ * PENDING_APPROVAL. Unlike create, the update endpoint does not accept
+ * lumpsKg/yarnWasteKg at all (additionalProperties: false rejects them).
+ */
+export type ExtruderUpdatePayload = Partial<Omit<ExtruderCreatePayload, 'lumpsKg' | 'yarnWasteKg'>>;
 
 export const extruderKeys = {
   all: ['extruder-productions'] as const,
   list: (query: string) => [...extruderKeys.all, 'list', query] as const,
 };
 
-export function useExtruderProductions(query: string = '') {
+export function useExtruderProductions(query: string = '', enabled: boolean = true) {
   return useQuery({
     queryKey: extruderKeys.list(query),
     queryFn: () => fetchJson<ExtruderProductionsResponse>(`/production/extruder${query}`),
+    enabled,
   });
 }
 
