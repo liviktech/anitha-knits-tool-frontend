@@ -47,6 +47,45 @@ tables, navigation menus, sheets/drawers, toasts, etc.).
 6. Prefer Lucide icons (`lucide-react`, already installed) over inline SVGs or other
    icon sets, for consistency with the configured icon library.
 
+## Reusable Variants Over Custom Class Strings
+
+Prefer reusable variants:
+
+```tsx
+<Button variant="destructive">
+  Reject
+</Button>
+```
+
+instead of repeatedly writing custom class strings. Create consistent design
+tokens for spacing, typography, radius, status states, and form controls —
+avoid random one-off styling values across pages.
+
+## Font Family and Font Size — Single Source of Truth
+
+`font-family` and `font-size` must be controlled from `src/index.css` only, not
+redeclared per component.
+
+- `font-family` is already centralized: the `@theme` block in `src/index.css`
+  defines `--font-sans: 'Inter Variable', sans-serif;` (and `--font-heading`
+  aliased to it), loaded via `@import "@fontsource-variable/inter";`, and
+  `html { @apply font-sans; }` applies it globally. The whole app — body
+  text, headings, buttons, table cells — uses Inter through this one token;
+  never set a `font-family` / `font-[...]` on an individual component.
+- To change the app's font in the future, swap it in exactly two places in
+  `src/index.css`: the `@import` line and the `--font-sans` value (plus
+  `npm install`/`uninstall` the matching `@fontsource-variable/<font>`
+  package) — that's the single source of truth, not a per-component change.
+- `font-size` should come from Tailwind's standard scale (`text-xs`, `text-sm`,
+  `text-base`, `text-xl`, `text-3xl`, …) so every screen shares the same steps.
+  Do not reach for an arbitrary value like `text-[10px]` or `text-[0.8rem]`
+  inside a feature component.
+- If a genuinely new size is needed (e.g. a recurring small "eyebrow" label),
+  add it as a token in the `@theme` block of `src/index.css` (alongside the
+  existing `--radius-*` tokens) — e.g. `--text-2xs: 0.625rem;` — and reuse that
+  token everywhere that size is needed, instead of copy-pasting the same
+  arbitrary value into multiple components.
+
 ## Useful CLI commands
 
 - `npx shadcn@latest add <name...>` — scaffold one or more components.
