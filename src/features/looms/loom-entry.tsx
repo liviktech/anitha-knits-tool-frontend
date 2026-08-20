@@ -87,6 +87,7 @@ export function LoomEntry({ onClose }: LoomEntryProps) {
             Today's Entries
           </h3>
           <div className="border border-blue-100 rounded-lg overflow-hidden">
+            <div className="overflow-x-auto">
             <Table>
               <TableHeader className="bg-blue-50/50">
                 <TableRow>
@@ -126,9 +127,10 @@ export function LoomEntry({ onClose }: LoomEntryProps) {
                 ))}
               </TableBody>
             </Table>
+            </div>
           </div>
         </div>
-        
+
         <div className="mt-6 pt-4 flex justify-end">
           <Button variant="outline" className="px-8" onClick={onClose}>Close</Button>
         </div>
