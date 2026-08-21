@@ -1,5 +1,6 @@
 import { useMemo, useState } from 'react';
 import '@fontsource-variable/hanken-grotesk';
+import '@fontsource-variable/inter';
 import { parseISO, format } from 'date-fns';
 import { Calendar, Plus, Edit, Trash2, Filter, Download, Layers, FileSpreadsheet, Search, ClipboardList, Gauge } from 'lucide-react';
 import { Loader } from '@/components/shared/loader';
@@ -10,6 +11,7 @@ import { useLoomsSummary } from '@/features/looms/loom-queries';
 import { useFabricCheckingSummary } from '@/features/fabric/fabric-queries';
 import { useDayWiseProduction } from './day-wise-queries';
 import { NewEntry } from './new-entry';
+import { DayWiseReportModal } from './day-wise-report-modal';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import {
@@ -107,7 +109,7 @@ function DayDetailView({
               </div>
               <img src={extruderIcon} alt="Extruder" className="w-[26px] h-[26px] object-contain opacity-70" />
             </div>
-            
+
             <div className="flex justify-between items-end">
               <div>
                 <p className="text-[10px] font-extrabold uppercase tracking-widest text-gray-500 mb-1.5">PRODUCTION (KG)</p>
@@ -118,7 +120,7 @@ function DayDetailView({
                 <p className="text-[18px] font-bold text-[#00A87E] leading-none">{row.extruder.wastePct > 0 ? (100 - row.extruder.wastePct).toFixed(2) : 99.32}%</p>
               </div>
             </div>
-            
+
             <div className="flex gap-2">
               <div className="flex-1 bg-[#F5F8F7] rounded-lg p-3">
                 <p className="text-[10.5px] font-medium text-gray-500 mb-1">Input</p>
@@ -142,7 +144,7 @@ function DayDetailView({
               </div>
               <img src={loomsIcon} alt="Looms" className="w-[26px] h-[26px] object-contain opacity-70" />
             </div>
-            
+
             <div className="flex justify-between items-end">
               <div>
                 <p className="text-[10px] font-extrabold uppercase tracking-widest text-gray-500 mb-1.5">PRODUCTION (MTRS)</p>
@@ -153,7 +155,7 @@ function DayDetailView({
                 <p className="text-[18px] font-bold text-[#00A87E] leading-none">{row.looms.wastePct > 0 ? (100 - row.looms.wastePct).toFixed(2) : 98.24}%</p>
               </div>
             </div>
-            
+
             <div className="flex gap-2">
               <div className="flex-1 bg-[#F5F8F7] rounded-lg p-3">
                 <p className="text-[10.5px] font-medium text-gray-500 mb-1">Input</p>
@@ -177,7 +179,7 @@ function DayDetailView({
               </div>
               <Layers className="w-[24px] h-[24px] text-gray-400 opacity-80" />
             </div>
-            
+
             <div className="flex justify-between items-end">
               <div>
                 <p className="text-[10px] font-extrabold uppercase tracking-widest text-gray-500 mb-1.5">PRODUCTION (MTRS)</p>
@@ -188,7 +190,7 @@ function DayDetailView({
                 <p className="text-[18px] font-bold text-[#00A87E] leading-none">{row.fabric.wastePct > 0 ? (100 - row.fabric.wastePct).toFixed(2) : 96.68}%</p>
               </div>
             </div>
-            
+
             <div className="flex gap-2">
               <div className="flex-1 bg-[#F5F8F7] rounded-lg p-3">
                 <p className="text-[10.5px] font-medium text-gray-500 mb-1">Input</p>
@@ -233,20 +235,20 @@ function DayDetailView({
                     Extruder (KG)
                   </TableCell>
                   <TableCell className="py-4 text-gray-600 text-xs font-medium">
-                    {formattedDate}<br/>08:30 AM
+                    {formattedDate}<br />08:30 AM
                   </TableCell>
                   <TableCell className="py-4 text-[11px] text-gray-800">
-                    <span className="font-semibold text-gray-500">Size:</span> 40"<br/>
-                    <span className="font-semibold text-gray-500">Color:</span> Milky White<br/>
+                    <span className="font-semibold text-gray-500">Size:</span> 40"<br />
+                    <span className="font-semibold text-gray-500">Color:</span> Milky White<br />
                     <span className="font-semibold text-gray-500">Brand:</span> Premium
                   </TableCell>
                   <TableCell className="py-4 text-center font-bold text-gray-900 text-[13px]">{formatNum(row.extruder.input)} kg</TableCell>
                   <TableCell className="py-4 text-center text-[11px] text-gray-600">
-                    Bags: 87<br/>
+                    Bags: 87<br />
                     Chems: 12.5 kg
                   </TableCell>
                   <TableCell className="py-4 text-center text-[11px] text-red-500 font-medium">
-                    Loose: 8.20 kg<br/>
+                    Loose: 8.20 kg<br />
                     Lumps: 6.20 kg
                   </TableCell>
                   <TableCell className="py-4 text-center font-bold text-[#004D40] text-[13px]">{formatNum(row.extruder.output)} kg</TableCell>
@@ -254,7 +256,7 @@ function DayDetailView({
                     <Button variant="ghost" size="icon" className="h-6 w-6 text-gray-400 hover:text-[#00897B]"><Edit className="w-3.5 h-3.5" /></Button>
                   </TableCell>
                 </TableRow>
-                
+
                 {/* Looms Row */}
                 <TableRow className="border-b border-gray-100 hover:bg-gray-50 transition-colors">
                   <TableCell className="py-5 pl-6 font-bold text-[#004D40] text-[13px] flex items-center gap-2.5">
@@ -262,10 +264,10 @@ function DayDetailView({
                     Looms (MTRS)
                   </TableCell>
                   <TableCell className="py-4 text-gray-600 text-xs font-medium">
-                    {formattedDate}<br/>11:15 AM
+                    {formattedDate}<br />11:15 AM
                   </TableCell>
                   <TableCell className="py-4 text-[11px] text-gray-800">
-                    <span className="font-semibold text-gray-500">Width:</span> 38"<br/>
+                    <span className="font-semibold text-gray-500">Width:</span> 38"<br />
                     <span className="font-semibold text-gray-500">Mesh:</span> 10x10
                   </TableCell>
                   <TableCell className="py-4 text-center">
@@ -289,7 +291,7 @@ function DayDetailView({
                     Fabric (MTRS)
                   </TableCell>
                   <TableCell className="py-4 text-gray-600 text-xs font-medium">
-                    {formattedDate}<br/>03:45 PM
+                    {formattedDate}<br />03:45 PM
                   </TableCell>
                   <TableCell className="py-4 text-[11px] text-gray-800">
                     <span className="font-semibold text-gray-500">Type:</span> Circular
@@ -302,7 +304,7 @@ function DayDetailView({
                     Rolled: {formatNum(row.fabric.output)} m
                   </TableCell>
                   <TableCell className="py-4 text-center text-[11px] text-red-500 font-medium">
-                    Wastage: 42.00 m<br/>
+                    Wastage: 42.00 m<br />
                     Bit Waste: 20.00 m
                   </TableCell>
                   <TableCell className="py-4 text-center font-bold text-[#004D40] text-[13px]">{formatNum(row.fabric.output)} m</TableCell>
@@ -322,20 +324,20 @@ function DayDetailView({
           <h3 className="font-semibold text-[#003140] text-[15px]">Production Dates</h3>
           <div className="relative">
             <Search className="w-4 h-4 text-gray-400 absolute left-3 top-1/2 -translate-y-1/2" />
-            <input 
-              type="text" 
-              placeholder="Search dates..." 
+            <input
+              type="text"
+              placeholder="Search dates..."
               className="w-full h-[38px] pl-9 pr-3 rounded-[6px] border border-gray-200 text-[13px] text-gray-600 bg-white focus:outline-none focus:border-[#00897B] focus:ring-1 focus:ring-[#00897B]/20"
             />
           </div>
         </div>
-        
+
         <div className="flex flex-col gap-1 overflow-y-auto max-h-[600px] p-4">
           {dayWiseRows.map((dr) => {
             const isSelected = dr.date === date;
             const dFormat = format(parseISO(dr.date), 'dd MMM, yyyy');
             return (
-              <div 
+              <div
                 key={dr.date}
                 className={`p-3.5 rounded-[6px] cursor-pointer transition-colors border ${isSelected ? 'bg-[#EBF1F0] border-[#B5CBC8]' : 'hover:bg-gray-50 border-transparent'}`}
                 onClick={() => setDate(dr.date)}
@@ -365,6 +367,7 @@ export function ProductionDesign2() {
   const [isNewEntryOpen, setIsNewEntryOpen] = useState(false);
   const [selectedDate, setSelectedDate] = useState<string | null>(null);
   const [isNavigating, setIsNavigating] = useState(false);
+  const [isReportOpen, setIsReportOpen] = useState(false);
   const { summary: extruderSummary, isLoading: loadingSummary } = useExtruderSummary();
   const { summary: loomsSummary } = useLoomsSummary();
   const { summary: fabricSummary } = useFabricCheckingSummary();
@@ -402,9 +405,12 @@ export function ProductionDesign2() {
 
   return (
     <div id="production-design-2-page" className="flex flex-col bg-[#004D40]/5 min-h-screen">
-      <style>{`#production-design-2-page, #production-design-2-page * { font-family: 'Hanken Grotesk Variable', 'Hanken Grotesk', sans-serif !important; }`}</style>
+      <style>{`
+        #production-design-2-page, #production-design-2-page * { font-family: 'Hanken Grotesk Variable', 'Hanken Grotesk', sans-serif !important; }
+        #production-design-2-page .font-inter { font-family: 'Inter Variable', 'Inter', sans-serif !important; }
+      `}</style>
       {/* Header Area */}
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between px-6 py-4 bg-white border-b border-gray-100">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between px-4 py-3 bg-white border-b border-gray-100">
         <div>
           <h1 className="text-[22px] font-bold text-black leading-tight">Daily Production & Wastage</h1>
           <p className="text-[12.5px] text-gray-500 font-medium mt-1">Track daily production and wastage across all conversion processes</p>
@@ -432,10 +438,10 @@ export function ProductionDesign2() {
           </div>
         </div>
       ) : selectedDate ? (
-        <DayDetailView 
-          date={selectedDate} 
-          onClose={() => setSelectedDate(null)} 
-          dayWiseRows={dayWiseRows} 
+        <DayDetailView
+          date={selectedDate}
+          onClose={() => setSelectedDate(null)}
+          dayWiseRows={dayWiseRows}
           setDate={(d) => {
             setIsNavigating(true);
             setTimeout(() => {
@@ -445,324 +451,330 @@ export function ProductionDesign2() {
           }}
         />
       ) : (
-        <div className="p-3 flex flex-col gap-2">
-        {/* Summary Cards */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
-          <Card className="bg-white rounded-[14px] p-1.5 hover:shadow-md transition-all">
-            <div className="bg-[#00897B]/5 border border-[#B8DCD0] rounded-[10px] h-full flex flex-col">
-              <CardHeader className="flex flex-row items-center justify-between pb-3 pt-4 px-4">
-                <CardTitle className="text-[19px] font-extrabold text-[#00897B] flex items-center gap-3">
-                  <div className="bg-[#00897B] border text-white w-8 h-8 rounded-[4px] flex items-center justify-center text-sm font-bold shadow-sm">1</div>
-                  Extruder Production
-                </CardTitle>
-                <div className="bg-white p-1.5 rounded-md border border-gray-100 shadow-[0_1px_2px_rgba(0,0,0,0.05)]">
-                  <img src={extruderIcon} alt="Extruder" className="w-[35px] h-[35px] object-contain opacity-90" />
-                </div>
-              </CardHeader>
-              <CardContent className="px-3 pb-4 pt-0 flex-1 flex flex-col justify-between">
-                <div className="flex border border-gray-100 rounded-lg mb-4 bg-white overflow-hidden">
-                  <div className="flex-1 border-r border-gray-100 px-2 sm:px-3 py-3 flex flex-col justify-center">
-                    <p className="text-[10px] font-extrabold uppercase tracking-wide text-gray-600 mb-1 whitespace-nowrap">TOTAL PRODUCTION (KG)</p>
-                    <p className="text-[18px] font-bold text-[#004D40] leading-none">2,650.85</p>
-                    {/* <p className="text-[18px] font-bold text-[#004D40] leading-none">{extruderSummary.output.toFixed(2)}</p> */}
+        <div className="p-2.5 flex flex-col gap-3">
+          {/* Summary Cards */}
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-2.5">
+            <Card className="bg-white rounded-[14px] p-2 hover:shadow-md transition-all">
+              <div className="bg-[#00897B]/5 border border-[#B8DCD0] rounded-[10px] h-full flex flex-col">
+                <CardHeader className="flex flex-row items-center justify-between pb-3 pt-4 px-4">
+                  <CardTitle className="text-[19px] font-extrabold text-[#0B5566] flex items-center gap-3">
+                    <div className="bg-[#0B5566] border text-white w-8 h-8 rounded-[4px] flex items-center justify-center text-sm font-bold shadow-sm">1</div>
+                    Extruder Production
+                  </CardTitle>
+                  <div className="bg-white p-1.5 rounded-md border border-gray-100 shadow-[0_1px_2px_rgba(0,0,0,0.05)]">
+                    <img src={extruderIcon} alt="Extruder" className="w-[35px] h-[35px] object-contain opacity-90" />
                   </div>
-                  <div className="flex-1 border-r border-gray-100 px-2 sm:px-3 py-3 flex flex-col justify-center">
-                    <p className="text-[10px] font-extrabold uppercase tracking-wide text-gray-600 mb-1 whitespace-nowrap">TOTAL WASTAGE (KG)</p>
-                    <p className="text-[17px] font-bold text-[#004D40] leading-none">132.54</p>
-                    {/* <p className="text-[17px] font-bold text-[#004D40] leading-none">{extruderSummary.wastage.toFixed(2)} </p> */}
+                </CardHeader>
+                <CardContent className="px-3 pb-4 pt-0 flex-1 flex flex-col justify-between">
+                  <div className="flex border border-gray-100 rounded-lg mb-4 bg-white overflow-hidden">
+                    <div className="flex-1 border-r border-gray-100 px-2 sm:px-3 py-3 flex flex-col justify-center">
+                      <p className="text-[10.5px] font-extrabold uppercase tracking-wide text-gray-600 mb-1.5 whitespace-nowrap">TOTAL PRODUCTION (KG)</p>
+                      <p className="text-[18px] font-bold text-[#004D40] leading-none font-inter">2,650.85</p>
+                      {/* <p className="text-[18px] font-bold text-[#004D40] leading-none">{extruderSummary.output.toFixed(2)}</p> */}
+                    </div>
+                    <div className="flex-1 border-r border-gray-100 px-2 sm:px-3 py-3 flex flex-col justify-center">
+                      <p className="text-[10.5px] font-extrabold uppercase tracking-wide text-gray-600 mb-1.5 whitespace-nowrap">TOTAL WASTAGE (KG)</p>
+                      <p className="text-[17px] font-bold text-[#004D40] leading-none font-inter">132.54</p>
+                      {/* <p className="text-[17px] font-bold text-[#004D40] leading-none">{extruderSummary.wastage.toFixed(2)} </p> */}
+                    </div>
+                    <div className="flex-1 px-2 sm:px-3 py-3 flex flex-col justify-center">
+                      <p className="text-[10.5px] font-extrabold uppercase tracking-wide text-gray-600 mb-1.5 whitespace-nowrap">EFFICIENCY</p>
+                      <p className="text-[17px] font-bold text-[#00A87E] leading-none font-inter">{efficiency.toFixed(2)}%</p>
+                    </div>
                   </div>
-                  <div className="flex-1 px-2 sm:px-3 py-3 flex flex-col justify-center">
-                    <p className="text-[10px] font-extrabold uppercase tracking-wide text-gray-600 mb-1 whitespace-nowrap">EFFICIENCY</p>
-                    <p className="text-[17px] font-bold text-[#00A87E] leading-none">{efficiency.toFixed(2)}%</p>
+                  <div className="flex items-center px-1">
+                    <div className="flex-1">
+                      <p className="text-[10px] px-3 font-extrabold uppercase tracking-wide text-gray-600 mb-1.5">WASTE %</p>
+                      <p className="text-[17px] px-3 font-bold text-gray-900 leading-none font-inter">{wastePct.toFixed(2)}%</p>
+                    </div>
+                    <div className="flex-[1.7]">
+                      <p className="text-[10px] px-3 font-extrabold uppercase tracking-wide text-gray-600 mb-1.5">LUMS WASTAGE (KG)</p>
+                      <p className="text-[17px] px-3 font-bold text-gray-900 leading-none font-inter">0.00</p>
+                    </div>
                   </div>
-                </div>
-                <div className="flex items-center px-1">
-                  <div className="flex-1">
-                    <p className="text-[10px] font-extrabold uppercase tracking-wide text-gray-600 mb-1">WASTE %</p>
-                    <p className="text-[17px] font-bold text-gray-900 leading-none">{wastePct.toFixed(2)}%</p>
-                  </div>
-                  <div className="flex-[1.7]">
-                    <p className="text-[10px] font-extrabold uppercase tracking-wide text-gray-600 mb-1">LUMS WASTAGE (KG)</p>
-                    <p className="text-[17px] font-bold text-gray-900 leading-none">0.00</p>
-                  </div>
-                </div>
-              </CardContent>
-            </div>
-          </Card>
+                </CardContent>
+              </div>
+            </Card>
 
-          <Card className="bg-white rounded-[14px] p-1.5 hover:shadow-md transition-all">
-            <div className="bg-[#004D40]/5 border border-[#B8D8D5] rounded-[10px] h-full flex flex-col">
-              <CardHeader className="flex flex-row items-center justify-between pb-3 pt-4 px-4">
-                <CardTitle className="text-[19px] font-extrabold text-[#004D40] flex items-center gap-3">
-                  <div className="bg-[#004D40] border text-white w-8 h-8 rounded-[4px] flex items-center justify-center text-sm font-bold shadow-sm">2</div>
-                  Looms Production
-                </CardTitle>
-                <div className="bg-white p-1.5 rounded-md border border-gray-100 shadow-[0_1px_2px_rgba(0,0,0,0.05)]">
-                  <img src={loomsIcon} alt="Looms" className="w-[35px] h-[35px] object-contain opacity-90" />
-                </div>
-              </CardHeader>
-              <CardContent className="px-3 pb-4 pt-0 flex-1 flex flex-col justify-between">
-                <div className="flex border border-gray-100 rounded-lg mb-4 bg-white overflow-hidden">
-                  <div className="flex-1 border-r border-gray-100 px-2 sm:px-3 py-3 flex flex-col justify-center">
-                    <p className="text-[10px] font-extrabold uppercase tracking-wide text-gray-600 mb-1 whitespace-nowrap">TOTAL PRODUCTION (KG)</p>
-                    <p className="text-[18px] font-bold text-gray-900 leading-none">{loomsSummary.output.toFixed(2)}</p>
+            <Card className="bg-white rounded-[14px] p-2 hover:shadow-md transition-all">
+              <div className="bg-[#004D40]/5 border border-[#B8D8D5] rounded-[10px] h-full flex flex-col">
+                <CardHeader className="flex flex-row items-center justify-between pb-3 pt-4 px-4">
+                  <CardTitle className="text-[19px] font-extrabold text-[#7A6A00] flex items-center gap-3">
+                    <div className="bg-[#7A6A00] border text-white w-8 h-8 rounded-[4px] flex items-center justify-center text-sm font-bold shadow-sm">2</div>
+                    Looms Production
+                  </CardTitle>
+                  <div className="bg-white p-1.5 rounded-md border border-gray-100 shadow-[0_1px_2px_rgba(0,0,0,0.05)]">
+                    <img src={loomsIcon} alt="Looms" className="w-[35px] h-[35px] object-contain opacity-90" />
                   </div>
-                  <div className="flex-1 border-r border-gray-100 px-2 sm:px-3 py-3 flex flex-col justify-center">
-                    <p className="text-[10px] font-extrabold uppercase tracking-wide text-gray-600 mb-1 whitespace-nowrap">TOTAL WASTAGE (KG)</p>
-                    <p className="text-[17px] font-bold text-gray-900 leading-none">{loomsSummary.wastage.toFixed(2)}</p>
+                </CardHeader>
+                <CardContent className="px-3 pb-4 pt-0 flex-1 flex flex-col justify-between">
+                  <div className="flex border border-gray-100 rounded-lg mb-4 bg-white overflow-hidden">
+                    <div className="flex-1 border-r border-gray-100 px-2 sm:px-3 py-3 flex flex-col justify-center">
+                      <p className="text-[10.5px] font-extrabold uppercase tracking-wide text-gray-600 mb-1.5 whitespace-nowrap">TOTAL PRODUCTION (KG)</p>
+                      <p className="text-[18px] font-bold text-[#004D40] leading-none font-inter">{loomsSummary.output.toFixed(2)}</p>
+                    </div>
+                    <div className="flex-1 border-r border-gray-100 px-2 sm:px-3 py-3 flex flex-col justify-center">
+                      <p className="text-[10.5px] font-extrabold uppercase tracking-wide text-gray-600 mb-1.5 whitespace-nowrap">TOTAL WASTAGE (KG)</p>
+                      <p className="text-[17px] font-bold text-[#004D40] leading-none font-inter">{loomsSummary.wastage.toFixed(2)}</p>
+                    </div>
+                    <div className="flex-1 px-2 sm:px-3 py-3 flex flex-col justify-center">
+                      <p className="text-[10.5px] font-extrabold uppercase tracking-wide text-gray-600 mb-1.5 whitespace-nowrap">EFFICIENCY</p>
+                      <p className="text-[17px] font-bold text-[#00A87E] leading-none font-inter">{loomsEfficiency.toFixed(2)}%</p>
+                    </div>
                   </div>
-                  <div className="flex-1 px-2 sm:px-3 py-3 flex flex-col justify-center">
-                    <p className="text-[10px] font-extrabold uppercase tracking-wide text-gray-600 mb-1 whitespace-nowrap">EFFICIENCY</p>
-                    <p className="text-[17px] font-bold text-[#00A87E] leading-none">{loomsEfficiency.toFixed(2)}%</p>
+                  <div className="flex items-center px-1">
+                    <div className="flex-1">
+                      <p className="text-[10px] px-3 font-extrabold uppercase tracking-wide text-gray-600 mb-1">WASTE %</p>
+                      <p className="text-[17px] px-3 font-bold text-gray-900 leading-none font-inter">{loomsWastePct.toFixed(2)}%</p>
+                    </div>
+                    <div className="flex-[1.7]">
+                      <p className="text-[10px] px-3 font-extrabold uppercase tracking-wide text-gray-600 mb-1">100 WASTAGE (KG)</p>
+                      <p className="text-[17px] px-3 font-bold text-gray-900 leading-none font-inter">0.00</p>
+                    </div>
                   </div>
-                </div>
-                <div className="flex items-center px-1">
-                  <div className="flex-1">
-                    <p className="text-[10px] font-extrabold uppercase tracking-wide text-gray-600 mb-1">WASTE %</p>
-                    <p className="text-[17px] font-bold text-gray-900 leading-none">{loomsWastePct.toFixed(2)}%</p>
-                  </div>
-                  <div className="flex-[1.7]">
-                    <p className="text-[10px] font-extrabold uppercase tracking-wide text-gray-600 mb-1">100 WASTAGE (KG)</p>
-                    <p className="text-[17px] font-bold text-gray-900 leading-none">0.00</p>
-                  </div>
-                </div>
-              </CardContent>
-            </div>
-          </Card>
+                </CardContent>
+              </div>
+            </Card>
 
-          <Card className="bg-white rounded-[14px] p-1.5 hover:shadow-md transition-all">
-            <div className="bg-[#004D40]/5 border border-[#C5D8C2] rounded-[10px] h-full flex flex-col">
-              <CardHeader className="flex flex-row items-center justify-between pb-3 pt-4 px-4">
-                <CardTitle className="text-[19px] font-extrabold text-[#004D40] flex items-center gap-3">
-                  <div className="bg-[#004D40] border text-white w-8 h-8 rounded-[4px] flex items-center justify-center text-sm font-bold shadow-sm">3</div>
-                  Fabric Production
-                </CardTitle>
-                <div className="bg-white p-1.5 rounded-md border border-gray-100 shadow-[0_1px_2px_rgba(0,0,0,0.05)] text-[#004D40] flex items-center justify-center">
-                  <Layers className="w-[35px] h-[35px] opacity-90" />
-                </div>
-              </CardHeader>
-              <CardContent className="px-3 pb-4 pt-0 flex-1 flex flex-col justify-between">
-                <div className="flex border border-gray-100 rounded-lg mb-4 bg-white overflow-hidden">
-                  <div className="flex-1 border-r border-gray-100 px-2 sm:px-3 py-3 flex flex-col justify-center">
-                    <p className="text-[10px] font-extrabold uppercase tracking-wide text-gray-600 mb-1 whitespace-nowrap">TOTAL PRODUCTION (KG)</p>
-                    <p className="text-[18px] font-bold text-gray-900 leading-none">{fabricSummary.checked.toFixed(2)}</p>
+            <Card className="bg-white rounded-[14px] p-2 hover:shadow-md transition-all">
+              <div className="bg-[#004D40]/5 border border-[#C5D8C2] rounded-[10px] h-full flex flex-col">
+                <CardHeader className="flex flex-row items-center justify-between pb-3 pt-4 px-4">
+                  <CardTitle className="text-[19px] font-extrabold text-[#2F6B2F] flex items-center gap-3">
+                    <div className="bg-[#2F6B2F] border text-white w-8 h-8 rounded-[4px] flex items-center justify-center text-sm font-bold shadow-sm">3</div>
+                    Fabric Production
+                  </CardTitle>
+                  <div className="bg-white p-1.5 rounded-md border border-gray-100 shadow-[0_1px_2px_rgba(0,0,0,0.05)] text-[#004D40] flex items-center justify-center">
+                    <Layers className="w-[35px] h-[35px] opacity-90" />
                   </div>
-                  <div className="flex-1 border-r border-gray-100 px-2 sm:px-3 py-3 flex flex-col justify-center">
-                    <p className="text-[10px] font-extrabold uppercase tracking-wide text-gray-600 mb-1 whitespace-nowrap">TOTAL WASTAGE (KG)</p>
-                    <p className="text-[17px] font-bold text-gray-900 leading-none">{fabricSummary.wastage.toFixed(2)}</p>
+                </CardHeader>
+                <CardContent className="px-3 pb-4 pt-0 flex-1 flex flex-col justify-between">
+                  <div className="flex border border-gray-100 rounded-lg mb-4 bg-white overflow-hidden">
+                    <div className="flex-1 border-r border-gray-100 px-2 sm:px-3 py-3 flex flex-col justify-center">
+                      <p className="text-[10.5px] font-extrabold uppercase tracking-wide text-gray-600 mb-1.5 whitespace-nowrap">TOTAL PRODUCTION (KG)</p>
+                      <p className="text-[18px] font-bold text-[#004D40] leading-none font-inter">{fabricSummary.checked.toFixed(2)}</p>
+                    </div>
+                    <div className="flex-1 border-r border-gray-100 px-2 sm:px-3 py-3 flex flex-col justify-center">
+                      <p className="text-[10.5px] font-extrabold uppercase tracking-wide text-gray-600 mb-1.5 whitespace-nowrap">TOTAL WASTAGE (KG)</p>
+                      <p className="text-[17px] font-bold text-[#004D40] leading-none font-inter">{fabricSummary.wastage.toFixed(2)}</p>
+                    </div>
+                    <div className="flex-1 px-2 sm:px-3 py-3 flex flex-col justify-center">
+                      <p className="text-[10.5px] font-extrabold uppercase tracking-wide text-gray-600 mb-1.5 whitespace-nowrap">EFFICIENCY</p>
+                      <p className="text-[17px] font-bold text-[#00A87E] leading-none font-inter">{fabricEfficiency.toFixed(2)}%</p>
+                    </div>
                   </div>
-                  <div className="flex-1 px-2 sm:px-3 py-3 flex flex-col justify-center">
-                    <p className="text-[10px] font-extrabold uppercase tracking-wide text-gray-600 mb-1 whitespace-nowrap">EFFICIENCY</p>
-                    <p className="text-[17px] font-bold text-[#00A87E] leading-none">{fabricEfficiency.toFixed(2)}%</p>
+                  <div className="flex items-center px-1">
+                    <div className="flex-1">
+                      <p className="text-[10px] px-3 font-extrabold uppercase tracking-wide text-gray-600 mb-1">WASTE %</p>
+                      <p className="text-[17px] px-3 font-bold text-gray-900 leading-none font-inter">{fabricWastePct.toFixed(2)}%</p>
+                    </div>
+                    <div className="flex-[1.7]">
+                      <p className="text-[10px] px-3 font-extrabold uppercase tracking-wide text-gray-600 mb-1">WASTAGE VALUE (KG)</p>
+                      <p className="text-[17px] px-3 font-bold text-gray-900 leading-none font-inter">0.00</p>
+                    </div>
                   </div>
-                </div>
-                <div className="flex items-center px-1">
-                  <div className="flex-1">
-                    <p className="text-[10px] font-extrabold uppercase tracking-wide text-gray-600 mb-1">WASTE %</p>
-                    <p className="text-[17px] font-bold text-gray-900 leading-none">{fabricWastePct.toFixed(2)}%</p>
-                  </div>
-                  <div className="flex-[1.7]">
-                    <p className="text-[10px] font-extrabold uppercase tracking-wide text-gray-600 mb-1">WASTAGE VALUE (KG)</p>
-                    <p className="text-[17px] font-bold text-gray-900 leading-none">0.00</p>
-                  </div>
-                </div>
-              </CardContent>
-            </div>
-          </Card>
-        </div>
+                </CardContent>
+              </div>
+            </Card>
+          </div>
 
-        {/* Data Table Area */}
-        <Card className="shadow-sm mt-2 border-0 bg-white rounded-xl overflow-hidden">
-          <CardHeader className="flex flex-col gap-3 border-b border-gray-100 p-3 sm:flex-row sm:items-center sm:justify-between bg-white">
-            <CardTitle className="text-[19px] font-bold text-[#004D40] leading-tight flex items-center gap-2">
-              <img src="/Table-icon.jpg" alt="" className="w-6 h-6 object-contain rounded-sm" />
-              Day Wise Production & Wastage Details
-            </CardTitle>
-            <div className="flex flex-wrap gap-3">
-              <Button variant="outline" size="sm" className="flex gap-2 font-bold uppercase tracking-wider text-[11px] h-9 px-4 text-gray-600 border-gray-200">
-                <Filter className="w-[14px] h-[14px]" /> FILTERS
-              </Button>
-              <Button variant="outline" size="sm" className="flex gap-2 font-bold uppercase tracking-wider text-[11px] h-9 px-4 text-gray-600 border-gray-200">
-                <Download className="w-[14px] h-[14px]" /> EXPORT
-              </Button>
-            </div>
-          </CardHeader>
-          <div className="overflow-x-auto w-full">
-            <Table className="w-full">
-              <TableHeader>
-                <TableRow className="hover:bg-transparent border-b border-gray-300">
-                  <TableHead rowSpan={2} className="text-center font-bold text-gray-800 align-middle border-r border-gray-300 min-w-[120px] bg-white text-xs uppercase tracking-wider">Date</TableHead>
-                  <TableHead colSpan={4} className="text-[#004D40] font-bold bg-[#004D40]/5 border-r border-gray-200 py-3 text-xs uppercase tracking-wider">
-                    <span className="flex items-center justify-center gap-2 text-[13px] font-extrabold">
-                      <span className="bg-[#004D40] text-white w-5 h-5 rounded-sm flex items-center justify-center text-[10px] font-bold">1</span>
-                      EXTRUDER PRODUCTION (KG)
-                    </span>
-                  </TableHead>
-                  <TableHead colSpan={4} className="text-[#004D40] font-bold bg-[#004D40]/5 border-r border-gray-200 py-3 text-xs uppercase tracking-wider">
-                    <span className="flex items-center justify-center gap-2 text-[13px] font-extrabold">
-                      <span className="bg-[#004D40] text-white w-5 h-5 rounded-sm flex items-center justify-center text-[10px] font-bold">2</span>
-                      LOOMS PRODUCTION (KG)
-                    </span>
-                  </TableHead>
-                  <TableHead colSpan={4} className="text-[#004D40] font-bold bg-[#004D40]/5 border-r border-gray-200 py-3 text-xs uppercase tracking-wider">
-                    <span className="flex items-center justify-center gap-2 text-[13px] font-extrabold">
-                      <span className="bg-[#004D40] text-white w-5 h-5 rounded-sm flex items-center justify-center text-[10px] font-bold">3</span>
-                      FABRIC PRODUCTION (KG)
-                    </span>
-                  </TableHead>
-                  <TableHead rowSpan={2} className="text-center font-extrabold text-gray-800 align-middle border-gray-200 w-[120px] bg-white text-xs uppercase tracking-wider">Actions</TableHead>
-                </TableRow>
-                <TableRow className="hover:bg-transparent bg-white border-b border-gray-200">
-                  {/* Extruder */}
-                  <TableHead className="text-center text-gray-800 font-extrabold text-[12px] uppercase tracking-wider h-10">Input</TableHead>
-                  <TableHead className="text-center text-gray-800 font-extrabold text-[12px] uppercase tracking-wider h-10">Output</TableHead>
-                  <TableHead className="text-center text-gray-800 font-extrabold text-[12px] uppercase tracking-wider h-10">Wastage</TableHead>
-                  <TableHead className="text-center text-gray-800 font-extrabold text-[12px] uppercase tracking-wider border-r border-gray-200 h-10">Waste %</TableHead>
-                  {/* Looms */}
-                  <TableHead className="text-center text-gray-800 font-extrabold text-[12px] uppercase tracking-wider h-10">Input</TableHead>
-                  <TableHead className="text-center text-gray-800 font-extrabold text-[12px] uppercase tracking-wider h-10">Output</TableHead>
-                  <TableHead className="text-center text-gray-800 font-extrabold text-[12px] uppercase tracking-wider h-10">Wastage</TableHead>
-                  <TableHead className="text-center text-gray-800 font-extrabold text-[12px] uppercase tracking-wider border-r border-gray-200 h-10">Waste %</TableHead>
-                  {/* Fabric */}
-                  <TableHead className="text-center text-gray-800 font-extrabold text-[12px] uppercase tracking-wider h-10">Input</TableHead>
-                  <TableHead className="text-center text-gray-800 font-extrabold text-[12px] uppercase tracking-wider h-10">Output</TableHead>
-                  <TableHead className="text-center text-gray-800 font-extrabold text-[12px] uppercase tracking-wider h-10">Wastage</TableHead>
-                  <TableHead className="text-center text-gray-800 font-extrabold text-[12px] uppercase tracking-wider h-10">Waste %</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody className="bg-white">
-                {loadingDayWise ? (
-                  <TableRow>
-                    <TableCell colSpan={14} className="h-32 text-center">
-                      <div className="flex items-center justify-center gap-2 text-gray-500 font-medium">
-                        <Loader size="sm" /> Loading records...
-                      </div>
-                    </TableCell>
+          {/* Data Table Area */}
+          <Card className="shadow-sm border-0 bg-white rounded-xl overflow-hidden gap-0 p-0">
+            <CardHeader className="flex flex-col gap-3 border-b border-gray-300 px-3 pt-3 pb-0.5 sm:flex-row sm:items-center sm:justify-between bg-white">
+              <CardTitle className="text-[18px] font-bold text-gray-900 leading-tight flex items-center gap-2">
+                <img src="/Table-icon.jpg" alt="" className="w-10 h-10 object-contain rounded-sm" />
+                Day Wise Production & Wastage Details
+              </CardTitle>
+              <div className="flex flex-wrap gap-3">
+                <Button variant="outline" size="sm" className="flex gap-2 font-bold uppercase tracking-wider text-[11px] h-9 px-4 text-gray-600 border-gray-200">
+                  <Filter className="w-[14px] h-[14px]" /> FILTERS
+                </Button>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="flex gap-2 font-bold uppercase tracking-wider text-[11px] h-9 px-4 text-gray-600 border-gray-200"
+                  onClick={() => setIsReportOpen(true)}
+                >
+                  <Download className="w-[14px] h-[14px]" /> REPORT
+                </Button>
+              </div>
+            </CardHeader>
+            <div className="overflow-x-auto w-full">
+              <Table className="w-full">
+                <TableHeader>
+                  <TableRow className="hover:bg-transparent border-b border-gray-300">
+                    <TableHead rowSpan={2} className="text-center font-bold text-gray-800 align-middle border-r border-gray-300 min-w-[120px] bg-white text-xs uppercase tracking-wider">Date</TableHead>
+                    <TableHead colSpan={4} className="text-[#0B5566] font-bold bg-[#D6EEF7] border-r border-gray-300 py-3 text-xs uppercase tracking-wider">
+                      <span className="flex items-center justify-center gap-2 text-[13px] font-extrabold">
+                        <span className="bg-[#0B5566] text-white w-5 h-5 rounded-sm flex items-center justify-center text-[10px] font-bold">1</span>
+                        EXTRUDER PRODUCTION (KG)
+                      </span>
+                    </TableHead>
+                    <TableHead colSpan={4} className="text-[#7A6A00] font-bold bg-[#FFF6BF] border-r border-gray-300 py-3 text-xs uppercase tracking-wider">
+                      <span className="flex items-center justify-center gap-2 text-[13px] font-extrabold">
+                        <span className="bg-[#7A6A00] text-white w-5 h-5 rounded-sm flex items-center justify-center text-[10px] font-bold">2</span>
+                        LOOMS PRODUCTION (KG)
+                      </span>
+                    </TableHead>
+                    <TableHead colSpan={4} className="text-[#2F6B2F] font-bold bg-[#DCEEDB] border-r border-gray-300 py-3 text-xs uppercase tracking-wider">
+                      <span className="flex items-center justify-center gap-2 text-[13px] font-extrabold">
+                        <span className="bg-[#2F6B2F] text-white w-5 h-5 rounded-sm flex items-center justify-center text-[10px] font-bold">3</span>
+                        FABRIC PRODUCTION (KG)
+                      </span>
+                    </TableHead>
+                    <TableHead rowSpan={2} className="text-center font-extrabold text-gray-800 align-middle border-gray-300 w-[120px] bg-white text-xs uppercase tracking-wider">Actions</TableHead>
                   </TableRow>
-                ) : pagedRows.length === 0 ? (
-                  <TableRow>
-                    <TableCell colSpan={14} className="h-32 text-center text-gray-500 font-medium">No production records found.</TableCell>
+                  <TableRow className="hover:bg-transparent bg-white border-b border-gray-300">
+                    {/* Extruder */}
+                    <TableHead className="text-center text-gray-800 font-extrabold text-[12px] uppercase tracking-wider h-10">Input</TableHead>
+                    <TableHead className="text-center text-gray-800 font-extrabold text-[12px] uppercase tracking-wider h-10">Output</TableHead>
+                    <TableHead className="text-center text-gray-800 font-extrabold text-[12px] uppercase tracking-wider h-10">Wastage</TableHead>
+                    <TableHead className="text-center text-gray-800 font-extrabold text-[12px] uppercase tracking-wider border-r border-gray-300 h-10">Waste %</TableHead>
+                    {/* Looms */}
+                    <TableHead className="text-center text-gray-800 font-extrabold text-[12px] uppercase tracking-wider h-10">Input</TableHead>
+                    <TableHead className="text-center text-gray-800 font-extrabold text-[12px] uppercase tracking-wider h-10">Output</TableHead>
+                    <TableHead className="text-center text-gray-800 font-extrabold text-[12px] uppercase tracking-wider h-10">Wastage</TableHead>
+                    <TableHead className="text-center text-gray-800 font-extrabold text-[12px] uppercase tracking-wider border-r border-gray-300 h-10">Waste %</TableHead>
+                    {/* Fabric */}
+                    <TableHead className="text-center text-gray-800 font-extrabold text-[12px] uppercase tracking-wider h-10">Input</TableHead>
+                    <TableHead className="text-center text-gray-800 font-extrabold text-[12px] uppercase tracking-wider h-10">Output</TableHead>
+                    <TableHead className="text-center text-gray-800 font-extrabold text-[12px] uppercase tracking-wider h-10">Wastage</TableHead>
+                    <TableHead className="text-center text-gray-800 font-extrabold text-[12px] uppercase tracking-wider h-10">Waste %</TableHead>
                   </TableRow>
-                ) : (
-                  pagedRows.map((row) => (
-                    <TableRow key={row.date} className="border-b border-gray-100 hover:bg-gray-50 transition-colors group">
-                      <TableCell 
-                        className="text-center font-bold text-[#004D40] border-r border-gray-200 text-[14px] py-4 cursor-pointer hover:underline"
-                        onClick={() => {
-                          setIsNavigating(true);
-                          setTimeout(() => {
-                            setSelectedDate(row.date);
-                            setIsNavigating(false);
-                          }, 500);
-                        }}
-                      >
-                        {format(parseISO(row.date), 'dd MMM, yyyy')}
-                      </TableCell>
-
-                      {/* Extruder */}
-                      <TableCell className="text-center text-gray-800 font-medium text-[14px] py-4">{formatNum(row.extruder.input)}</TableCell>
-                      <TableCell className="text-center text-gray-800 font-medium text-[14px] py-4">{formatNum(row.extruder.output)}</TableCell>
-                      <TableCell className="text-center text-gray-800 font-medium text-[14px] py-4">{formatNum(row.extruder.wastage)}</TableCell>
-                      <TableCell className="text-center text-gray-800 font-medium text-[14px] py-4 border-r border-gray-200">{row.extruder.wastePct.toFixed(2)}%</TableCell>
-
-                      {/* Looms */}
-                      <TableCell className="text-center text-gray-800 font-medium text-[14px] py-4">{formatNum(row.looms.input)}</TableCell>
-                      <TableCell className="text-center text-gray-800 font-medium text-[14px] py-4">{formatNum(row.looms.output)}</TableCell>
-                      <TableCell className="text-center text-gray-800 font-medium text-[14px] py-4">{formatNum(row.looms.wastage)}</TableCell>
-                      <TableCell className="text-center text-gray-800 font-medium text-[14px] py-4 border-r border-gray-200">{row.looms.wastePct.toFixed(2)}%</TableCell>
-
-                      {/* Fabric */}
-                      <TableCell className="text-center text-gray-800 font-medium text-[14px] py-4">{formatNum(row.fabric.input)}</TableCell>
-                      <TableCell className="text-center text-gray-800 font-medium text-[14px] py-4">{formatNum(row.fabric.output)}</TableCell>
-                      <TableCell className="text-center text-gray-800 font-medium text-[14px] py-4">{formatNum(row.fabric.wastage)}</TableCell>
-                      <TableCell className="text-center text-gray-800 font-medium text-[14px] py-4">{row.fabric.wastePct.toFixed(2)}%</TableCell>
-
-                      {/* Actions */}
-                      <TableCell className="py-4">
-                        <div className="flex items-center justify-center gap-2">
-                          <Button variant="outline" size="icon" className="h-8 w-8 rounded-md border-[#004D40]/30 text-[#004D40] hover:bg-[#004D40]/10">
-                            <Edit className="h-[14px] w-[14px]" />
-                          </Button>
-                          <Button variant="outline" size="icon" className="h-8 w-8 rounded-md border-red-200 text-red-600 hover:bg-red-50">
-                            <Trash2 className="h-[14px] w-[14px]" />
-                          </Button>
+                </TableHeader>
+                <TableBody className="bg-white">
+                  {loadingDayWise ? (
+                    <TableRow>
+                      <TableCell colSpan={14} className="h-32 text-center">
+                        <div className="flex items-center justify-center gap-2 text-gray-500 font-medium">
+                          <Loader size="sm" /> Loading records...
                         </div>
                       </TableCell>
                     </TableRow>
-                  ))
-                )}
+                  ) : pagedRows.length === 0 ? (
+                    <TableRow>
+                      <TableCell colSpan={14} className="h-32 text-center text-gray-500 font-medium">No production records found.</TableCell>
+                    </TableRow>
+                  ) : (
+                    pagedRows.map((row) => (
+                      <TableRow key={row.date} className="border-b border-gray-300 hover:bg-gray-50 transition-colors group">
+                        <TableCell
+                          className="text-center font-bold text-[#004D40] border-r border-gray-300 text-[14px] py-4 cursor-pointer hover:underline"
+                          onClick={() => {
+                            setIsNavigating(true);
+                            setTimeout(() => {
+                              setSelectedDate(row.date);
+                              setIsNavigating(false);
+                            }, 500);
+                          }}
+                        >
+                          {format(parseISO(row.date), 'dd MMM, yyyy')}
+                        </TableCell>
 
-                {!loadingDayWise && dayWiseRows.length > 0 && (
-                  <TableRow className="bg-white font-bold hover:bg-white border-t-2 border-gray-300">
-                    <TableCell className="text-center border-r border-gray-200 text-gray-900 text-[14px] py-4">TOTAL</TableCell>
-                    {/* Extruder Total */}
-                    <TableCell className="text-center text-[#00897B] text-[14px]">{formatNum(dayWiseTotals.extruder.input)}</TableCell>
-                    <TableCell className="text-center text-[#00897B] text-[14px]">{formatNum(dayWiseTotals.extruder.output)}</TableCell>
-                    <TableCell className="text-center text-[#00897B] text-[14px]">{formatNum(dayWiseTotals.extruder.wastage)}</TableCell>
-                    <TableCell className="text-center text-[#00897B] text-[14px] border-r border-gray-200">{dayWiseTotals.extruder.wastePct.toFixed(2)}%</TableCell>
-                    {/* Looms Total */}
-                    <TableCell className="text-center text-[#00897B] text-[14px]">{formatNum(dayWiseTotals.looms.input)}</TableCell>
-                    <TableCell className="text-center text-[#00897B] text-[14px]">{formatNum(dayWiseTotals.looms.output)}</TableCell>
-                    <TableCell className="text-center text-[#00897B] text-[14px]">{formatNum(dayWiseTotals.looms.wastage)}</TableCell>
-                    <TableCell className="text-center text-[#00897B] text-[14px] border-r border-gray-200">{dayWiseTotals.looms.wastePct.toFixed(2)}%</TableCell>
-                    {/* Fabric Total */}
-                    <TableCell className="text-center text-[#00897B] text-[14px]">{formatNum(dayWiseTotals.fabric.input)}</TableCell>
-                    <TableCell className="text-center text-[#00897B] text-[14px]">{formatNum(dayWiseTotals.fabric.output)}</TableCell>
-                    <TableCell className="text-center text-[#00897B] text-[14px]">{formatNum(dayWiseTotals.fabric.wastage)}</TableCell>
-                    <TableCell className="text-center text-[#00897B] text-[14px]">{dayWiseTotals.fabric.wastePct.toFixed(2)}%</TableCell>
-                    <TableCell></TableCell>
-                  </TableRow>
-                )}
-              </TableBody>
-            </Table>
-          </div>
+                        {/* Extruder */}
+                        <TableCell className="text-center text-gray-800 font-medium text-[14px] py-4">{formatNum(row.extruder.input)}</TableCell>
+                        <TableCell className="text-center text-gray-800 font-medium text-[14px] py-4">{formatNum(row.extruder.output)}</TableCell>
+                        <TableCell className="text-center text-gray-800 font-medium text-[14px] py-4">{formatNum(row.extruder.wastage)}</TableCell>
+                        <TableCell className="text-center text-gray-800 font-medium text-[14px] py-4 border-r border-gray-300">{row.extruder.wastePct.toFixed(2)}%</TableCell>
 
-          {/* Pagination Footer */}
-          <div className="flex flex-wrap items-center justify-between gap-3 border-t border-gray-200 p-4 text-sm text-gray-500 bg-white">
-            <div className="font-medium text-gray-600 text-xs">
-              {dayWiseRows.length === 0
-                ? 'No entries'
-                : `Showing ${Math.min(pageSize, dayWiseRows.length - (currentPage - 1) * pageSize)} of ${dayWiseRows.length} entries`}
+                        {/* Looms */}
+                        <TableCell className="text-center text-gray-800 font-medium text-[14px] py-4">{formatNum(row.looms.input)}</TableCell>
+                        <TableCell className="text-center text-gray-800 font-medium text-[14px] py-4">{formatNum(row.looms.output)}</TableCell>
+                        <TableCell className="text-center text-gray-800 font-medium text-[14px] py-4">{formatNum(row.looms.wastage)}</TableCell>
+                        <TableCell className="text-center text-gray-800 font-medium text-[14px] py-4 border-r border-gray-300">{row.looms.wastePct.toFixed(2)}%</TableCell>
+
+                        {/* Fabric */}
+                        <TableCell className="text-center text-gray-800 font-medium text-[14px] py-4">{formatNum(row.fabric.input)}</TableCell>
+                        <TableCell className="text-center text-gray-800 font-medium text-[14px] py-4">{formatNum(row.fabric.output)}</TableCell>
+                        <TableCell className="text-center text-gray-800 font-medium text-[14px] py-4">{formatNum(row.fabric.wastage)}</TableCell>
+                        <TableCell className="text-center text-gray-800 font-medium text-[14px] py-4">{row.fabric.wastePct.toFixed(2)}%</TableCell>
+
+                        {/* Actions */}
+                        <TableCell className="py-4">
+                          <div className="flex items-center justify-center gap-2">
+                            <Button variant="outline" size="icon" className="h-8 w-8 rounded-md border-[#004D40]/30 text-[#004D40] hover:bg-[#004D40]/10">
+                              <Edit className="h-[14px] w-[14px]" />
+                            </Button>
+                            <Button variant="outline" size="icon" className="h-8 w-8 rounded-md border-red-200 text-red-600 hover:bg-red-50">
+                              <Trash2 className="h-[14px] w-[14px]" />
+                            </Button>
+                          </div>
+                        </TableCell>
+                      </TableRow>
+                    ))
+                  )}
+
+                  {!loadingDayWise && dayWiseRows.length > 0 && (
+                    <TableRow className="bg-white font-bold hover:bg-white border-t-2 border-gray-400">
+                      <TableCell className="text-center border-r border-gray-400 text-gray-900 text-[14px] py-4">TOTAL</TableCell>
+                      {/* Extruder Total */}
+                      <TableCell className="text-center text-[#00897B] text-[14px]">{formatNum(dayWiseTotals.extruder.input)}</TableCell>
+                      <TableCell className="text-center text-[#00897B] text-[14px]">{formatNum(dayWiseTotals.extruder.output)}</TableCell>
+                      <TableCell className="text-center text-[#00897B] text-[14px]">{formatNum(dayWiseTotals.extruder.wastage)}</TableCell>
+                      <TableCell className="text-center text-[#00897B] text-[14px] border-r border-gray-400">{dayWiseTotals.extruder.wastePct.toFixed(2)}%</TableCell>
+                      {/* Looms Total */}
+                      <TableCell className="text-center text-[#00897B] text-[14px]">{formatNum(dayWiseTotals.looms.input)}</TableCell>
+                      <TableCell className="text-center text-[#00897B] text-[14px]">{formatNum(dayWiseTotals.looms.output)}</TableCell>
+                      <TableCell className="text-center text-[#00897B] text-[14px]">{formatNum(dayWiseTotals.looms.wastage)}</TableCell>
+                      <TableCell className="text-center text-[#00897B] text-[14px] border-r border-gray-400">{dayWiseTotals.looms.wastePct.toFixed(2)}%</TableCell>
+                      {/* Fabric Total */}
+                      <TableCell className="text-center text-[#00897B] text-[14px]">{formatNum(dayWiseTotals.fabric.input)}</TableCell>
+                      <TableCell className="text-center text-[#00897B] text-[14px]">{formatNum(dayWiseTotals.fabric.output)}</TableCell>
+                      <TableCell className="text-center text-[#00897B] text-[14px]">{formatNum(dayWiseTotals.fabric.wastage)}</TableCell>
+                      <TableCell className="text-center text-[#00897B] text-[14px]">{dayWiseTotals.fabric.wastePct.toFixed(2)}%</TableCell>
+                      <TableCell></TableCell>
+                    </TableRow>
+                  )}
+                </TableBody>
+              </Table>
             </div>
-            <div className="flex flex-wrap gap-1 items-center">
-              <Button variant="outline" size="icon" className="h-8 w-8 rounded-md border-gray-200 text-gray-600" onClick={() => setPage((p) => Math.max(1, p - 1))} disabled={currentPage <= 1}>&lt;</Button>
-              {getPageNumbers(currentPage, totalPages).map((p, i) =>
-                p === 'ellipsis' ? (
-                  <span key={`ellipsis-${i}`} className="px-2 text-gray-400">...</span>
-                ) : (
-                  <Button
-                    key={p}
-                    variant={p === currentPage ? 'outline' : 'ghost'}
-                    size="icon"
-                    className={p === currentPage ? 'h-8 w-8 rounded-md bg-[#004D40] text-white hover:bg-[#00382e] border-[#004D40]' : 'h-8 w-8 rounded-md text-gray-600 hover:bg-gray-100'}
-                    onClick={() => setPage(p)}
-                  >
-                    {p}
-                  </Button>
-                ),
-              )}
-              <Button variant="outline" size="icon" className="h-8 w-8 rounded-md border-gray-200 text-gray-600" onClick={() => setPage((p) => Math.min(totalPages, p + 1))} disabled={currentPage >= totalPages}>&gt;</Button>
+
+            {/* Pagination Footer */}
+            <div className="flex flex-wrap items-center justify-between gap-3 border-t border-gray-400 p-4 text-sm text-gray-500 bg-white">
+              <div className="font-medium text-gray-600 text-xs">
+                {dayWiseRows.length === 0
+                  ? 'No entries'
+                  : `Showing ${Math.min(pageSize, dayWiseRows.length - (currentPage - 1) * pageSize)} of ${dayWiseRows.length} entries`}
+              </div>
+              <div className="flex flex-wrap gap-1 items-center">
+                <Button variant="outline" size="icon" className="h-8 w-8 rounded-md border-gray-200 text-gray-600" onClick={() => setPage((p) => Math.max(1, p - 1))} disabled={currentPage <= 1}>&lt;</Button>
+                {getPageNumbers(currentPage, totalPages).map((p, i) =>
+                  p === 'ellipsis' ? (
+                    <span key={`ellipsis-${i}`} className="px-2 text-gray-400">...</span>
+                  ) : (
+                    <Button
+                      key={p}
+                      variant={p === currentPage ? 'outline' : 'ghost'}
+                      size="icon"
+                      className={p === currentPage ? 'h-8 w-8 rounded-md bg-[#004D40] text-white hover:bg-[#00382e] border-[#004D40]' : 'h-8 w-8 rounded-md text-gray-600 hover:bg-gray-100'}
+                      onClick={() => setPage(p)}
+                    >
+                      {p}
+                    </Button>
+                  ),
+                )}
+                <Button variant="outline" size="icon" className="h-8 w-8 rounded-md border-gray-200 text-gray-600" onClick={() => setPage((p) => Math.min(totalPages, p + 1))} disabled={currentPage >= totalPages}>&gt;</Button>
+              </div>
+              <div className="flex items-center gap-2 font-medium text-gray-600 text-xs">
+                Rows per page:
+                <select
+                  className="border border-gray-200 rounded-md px-2 py-1.5 text-gray-700 font-semibold bg-white"
+                  value={pageSize}
+                  onChange={(e) => {
+                    setPageSize(Number(e.target.value));
+                    setPage(1);
+                  }}
+                >
+                  <option value={10}>10</option>
+                  <option value={20}>20</option>
+                  <option value={50}>50</option>
+                </select>
+              </div>
             </div>
-            <div className="flex items-center gap-2 font-medium text-gray-600 text-xs">
-              Rows per page:
-              <select
-                className="border border-gray-200 rounded-md px-2 py-1.5 text-gray-700 font-semibold bg-white"
-                value={pageSize}
-                onChange={(e) => {
-                  setPageSize(Number(e.target.value));
-                  setPage(1);
-                }}
-              >
-                <option value={10}>10</option>
-                <option value={20}>20</option>
-                <option value={50}>50</option>
-              </select>
-            </div>
-          </div>
-        </Card>
-      </div>
+          </Card>
+        </div>
       )}
       {isNewEntryOpen && <NewEntry onClose={() => setIsNewEntryOpen(false)} />}
+      <DayWiseReportModal open={isReportOpen} onOpenChange={setIsReportOpen} />
     </div>
   );
 }

@@ -11,8 +11,8 @@ import { FabricEntry } from '@/features/fabric/fabric-entry';
 import { useDayWiseProduction } from './day-wise-queries';
 import { DayDetails } from './day-details';
 import { NewEntry } from './new-entry';
+import { DayWiseReportModal } from './day-wise-report-modal';
 import { ProductionDesign2 } from './production-design-2';
-import { ProductionDesign3 } from './production-design-3';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import {
@@ -84,6 +84,7 @@ interface EntryModalState {
 function Dashboard() {
   const navigate = useNavigate();
   const [entryModal, setEntryModal] = useState<EntryModalState | null>(null);
+  const [isReportOpen, setIsReportOpen] = useState(false);
   const { rows: dayWiseRows, totals: dayWiseTotals, isLoading: loadingDayWise, apiSummary } = useDayWiseProduction();
 
   const [page, setPage] = useState(1);
@@ -282,8 +283,13 @@ function Dashboard() {
             <Button variant="outline" size="sm" className="flex gap-2 font-normal uppercase tracking-wide text-xs">
               <Filter className="w-4 h-4" /> Filters
             </Button>
-            <Button variant="outline" size="sm" className="flex gap-2 font-normal uppercase tracking-wide text-xs">
-              <Download className="w-4 h-4" /> Export
+            <Button
+              variant="outline"
+              size="sm"
+              className="flex gap-2 font-normal uppercase tracking-wide text-xs"
+              onClick={() => setIsReportOpen(true)}
+            >
+              <Download className="w-4 h-4" /> Report
             </Button>
           </div>
         </CardHeader>
@@ -462,6 +468,7 @@ function Dashboard() {
           readOnly={entryModal.mode === 'view'}
         />
       )}
+      <DayWiseReportModal open={isReportOpen} onOpenChange={setIsReportOpen} />
     </div>
   );
 }
@@ -475,7 +482,6 @@ export function ProductionDetails() {
       <Route path="fabric" element={<FabricRoute />} />
       <Route path="day-details" element={<DayDetailsRoute />} />
       <Route path="design-2" element={<ProductionDesign2 />} />
-      <Route path="design-3" element={<ProductionDesign3 />} />
     </Routes>
   );
 }
