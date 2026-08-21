@@ -1,7 +1,7 @@
 import { useMemo, useState } from 'react';
 import { useNavigate, Routes, Route } from 'react-router-dom';
 import { parseISO, format } from 'date-fns';
-import { Calendar, Printer, Plus, Edit, Trash2, Filter, Download, Layers } from 'lucide-react';
+import { Printer, Plus, Edit, Trash2, Filter, Download, Layers } from 'lucide-react';
 import { Loader } from '@/components/shared/loader';
 import extruderIcon from '@/assets/extruder-icon.png';
 import loomsIcon from '@/assets/looms-icon.png';
@@ -23,6 +23,7 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
+import { Input } from '@/components/ui/input';
 
 function getPageNumbers(current: number, total: number): (number | 'ellipsis')[] {
   if (total <= 7) return Array.from({ length: total }, (_, i) => i + 1);
@@ -83,9 +84,10 @@ interface EntryModalState {
 
 function Dashboard() {
   const navigate = useNavigate();
+  const [selectedMonth, setSelectedMonth] = useState(() => format(new Date(), 'yyyy-MM'));
   const [entryModal, setEntryModal] = useState<EntryModalState | null>(null);
   const [isReportOpen, setIsReportOpen] = useState(false);
-  const { rows: dayWiseRows, totals: dayWiseTotals, isLoading: loadingDayWise, apiSummary } = useDayWiseProduction();
+  const { rows: dayWiseRows, totals: dayWiseTotals, isLoading: loadingDayWise, apiSummary } = useDayWiseProduction(selectedMonth);
 
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(10);
@@ -141,10 +143,12 @@ function Dashboard() {
           <p className="text-sm text-gray-500">Track daily production and wastage across all conversion processes</p>
         </div>
         <div className="flex flex-wrap items-center gap-3">
-          <Button variant="outline" className="flex items-center gap-2 font-normal">
-            Jul 2026
-            <Calendar className="w-4 h-4 text-gray-500" />
-          </Button>
+          <Input
+            type="month"
+            value={selectedMonth}
+            onChange={(e) => setSelectedMonth(e.target.value)}
+            className="w-auto h-9"
+          />
           <Button className="flex items-center gap-2 uppercase tracking-wide text-xs font-semibold" onClick={() => setEntryModal({ mode: 'add', date: null })}>
             <Plus className="w-4 h-4" />
             Add New Entry
@@ -460,7 +464,7 @@ function Dashboard() {
           </div>
         </div>
       </Card>
-      
+
       {entryModal && (
         <NewEntry
           onClose={() => setEntryModal(null)}

@@ -2,7 +2,8 @@ import { useState } from 'react';
 import '@fontsource-variable/inter';
 import { BrowserRouter, Routes, Route, Navigate, NavLink, Link, useLocation } from 'react-router-dom';
 import { LoginPage } from './features/auth/login-page';
-import { Settings, User, Wallet, Menu, Package, ChevronDown, LineChart, LayoutDashboard } from 'lucide-react';
+import { defaultRouteFor, useAuth } from './features/auth/auth-context';
+import { Settings, User, Wallet, Menu, Package, ChevronDown, LineChart, LayoutDashboard, LogOut } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
@@ -27,6 +28,12 @@ const navItems = [
   { to: '/expenses', label: 'Expenses', icon: Wallet },
 ];
 
+  if (role === 'SUPERVISOR') {
+    return items.filter(item => item.to === '/dashboard');
+  }
+  
+  return items;
+}
 function ComingSoon() {
   return (
     <div className="h-full flex items-center justify-center">
@@ -36,10 +43,14 @@ function ComingSoon() {
 }
 
 function NavLinks({ onNavigate }: { onNavigate?: () => void }) {
+  const { user } = useAuth();
   const location = useLocation();
+  const role = user?.kind === 'company-user' ? user.role : undefined;
+  const currentNavItems = getNavItems(role);
+
   const [openGroups, setOpenGroups] = useState<Record<string, boolean>>(() =>
     Object.fromEntries(
-      navItems
+      currentNavItems
         .filter((item) => item.children)
         .map((item) => [item.to, item.children!.some((child) => location.pathname.startsWith(child.to))]),
     ),
@@ -117,6 +128,41 @@ function NavLinks({ onNavigate }: { onNavigate?: () => void }) {
         );
       })}
     </nav>
+  );
+}
+
+function UserFooter() {
+  const { user, logout } = useAuth();
+  const navigate = useNavigate();
+
+  if (!user) return null;
+
+  const displayName = user.kind === 'company-user' ? (user.name ?? user.mobile) : user.name;
+  const roleLabel = user.kind === 'company-user' ? user.role : 'Super Admin';
+
+  function handleLogout() {
+    logout();
+    navigate('/login', { replace: true });
+  }
+
+  return (
+    <div className="pt-4 border-t border-gray-100 flex items-center gap-3 px-3">
+      <div className="w-9 h-9 rounded-full bg-[#004D40] text-white flex items-center justify-center font-bold text-sm">
+        {displayName.slice(0, 2).toUpperCase()}
+      </div>
+      <div className="flex flex-col flex-1 min-w-0">
+        <span className="text-[13.5px] font-bold text-gray-900 leading-tight truncate">{displayName}</span>
+        <span className="text-[11px] font-medium text-gray-500">{roleLabel}</span>
+      </div>
+      <button
+        type="button"
+        onClick={handleLogout}
+        aria-label="Log out"
+        className="p-2 text-gray-400 hover:text-gray-700 hover:bg-[#F4F8F5] rounded-lg transition-colors"
+      >
+        <LogOut className="w-4 h-4" strokeWidth={1.75} />
+      </button>
+    </div>
   );
 }
 
@@ -209,9 +255,24 @@ function App() {
     <BrowserRouter>
       <Routes>
         <Route path="/login" element={<LoginPage />} />
-        {/* Separate super-admin panel — its own shell/nav, deliberately not nested under AppShell. */}
-        <Route path="/livik-admin/*" element={<LivikAdminShell />} />
-        <Route path="/*" element={<AppShell />} />
+        {/* Separate super-admin panel — its own shell/nav, deliberately not nested under AppShell.
+            Super admin's job here is onboarding companies, so this is their default landing spot. */}
+        <Route
+          path="/livik-admin/*"
+          element={
+            <RequireRole kind="platform-admin">
+              <LivikAdminShell />
+            </RequireRole>
+          }
+        />
+        <Route
+          path="/*"
+          element={
+            <RequireRole kind="company-user">
+              <AppShell />
+            </RequireRole>
+          }
+        />
       </Routes>
     </BrowserRouter>
   );

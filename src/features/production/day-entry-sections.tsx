@@ -810,6 +810,7 @@ export const LoomSection = forwardRef<SectionRef, SectionProps>(({ productionDat
       const response = await fetch(apiUrl('/production/looms'), {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
         body: JSON.stringify(payload),
       });
       if (!response.ok) throw new Error('Failed to save entry');
@@ -1136,6 +1137,7 @@ export const FabricSection = forwardRef<SectionRef, SectionProps>(({ productionD
       const response = await fetch(apiUrl('/fabric-checking'), {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
         body: JSON.stringify(payload),
       });
       if (!response.ok) throw new Error('Failed to save entry');

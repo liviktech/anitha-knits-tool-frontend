@@ -1,17 +1,34 @@
 import { useState, type FormEvent } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { Navigate, useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { User, Lock, HelpCircle } from 'lucide-react';
 
 export function LoginPage() {
   const navigate = useNavigate();
-  const [email, setEmail] = useState('');
+  const { user, login } = useAuth();
+  const [mobile, setMobile] = useState('');
   const [password, setPassword] = useState('');
+  const [error, setError] = useState<string | null>(null);
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
-  function handleSubmit(e: FormEvent) {
+  // Already have a session (e.g. back-navigated to /login) — skip straight to that role's home.
+  if (user) {
+    return <Navigate to={defaultRouteFor(user)} replace />;
+  }
+
+  async function handleSubmit(e: FormEvent) {
     e.preventDefault();
-    navigate('/dashboard');
+    setError(null);
+    setIsSubmitting(true);
+    try {
+      const loggedInUser = await login(mobile, password);
+      navigate(defaultRouteFor(loggedInUser), { replace: true });
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Login failed');
+    } finally {
+      setIsSubmitting(false);
+    }
   }
 
   return (
