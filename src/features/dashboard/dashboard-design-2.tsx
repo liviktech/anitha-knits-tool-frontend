@@ -116,8 +116,8 @@ export function DashboardDesign2() {
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
           <KpiCard gradient={STAGE_GRADIENT.rawMaterial} icon={<Package className="w-5 h-5 text-white" />} label="Raw Material In (KG)" value={formatNum(mockRawMaterialIntake.receivedThisMonthKg)} sub={`from ${mockRawMaterialIntake.source}`} valueColor="text-slate-900" />
           <KpiCard gradient={STAGE_GRADIENT.extruder} icon={<img src={extruderIcon} alt="" className="w-4 h-4 object-contain" />} chip label="Extruder Output (KG)" value={formatNum(extruder?.outputKg ?? 0)} sub={`${(extruder?.efficiencyPct ?? 0).toFixed(1)}% efficiency`} valueColor="text-blue-600" />
-          <KpiCard gradient={STAGE_GRADIENT.looms} icon={<img src={loomsIcon} alt="" className="w-4 h-4 object-contain" />} chip label="Looms Output (MTRS)" value={formatNum(looms?.outputKg ?? 0)} sub={`${(looms?.efficiencyPct ?? 0).toFixed(1)}% efficiency`} valueColor="text-orange-600" />
-          <KpiCard gradient={STAGE_GRADIENT.fabric} icon={<Gauge className="w-5 h-5 text-white" />} label="Fabric Output (MTRS)" value={formatNum(fabric?.outputKg ?? 0)} sub={`${(fabric?.efficiencyPct ?? 0).toFixed(1)}% efficiency`} valueColor="text-emerald-600" />
+          <KpiCard gradient={STAGE_GRADIENT.looms} icon={<img src={loomsIcon} alt="" className="w-4 h-4 object-contain" />} chip label="Looms Output (KG)" value={formatNum(looms?.outputKg ?? 0)} sub={`${(looms?.efficiencyPct ?? 0).toFixed(1)}% efficiency`} valueColor="text-orange-600" />
+          <KpiCard gradient={STAGE_GRADIENT.fabric} icon={<Gauge className="w-5 h-5 text-white" />} label="Fabric Output (KG)" value={formatNum(fabric?.outputKg ?? 0)} sub={`${(fabric?.efficiencyPct ?? 0).toFixed(1)}% efficiency`} valueColor="text-emerald-600" />
         </div>
 
         {/* Process funnel */}
@@ -128,9 +128,9 @@ export function DashboardDesign2() {
             <Connector />
             <FunnelNode gradient={STAGE_GRADIENT.extruder} icon={<img src={extruderIcon} alt="" className="w-3 h-3 object-contain" />} chip label="Extruder" value={`${formatNum(extruder?.outputKg ?? 0)} kg`} />
             <Connector />
-            <FunnelNode gradient={STAGE_GRADIENT.looms} icon={<img src={loomsIcon} alt="" className="w-3 h-3 object-contain" />} chip label="Looms" value={`${formatNum(looms?.outputKg ?? 0)} m`} />
+            <FunnelNode gradient={STAGE_GRADIENT.looms} icon={<img src={loomsIcon} alt="" className="w-3 h-3 object-contain" />} chip label="Looms" value={`${formatNum(looms?.outputKg ?? 0)} kg`} />
             <Connector />
-            <FunnelNode gradient={STAGE_GRADIENT.fabric} icon={<Gauge className="w-4 h-4 text-white" />} label="Fabric / Nets" value={`${formatNum(fabric?.outputKg ?? 0)} m`} />
+            <FunnelNode gradient={STAGE_GRADIENT.fabric} icon={<Gauge className="w-4 h-4 text-white" />} label="Fabric / Nets" value={`${formatNum(fabric?.outputKg ?? 0)} kg`} />
           </div>
         </Card>
 
