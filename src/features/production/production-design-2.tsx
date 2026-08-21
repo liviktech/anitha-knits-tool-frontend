@@ -2,7 +2,7 @@ import { useMemo, useState } from 'react';
 import '@fontsource-variable/hanken-grotesk';
 import '@fontsource-variable/inter';
 import { parseISO, format } from 'date-fns';
-import { Calendar, Plus, Edit, Trash2, Filter, Download, Layers, FileSpreadsheet, Search, ChevronRight, CheckCircle2, Gauge } from 'lucide-react';
+import { Calendar, Plus, Edit, Trash2, Filter, Download, Layers, Search, ChevronRight, CheckCircle2, Gauge } from 'lucide-react';
 import { Loader } from '@/components/shared/loader';
 import extruderIcon from '@/assets/extruder-icon.png';
 import loomsIcon from '@/assets/looms-icon.png';
@@ -506,16 +506,16 @@ export function ProductionDesign2() {
   const fabricWastePct = fabricSummary.input > 0 ? (fabricSummary.wastage / fabricSummary.input) * 100 : 0;
 
   return (
-    <div id="production-design-2-page" className="flex flex-col bg-[#004D40]/5 min-h-screen">
+    <div id="production-design-2-page" className="flex flex-col bg-[#004D40]/5 min-h-full h-full flex-1">
       <style>{`
         #production-design-2-page, #production-design-2-page * { font-family: 'Hanken Grotesk Variable', 'Hanken Grotesk', sans-serif !important; }
         #production-design-2-page .font-inter { font-family: 'Inter Variable', 'Inter', sans-serif !important; }
       `}</style>
       {/* Header Area */}
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between px-4 py-3 bg-white border-b border-gray-100">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between px-4 py-3 bg-[#F4F1E8] border-b border-gray-100">
         <div>
-          <h1 className="text-[22px] font-bold text-black leading-tight">Daily Production & Wastage</h1>
-          <p className="text-[12.5px] text-gray-500 font-medium mt-1">Track daily production and wastage across all conversion processes</p>
+          <h1 className="text-[22px] font-bold text-black leading-tight px-2">Daily Production & Wastage</h1>
+          <p className="text-[12.5px] text-gray-500 font-medium mt-1 px-2">Track daily production and wastage across all conversion processes</p>
         </div>
         <div className="flex flex-wrap items-center gap-3">
           <div className="flex items-center bg-white border border-gray-400 rounded-md px-4 py-2 shadow-[0_1px_2px_rgba(0,0,0,0.05)]">
@@ -553,7 +553,7 @@ export function ProductionDesign2() {
           }}
         />
       ) : (
-        <div className="p-2.5 flex flex-col gap-3">
+        <div className="p-2.5 flex flex-col gap-3 flex-1">
           {/* Summary Cards */}
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-2.5">
             <Card className="bg-white rounded-[14px] p-2 hover:shadow-md transition-all">
@@ -680,7 +680,7 @@ export function ProductionDesign2() {
           </div>
 
           {/* Data Table Area */}
-          <Card className="shadow-sm border-0 bg-white rounded-xl overflow-hidden gap-0 p-0">
+          <Card className="shadow-sm border-0 bg-white rounded-xl overflow-hidden gap-0 p-0 flex-1 flex flex-col">
             <CardHeader className="flex flex-col gap-3 border-b border-gray-300 px-3 pt-3 pb-0.5 sm:flex-row sm:items-center sm:justify-between bg-white">
               <CardTitle className="text-[17px] font-bold text-[#004D40]  leading-tight flex items-center">
                 <img src="/Table-icon.jpg" alt="" className="w-10 h-10 object-contain rounded-sm" />
@@ -700,7 +700,7 @@ export function ProductionDesign2() {
                 </Button>
               </div>
             </CardHeader>
-            <div className="overflow-x-auto w-full">
+            <div className="overflow-auto w-full flex-1">
               <Table className="w-full">
                 <TableHeader>
                   <TableRow className="hover:bg-transparent border-b border-gray-300">
@@ -831,7 +831,7 @@ export function ProductionDesign2() {
             </div>
 
             {/* Pagination Footer */}
-            <div className="flex flex-wrap items-center justify-between gap-3 border-t border-gray-400 p-4 text-sm text-gray-500 bg-white">
+            <div className="flex flex-wrap items-center justify-between gap-3 border-t border-gray-400 p-2 text-sm text-gray-500 bg-white">
               <div className="font-medium text-gray-600 text-xs">
                 {dayWiseRows.length === 0
                   ? 'No entries'
@@ -847,7 +847,7 @@ export function ProductionDesign2() {
                       key={p}
                       variant={p === currentPage ? 'outline' : 'ghost'}
                       size="icon"
-                      className={p === currentPage ? 'h-8 w-8 rounded-md bg-[#004D40] text-white hover:bg-[#00382e] border-[#004D40]' : 'h-8 w-8 rounded-md text-gray-600 hover:bg-gray-100'}
+                      className={p === currentPage ? 'h-6 w-6 rounded-md bg-[#004D40] text-white text-sm hover:bg-[#00382e] border-[#004D40]' : 'h-6 w-6 rounded-md text-sm text-gray-600 hover:bg-gray-100'}
                       onClick={() => setPage(p)}
                     >
                       {p}

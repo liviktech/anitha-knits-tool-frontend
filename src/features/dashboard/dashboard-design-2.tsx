@@ -1,4 +1,4 @@
-import { useMemo } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import {
   ResponsiveContainer,
   AreaChart,
@@ -16,7 +16,7 @@ import {
   LineChart,
   Line,
 } from 'recharts';
-import { ChevronRight, Package, Users, Wallet, Gauge, Sparkles } from 'lucide-react';
+import { ChevronRight, Package, Users, Wallet, Gauge } from 'lucide-react';
 import extruderIcon from '@/assets/extruder-icon.png';
 import loomsIcon from '@/assets/looms-icon.png';
 import { Loader } from '@/components/shared/loader';
@@ -44,12 +44,39 @@ const STAGE_GRADIENT = {
 };
 const EXPENSE_COLORS = ['#2a78d6', '#eb6834', '#1baf7a', '#eda100'];
 
-function formatNum(n: number): string {
-  return n.toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 2 });
-}
+const CHART_ANIM = { animationDuration: 1100, animationEasing: 'ease-out' as const };
 
 function formatCurrency(n: number): string {
   return `₹${n.toLocaleString('en-IN', { maximumFractionDigits: 0 })}`;
+}
+
+/** Animates from the previously rendered value toward `target` on every change — not just on mount — so live data refreshes count up/down instead of snapping. */
+function useCountUp(target: number, durationMs = 900): number {
+  const [value, setValue] = useState(target);
+  const fromRef = useRef(target);
+
+  useEffect(() => {
+    const from = fromRef.current;
+    if (from === target) return;
+    const start = performance.now();
+    let raf: number;
+
+    const tick = (now: number) => {
+      const t = Math.min(1, (now - start) / durationMs);
+      const eased = 1 - Math.pow(1 - t, 3);
+      setValue(from + (target - from) * eased);
+      if (t < 1) {
+        raf = requestAnimationFrame(tick);
+      } else {
+        fromRef.current = target;
+      }
+    };
+
+    raf = requestAnimationFrame(tick);
+    return () => cancelAnimationFrame(raf);
+  }, [target, durationMs]);
+
+  return value;
 }
 
 export function DashboardDesign2() {
@@ -93,20 +120,23 @@ export function DashboardDesign2() {
 
   return (
     <div className="relative min-h-full overflow-hidden bg-white">
-      {/* Decorative gradient blobs */}
-      <div className="pointer-events-none absolute -top-24 -right-24 w-80 h-80 rounded-full bg-indigo-200/40 blur-3xl" />
-      <div className="pointer-events-none absolute top-1/3 -left-24 w-72 h-72 rounded-full bg-amber-200/30 blur-3xl" />
-      <div className="pointer-events-none absolute bottom-0 right-1/4 w-96 h-64 rounded-full bg-emerald-200/30 blur-3xl" />
+      <style>{`
+        @keyframes dashFloatA { 0%, 100% { transform: translate3d(0,0,0) scale(1); } 50% { transform: translate3d(-18px,24px,0) scale(1.06); } }
+        @keyframes dashFloatB { 0%, 100% { transform: translate3d(0,0,0) scale(1); } 50% { transform: translate3d(20px,-16px,0) scale(1.08); } }
+        @keyframes dashFloatC { 0%, 100% { transform: translate3d(0,0,0) scale(1); } 50% { transform: translate3d(-12px,-18px,0) scale(1.04); } }
+        @keyframes dashGlow { 0%, 100% { box-shadow: 0 0 0 0 rgba(99,102,241,0.35); } 50% { box-shadow: 0 0 0 6px rgba(99,102,241,0); } }
+        @keyframes dashFlow { 0% { transform: translateX(0); opacity: .4; } 50% { opacity: 1; } 100% { transform: translateX(6px); opacity: .4; } }
+      `}</style>
 
-      <div className="relative z-10 p-4 md:p-6 flex flex-col gap-5">
+      {/* Decorative gradient blobs — slow drift, paused for reduced-motion users */}
+      <div className="pointer-events-none absolute -top-24 -right-24 w-80 h-80 rounded-full bg-indigo-200/40 blur-3xl motion-safe:[animation:dashFloatA_9s_ease-in-out_infinite]" />
+      <div className="pointer-events-none absolute top-1/3 -left-24 w-72 h-72 rounded-full bg-amber-200/30 blur-3xl motion-safe:[animation:dashFloatB_11s_ease-in-out_infinite]" />
+      <div className="pointer-events-none absolute bottom-0 right-1/4 w-96 h-64 rounded-full bg-emerald-200/30 blur-3xl motion-safe:[animation:dashFloatC_10s_ease-in-out_infinite]" />
+
+      <div className="relative z-10 p-4 md:p-6 flex flex-col gap-5 bg-[#F4F1E8]">
         {/* Header */}
-        <div className="flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between">
+        <div className="flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between animate-in fade-in-0 slide-in-from-top-2 duration-500 fill-mode-both">
           <div>
-            <div className="flex items-center gap-2">
-              <span className="inline-flex items-center gap-1 rounded-full bg-gradient-to-r from-indigo-500 to-blue-500 px-2.5 py-1 text-[10px] font-bold uppercase tracking-widest text-white shadow-sm shadow-indigo-200">
-                <Sparkles className="w-3 h-3" /> Executive Pulse
-              </span>
-            </div>
             <h1 className="text-xl md:text-2xl font-bold text-slate-900 mt-2">Production Overview</h1>
             <p className="text-[13px] text-slate-500">Raw material → extruder → looms → fabric, at a glance.</p>
           </div>
@@ -114,29 +144,29 @@ export function DashboardDesign2() {
 
         {/* KPI hero strip */}
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
-          <KpiCard gradient={STAGE_GRADIENT.rawMaterial} icon={<Package className="w-5 h-5 text-white" />} label="Raw Material In (KG)" value={formatNum(mockRawMaterialIntake.receivedThisMonthKg)} sub={`from ${mockRawMaterialIntake.source}`} valueColor="text-slate-900" />
-          <KpiCard gradient={STAGE_GRADIENT.extruder} icon={<img src={extruderIcon} alt="" className="w-4 h-4 object-contain" />} chip label="Extruder Output (KG)" value={formatNum(extruder?.outputKg ?? 0)} sub={`${(extruder?.efficiencyPct ?? 0).toFixed(1)}% efficiency`} valueColor="text-blue-600" />
-          <KpiCard gradient={STAGE_GRADIENT.looms} icon={<img src={loomsIcon} alt="" className="w-4 h-4 object-contain" />} chip label="Looms Output (MTRS)" value={formatNum(looms?.outputKg ?? 0)} sub={`${(looms?.efficiencyPct ?? 0).toFixed(1)}% efficiency`} valueColor="text-orange-600" />
-          <KpiCard gradient={STAGE_GRADIENT.fabric} icon={<Gauge className="w-5 h-5 text-white" />} label="Fabric Output (MTRS)" value={formatNum(fabric?.outputKg ?? 0)} sub={`${(fabric?.efficiencyPct ?? 0).toFixed(1)}% efficiency`} valueColor="text-emerald-600" />
+          <KpiCard index={0} gradient={STAGE_GRADIENT.rawMaterial} icon={<Package className="w-5 h-5 text-white" />} label="Raw Material In (KG)" value={mockRawMaterialIntake.receivedThisMonthKg} decimals={0} sub={`from ${mockRawMaterialIntake.source}`} valueColor="text-slate-900" />
+          <KpiCard index={1} gradient={STAGE_GRADIENT.extruder} icon={<img src={extruderIcon} alt="" className="w-4 h-4 object-contain" />} chip label="Extruder Output (KG)" value={extruder?.outputKg ?? 0} sub={`${(extruder?.efficiencyPct ?? 0).toFixed(1)}% efficiency`} valueColor="text-blue-600" />
+          <KpiCard index={2} gradient={STAGE_GRADIENT.looms} icon={<img src={loomsIcon} alt="" className="w-4 h-4 object-contain" />} chip label="Looms Output (MTRS)" value={looms?.outputKg ?? 0} sub={`${(looms?.efficiencyPct ?? 0).toFixed(1)}% efficiency`} valueColor="text-orange-600" />
+          <KpiCard index={3} gradient={STAGE_GRADIENT.fabric} icon={<Gauge className="w-5 h-5 text-white" />} label="Fabric Output (MTRS)" value={fabric?.outputKg ?? 0} sub={`${(fabric?.efficiencyPct ?? 0).toFixed(1)}% efficiency`} valueColor="text-emerald-600" />
         </div>
 
         {/* Process funnel */}
-        <Card className="bg-white border border-slate-100 shadow-lg shadow-slate-200/50 rounded-3xl p-4 md:p-5">
+        <Card className="bg-white border border-slate-100 shadow-lg shadow-slate-200/50 rounded-3xl p-4 md:p-5 transition-shadow duration-300 hover:shadow-xl hover:shadow-slate-300/40 animate-in fade-in-0 slide-in-from-bottom-3 duration-700 delay-150 fill-mode-both">
           <p className="text-[10px] font-extrabold uppercase tracking-widest text-slate-400 mb-3">Production Flow</p>
           <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2">
-            <FunnelNode gradient={STAGE_GRADIENT.rawMaterial} icon={<Package className="w-4 h-4 text-white" />} label="Raw Material" value={`${formatNum(mockRawMaterialIntake.receivedThisMonthKg)} kg`} />
+            <FunnelNode gradient={STAGE_GRADIENT.rawMaterial} icon={<Package className="w-4 h-4 text-white" />} label="Raw Material" value={`${mockRawMaterialIntake.receivedThisMonthKg.toLocaleString('en-US')} kg`} />
             <Connector />
-            <FunnelNode gradient={STAGE_GRADIENT.extruder} icon={<img src={extruderIcon} alt="" className="w-3 h-3 object-contain" />} chip label="Extruder" value={`${formatNum(extruder?.outputKg ?? 0)} kg`} />
+            <FunnelNode gradient={STAGE_GRADIENT.extruder} icon={<img src={extruderIcon} alt="" className="w-3 h-3 object-contain" />} chip label="Extruder" value={`${(extruder?.outputKg ?? 0).toLocaleString('en-US', { maximumFractionDigits: 2 })} kg`} />
             <Connector />
-            <FunnelNode gradient={STAGE_GRADIENT.looms} icon={<img src={loomsIcon} alt="" className="w-3 h-3 object-contain" />} chip label="Looms" value={`${formatNum(looms?.outputKg ?? 0)} m`} />
+            <FunnelNode gradient={STAGE_GRADIENT.looms} icon={<img src={loomsIcon} alt="" className="w-3 h-3 object-contain" />} chip label="Looms" value={`${(looms?.outputKg ?? 0).toLocaleString('en-US', { maximumFractionDigits: 2 })} m`} />
             <Connector />
-            <FunnelNode gradient={STAGE_GRADIENT.fabric} icon={<Gauge className="w-4 h-4 text-white" />} label="Fabric / Nets" value={`${formatNum(fabric?.outputKg ?? 0)} m`} />
+            <FunnelNode gradient={STAGE_GRADIENT.fabric} icon={<Gauge className="w-4 h-4 text-white" />} label="Fabric / Nets" value={`${(fabric?.outputKg ?? 0).toLocaleString('en-US', { maximumFractionDigits: 2 })} m`} />
           </div>
         </Card>
 
         {/* Trend + efficiency */}
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-          <Card className="bg-white border border-slate-100 shadow-lg shadow-slate-200/50 rounded-3xl p-4 md:p-5">
+          <Card className="bg-white border border-slate-100 shadow-lg shadow-slate-200/50 rounded-3xl p-4 md:p-5 transition-shadow duration-300 hover:shadow-xl hover:shadow-slate-300/40 animate-in fade-in-0 slide-in-from-bottom-3 duration-700 delay-200 fill-mode-both">
             <CardHeader className="p-0 mb-2">
               <CardTitle className="text-[13px] font-bold text-slate-900">30-Day Output Trend</CardTitle>
             </CardHeader>
@@ -152,17 +182,17 @@ export function DashboardDesign2() {
                   <CartesianGrid stroke="#e1e0d9" vertical={false} />
                   <XAxis dataKey="date" tick={{ fontSize: 10, fill: '#898781' }} axisLine={{ stroke: '#c3c2b7' }} tickLine={false} />
                   <YAxis tick={{ fontSize: 10, fill: '#898781' }} axisLine={false} tickLine={false} width={48} />
-                  <Tooltip contentStyle={{ background: '#fff', border: '1px solid #e5e7eb', borderRadius: 12, fontSize: 12, boxShadow: '0 4px 16px rgba(15,23,42,0.08)' }} />
+                  <Tooltip contentStyle={{ background: '#fff', border: '1px solid #e5e7eb', borderRadius: 12, fontSize: 12, boxShadow: '0 4px 16px rgba(15,23,42,0.08)' }} animationDuration={150} />
                   <Legend wrapperStyle={{ fontSize: 11, color: '#64748b' }} />
-                  <Area type="monotone" dataKey="Extruder" stroke={STAGE_COLOR.extruder} strokeWidth={2} fill="url(#fillExtruder)" />
-                  <Area type="monotone" dataKey="Looms" stroke={STAGE_COLOR.looms} strokeWidth={2} fill="none" />
-                  <Area type="monotone" dataKey="Fabric" stroke={STAGE_COLOR.fabric} strokeWidth={2} fill="none" />
+                  <Area type="monotone" dataKey="Extruder" stroke={STAGE_COLOR.extruder} strokeWidth={2} fill="url(#fillExtruder)" {...CHART_ANIM} />
+                  <Area type="monotone" dataKey="Looms" stroke={STAGE_COLOR.looms} strokeWidth={2} fill="none" {...CHART_ANIM} />
+                  <Area type="monotone" dataKey="Fabric" stroke={STAGE_COLOR.fabric} strokeWidth={2} fill="none" {...CHART_ANIM} />
                 </AreaChart>
               </ResponsiveContainer>
             </CardContent>
           </Card>
 
-          <Card className="bg-white border border-slate-100 shadow-lg shadow-slate-200/50 rounded-3xl p-4 md:p-5">
+          <Card className="bg-white border border-slate-100 shadow-lg shadow-slate-200/50 rounded-3xl p-4 md:p-5 transition-shadow duration-300 hover:shadow-xl hover:shadow-slate-300/40 animate-in fade-in-0 slide-in-from-bottom-3 duration-700 delay-300 fill-mode-both">
             <CardHeader className="p-0 mb-2">
               <CardTitle className="text-[13px] font-bold text-slate-900">Stage Efficiency</CardTitle>
             </CardHeader>
@@ -175,8 +205,8 @@ export function DashboardDesign2() {
                   startAngle={90}
                   endAngle={-270}
                 >
-                  <RadialBar background={{ fill: '#f1f5f9' }} dataKey="value" cornerRadius={6} />
-                  <Tooltip contentStyle={{ background: '#fff', border: '1px solid #e5e7eb', borderRadius: 12, fontSize: 12 }} formatter={((v: number) => `${v.toFixed(1)}%`) as any} />
+                  <RadialBar background={{ fill: '#f1f5f9' }} dataKey="value" cornerRadius={6} {...CHART_ANIM} />
+                  <Tooltip contentStyle={{ background: '#fff', border: '1px solid #e5e7eb', borderRadius: 12, fontSize: 12 }} formatter={(v) => `${Number(v).toFixed(1)}%`} animationDuration={150} />
                   <Legend
                     iconType="circle"
                     layout="vertical"
@@ -196,7 +226,7 @@ export function DashboardDesign2() {
 
         {/* Employees + Expenses (mock) */}
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-          <Card className="bg-white border border-slate-100 shadow-lg shadow-slate-200/50 rounded-3xl p-4 md:p-5">
+          <Card className="bg-white border border-slate-100 shadow-lg shadow-slate-200/50 rounded-3xl p-4 md:p-5 transition-shadow duration-300 hover:shadow-xl hover:shadow-slate-300/40 animate-in fade-in-0 slide-in-from-bottom-3 duration-700 delay-[350ms] fill-mode-both">
             <CardHeader className="p-0 mb-2 flex flex-row items-center justify-between">
               <CardTitle className="text-[13px] font-bold text-slate-900 flex items-center gap-2">
                 <span className="w-7 h-7 rounded-lg bg-gradient-to-br from-indigo-500 to-blue-600 flex items-center justify-center">
@@ -215,14 +245,14 @@ export function DashboardDesign2() {
                   <CartesianGrid stroke="#e1e0d9" vertical={false} />
                   <XAxis dataKey="day" tick={{ fontSize: 10, fill: '#898781' }} axisLine={{ stroke: '#c3c2b7' }} tickLine={false} />
                   <YAxis tick={{ fontSize: 10, fill: '#898781' }} axisLine={false} tickLine={false} width={36} domain={[60, 90]} />
-                  <Tooltip contentStyle={{ background: '#fff', border: '1px solid #e5e7eb', borderRadius: 12, fontSize: 12 }} />
-                  <Line type="monotone" dataKey="present" stroke="#4f46e5" strokeWidth={2} dot={{ r: 3, fill: '#4f46e5' }} />
+                  <Tooltip contentStyle={{ background: '#fff', border: '1px solid #e5e7eb', borderRadius: 12, fontSize: 12 }} animationDuration={150} />
+                  <Line type="monotone" dataKey="present" stroke="#4f46e5" strokeWidth={2} dot={{ r: 3, fill: '#4f46e5' }} {...CHART_ANIM} />
                 </LineChart>
               </ResponsiveContainer>
             </CardContent>
           </Card>
 
-          <Card className="bg-white border border-slate-100 shadow-lg shadow-slate-200/50 rounded-3xl p-4 md:p-5">
+          <Card className="bg-white border border-slate-100 shadow-lg shadow-slate-200/50 rounded-3xl p-4 md:p-5 transition-shadow duration-300 hover:shadow-xl hover:shadow-slate-300/40 animate-in fade-in-0 slide-in-from-bottom-3 duration-700 delay-[400ms] fill-mode-both">
             <CardHeader className="p-0 mb-2">
               <CardTitle className="text-[13px] font-bold text-slate-900 flex items-center gap-2">
                 <span className="w-7 h-7 rounded-lg bg-gradient-to-br from-amber-400 to-orange-500 flex items-center justify-center">
@@ -234,17 +264,17 @@ export function DashboardDesign2() {
             <CardContent className="p-0 h-48 flex items-center gap-4">
               <ResponsiveContainer width="55%" height="100%">
                 <PieChart>
-                  <Pie data={mockExpenseBreakdown} dataKey="amount" nameKey="category" innerRadius={40} outerRadius={68} paddingAngle={2} stroke="#fff" strokeWidth={2}>
+                  <Pie data={mockExpenseBreakdown} dataKey="amount" nameKey="category" innerRadius={40} outerRadius={68} paddingAngle={2} stroke="#fff" strokeWidth={2} {...CHART_ANIM}>
                     {mockExpenseBreakdown.map((entry, i) => (
                       <Cell key={entry.category} fill={EXPENSE_COLORS[i % EXPENSE_COLORS.length]} />
                     ))}
                   </Pie>
-                  <Tooltip contentStyle={{ background: '#fff', border: '1px solid #e5e7eb', borderRadius: 12, fontSize: 12 }} formatter={((v: number) => formatCurrency(v)) as any} />
+                  <Tooltip contentStyle={{ background: '#fff', border: '1px solid #e5e7eb', borderRadius: 12, fontSize: 12 }} formatter={(v) => formatCurrency(Number(v))} animationDuration={150} />
                 </PieChart>
               </ResponsiveContainer>
               <div className="flex-1 flex flex-col gap-1.5">
                 {mockExpenseBreakdown.map((e, i) => (
-                  <div key={e.category} className="flex items-center justify-between text-[11px]">
+                  <div key={e.category} className="flex items-center justify-between text-[11px] transition-transform duration-200 hover:translate-x-0.5">
                     <span className="flex items-center gap-1.5 text-slate-600">
                       <span className="w-2 h-2 rounded-full" style={{ background: EXPENSE_COLORS[i % EXPENSE_COLORS.length] }} />
                       {e.category}
@@ -267,24 +297,35 @@ function KpiCard({
   chip,
   label,
   value,
+  decimals = 2,
   sub,
   valueColor,
+  index = 0,
 }: {
   gradient: string;
   icon: React.ReactNode;
   chip?: boolean;
   label: string;
-  value: string;
+  value: number;
+  decimals?: number;
   sub: string;
   valueColor: string;
+  index?: number;
 }) {
+  const animated = useCountUp(value);
+
   return (
-    <Card className="bg-white border border-slate-100 shadow-lg shadow-slate-200/50 rounded-3xl p-4">
-      <div className={`w-10 h-10 rounded-xl bg-gradient-to-br ${gradient} flex items-center justify-center shadow-sm mb-3`}>
+    <Card
+      className="group bg-white border border-slate-100 shadow-lg shadow-slate-200/50 rounded-3xl p-4 transition-all duration-300 hover:-translate-y-1 hover:shadow-xl hover:shadow-slate-300/40 animate-in fade-in-0 slide-in-from-bottom-4 duration-700 fill-mode-both"
+      style={{ animationDelay: `${index * 90}ms` }}
+    >
+      <div className={`w-10 h-10 rounded-xl bg-gradient-to-br ${gradient} flex items-center justify-center shadow-sm mb-3 transition-transform duration-300 group-hover:scale-110`}>
         {chip ? <span className="w-6 h-6 rounded-md bg-white flex items-center justify-center">{icon}</span> : icon}
       </div>
       <p className="text-[10px] font-extrabold uppercase tracking-widest text-slate-400 mb-1.5">{label}</p>
-      <p className={`text-[26px] font-extrabold leading-none ${valueColor}`}>{value}</p>
+      <p className={`text-[26px] font-extrabold leading-none tabular-nums ${valueColor}`}>
+        {animated.toLocaleString('en-US', { minimumFractionDigits: decimals, maximumFractionDigits: decimals })}
+      </p>
       <p className="text-[11px] text-slate-400 mt-1.5">{sub}</p>
     </Card>
   );
@@ -292,7 +333,7 @@ function KpiCard({
 
 function FunnelNode({ gradient, icon, chip, label, value }: { gradient: string; icon: React.ReactNode; chip?: boolean; label: string; value: string }) {
   return (
-    <div className="flex-1 flex items-center gap-2.5 bg-slate-50 border border-slate-100 rounded-xl px-3.5 py-2.5">
+    <div className="flex-1 flex items-center gap-2.5 bg-slate-50 border border-slate-100 rounded-xl px-3.5 py-2.5 transition-all duration-300 hover:bg-white hover:border-slate-200 hover:shadow-md hover:-translate-y-0.5">
       <span className={`w-8 h-8 rounded-full bg-gradient-to-br ${gradient} flex items-center justify-center shrink-0 shadow-sm`}>
         {chip ? <span className="w-5 h-5 rounded-full bg-white flex items-center justify-center">{icon}</span> : icon}
       </span>
@@ -307,7 +348,7 @@ function FunnelNode({ gradient, icon, chip, label, value }: { gradient: string; 
 function Connector() {
   return (
     <div className="hidden sm:flex items-center justify-center px-0.5 text-slate-300">
-      <ChevronRight className="w-4 h-4" />
+      <ChevronRight className="w-4 h-4 motion-safe:[animation:dashFlow_1.4s_ease-in-out_infinite]" />
     </div>
   );
 }
