@@ -1,5 +1,6 @@
 import { useState } from 'react';
-import { BrowserRouter, Routes, Route, Navigate, NavLink, useLocation } from 'react-router-dom';
+import { BrowserRouter, Routes, Route, Navigate, NavLink, Link, useLocation } from 'react-router-dom';
+import { LoginPage } from './features/auth/login-page';
 import { Settings, User, Wallet, Menu, Package, ChevronDown, LineChart, LayoutDashboard } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet';
@@ -117,17 +118,16 @@ function NavLinks({ onNavigate }: { onNavigate?: () => void }) {
   );
 }
 
-function App() {
+function AppShell() {
   const [mobileNavOpen, setMobileNavOpen] = useState(false);
 
   return (
-    <BrowserRouter>
-      <div className="flex h-screen w-full flex-col bg-white lg:flex-row font-['Hanken_Grotesk',sans-serif]">
+    <div className="flex h-screen w-full flex-col bg-white lg:flex-row font-['Hanken_Grotesk',sans-serif]">
         {/* Laptop: persistent sidebar */}
         <aside className="hidden lg:flex w-56 shrink-0 border-r border-gray-100 bg-white flex-col">
-          <div className="flex items-center justify-center py-5 px-4 bg-[#004D40]">
+          <Link to="/dashboard" className="flex items-center justify-center py-5 px-4 bg-[#004D40] cursor-pointer">
             <span className="text-[20px] font-serif font-bold text-white tracking-widest uppercase">ANITHA KNITS</span>
-          </div>
+          </Link>
           <NavLinks />
           <div className="p-4 mt-auto">
             <button className="w-full flex items-center gap-3 px-3 py-3 text-[13px] font-medium text-[#1F3B33] hover:bg-[#F4F8F5] rounded-lg transition-colors mb-2">
@@ -148,9 +148,9 @@ function App() {
 
         {/* Tablet + mobile: top bar with hamburger trigger */}
         <header className="flex items-center justify-between border-b bg-[#004D40] px-4 py-3 lg:hidden">
-          <div className="flex items-center">
+          <Link to="/dashboard" className="flex items-center cursor-pointer">
             <span className="text-[18px] font-serif font-bold text-white tracking-widest uppercase">ANITHA KNITS</span>
-          </div>
+          </Link>
           <Sheet open={mobileNavOpen} onOpenChange={setMobileNavOpen}>
             <Button variant="ghost" size="icon" className="text-white hover:bg-white/20 hover:text-white" onClick={() => setMobileNavOpen(true)}>
               <Menu className="w-5 h-5 text-white" />
@@ -192,7 +192,17 @@ function App() {
             <Route path="/expenses" element={<ComingSoon />} />
           </Routes>
         </main>
-      </div>
+    </div>
+  );
+}
+
+function App() {
+  return (
+    <BrowserRouter>
+      <Routes>
+        <Route path="/login" element={<LoginPage />} />
+        <Route path="/*" element={<AppShell />} />
+      </Routes>
     </BrowserRouter>
   );
 }
