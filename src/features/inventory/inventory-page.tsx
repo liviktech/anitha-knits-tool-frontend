@@ -58,12 +58,18 @@ function InventoryFormDialog({ onClose, record }: InventoryFormDialogProps) {
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  // Name is free text for Raw Material, but a lookup-backed dropdown for
-  // Chemical/Color — those names must match real master data. `isNameLookup`
-  // stays true while lookups are still loading so the field doesn't
-  // silently fall back to free text during that window.
-  const isNameLookup = type === 'CHEMICAL' || type === 'COLOR';
-  const nameOptions = type === 'CHEMICAL' ? lookupsData?.chemicals : type === 'COLOR' ? lookupsData?.colors : undefined;
+  // Name is a lookup-backed dropdown for every type — Raw Material picks
+  // from the brand master data, Chemical/Color from their own — since these
+  // names must match real master data. `isNameLookup` stays true while
+  // lookups are still loading so the field doesn't silently fall back to
+  // free text during that window.
+  const isNameLookup = type === 'RAW_MATERIAL' || type === 'CHEMICAL' || type === 'COLOR';
+  const nameOptions =
+    type === 'RAW_MATERIAL' ? lookupsData?.brands
+    : type === 'CHEMICAL' ? lookupsData?.chemicals
+    : type === 'COLOR' ? lookupsData?.colors
+    : undefined;
+  const nameLabel = type === 'RAW_MATERIAL' ? 'brand' : type === 'CHEMICAL' ? 'chemical' : 'color';
 
   const handleTypeChange = (value: InventoryType) => {
     setType(value);
@@ -90,6 +96,7 @@ function InventoryFormDialog({ onClose, record }: InventoryFormDialogProps) {
       const response = await fetch(isEdit ? apiUrl(`/inventory/${record.id}`) : apiUrl('/inventory'), {
         method: isEdit ? 'PATCH' : 'POST',
         headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
         body: JSON.stringify(payload),
       });
       if (!response.ok) throw new Error('Failed to save inventory record');
@@ -134,7 +141,7 @@ function InventoryFormDialog({ onClose, record }: InventoryFormDialogProps) {
                   {lookupsLoading ? (
                     <span className="flex items-center gap-2 text-muted-foreground"><Loader size="sm" /> Loading...</span>
                   ) : (
-                    <SelectValue placeholder={`Select ${type === 'CHEMICAL' ? 'chemical' : 'color'}`} />
+                    <SelectValue placeholder={`Select ${nameLabel}`} />
                   )}
                 </SelectTrigger>
                 <SelectContent>
@@ -142,7 +149,7 @@ function InventoryFormDialog({ onClose, record }: InventoryFormDialogProps) {
                 </SelectContent>
               </Select>
             ) : (
-              <Input id="inv-name" placeholder="e.g. White Chips" value={name} onChange={(e) => setName(e.target.value)} maxLength={150} disabled={!type} />
+              <Input id="inv-name" placeholder="Select a type first" value={name} onChange={(e) => setName(e.target.value)} maxLength={150} disabled={!type} />
             )}
           </div>
           <div className="flex flex-col gap-1.5">
@@ -181,7 +188,7 @@ function InventoryReceiveTab() {
     if (!deleteTarget) return;
     setDeleting(true);
     try {
-      const response = await fetch(apiUrl(`/inventory/${deleteTarget.id}`), { method: 'DELETE' });
+      const response = await fetch(apiUrl(`/inventory/${deleteTarget.id}`), { method: 'DELETE', credentials: 'include' });
       if (!response.ok) throw new Error('Failed to delete inventory record');
       await queryClient.invalidateQueries({ queryKey: inventoryKeys.all });
       setDeleteTarget(null);
@@ -201,10 +208,19 @@ function InventoryReceiveTab() {
           </div>
           <h2 className="font-bold text-gray-900">Stock Received</h2>
         </div>
-        <div className="flex items-center gap-2 text-sm">
-          <span className="text-gray-500">Total</span>
-          <Input type="number" className="h-8 w-28 text-right" value={totalKg.toFixed(2)} readOnly />
-          <span className="text-gray-400">kg</span>
+        <div className="flex items-center gap-4 text-sm">
+          <div className="flex items-center gap-2">
+            <span className="text-gray-500">Total</span>
+            <Input type="number" className="h-8 w-28 text-right" value={totalKg.toFixed(2)} readOnly />
+            <span className="text-gray-400">kg</span>
+          </div>
+          <Button
+            size="sm"
+            className="h-8 gap-1 rounded-full bg-[#004D40] text-white hover:bg-[#00332a]"
+            onClick={openCreate}
+          >
+            <Plus className="h-3 w-3" /> Add received stock
+          </Button>
         </div>
       </div>
 
@@ -256,16 +272,7 @@ function InventoryReceiveTab() {
         </Table>
       </div>
 
-      <div className="p-4 border-t border-gray-50">
-        <Button
-          variant="outline"
-          size="sm"
-          className="h-8 gap-1 rounded-full border-green-200 text-green-700 hover:bg-green-50 hover:text-green-800"
-          onClick={openCreate}
-        >
-          <Plus className="h-3 w-3" /> Add received stock
-        </Button>
-      </div>
+
 
       {formOpen && <InventoryFormDialog onClose={() => setFormOpen(false)} record={editingRecord} />}
       <DeleteConfirmDialog
@@ -326,6 +333,7 @@ function LoadSentFormDialog({ onClose, record }: LoadSentFormDialogProps) {
       const response = await fetch(isEdit ? apiUrl(`/load-sent/${record.id}`) : apiUrl('/load-sent'), {
         method: isEdit ? 'PATCH' : 'POST',
         headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
         body: JSON.stringify(payload),
       });
       if (!response.ok) throw new Error('Failed to save load sent record');
@@ -410,7 +418,7 @@ function LoadSentTab() {
     if (!deleteTarget) return;
     setDeleting(true);
     try {
-      const response = await fetch(apiUrl(`/load-sent/${deleteTarget.id}`), { method: 'DELETE' });
+      const response = await fetch(apiUrl(`/load-sent/${deleteTarget.id}`), { method: 'DELETE', credentials: 'include' });
       if (!response.ok) throw new Error('Failed to delete load sent record');
       await queryClient.invalidateQueries({ queryKey: loadSentKeys.all });
       setDeleteTarget(null);
@@ -440,6 +448,13 @@ function LoadSentTab() {
             <Input type="number" className="h-8 w-28 text-right" value={totalKg.toFixed(2)} readOnly />
             <span className="text-gray-400">kg</span>
           </div>
+          <Button
+            size="sm"
+            className="h-8 gap-1 rounded-full bg-[#004D40] text-white hover:bg-[#00332a]"
+            onClick={openCreate}
+          >
+            <Plus className="h-3 w-3" /> Add sent stock
+          </Button>
         </div>
       </div>
 
@@ -493,16 +508,7 @@ function LoadSentTab() {
         </Table>
       </div>
 
-      <div className="p-4 border-t border-gray-50">
-        <Button
-          variant="outline"
-          size="sm"
-          className="h-8 gap-1 rounded-full border-orange-200 text-orange-700 hover:bg-orange-50 hover:text-orange-800"
-          onClick={openCreate}
-        >
-          <Plus className="h-3 w-3" /> Add sent stock
-        </Button>
-      </div>
+
 
       {formOpen && <LoadSentFormDialog onClose={() => setFormOpen(false)} record={editingRecord} />}
       <DeleteConfirmDialog

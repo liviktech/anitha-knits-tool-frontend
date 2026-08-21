@@ -48,10 +48,20 @@ const emptyTotals: StageTotals = { input: 0, output: 0, wastage: 0, wastePct: 0 
 
 export const dashboardProductionKey = ['dashboard', 'production'] as const;
 
-export function useDayWiseProduction() {
+export function useDayWiseProduction(monthStr?: string) {
+  const queryKey = monthStr ? [...dashboardProductionKey, monthStr] : dashboardProductionKey;
+
   const { data, isLoading } = useQuery({
-    queryKey: dashboardProductionKey,
-    queryFn: () => fetchJson<DashboardProductionResponse>('/dashboard/production'),
+    queryKey,
+    queryFn: () => {
+      let url = '/dashboard/production';
+      if (monthStr) {
+        const [year, month] = monthStr.split('-');
+        const lastDay = new Date(parseInt(year, 10), parseInt(month, 10), 0).getDate();
+        url += `?date_from=${monthStr}-01&date_to=${monthStr}-${lastDay}`;
+      }
+      return fetchJson<DashboardProductionResponse>(url);
+    },
   });
 
   const rows = (data?.data?.daily ?? [])

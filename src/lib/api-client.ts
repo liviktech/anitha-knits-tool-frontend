@@ -10,9 +10,9 @@ export function apiUrl(path: string): string {
   return `${API_BASE_URL}${path}`;
 }
 
-/** fetch() + JSON parsing against the backend configured via VITE_API_BASE_URL. */
+/** fetch() + JSON parsing against the backend configured via VITE_API_BASE_URL. Sends the httpOnly auth cookie the backend's requireAuth middleware expects. */
 export async function fetchJson<T = unknown>(path: string, init?: RequestInit): Promise<T> {
-  const response = await fetch(apiUrl(path), init);
+  const response = await fetch(apiUrl(path), { credentials: 'include', ...init });
   if (!response.ok) throw new Error(`Request failed: ${path}`);
   return response.json();
 }
