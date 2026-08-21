@@ -61,8 +61,8 @@ export function LoginPage() {
               <div className="relative">
                 <User className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-[#00A87E]" />
                 <Input
-                  type="email"
-                  placeholder="Username"
+                  type="tel"
+                  placeholder="Phone number"
                   className="pl-11 h-[46px] rounded-full border-gray-200 text-sm focus-visible:ring-[#00A87E]"
                   value={mobile}
                   onChange={(e) => setMobile(e.target.value)}
