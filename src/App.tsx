@@ -9,6 +9,7 @@ import { DashboardModule } from './features/dashboard/dashboard-module';
 import { ProductionDetails } from './features/production/production-details';
 import { InventoryPage } from './features/inventory/inventory-page';
 import logo from '@/assets/anitha-knits-logo.png';
+import threadIcon from '@/assets/thread.png';
 
 const navItems = [
   { to: '/dashboard', label: 'Dashboard', icon: LayoutDashboard },
@@ -125,8 +126,9 @@ function AppShell() {
     <div className="flex h-screen w-full flex-col bg-white lg:flex-row font-['Hanken_Grotesk',sans-serif]">
         {/* Laptop: persistent sidebar */}
         <aside className="hidden lg:flex w-56 shrink-0 border-r border-gray-100 bg-white flex-col">
-          <Link to="/dashboard" className="flex items-center justify-center py-5 px-4 bg-[#004D40] cursor-pointer">
-            <span className="text-[20px] font-serif font-bold text-white tracking-widest uppercase">ANITHA KNITS</span>
+          <Link to="/dashboard" className="flex items-center justify-center gap-2 py-5 px-3 bg-[#004D40] cursor-pointer">
+            <img src={threadIcon} alt="" className="h-6 w-6 shrink-0 object-contain brightness-0 invert" />
+            <span className="text-[17px] font-serif font-bold text-white tracking-wider uppercase whitespace-nowrap">ANITHA KNITS</span>
           </Link>
           <NavLinks />
           <div className="p-4 mt-auto">
@@ -148,8 +150,9 @@ function AppShell() {
 
         {/* Tablet + mobile: top bar with hamburger trigger */}
         <header className="flex items-center justify-between border-b bg-[#004D40] px-4 py-3 lg:hidden">
-          <Link to="/dashboard" className="flex items-center cursor-pointer">
-            <span className="text-[18px] font-serif font-bold text-white tracking-widest uppercase">ANITHA KNITS</span>
+          <Link to="/dashboard" className="flex items-center gap-2 cursor-pointer">
+            <img src={threadIcon} alt="" className="h-5 w-5 shrink-0 object-contain brightness-0 invert" />
+            <span className="text-[18px] font-serif font-bold text-white tracking-widest uppercase whitespace-nowrap">ANITHA KNITS</span>
           </Link>
           <Sheet open={mobileNavOpen} onOpenChange={setMobileNavOpen}>
             <Button variant="ghost" size="icon" className="text-white hover:bg-white/20 hover:text-white" onClick={() => setMobileNavOpen(true)}>
