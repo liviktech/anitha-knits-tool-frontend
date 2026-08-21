@@ -58,12 +58,18 @@ function InventoryFormDialog({ onClose, record }: InventoryFormDialogProps) {
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  // Name is free text for Raw Material, but a lookup-backed dropdown for
-  // Chemical/Color — those names must match real master data. `isNameLookup`
-  // stays true while lookups are still loading so the field doesn't
-  // silently fall back to free text during that window.
-  const isNameLookup = type === 'CHEMICAL' || type === 'COLOR';
-  const nameOptions = type === 'CHEMICAL' ? lookupsData?.chemicals : type === 'COLOR' ? lookupsData?.colors : undefined;
+  // Name is a lookup-backed dropdown for every type — Raw Material picks
+  // from the brand master data, Chemical/Color from their own — since these
+  // names must match real master data. `isNameLookup` stays true while
+  // lookups are still loading so the field doesn't silently fall back to
+  // free text during that window.
+  const isNameLookup = type === 'RAW_MATERIAL' || type === 'CHEMICAL' || type === 'COLOR';
+  const nameOptions =
+    type === 'RAW_MATERIAL' ? lookupsData?.brands
+    : type === 'CHEMICAL' ? lookupsData?.chemicals
+    : type === 'COLOR' ? lookupsData?.colors
+    : undefined;
+  const nameLabel = type === 'RAW_MATERIAL' ? 'brand' : type === 'CHEMICAL' ? 'chemical' : 'color';
 
   const handleTypeChange = (value: InventoryType) => {
     setType(value);
@@ -134,7 +140,7 @@ function InventoryFormDialog({ onClose, record }: InventoryFormDialogProps) {
                   {lookupsLoading ? (
                     <span className="flex items-center gap-2 text-muted-foreground"><Loader size="sm" /> Loading...</span>
                   ) : (
-                    <SelectValue placeholder={`Select ${type === 'CHEMICAL' ? 'chemical' : 'color'}`} />
+                    <SelectValue placeholder={`Select ${nameLabel}`} />
                   )}
                 </SelectTrigger>
                 <SelectContent>
@@ -142,7 +148,7 @@ function InventoryFormDialog({ onClose, record }: InventoryFormDialogProps) {
                 </SelectContent>
               </Select>
             ) : (
-              <Input id="inv-name" placeholder="e.g. White Chips" value={name} onChange={(e) => setName(e.target.value)} maxLength={150} disabled={!type} />
+              <Input id="inv-name" placeholder="Select a type first" value={name} onChange={(e) => setName(e.target.value)} maxLength={150} disabled={!type} />
             )}
           </div>
           <div className="flex flex-col gap-1.5">

@@ -219,6 +219,7 @@ export const ExtruderSection = forwardRef<SectionRef, SectionProps>(({ productio
   // opens, same as Raw Material.
   const firstChemicalRecord = useMemo(() => inventoryRecords.find((r) => r.type === 'CHEMICAL'), [inventoryRecords]);
   const firstColorRecord = useMemo(() => inventoryRecords.find((r) => r.type === 'COLOR'), [inventoryRecords]);
+  const firstRawMaterialRecord = useMemo(() => inventoryRecords.find((r) => r.type === 'RAW_MATERIAL'), [inventoryRecords]);
   const resolveChemicalWeight = (name: string) => {
     const kg = sumInventoryWeight(inventoryRecords, 'CHEMICAL', name);
     return kg > 0 ? kg : undefined;
@@ -254,6 +255,7 @@ export const ExtruderSection = forwardRef<SectionRef, SectionProps>(({ productio
   const [rawManuallyEdited, setRawManuallyEdited] = useState(false);
   const [chemicalManuallyEdited, setChemicalManuallyEdited] = useState(false);
   const [colorManuallyEdited, setColorManuallyEdited] = useState(false);
+  const [brandManuallyEdited, setBrandManuallyEdited] = useState(false);
 
   // Header totals reflect saved rows plus, while a brand-new row is being
   // filled in, that row's own (possibly auto-filled) values — otherwise the
@@ -276,12 +278,14 @@ export const ExtruderSection = forwardRef<SectionRef, SectionProps>(({ productio
       chemicalKg: firstChemicalRecord ? String(firstChemicalRecord.weightKg) : '',
       color: firstColorRecord?.name ?? '',
       colorConsumedKg: firstColorRecord ? String(firstColorRecord.weightKg) : '',
+      brand: firstRawMaterialRecord?.name ?? '',
     });
     setRawManuallyEdited(false);
     setChemicalManuallyEdited(false);
     setColorManuallyEdited(false);
+    setBrandManuallyEdited(false);
     setEditingId('new');
-  }, [rawMaterialFromInventory, firstChemicalRecord, firstColorRecord]);
+  }, [rawMaterialFromInventory, firstChemicalRecord, firstColorRecord, firstRawMaterialRecord]);
 
   useEffect(() => {
     if (readOnly || !autoAdd || isLoading || hasAutoAddedRef.current) return;
@@ -314,8 +318,9 @@ export const ExtruderSection = forwardRef<SectionRef, SectionProps>(({ productio
       chemicalKg: chemicalManuallyEdited ? current.chemicalKg : (firstChemicalRecord ? String(firstChemicalRecord.weightKg) : ''),
       color: colorManuallyEdited ? current.color : (firstColorRecord?.name ?? ''),
       colorConsumedKg: colorManuallyEdited ? current.colorConsumedKg : (firstColorRecord ? String(firstColorRecord.weightKg) : ''),
+      brand: brandManuallyEdited ? current.brand : (firstRawMaterialRecord?.name ?? ''),
     }));
-  }, [editingId, rawMaterialFromInventory, firstChemicalRecord, firstColorRecord, rawManuallyEdited, chemicalManuallyEdited, colorManuallyEdited]);
+  }, [editingId, rawMaterialFromInventory, firstChemicalRecord, firstColorRecord, firstRawMaterialRecord, rawManuallyEdited, chemicalManuallyEdited, colorManuallyEdited, brandManuallyEdited]);
 
   const startEdit = (row: ExtruderRow) => {
     setDraft({
@@ -336,6 +341,7 @@ export const ExtruderSection = forwardRef<SectionRef, SectionProps>(({ productio
     setRawManuallyEdited(true);
     setChemicalManuallyEdited(true);
     setColorManuallyEdited(true);
+    setBrandManuallyEdited(true);
     setEditingId(row.id);
   };
 
@@ -345,6 +351,7 @@ export const ExtruderSection = forwardRef<SectionRef, SectionProps>(({ productio
     setRawManuallyEdited(false);
     setChemicalManuallyEdited(false);
     setColorManuallyEdited(false);
+    setBrandManuallyEdited(false);
   };
 
   const handleSave = async (): Promise<boolean | void> => {
@@ -474,6 +481,7 @@ export const ExtruderSection = forwardRef<SectionRef, SectionProps>(({ productio
                       onRawManualEdit={() => setRawManuallyEdited(true)}
                       onChemicalManualEdit={() => setChemicalManuallyEdited(true)}
                       onColorManualEdit={() => setColorManuallyEdited(true)}
+                      onBrandManualEdit={() => setBrandManuallyEdited(true)}
                     />
                   ) : (
                     <TableRow key={row.id}>
@@ -560,6 +568,7 @@ interface ExtruderEditableRowProps {
   onRawManualEdit?: () => void;
   onChemicalManualEdit?: () => void;
   onColorManualEdit?: () => void;
+  onBrandManualEdit?: () => void;
 }
 
 function ExtruderEditableRow({
@@ -573,6 +582,7 @@ function ExtruderEditableRow({
   onRawManualEdit,
   onChemicalManualEdit,
   onColorManualEdit,
+  onBrandManualEdit,
 }: ExtruderEditableRowProps) {
   return (
     <TableRow>
@@ -600,7 +610,13 @@ function ExtruderEditableRow({
         </Select>
       </TableCell>
       <TableCell>
-        <Select value={draft.brand || undefined} onValueChange={(value) => setDraft({ ...draft, brand: value })}>
+        <Select
+          value={draft.brand || undefined}
+          onValueChange={(value) => {
+            onBrandManualEdit?.();
+            setDraft({ ...draft, brand: value });
+          }}
+        >
           <SelectTrigger className="h-10"><SelectValue placeholder="Brand" /></SelectTrigger>
           <SelectContent>
             {lookups.brands.map((b) => <SelectItem key={b.id} value={b.name}>{b.name}</SelectItem>)}
