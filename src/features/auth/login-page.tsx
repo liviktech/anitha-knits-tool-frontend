@@ -3,6 +3,7 @@ import { Navigate, useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { User, Lock, HelpCircle } from 'lucide-react';
+import { useAuth, defaultRouteFor } from './auth-context';
 
 export function LoginPage() {
   const navigate = useNavigate();
@@ -63,8 +64,8 @@ export function LoginPage() {
                   type="email"
                   placeholder="Username"
                   className="pl-11 h-[46px] rounded-full border-gray-200 text-sm focus-visible:ring-[#00A87E]"
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
+                  value={mobile}
+                  onChange={(e) => setMobile(e.target.value)}
                   required
                 />
               </div>
@@ -80,9 +81,13 @@ export function LoginPage() {
                 />
                 <HelpCircle className="absolute right-4 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400 cursor-pointer hover:text-gray-600 transition-colors" />
               </div>
-              
-              <Button type="submit" className="w-full h-[46px] rounded-full bg-[#004D40] hover:bg-[#00362c] text-white font-bold tracking-wide mt-2 text-[13px]">
-                SIGN IN
+
+              {error && (
+                <p className="text-[12px] font-medium text-red-500 text-center">{error}</p>
+              )}
+
+              <Button type="submit" disabled={isSubmitting} className="w-full h-[46px] rounded-full bg-[#004D40] hover:bg-[#00362c] text-white font-bold tracking-wide mt-2 text-[13px] disabled:opacity-60">
+                {isSubmitting ? 'SIGNING IN…' : 'SIGN IN'}
               </Button>
             </form>
 

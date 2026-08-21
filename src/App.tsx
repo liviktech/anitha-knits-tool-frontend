@@ -1,8 +1,9 @@
-import { useState } from 'react';
+import { useState, type ReactNode } from 'react';
 import '@fontsource-variable/inter';
-import { BrowserRouter, Routes, Route, Navigate, NavLink, Link, useLocation } from 'react-router-dom';
+import { BrowserRouter, Routes, Route, Navigate, NavLink, Link, useLocation, useNavigate } from 'react-router-dom';
 import { LoginPage } from './features/auth/login-page';
-import { defaultRouteFor, useAuth } from './features/auth/auth-context';
+import { useAuth, defaultRouteFor } from './features/auth/auth-context';
+import type { AuthUser, CompanyUserRole } from './features/auth/auth-service';
 import { Settings, User, Wallet, Menu, Package, ChevronDown, LineChart, LayoutDashboard, LogOut } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet';
@@ -28,12 +29,27 @@ const navItems = [
   { to: '/expenses', label: 'Expenses', icon: Wallet },
 ];
 
+function getNavItems(role?: CompanyUserRole) {
   if (role === 'SUPERVISOR') {
-    return items.filter(item => item.to === '/dashboard');
+    return navItems.filter(item => item.to === '/dashboard');
   }
-  
-  return items;
+
+  return navItems;
 }
+
+function RequireRole({ kind, children }: { kind: AuthUser['kind']; children: ReactNode }) {
+  const { user } = useAuth();
+  const location = useLocation();
+
+  if (!user) {
+    return <Navigate to="/login" state={{ from: location }} replace />;
+  }
+  if (user.kind !== kind) {
+    return <Navigate to={defaultRouteFor(user)} replace />;
+  }
+  return <>{children}</>;
+}
+
 function ComingSoon() {
   return (
     <div className="h-full flex items-center justify-center">
@@ -58,7 +74,7 @@ function NavLinks({ onNavigate }: { onNavigate?: () => void }) {
 
   return (
     <nav className="flex-1 px-2 py-4 space-y-1 font-['Inter',sans-serif]">
-      {navItems.map((item) => {
+      {currentNavItems.map((item) => {
         const Icon = item.icon;
         const isGroupActive = location.pathname.startsWith(item.to);
         const isOpen = openGroups[item.to] ?? false;
@@ -146,19 +162,19 @@ function UserFooter() {
   }
 
   return (
-    <div className="pt-4 border-t border-gray-100 flex items-center gap-3 px-3">
-      <div className="w-9 h-9 rounded-full bg-[#004D40] text-white flex items-center justify-center font-bold text-sm">
+    <div className="flex items-center gap-3 px-1">
+      <div className="w-10 h-10 rounded-full bg-white/20 text-white flex items-center justify-center font-bold text-sm shrink-0">
         {displayName.slice(0, 2).toUpperCase()}
       </div>
       <div className="flex flex-col flex-1 min-w-0">
-        <span className="text-[13.5px] font-bold text-gray-900 leading-tight truncate">{displayName}</span>
-        <span className="text-[11px] font-medium text-gray-500">{roleLabel}</span>
+        <span className="text-[13.5px] font-bold text-white leading-tight truncate">{displayName}</span>
+        <span className="text-[11px] font-medium text-white/60 truncate">{roleLabel}</span>
       </div>
       <button
         type="button"
         onClick={handleLogout}
         aria-label="Log out"
-        className="p-2 text-gray-400 hover:text-gray-700 hover:bg-[#F4F8F5] rounded-lg transition-colors"
+        className="p-2 text-white/60 hover:text-white hover:bg-white/10 rounded-lg transition-colors"
       >
         <LogOut className="w-4 h-4" strokeWidth={1.75} />
       </button>
@@ -178,22 +194,8 @@ function AppShell() {
           <span className="text-[20px] font-serif font-bold text-white tracking-widest uppercase whitespace-nowrap">ANITHA KNITS</span>
         </Link>
         <NavLinks />
-        <div className="flex p-2 justify-between">
-          {/* <div className="text-[10px] font-bold tracking-widest text-white/50 mb-3 px-3">USER ACCOUNT</div> */}
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-full bg-white/20 text-white flex items-center justify-center font-bold text-sm shrink-0">
-              AK
-            </div>
-            <div className="flex flex-col overflow-hidden">
-              <span className="text-[13.5px] font-bold text-white leading-tight truncate">Admin User</span>
-              <span className="text-[11px] font-medium text-white/60 truncate">Production Manager</span>
-            </div>
-          </div>
-          {/* <div className="flex items-center">
-            <button className="">
-              <Settings className="w-5 h-5 shrink-0 text-white/70" strokeWidth={1.75} />
-            </button>
-          </div> */}
+        <div className="p-2">
+          <UserFooter />
         </div>
       </aside>
 
@@ -221,14 +223,8 @@ function AppShell() {
                 Settings
               </button>
               <div className="text-[10px] font-bold tracking-widest text-white/50 mb-3 px-3">USER ACCOUNT</div>
-              <div className="flex items-center gap-3 px-3 pb-2">
-                <div className="w-10 h-10 rounded-full bg-white/20 text-white flex items-center justify-center font-bold text-sm shrink-0">
-                  AK
-                </div>
-                <div className="flex flex-col overflow-hidden">
-                  <span className="text-[13.5px] font-bold text-white leading-tight truncate">Admin User</span>
-                  <span className="text-[11px] font-medium text-white/60 truncate">Production Manager</span>
-                </div>
+              <div className="px-3 pb-2">
+                <UserFooter />
               </div>
             </div>
           </SheetContent>
