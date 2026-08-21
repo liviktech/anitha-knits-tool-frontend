@@ -20,6 +20,12 @@ function RequireRole({ kind, children }: { kind: 'platform-admin' | 'company-use
   return <>{children}</>;
 }
 
+function RootRedirect() {
+  const { user } = useAuth();
+  if (!user) return <Navigate to="/login" replace />;
+  return <Navigate to={defaultRouteFor(user)} replace />;
+}
+
 function getNavItems(role?: string) {
   const items = [
     { to: '/dashboard', label: 'Dashboard', icon: LayoutDashboard },
@@ -224,7 +230,7 @@ function AppShell() {
         {/* Main Content Area */}
         <main className="flex-1 overflow-auto bg-white">
           <Routes>
-            <Route path="/" element={<Navigate to="/dashboard" replace />} />
+            <Route path="/" element={<RootRedirect />} />
             <Route path="/dashboard/*" element={<DashboardModule />} />
             <Route path="/production/*" element={<ProductionDetails />} />
             <Route path="/inventory" element={<InventoryPage />} />
