@@ -580,18 +580,18 @@ export function ProductionDesign2() {
           {/* Data Table Area */}
           <Card className="shadow-sm border-0 bg-white rounded-xl overflow-hidden gap-0 p-0">
             <CardHeader className="flex flex-col gap-3 border-b border-gray-300 px-3 pt-3 pb-0.5 sm:flex-row sm:items-center sm:justify-between bg-white">
-              <CardTitle className="text-[18px] font-bold text-gray-900 leading-tight flex items-center gap-2">
+              <CardTitle className="text-[17px] font-bold text-[#004D40]  leading-tight flex items-center">
                 <img src="/Table-icon.jpg" alt="" className="w-10 h-10 object-contain rounded-sm" />
                 Day Wise Production & Wastage Details
               </CardTitle>
-              <div className="flex flex-wrap gap-3">
-                <Button variant="outline" size="sm" className="flex gap-2 font-bold uppercase tracking-wider text-[11px] h-9 px-4 text-gray-600 border-gray-200">
+              <div className="flex flex-wrap gap-3 mt-1.5">
+                <Button variant="outline" size="sm" className="flex gap-2 font-bold uppercase tracking-wider text-[11px] h-8 px-3 text-gray-600 border-gray-400">
                   <Filter className="w-[14px] h-[14px]" /> FILTERS
                 </Button>
                 <Button
                   variant="outline"
                   size="sm"
-                  className="flex gap-2 font-bold uppercase tracking-wider text-[11px] h-9 px-4 text-gray-600 border-gray-200"
+                  className="flex gap-2 font-bold uppercase tracking-wider text-[11px] h-8 px-3 text-gray-600 border-gray-400"
                   onClick={() => setIsReportOpen(true)}
                 >
                   <Download className="w-[14px] h-[14px]" /> REPORT
