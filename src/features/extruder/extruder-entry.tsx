@@ -132,6 +132,7 @@ export function ExtruderEntry({ onClose }: ExtruderEntryProps) {
       const response = await fetch(apiUrl('/production/extruder'), {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
         body: JSON.stringify(payload),
       });
 
@@ -186,6 +187,7 @@ export function ExtruderEntry({ onClose }: ExtruderEntryProps) {
       const response = await fetch(apiUrl(`/production/extruder/${editingId}`), {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
         body: JSON.stringify(payload),
       });
 

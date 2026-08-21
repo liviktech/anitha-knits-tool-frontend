@@ -1,18 +1,36 @@
 import { useState, type FormEvent } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { Navigate, useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { defaultRouteFor, useAuth } from './auth-context';
 
 export function LoginPage() {
   const navigate = useNavigate();
-  const [email, setEmail] = useState('');
+  const { user, login } = useAuth();
+  const [mobile, setMobile] = useState('');
   const [password, setPassword] = useState('');
+  const [error, setError] = useState<string | null>(null);
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
-  function handleSubmit(e: FormEvent) {
+  // Already have a session (e.g. back-navigated to /login) — skip straight to that role's home.
+  if (user) {
+    return <Navigate to={defaultRouteFor(user)} replace />;
+  }
+
+  async function handleSubmit(e: FormEvent) {
     e.preventDefault();
-    navigate('/dashboard');
+    setError(null);
+    setIsSubmitting(true);
+    try {
+      const loggedInUser = await login(mobile, password);
+      navigate(defaultRouteFor(loggedInUser), { replace: true });
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Login failed');
+    } finally {
+      setIsSubmitting(false);
+    }
   }
 
   return (
@@ -24,13 +42,14 @@ export function LoginPage() {
         <CardContent>
           <form onSubmit={handleSubmit} className="space-y-4">
             <div className="space-y-2">
-              <Label htmlFor="email">Email</Label>
+              <Label htmlFor="mobile">Mobile number</Label>
               <Input
-                id="email"
-                type="email"
-                placeholder="you@example.com"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
+                id="mobile"
+                type="tel"
+                inputMode="numeric"
+                placeholder="9876543210"
+                value={mobile}
+                onChange={(e) => setMobile(e.target.value)}
                 required
               />
             </div>
@@ -45,8 +64,9 @@ export function LoginPage() {
                 required
               />
             </div>
-            <Button type="submit" className="w-full">
-              Log in
+            {error && <p className="text-sm text-red-600">{error}</p>}
+            <Button type="submit" className="w-full" disabled={isSubmitting}>
+              {isSubmitting ? 'Logging in...' : 'Log in'}
             </Button>
           </form>
         </CardContent>

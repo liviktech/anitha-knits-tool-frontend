@@ -57,7 +57,7 @@ export function CompanyFormDialog({ onClose, company }: CompanyFormDialogProps) 
       status,
     };
 
-    if (isEdit) {
+    if (company) {
       updateCompany(company.id, input);
     } else {
       addCompany(input);
@@ -109,7 +109,7 @@ export function CompanyFormDialog({ onClose, company }: CompanyFormDialogProps) 
             <Label htmlFor="company-gst">GST Number</Label>
             <Input id="company-gst" value={gstNumber} onChange={(e) => setGstNumber(e.target.value)} placeholder="e.g. 33AABCI2345C1Z5" />
           </div>
-          {isEdit && (
+          {company && (
             <div className="flex flex-col gap-1.5">
               <Label htmlFor="company-created">Created At</Label>
               <Input id="company-created" value={company.createdAt} disabled />
@@ -120,7 +120,7 @@ export function CompanyFormDialog({ onClose, company }: CompanyFormDialogProps) 
             <Label htmlFor="company-mobile">Admin Mobile</Label>
             <Input id="company-mobile" value={adminMobile} onChange={(e) => setAdminMobile(e.target.value)} placeholder="e.g. +91 98765 43210" />
           </div>
-          {isEdit && (
+          {company && (
             <div className="flex flex-col gap-1.5">
               <Label htmlFor="company-updated">Updated At</Label>
               <Input id="company-updated" value={company.updatedAt} disabled />
