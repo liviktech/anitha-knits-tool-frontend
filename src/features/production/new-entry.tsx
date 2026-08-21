@@ -1,23 +1,60 @@
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import { format } from 'date-fns';
 import { Calendar as CalendarIcon } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Calendar } from '@/components/ui/calendar';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { Loader } from '@/components/shared/loader';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
-import { useExtruderSummary } from '@/features/extruder/extruder-queries';
 import { DaySummaryCards, ExtruderSection, LoomSection, FabricSection } from './day-entry-sections';
+import type { SectionRef } from './day-entry-sections';
+import { useExtruderSummary } from '@/features/extruder/extruder-queries';
 
 interface NewEntryProps {
   onClose: () => void;
+  defaultDate?: string | null;
+  /** View-only: shows the day's existing records with no editing controls. */
+  readOnly?: boolean;
 }
 
-export function NewEntry({ onClose }: NewEntryProps) {
+export function NewEntry({ onClose, defaultDate, readOnly = false }: NewEntryProps) {
   const { summary } = useExtruderSummary();
   const efficiency = summary.input > 0 ? (summary.output / summary.input) * 100 : 0;
 
-  const [date, setDate] = useState<Date>(new Date());
+  // Opened via "Add New Entry" (no date pre-selected) — a pure create flow that
+  // always starts blank, even if the selected date already has records, as
+  // opposed to Edit/View which load and display that day's existing data.
+  const isCreateMode = !defaultDate && !readOnly;
+
+  const extruderRef = useRef<SectionRef>(null);
+  const loomRef = useRef<SectionRef>(null);
+  const fabricRef = useRef<SectionRef>(null);
+
+  const [date, setDate] = useState<Date>(defaultDate ? new Date(defaultDate) : new Date());
   const productionDate = format(date, 'yyyy-MM-dd');
+  const [submitting, setSubmitting] = useState(false);
+
+  const handleSaveDayEntry = async () => {
+    setSubmitting(true);
+    try {
+      const results = await Promise.all([
+        extruderRef.current?.saveDraft(),
+        loomRef.current?.saveDraft(),
+        fabricRef.current?.saveDraft()
+      ]);
+
+      // If any returned false (i.e. validation failed or save failed), don't close.
+      if (results.some(success => success === false)) {
+        return;
+      }
+
+      onClose();
+    } catch (e) {
+      console.error(e);
+    } finally {
+      setSubmitting(false);
+    }
+  };
 
   return (
     <Dialog open onOpenChange={(open) => !open && onClose()}>
@@ -29,7 +66,8 @@ export function NewEntry({ onClose }: NewEntryProps) {
                 <PopoverTrigger asChild>
                   <Button
                     variant="outline"
-                    className="h-auto gap-2 border-gray-200 px-3 py-1.5 text-2xl font-bold text-gray-900 hover:bg-gray-50"
+                    disabled={readOnly || submitting}
+                    className="h-auto gap-2 border-gray-200 px-3 py-1.5 text-2xl font-bold text-gray-900 hover:bg-gray-50 disabled:opacity-100"
                   >
                     <CalendarIcon className="h-5 w-5 text-gray-400" />
                     {format(date, 'd MMM yyyy')}
@@ -44,10 +82,12 @@ export function NewEntry({ onClose }: NewEntryProps) {
                   />
                 </PopoverContent>
               </Popover>
-              <DialogTitle className="sr-only">Add production entry for {format(date, 'd MMM yyyy')}</DialogTitle>
+              <DialogTitle className="sr-only">
+                {readOnly ? 'View' : defaultDate ? 'Edit' : 'Add'} production entry for {format(date, 'd MMM yyyy')}
+              </DialogTitle>
               <span className="flex items-center gap-1.5 rounded-full border border-green-200 bg-green-50 px-2.5 py-0.5 text-2xs font-semibold text-green-700 uppercase tracking-wider">
                 <div className="h-1.5 w-1.5 rounded-full bg-green-500"></div>
-                Day Closed
+                {readOnly ? 'View Only' : 'Day Closed'}
               </span>
             </div>
             <p className="text-sm text-gray-500 mt-1">Daily Production Overview</p>
@@ -63,21 +103,34 @@ export function NewEntry({ onClose }: NewEntryProps) {
 
         {/* Forms Container */}
         <div className="flex flex-col gap-6">
-          <ExtruderSection productionDate={productionDate} />
-          <LoomSection productionDate={productionDate} />
-          <FabricSection productionDate={productionDate} />
+          <ExtruderSection ref={extruderRef} productionDate={productionDate} autoAdd={!readOnly} readOnly={readOnly} hideExisting={isCreateMode} />
+          <LoomSection ref={loomRef} productionDate={productionDate} autoAdd={!readOnly} readOnly={readOnly} hideExisting={isCreateMode} />
+          <FabricSection ref={fabricRef} productionDate={productionDate} autoAdd={!readOnly} readOnly={readOnly} hideExisting={isCreateMode} />
         </div>
 
         {/* Footer */}
         <div className="mt-2 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between rounded-xl bg-white p-4 shadow-sm border border-gray-100">
           <p className="text-xs text-gray-500">All weights are in Kilograms (kg)</p>
           <div className="flex items-center gap-3">
-            <Button variant="outline" onClick={onClose} className="border-gray-200 text-gray-700">
-              Cancel
-            </Button>
-            <Button className="bg-emerald-500 text-white hover:bg-emerald-600 shadow">
-              Save day entry
-            </Button>
+            {readOnly ? (
+              <Button variant="outline" onClick={onClose} className="border-gray-200 text-gray-700">
+                Close
+              </Button>
+            ) : (
+              <>
+                <Button variant="outline" onClick={onClose} className="border-gray-200 text-gray-700" disabled={submitting}>
+                  Cancel
+                </Button>
+                <Button
+                  className="bg-emerald-500 text-white hover:bg-emerald-600 shadow"
+                  onClick={handleSaveDayEntry}
+                  disabled={submitting}
+                >
+                  {submitting && <Loader size="sm" className="mr-2" />}
+                  Save day entry
+                </Button>
+              </>
+            )}
           </div>
         </div>
       </DialogContent>

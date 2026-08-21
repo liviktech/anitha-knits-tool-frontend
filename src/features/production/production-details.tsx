@@ -8,9 +8,6 @@ import loomsIcon from '@/assets/looms-icon.png';
 import { ExtruderEntry } from '@/features/extruder/extruder-entry';
 import { LoomEntry } from '@/features/looms/loom-entry';
 import { FabricEntry } from '@/features/fabric/fabric-entry';
-import { useExtruderSummary } from '@/features/extruder/extruder-queries';
-import { useLoomsSummary } from '@/features/looms/loom-queries';
-import { useFabricCheckingSummary } from '@/features/fabric/fabric-queries';
 import { useDayWiseProduction } from './day-wise-queries';
 import { DayDetails } from './day-details';
 import { NewEntry } from './new-entry';
@@ -79,13 +76,15 @@ function DayDetailsRoute() {
   );
 }
 
+interface EntryModalState {
+  mode: 'add' | 'edit' | 'view';
+  date: string | null;
+}
+
 function Dashboard() {
   const navigate = useNavigate();
-  const [isNewEntryOpen, setIsNewEntryOpen] = useState(false);
-  const { summary: extruderSummary, isLoading: loadingSummary } = useExtruderSummary();
-  const { summary: loomsSummary } = useLoomsSummary();
-  const { summary: fabricSummary } = useFabricCheckingSummary();
-  const { rows: dayWiseRows, totals: dayWiseTotals, isLoading: loadingDayWise } = useDayWiseProduction();
+  const [entryModal, setEntryModal] = useState<EntryModalState | null>(null);
+  const { rows: dayWiseRows, totals: dayWiseTotals, isLoading: loadingDayWise, apiSummary } = useDayWiseProduction();
 
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(10);
@@ -97,7 +96,7 @@ function Dashboard() {
     [dayWiseRows, currentPage, pageSize],
   );
 
-  if (loadingSummary) {
+  if (loadingDayWise) {
     return (
       <div className="h-full flex items-center justify-center">
         <div className="flex items-center gap-2 text-gray-500">
@@ -108,14 +107,29 @@ function Dashboard() {
     );
   }
 
-  const efficiency = extruderSummary.input > 0 ? (extruderSummary.output / extruderSummary.input) * 100 : 0;
-  const wastePct = extruderSummary.input > 0 ? (extruderSummary.wastage / extruderSummary.input) * 100 : 0;
+  const extruderSummary = {
+    input: apiSummary?.extruder.inputKg ?? 0,
+    output: apiSummary?.extruder.outputKg ?? 0,
+    wastage: apiSummary?.extruder.wastageKg ?? 0,
+  };
+  const efficiency = apiSummary?.extruder.efficiencyPct ?? 0;
+  const wastePct = apiSummary?.extruder.wastePct ?? 0;
 
-  const loomsEfficiency = loomsSummary.input > 0 ? (loomsSummary.output / loomsSummary.input) * 100 : 0;
-  const loomsWastePct = loomsSummary.input > 0 ? (loomsSummary.wastage / loomsSummary.input) * 100 : 0;
+  const loomsSummary = {
+    input: apiSummary?.looms.inputKg ?? 0,
+    output: apiSummary?.looms.outputKg ?? 0,
+    wastage: apiSummary?.looms.wastageKg ?? 0,
+  };
+  const loomsEfficiency = apiSummary?.looms.efficiencyPct ?? 0;
+  const loomsWastePct = apiSummary?.looms.wastePct ?? 0;
 
-  const fabricEfficiency = fabricSummary.input > 0 ? (fabricSummary.checked / fabricSummary.input) * 100 : 0;
-  const fabricWastePct = fabricSummary.input > 0 ? (fabricSummary.wastage / fabricSummary.input) * 100 : 0;
+  const fabricSummary = {
+    input: apiSummary?.fabricChecking.inputKg ?? 0,
+    checked: apiSummary?.fabricChecking.outputKg ?? 0,
+    wastage: apiSummary?.fabricChecking.wastageKg ?? 0,
+  };
+  const fabricEfficiency = apiSummary?.fabricChecking.efficiencyPct ?? 0;
+  const fabricWastePct = apiSummary?.fabricChecking.wastePct ?? 0;
 
   return (
     <div className="flex flex-col gap-6 p-4">
@@ -130,7 +144,7 @@ function Dashboard() {
             Jul 2026
             <Calendar className="w-4 h-4 text-gray-500" />
           </Button>
-          <Button className="flex items-center gap-2 uppercase tracking-wide text-xs font-semibold" onClick={() => setIsNewEntryOpen(true)}>
+          <Button className="flex items-center gap-2 uppercase tracking-wide text-xs font-semibold" onClick={() => setEntryModal({ mode: 'add', date: null })}>
             <Plus className="w-4 h-4" />
             Add New Entry
           </Button>
@@ -332,7 +346,10 @@ function Dashboard() {
               ) : (
                 pagedRows.map((row) => (
                   <TableRow key={row.date}>
-                    <TableCell className="text-center font-medium text-green-700 border-r cursor-pointer hover:underline" onClick={() => navigate('/production/day-details')}>
+                    <TableCell
+                      className="text-center font-medium text-green-700 border-r cursor-pointer hover:underline"
+                      onClick={() => setEntryModal({ mode: 'view', date: row.date })}
+                    >
                       {format(parseISO(row.date), 'd MMM, yyyy')}
                     </TableCell>
 
@@ -357,7 +374,7 @@ function Dashboard() {
                     {/* Actions */}
                     <TableCell>
                       <div className="flex items-center justify-center gap-4">
-                        <Button variant="ghost" size="icon" className="h-6 w-6 text-gray-500">
+                        <Button variant="ghost" size="icon" className="h-6 w-6 text-gray-500" onClick={() => setEntryModal({ mode: 'edit', date: row.date })}>
                           <Edit className="h-4 w-4" />
                         </Button>
                         <Button variant="ghost" size="icon" className="h-6 w-6 text-red-500 hover:text-red-700">
@@ -438,7 +455,13 @@ function Dashboard() {
         </div>
       </Card>
       
-      {isNewEntryOpen && <NewEntry onClose={() => setIsNewEntryOpen(false)} />}
+      {entryModal && (
+        <NewEntry
+          onClose={() => setEntryModal(null)}
+          defaultDate={entryModal.date}
+          readOnly={entryModal.mode === 'view'}
+        />
+      )}
     </div>
   );
 }

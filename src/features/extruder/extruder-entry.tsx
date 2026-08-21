@@ -15,6 +15,7 @@ import {
   type ExtruderCreatePayload,
 } from './extruder-queries';
 import { apiUrl } from '@/lib/api-client';
+import { sumWastageByCode } from '@/lib/api-types';
 import { X, Edit, FileText } from 'lucide-react';
 
 interface ExtruderEntryProps {
@@ -32,6 +33,8 @@ interface ExtruderRow {
   chemicalKg: number;
   colorConsumedKg: number;
   output: number;
+  lumpsKg: number;
+  yarnWasteKg: number;
 }
 
 export function ExtruderEntry({ onClose }: ExtruderEntryProps) {
@@ -55,6 +58,8 @@ export function ExtruderEntry({ onClose }: ExtruderEntryProps) {
       chemicalKg: item.extruder?.chemicalKg ?? 0,
       colorConsumedKg: item.extruder?.colorConsumedKg ?? 0,
       output: item.extruder?.yarnOutputKg ?? 0,
+      lumpsKg: sumWastageByCode(item.wastages, 'LUMPS'),
+      yarnWasteKg: sumWastageByCode(item.wastages, 'YARN_WASTE'),
     }));
   }, [productionsData]);
 
@@ -73,6 +78,8 @@ export function ExtruderEntry({ onClose }: ExtruderEntryProps) {
   const [brand, setBrand] = useState('');
   const [raw, setRaw] = useState('');
   const [output, setOutput] = useState('');
+  const [lumpsKg, setLumpsKg] = useState('');
+  const [yarnWasteKg, setYarnWasteKg] = useState('');
 
   useEffect(() => {
     return () => {
@@ -86,6 +93,8 @@ export function ExtruderEntry({ onClose }: ExtruderEntryProps) {
     setChemWt('');
     setRaw('');
     setOutput('');
+    setLumpsKg('');
+    setYarnWasteKg('');
   };
 
   const buildPayload = (): ExtruderCreatePayload | null => {
@@ -108,6 +117,8 @@ export function ExtruderEntry({ onClose }: ExtruderEntryProps) {
       rawMaterialKg: parseFloat(raw) || 0,
       chemicalKg: parseFloat(chemWt) || 0,
       yarnOutputKg: parseFloat(output) || 0,
+      lumpsKg: parseFloat(lumpsKg) || 0,
+      yarnWasteKg: parseFloat(yarnWasteKg) || 0,
       ...(colorConsumedKg ? { colorConsumedKg: parseFloat(colorConsumedKg) } : {}),
     };
   };
@@ -146,6 +157,8 @@ export function ExtruderEntry({ onClose }: ExtruderEntryProps) {
     setBrand(row.brand);
     setRaw(String(row.raw));
     setOutput(String(row.output));
+    setLumpsKg(String(row.lumpsKg ?? 0));
+    setYarnWasteKg(String(row.yarnWasteKg ?? 0));
   };
 
   const EDIT_LOAD_DELAY_MS = 1000;
@@ -289,6 +302,18 @@ export function ExtruderEntry({ onClose }: ExtruderEntryProps) {
               <div className="space-y-1 flex-1 min-w-[120px]">
                 <label className="text-xs font-semibold text-gray-500">Yarn Output (kg) *</label>
                 <Input type="text" value={output} onChange={(e) => setOutput(e.target.value)} className="w-full" />
+              </div>
+            </div>
+
+            <div className="flex flex-wrap gap-4 items-end mt-2">
+              <div className="space-y-1 flex-1 min-w-[120px]">
+                <label className="text-xs font-semibold text-gray-500">Lumps (kg)</label>
+                <Input type="text" value={lumpsKg} onChange={(e) => setLumpsKg(e.target.value)} className="w-full" />
+              </div>
+
+              <div className="space-y-1 flex-1 min-w-[120px]">
+                <label className="text-xs font-semibold text-gray-500">Yarn Waste (kg)</label>
+                <Input type="text" value={yarnWasteKg} onChange={(e) => setYarnWasteKg(e.target.value)} className="w-full" />
               </div>
             </div>
           </div>
