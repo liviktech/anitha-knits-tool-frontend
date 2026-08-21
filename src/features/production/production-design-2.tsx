@@ -6,9 +6,6 @@ import { Calendar, Plus, Edit, Trash2, Filter, Download, Layers, FileSpreadsheet
 import { Loader } from '@/components/shared/loader';
 import extruderIcon from '@/assets/extruder-icon.png';
 import loomsIcon from '@/assets/looms-icon.png';
-import { useExtruderSummary } from '@/features/extruder/extruder-queries';
-import { useLoomsSummary } from '@/features/looms/loom-queries';
-import { useFabricCheckingSummary } from '@/features/fabric/fabric-queries';
 import { useDayWiseProduction } from './day-wise-queries';
 import { NewEntry } from './new-entry';
 import { DayWiseReportModal } from './day-wise-report-modal';
@@ -117,7 +114,7 @@ function DayDetailView({
               </div>
               <div className="text-right">
                 <p className="text-[10px] font-extrabold uppercase tracking-widest text-gray-500 mb-1.5">EFFICIENCY</p>
-                <p className="text-[18px] font-bold text-[#00A87E] leading-none">{row.extruder.wastePct > 0 ? (100 - row.extruder.wastePct).toFixed(2) : 99.32}%</p>
+                <p className="text-[18px] font-bold text-[#00A87E] leading-none">{(100 - row.extruder.wastePct).toFixed(2)}%</p>
               </div>
             </div>
 
@@ -152,7 +149,7 @@ function DayDetailView({
               </div>
               <div className="text-right">
                 <p className="text-[10px] font-extrabold uppercase tracking-widest text-gray-500 mb-1.5">EFFICIENCY</p>
-                <p className="text-[18px] font-bold text-[#00A87E] leading-none">{row.looms.wastePct > 0 ? (100 - row.looms.wastePct).toFixed(2) : 98.24}%</p>
+                <p className="text-[18px] font-bold text-[#00A87E] leading-none">{(100 - row.looms.wastePct).toFixed(2)}%</p>
               </div>
             </div>
 
@@ -187,7 +184,7 @@ function DayDetailView({
               </div>
               <div className="text-right">
                 <p className="text-[10px] font-extrabold uppercase tracking-widest text-gray-500 mb-1.5">EFFICIENCY</p>
-                <p className="text-[18px] font-bold text-[#00A87E] leading-none">{row.fabric.wastePct > 0 ? (100 - row.fabric.wastePct).toFixed(2) : 96.68}%</p>
+                <p className="text-[18px] font-bold text-[#00A87E] leading-none">{(100 - row.fabric.wastePct).toFixed(2)}%</p>
               </div>
             </div>
 
@@ -336,6 +333,9 @@ function DayDetailView({
           {dayWiseRows.map((dr) => {
             const isSelected = dr.date === date;
             const dFormat = format(parseISO(dr.date), 'dd MMM, yyyy');
+            const stageOutputs = [dr.extruder.output, dr.looms.output, dr.fabric.output];
+            const stageCount = stageOutputs.filter((v) => v > 0).length;
+            const totalOutput = stageOutputs.reduce((sum, v) => sum + v, 0);
             return (
               <div
                 key={dr.date}
@@ -350,9 +350,9 @@ function DayDetailView({
                 </div>
                 <div className="flex items-center gap-1.5 mt-2.5 text-[12px] text-[#2F4A47] font-medium">
                   <Layers className="w-3.5 h-3.5 text-[#5F7D7A]" />
-                  3 Stages
+                  {stageCount} {stageCount === 1 ? 'Stage' : 'Stages'}
                   <Gauge className="w-3.5 h-3.5 text-[#5F7D7A] ml-2" />
-                  6,462 kg/m
+                  {formatNum(totalOutput)} kg/m
                 </div>
               </div>
             );
@@ -368,10 +368,7 @@ export function ProductionDesign2() {
   const [selectedDate, setSelectedDate] = useState<string | null>(null);
   const [isNavigating, setIsNavigating] = useState(false);
   const [isReportOpen, setIsReportOpen] = useState(false);
-  const { summary: extruderSummary, isLoading: loadingSummary } = useExtruderSummary();
-  const { summary: loomsSummary } = useLoomsSummary();
-  const { summary: fabricSummary } = useFabricCheckingSummary();
-  const { rows: dayWiseRows, totals: dayWiseTotals, isLoading: loadingDayWise } = useDayWiseProduction();
+  const { rows: dayWiseRows, totals: dayWiseTotals, isLoading: loadingDayWise, apiSummary } = useDayWiseProduction();
 
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(10);
@@ -383,7 +380,7 @@ export function ProductionDesign2() {
     [dayWiseRows, currentPage, pageSize],
   );
 
-  if (loadingSummary) {
+  if (loadingDayWise) {
     return (
       <div className="h-full flex items-center justify-center">
         <div className="flex items-center gap-2 text-gray-500">
@@ -394,14 +391,29 @@ export function ProductionDesign2() {
     );
   }
 
-  const efficiency = extruderSummary.input > 0 ? (extruderSummary.output / extruderSummary.input) * 100 : 0;
-  const wastePct = extruderSummary.input > 0 ? (extruderSummary.wastage / extruderSummary.input) * 100 : 0;
+  const extruderSummary = {
+    input: apiSummary?.extruder.inputKg ?? 0,
+    output: apiSummary?.extruder.outputKg ?? 0,
+    wastage: apiSummary?.extruder.wastageKg ?? 0,
+  };
+  const efficiency = apiSummary?.extruder.efficiencyPct ?? 0;
+  const wastePct = apiSummary?.extruder.wastePct ?? 0;
 
-  const loomsEfficiency = loomsSummary.input > 0 ? (loomsSummary.output / loomsSummary.input) * 100 : 0;
-  const loomsWastePct = loomsSummary.input > 0 ? (loomsSummary.wastage / loomsSummary.input) * 100 : 0;
+  const loomsSummary = {
+    input: apiSummary?.looms.inputKg ?? 0,
+    output: apiSummary?.looms.outputKg ?? 0,
+    wastage: apiSummary?.looms.wastageKg ?? 0,
+  };
+  const loomsEfficiency = apiSummary?.looms.efficiencyPct ?? 0;
+  const loomsWastePct = apiSummary?.looms.wastePct ?? 0;
 
-  const fabricEfficiency = fabricSummary.input > 0 ? (fabricSummary.checked / fabricSummary.input) * 100 : 0;
-  const fabricWastePct = fabricSummary.input > 0 ? (fabricSummary.wastage / fabricSummary.input) * 100 : 0;
+  const fabricSummary = {
+    input: apiSummary?.fabricChecking.inputKg ?? 0,
+    checked: apiSummary?.fabricChecking.outputKg ?? 0,
+    wastage: apiSummary?.fabricChecking.wastageKg ?? 0,
+  };
+  const fabricEfficiency = apiSummary?.fabricChecking.efficiencyPct ?? 0;
+  const fabricWastePct = apiSummary?.fabricChecking.wastePct ?? 0;
 
   return (
     <div id="production-design-2-page" className="flex flex-col bg-[#004D40]/5 min-h-screen">
@@ -469,13 +481,11 @@ export function ProductionDesign2() {
                   <div className="flex border border-gray-100 rounded-lg mb-4 bg-white overflow-hidden">
                     <div className="flex-1 border-r border-gray-100 px-2 sm:px-3 py-3 flex flex-col justify-center">
                       <p className="text-[10.5px] font-extrabold uppercase tracking-wide text-gray-600 mb-1.5 whitespace-nowrap">TOTAL PRODUCTION (KG)</p>
-                      <p className="text-[18px] font-bold text-[#004D40] leading-none font-inter">2,650.85</p>
-                      {/* <p className="text-[18px] font-bold text-[#004D40] leading-none">{extruderSummary.output.toFixed(2)}</p> */}
+                      <p className="text-[18px] font-bold text-[#004D40] leading-none font-inter">{formatNum(extruderSummary.output)}</p>
                     </div>
                     <div className="flex-1 border-r border-gray-100 px-2 sm:px-3 py-3 flex flex-col justify-center">
                       <p className="text-[10.5px] font-extrabold uppercase tracking-wide text-gray-600 mb-1.5 whitespace-nowrap">TOTAL WASTAGE (KG)</p>
-                      <p className="text-[17px] font-bold text-[#004D40] leading-none font-inter">132.54</p>
-                      {/* <p className="text-[17px] font-bold text-[#004D40] leading-none">{extruderSummary.wastage.toFixed(2)} </p> */}
+                      <p className="text-[17px] font-bold text-[#004D40] leading-none font-inter">{formatNum(extruderSummary.wastage)}</p>
                     </div>
                     <div className="flex-1 px-2 sm:px-3 py-3 flex flex-col justify-center">
                       <p className="text-[10.5px] font-extrabold uppercase tracking-wide text-gray-600 mb-1.5 whitespace-nowrap">EFFICIENCY</p>
