@@ -6,10 +6,10 @@ import { Calendar, Plus, Edit, Trash2, Filter, Download, Layers, Search, Chevron
 import { Loader } from '@/components/shared/loader';
 import extruderIcon from '@/assets/extruder-icon.png';
 import loomsIcon from '@/assets/looms-icon.png';
-import { useExtruderSummary, useExtruderProductions } from '@/features/extruder/extruder-queries';
-import { useLoomsSummary, useLoomsProductions } from '@/features/looms/loom-queries';
-import { useFabricCheckingSummary, useFabricCheckingRecords } from '@/features/fabric/fabric-queries';
-import { useDayWiseProduction } from './day-wise-queries';
+import { useExtruderProductions } from '@/features/extruder/extruder-queries';
+import { useLoomsProductions } from '@/features/looms/loom-queries';
+import { useFabricCheckingRecords } from '@/features/fabric/fabric-queries';
+import { useDayWiseProduction, type DayWiseRow } from './day-wise-queries';
 import { mapExtruderItem, mapLoomItem, mapFabricItem } from './day-entry-sections';
 import { NewEntry } from './new-entry';
 import { DayWiseReportModal } from './day-wise-report-modal';
@@ -200,7 +200,7 @@ function DayDetailView({
 }: {
   date: string;
   onClose: () => void;
-  dayWiseRows: any[];
+  dayWiseRows: DayWiseRow[];
   setDate: (d: string) => void;
 }) {
   const row = dayWiseRows.find((r) => r.date === date) || dayWiseRows[0];
@@ -438,6 +438,9 @@ function DayDetailView({
           {dayWiseRows.map((dr) => {
             const isSelected = dr.date === date;
             const dFormat = format(parseISO(dr.date), 'dd MMM, yyyy');
+            const stageOutputs = [dr.extruder.output, dr.looms.output, dr.fabric.output];
+            const stageCount = stageOutputs.filter((v) => v > 0).length;
+            const totalOutput = stageOutputs.reduce((sum, v) => sum + v, 0);
             return (
               <div
                 key={dr.date}
@@ -452,9 +455,9 @@ function DayDetailView({
                 </div>
                 <div className="flex items-center gap-1.5 mt-2.5 text-[12px] text-[#2F4A47] font-medium">
                   <Layers className="w-3.5 h-3.5 text-[#5F7D7A]" />
-                  3 Stages
+                  {stageCount} {stageCount === 1 ? 'Stage' : 'Stages'}
                   <Gauge className="w-3.5 h-3.5 text-[#5F7D7A] ml-2" />
-                  6,462 kg/m
+                  {formatNum(totalOutput)} kg/m
                 </div>
               </div>
             );
@@ -470,10 +473,7 @@ export function ProductionDesign2() {
   const [selectedDate, setSelectedDate] = useState<string | null>(null);
   const [isNavigating, setIsNavigating] = useState(false);
   const [isReportOpen, setIsReportOpen] = useState(false);
-  const { summary: extruderSummary, isLoading: loadingSummary } = useExtruderSummary();
-  const { summary: loomsSummary } = useLoomsSummary();
-  const { summary: fabricSummary } = useFabricCheckingSummary();
-  const { rows: dayWiseRows, totals: dayWiseTotals, isLoading: loadingDayWise } = useDayWiseProduction();
+  const { rows: dayWiseRows, totals: dayWiseTotals, isLoading: loadingDayWise, apiSummary } = useDayWiseProduction();
 
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(10);
@@ -485,7 +485,7 @@ export function ProductionDesign2() {
     [dayWiseRows, currentPage, pageSize],
   );
 
-  if (loadingSummary) {
+  if (loadingDayWise) {
     return (
       <div className="h-full flex items-center justify-center">
         <div className="flex items-center gap-2 text-gray-500">
@@ -496,26 +496,41 @@ export function ProductionDesign2() {
     );
   }
 
-  const efficiency = extruderSummary.input > 0 ? (extruderSummary.output / extruderSummary.input) * 100 : 0;
-  const wastePct = extruderSummary.input > 0 ? (extruderSummary.wastage / extruderSummary.input) * 100 : 0;
+  const extruderSummary = {
+    input: apiSummary?.extruder.inputKg ?? 0,
+    output: apiSummary?.extruder.outputKg ?? 0,
+    wastage: apiSummary?.extruder.wastageKg ?? 0,
+  };
+  const efficiency = apiSummary?.extruder.efficiencyPct ?? 0;
+  const wastePct = apiSummary?.extruder.wastePct ?? 0;
 
-  const loomsEfficiency = loomsSummary.input > 0 ? (loomsSummary.output / loomsSummary.input) * 100 : 0;
-  const loomsWastePct = loomsSummary.input > 0 ? (loomsSummary.wastage / loomsSummary.input) * 100 : 0;
+  const loomsSummary = {
+    input: apiSummary?.looms.inputKg ?? 0,
+    output: apiSummary?.looms.outputKg ?? 0,
+    wastage: apiSummary?.looms.wastageKg ?? 0,
+  };
+  const loomsEfficiency = apiSummary?.looms.efficiencyPct ?? 0;
+  const loomsWastePct = apiSummary?.looms.wastePct ?? 0;
 
-  const fabricEfficiency = fabricSummary.input > 0 ? (fabricSummary.checked / fabricSummary.input) * 100 : 0;
-  const fabricWastePct = fabricSummary.input > 0 ? (fabricSummary.wastage / fabricSummary.input) * 100 : 0;
+  const fabricSummary = {
+    input: apiSummary?.fabricChecking.inputKg ?? 0,
+    checked: apiSummary?.fabricChecking.outputKg ?? 0,
+    wastage: apiSummary?.fabricChecking.wastageKg ?? 0,
+  };
+  const fabricEfficiency = apiSummary?.fabricChecking.efficiencyPct ?? 0;
+  const fabricWastePct = apiSummary?.fabricChecking.wastePct ?? 0;
 
   return (
-    <div id="production-design-2-page" className="flex flex-col bg-[#004D40]/5 min-h-screen">
+    <div id="production-design-2-page" className="flex flex-col bg-[#004D40]/5 min-h-full h-full flex-1">
       <style>{`
         #production-design-2-page, #production-design-2-page * { font-family: 'Hanken Grotesk Variable', 'Hanken Grotesk', sans-serif !important; }
         #production-design-2-page .font-inter { font-family: 'Inter Variable', 'Inter', sans-serif !important; }
       `}</style>
       {/* Header Area */}
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between px-4 py-3 bg-white border-b border-gray-100">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between px-4 py-3 bg-[#F4F1E8] border-b border-gray-100">
         <div>
-          <h1 className="text-[22px] font-bold text-black leading-tight">Daily Production & Wastage</h1>
-          <p className="text-[12.5px] text-gray-500 font-medium mt-1">Track daily production and wastage across all conversion processes</p>
+          <h1 className="text-[22px] font-bold text-black leading-tight px-2">Daily Production & Wastage</h1>
+          <p className="text-[12.5px] text-gray-500 font-medium mt-1 px-2">Track daily production and wastage across all conversion processes</p>
         </div>
         <div className="flex flex-wrap items-center gap-3">
           <div className="flex items-center bg-white border border-gray-400 rounded-md px-4 py-2 shadow-[0_1px_2px_rgba(0,0,0,0.05)]">
@@ -553,7 +568,7 @@ export function ProductionDesign2() {
           }}
         />
       ) : (
-        <div className="p-2.5 flex flex-col gap-3">
+        <div className="p-2.5 flex flex-col gap-3 flex-1">
           {/* Summary Cards */}
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-2.5">
             <Card className="bg-white rounded-[14px] p-2 hover:shadow-md transition-all">
@@ -571,13 +586,11 @@ export function ProductionDesign2() {
                   <div className="flex border border-gray-100 rounded-lg mb-4 bg-white overflow-hidden">
                     <div className="flex-1 border-r border-gray-100 px-2 sm:px-3 py-3 flex flex-col justify-center">
                       <p className="text-[10.5px] font-extrabold uppercase tracking-wide text-gray-600 mb-1.5 whitespace-nowrap">TOTAL PRODUCTION (KG)</p>
-                      <p className="text-[18px] font-bold text-[#004D40] leading-none font-inter">2,650.85</p>
-                      {/* <p className="text-[18px] font-bold text-[#004D40] leading-none">{extruderSummary.output.toFixed(2)}</p> */}
+                      <p className="text-[18px] font-bold text-[#004D40] leading-none font-inter">{formatNum(extruderSummary.output)}</p>
                     </div>
                     <div className="flex-1 border-r border-gray-100 px-2 sm:px-3 py-3 flex flex-col justify-center">
                       <p className="text-[10.5px] font-extrabold uppercase tracking-wide text-gray-600 mb-1.5 whitespace-nowrap">TOTAL WASTAGE (KG)</p>
-                      <p className="text-[17px] font-bold text-[#004D40] leading-none font-inter">132.54</p>
-                      {/* <p className="text-[17px] font-bold text-[#004D40] leading-none">{extruderSummary.wastage.toFixed(2)} </p> */}
+                      <p className="text-[17px] font-bold text-[#004D40] leading-none font-inter">{formatNum(extruderSummary.wastage)}</p>
                     </div>
                     <div className="flex-1 px-2 sm:px-3 py-3 flex flex-col justify-center">
                       <p className="text-[10.5px] font-extrabold uppercase tracking-wide text-gray-600 mb-1.5 whitespace-nowrap">EFFICIENCY</p>
@@ -680,7 +693,7 @@ export function ProductionDesign2() {
           </div>
 
           {/* Data Table Area */}
-          <Card className="shadow-sm border-0 bg-white rounded-xl overflow-hidden gap-0 p-0">
+          <Card className="shadow-sm border-0 bg-white rounded-xl overflow-hidden gap-0 p-0 flex-1 flex flex-col">
             <CardHeader className="flex flex-col gap-3 border-b border-gray-300 px-3 pt-3 pb-0.5 sm:flex-row sm:items-center sm:justify-between bg-white">
               <CardTitle className="text-[17px] font-bold text-[#004D40]  leading-tight flex items-center">
                 <img src="/Table-icon.jpg" alt="" className="w-10 h-10 object-contain rounded-sm" />
@@ -700,7 +713,7 @@ export function ProductionDesign2() {
                 </Button>
               </div>
             </CardHeader>
-            <div className="overflow-x-auto w-full">
+            <div className="overflow-auto w-full flex-1">
               <Table className="w-full">
                 <TableHeader>
                   <TableRow className="hover:bg-transparent border-b border-gray-300">
@@ -831,7 +844,7 @@ export function ProductionDesign2() {
             </div>
 
             {/* Pagination Footer */}
-            <div className="flex flex-wrap items-center justify-between gap-3 border-t border-gray-400 p-4 text-sm text-gray-500 bg-white">
+            <div className="flex flex-wrap items-center justify-between gap-3 border-t border-gray-400 p-2 text-sm text-gray-500 bg-white">
               <div className="font-medium text-gray-600 text-xs">
                 {dayWiseRows.length === 0
                   ? 'No entries'
@@ -847,7 +860,7 @@ export function ProductionDesign2() {
                       key={p}
                       variant={p === currentPage ? 'outline' : 'ghost'}
                       size="icon"
-                      className={p === currentPage ? 'h-8 w-8 rounded-md bg-[#004D40] text-white hover:bg-[#00382e] border-[#004D40]' : 'h-8 w-8 rounded-md text-gray-600 hover:bg-gray-100'}
+                      className={p === currentPage ? 'h-6 w-6 rounded-md bg-[#004D40] text-white text-sm hover:bg-[#00382e] border-[#004D40]' : 'h-6 w-6 rounded-md text-sm text-gray-600 hover:bg-gray-100'}
                       onClick={() => setPage(p)}
                     >
                       {p}
