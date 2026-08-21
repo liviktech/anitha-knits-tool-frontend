@@ -2,14 +2,15 @@ import { useMemo, useState } from 'react';
 import '@fontsource-variable/hanken-grotesk';
 import '@fontsource-variable/inter';
 import { parseISO, format } from 'date-fns';
-import { Calendar, Plus, Edit, Trash2, Filter, Download, Layers, FileSpreadsheet, Search, ClipboardList, Gauge } from 'lucide-react';
+import { Calendar, Plus, Edit, Trash2, Filter, Download, Layers, FileSpreadsheet, Search, ChevronRight, CheckCircle2, Gauge } from 'lucide-react';
 import { Loader } from '@/components/shared/loader';
 import extruderIcon from '@/assets/extruder-icon.png';
 import loomsIcon from '@/assets/looms-icon.png';
-import { useExtruderSummary } from '@/features/extruder/extruder-queries';
-import { useLoomsSummary } from '@/features/looms/loom-queries';
-import { useFabricCheckingSummary } from '@/features/fabric/fabric-queries';
+import { useExtruderSummary, useExtruderProductions } from '@/features/extruder/extruder-queries';
+import { useLoomsSummary, useLoomsProductions } from '@/features/looms/loom-queries';
+import { useFabricCheckingSummary, useFabricCheckingRecords } from '@/features/fabric/fabric-queries';
 import { useDayWiseProduction } from './day-wise-queries';
+import { mapExtruderItem, mapLoomItem, mapFabricItem } from './day-entry-sections';
 import { NewEntry } from './new-entry';
 import { DayWiseReportModal } from './day-wise-report-modal';
 import { Button } from '@/components/ui/button';
@@ -43,6 +44,154 @@ function getPageNumbers(current: number, total: number): (number | 'ellipsis')[]
   return result;
 }
 
+const stageTheme = {
+  extruder: {
+    circle: 'bg-[#0B8457]',
+    text: 'text-[#0B8457]',
+    pillBg: 'bg-emerald-50',
+    pillText: 'text-emerald-700',
+    pillBorder: 'border-emerald-100',
+  },
+  looms: {
+    circle: 'bg-[#1D4E89]',
+    text: 'text-[#1D4E89]',
+    pillBg: 'bg-blue-50',
+    pillText: 'text-blue-700',
+    pillBorder: 'border-blue-100',
+  },
+  fabric: {
+    circle: 'bg-[#6D3FA0]',
+    text: 'text-[#6D3FA0]',
+    pillBg: 'bg-purple-50',
+    pillText: 'text-purple-700',
+    pillBorder: 'border-purple-100',
+  },
+} as const;
+
+interface StagePill {
+  label: string;
+  value: string;
+}
+
+interface StageBlockProps {
+  number: number;
+  icon: React.ReactNode;
+  title: string;
+  description: string;
+  theme: (typeof stageTheme)[keyof typeof stageTheme];
+  producedLabel: string;
+  producedValue: string;
+  producedUnit: string;
+  wasteLabel: string;
+  wasteValue: string;
+  wasteUnit: string;
+  pills: StagePill[];
+  expanded: boolean;
+  onToggle: () => void;
+  tableHeads: string[];
+  children: React.ReactNode;
+  isLast?: boolean;
+}
+
+function StageBlock({
+  number,
+  icon,
+  title,
+  description,
+  theme,
+  producedLabel,
+  producedValue,
+  producedUnit,
+  wasteLabel,
+  wasteValue,
+  wasteUnit,
+  pills,
+  expanded,
+  onToggle,
+  tableHeads,
+  children,
+  isLast,
+}: StageBlockProps) {
+  return (
+    <div className="relative flex gap-4">
+      {!isLast && <div className="absolute left-4.75 top-10 -bottom-5 w-px bg-gray-200" />}
+      <div className="flex flex-col items-center gap-2 shrink-0 z-10">
+        <div className={`w-10 h-10 rounded-full ${theme.circle} text-white font-bold text-[14px] flex items-center justify-center ring-4 ring-[#F3F5F4]`}>
+          {number}
+        </div>
+        <div className="w-11 h-11 rounded-xl bg-white border border-gray-100 shadow-sm flex items-center justify-center">
+          {icon}
+        </div>
+      </div>
+
+      <div className="flex-1 flex flex-col gap-2 pb-5 min-w-0">
+        <p className={`font-bold text-[14px] ${theme.text}`}>{title}</p>
+
+        <Card className="rounded-2xl border border-gray-100 shadow-sm bg-white p-4 flex flex-col gap-4">
+          <div className="flex flex-wrap items-start justify-between gap-3">
+            <p className="text-[12px] text-gray-500 italic">{description}</p>
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={onToggle}
+              className={`h-7 px-3 rounded-md ${theme.pillBg} ${theme.pillText} text-[11px] font-bold gap-1 hover:opacity-80`}
+            >
+              View Details <ChevronRight className={`w-3.5 h-3.5 transition-transform ${expanded ? 'rotate-90' : ''}`} />
+            </Button>
+          </div>
+
+          <div className="flex flex-wrap items-center gap-x-8 gap-y-3">
+            <div>
+              <p className={`text-2xs font-extrabold uppercase tracking-wide ${theme.text} mb-1`}>{producedLabel}</p>
+              <p className={`text-[20px] font-extrabold ${theme.text} leading-none`}>
+                {producedValue} <span className="text-[11px] font-medium text-gray-400">{producedUnit}</span>
+              </p>
+            </div>
+            <div>
+              <p className={`text-2xs font-extrabold uppercase tracking-wide ${theme.text} mb-1`}>{wasteLabel}</p>
+              <p className="text-[20px] font-extrabold text-red-500 leading-none">
+                {wasteValue} <span className="text-[11px] font-medium text-gray-400">{wasteUnit}</span>
+              </p>
+            </div>
+            {pills.length > 0 && (
+              <div className="flex flex-wrap gap-2">
+                {pills.map((p, i) => (
+                  <span
+                    key={`${p.label}-${i}`}
+                    className={`inline-flex items-center gap-1.5 rounded-md border ${theme.pillBorder} ${theme.pillBg} ${theme.pillText} px-2.5 py-1 text-[11px] font-semibold whitespace-nowrap`}
+                  >
+                    {p.label} {p.value}
+                  </span>
+                ))}
+              </div>
+            )}
+          </div>
+
+          {expanded && (
+            <div className="overflow-x-auto -mx-1 border-t border-gray-100 pt-3">
+              <Table>
+                <TableHeader>
+                  <TableRow className="hover:bg-transparent">
+                    {tableHeads.map((h, i) => (
+                      <TableHead
+                        key={h}
+                        className={`text-[9.5px] font-extrabold uppercase tracking-wide text-gray-500 whitespace-nowrap ${i > 0 ? 'text-center' : ''}`}
+                      >
+                        {h}
+                      </TableHead>
+                    ))}
+                  </TableRow>
+                </TableHeader>
+                <TableBody>{children}</TableBody>
+              </Table>
+            </div>
+          )}
+        </Card>
+      </div>
+    </div>
+  );
+}
+
 function DayDetailView({
   date,
   onClose,
@@ -56,6 +205,68 @@ function DayDetailView({
 }) {
   const row = dayWiseRows.find((r) => r.date === date) || dayWiseRows[0];
   const formattedDate = format(parseISO(date), 'dd MMM, yyyy');
+
+  const [expandedStages, setExpandedStages] = useState<Record<string, boolean>>({ extruder: true, looms: true, fabric: true });
+  const toggleStage = (key: string) => setExpandedStages((s) => ({ ...s, [key]: !s[key] }));
+
+  const dateQuery = `?date_from=${date}&date_to=${date}`;
+  const { data: extruderData } = useExtruderProductions(dateQuery);
+  const { data: loomsData } = useLoomsProductions(dateQuery);
+  const { data: fabricData } = useFabricCheckingRecords(dateQuery);
+
+  const extruderRows = useMemo(
+    () =>
+      (extruderData?.data ?? [])
+        .filter((item) => item.productionDate.startsWith(date))
+        .map(mapExtruderItem)
+        .filter((r) => r.raw > 0 || r.output > 0 || r.chemicalKg > 0),
+    [extruderData, date],
+  );
+  const loomRows = useMemo(
+    () =>
+      (loomsData?.data ?? [])
+        .filter((item) => item.productionDate.startsWith(date))
+        .map(mapLoomItem)
+        .filter((r) => r.input > 0 || r.output > 0 || r.loomsWasteKg > 0),
+    [loomsData, date],
+  );
+  const fabricRows = useMemo(
+    () =>
+      (fabricData?.data ?? [])
+        .filter((item) => item.productionDate.startsWith(date))
+        .map(mapFabricItem)
+        .filter((r) => r.input > 0 || r.firstGrade > 0 || r.secondGrade > 0 || r.fwKg > 0 || r.bwKg > 0),
+    [fabricData, date],
+  );
+
+  const extruderPills = useMemo(() => {
+    const loose = extruderRows.reduce((sum, r) => sum + r.yarnWasteKg, 0);
+    const lumps = extruderRows.reduce((sum, r) => sum + r.lumpsKg, 0);
+    return [
+      { label: 'Loose waste', value: formatNum(loose) },
+      { label: 'Lumps', value: formatNum(lumps) },
+    ];
+  }, [extruderRows]);
+
+  const loomsPills = useMemo(() => {
+    const byColor = new Map<string, number>();
+    loomRows.forEach((r) => byColor.set(r.color, (byColor.get(r.color) ?? 0) + r.loomsWasteKg));
+    return Array.from(byColor.entries()).map(([color, kg]) => ({ label: color, value: formatNum(kg) }));
+  }, [loomRows]);
+
+  const fabricPills = useMemo(() => {
+    const fwByGroup = new Map<string, number>();
+    const bwByColor = new Map<string, number>();
+    fabricRows.forEach((r) => {
+      const key = `FW ${r.color} ${r.size}`.trim();
+      fwByGroup.set(key, (fwByGroup.get(key) ?? 0) + r.fwKg);
+      bwByColor.set(r.color, (bwByColor.get(r.color) ?? 0) + r.bwKg);
+    });
+    return [
+      ...Array.from(fwByGroup.entries()).map(([label, kg]) => ({ label, value: formatNum(kg) })),
+      ...Array.from(bwByColor.entries()).map(([color, kg]) => ({ label: color, value: formatNum(kg) })),
+    ];
+  }, [fabricRows]);
 
   return (
     <div className="flex-1 flex flex-col lg:flex-row gap-4 p-4">
@@ -98,224 +309,115 @@ function DayDetailView({
           </div>
         </div>
 
-        {/* 3 Metrics Cards */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
-          {/* Extruder Card */}
-          <Card className="rounded-[16px] shadow-sm border border-gray-100 overflow-hidden bg-white p-5 flex flex-col gap-5">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-3">
-                <span className="bg-[#00897B] text-white w-[26px] h-[26px] rounded-[6px] flex items-center justify-center text-[13px] font-bold">1</span>
-                <span className="font-bold text-[#004D40] text-[15px]">Extruder</span>
-              </div>
-              <img src={extruderIcon} alt="Extruder" className="w-[26px] h-[26px] object-contain opacity-70" />
-            </div>
+        {/* Stage Timeline */}
+        <div className="flex flex-col">
+          <StageBlock
+            number={1}
+            icon={<img src={extruderIcon} alt="Extruder" className="w-6 h-6 object-contain" />}
+            title="Extruder Production"
+            description="Raw materials is converted into tape (DN+ / LUMPS)"
+            theme={stageTheme.extruder}
+            producedLabel="DN+ PRODUCED"
+            producedValue={formatNum(row.extruder.output)}
+            producedUnit="kg"
+            wasteLabel="WASTE + LUMPS"
+            wasteValue={formatNum(row.extruder.wastage)}
+            wasteUnit="kg"
+            pills={extruderPills}
+            expanded={expandedStages.extruder}
+            onToggle={() => toggleStage('extruder')}
+            tableHeads={['SIZE', 'COLOR', 'BRAND', 'RAW MATERIAL (KG)', 'WASTE (KG)', 'LUMPS (KG)', 'ACTION']}
+          >
+            {extruderRows.length === 0 ? (
+              <TableRow>
+                <TableCell colSpan={7} className="h-16 text-center text-gray-400 text-xs">No entries for this date.</TableCell>
+              </TableRow>
+            ) : (
+              extruderRows.map((r) => (
+                <TableRow key={r.id}>
+                  <TableCell className="text-[12px] text-gray-800">{r.size}</TableCell>
+                  <TableCell className="text-[12px] text-gray-800">{r.color}</TableCell>
+                  <TableCell className="text-[12px] text-gray-800">{r.brand}</TableCell>
+                  <TableCell className="text-center text-[12px] font-semibold text-gray-900">{formatNum(r.raw)}</TableCell>
+                  <TableCell className="text-center text-[12px] font-semibold text-red-500">{formatNum(r.yarnWasteKg)}</TableCell>
+                  <TableCell className="text-center text-[12px] font-semibold text-gray-700">{formatNum(r.lumpsKg)}</TableCell>
+                  <TableCell className="text-center"><CheckCircle2 className="w-4 h-4 text-emerald-500 inline-block" /></TableCell>
+                </TableRow>
+              ))
+            )}
+          </StageBlock>
 
-            <div className="flex justify-between items-end">
-              <div>
-                <p className="text-[10px] font-extrabold uppercase tracking-widest text-gray-500 mb-1.5">PRODUCTION (KG)</p>
-                <p className="text-[26px] font-extrabold text-gray-900 leading-none">{formatNum(row.extruder.output)}</p>
-              </div>
-              <div className="text-right">
-                <p className="text-[10px] font-extrabold uppercase tracking-widest text-gray-500 mb-1.5">EFFICIENCY</p>
-                <p className="text-[18px] font-bold text-[#00A87E] leading-none">{row.extruder.wastePct > 0 ? (100 - row.extruder.wastePct).toFixed(2) : 99.32}%</p>
-              </div>
-            </div>
+          <StageBlock
+            number={2}
+            icon={<img src={loomsIcon} alt="Looms" className="w-6 h-6 object-contain" />}
+            title="Looms Production"
+            description="Tapes are woven into fabric on looms"
+            theme={stageTheme.looms}
+            producedLabel="FABRIC PRODUCED"
+            producedValue={formatNum(row.looms.output)}
+            producedUnit="kg"
+            wasteLabel="LOOMS WASTE"
+            wasteValue={formatNum(row.looms.wastage)}
+            wasteUnit="kg"
+            pills={loomsPills}
+            expanded={expandedStages.looms}
+            onToggle={() => toggleStage('looms')}
+            tableHeads={['SIZE', 'COLOR', 'INPUT WEIGHT (KG)', 'WASTE (KG)', 'FINAL WEIGHT (KG)', 'ACTION']}
+          >
+            {loomRows.length === 0 ? (
+              <TableRow>
+                <TableCell colSpan={6} className="h-16 text-center text-gray-400 text-xs">No entries for this date.</TableCell>
+              </TableRow>
+            ) : (
+              loomRows.map((r) => (
+                <TableRow key={r.id}>
+                  <TableCell className="text-[12px] text-gray-800">{r.size}</TableCell>
+                  <TableCell className="text-[12px] text-gray-800">{r.color}</TableCell>
+                  <TableCell className="text-center text-[12px] font-semibold text-gray-900">{formatNum(r.input)}</TableCell>
+                  <TableCell className="text-center text-[12px] font-semibold text-red-500">{formatNum(r.loomsWasteKg)}</TableCell>
+                  <TableCell className="text-center text-[12px] font-semibold text-gray-900">{formatNum(r.output)}</TableCell>
+                  <TableCell className="text-center"><CheckCircle2 className="w-4 h-4 text-blue-500 inline-block" /></TableCell>
+                </TableRow>
+              ))
+            )}
+          </StageBlock>
 
-            <div className="flex gap-2">
-              <div className="flex-1 bg-[#F5F8F7] rounded-lg p-3">
-                <p className="text-[10.5px] font-medium text-gray-500 mb-1">Input</p>
-                <p className="text-[14px] font-semibold text-gray-800">{formatNum(row.extruder.input)}</p>
-              </div>
-              <div className="flex-1 bg-[#F5F8F7] rounded-lg p-3">
-                <p className="text-[10.5px] font-medium text-gray-500 mb-1">Wastage (KG)</p>
-                <p className="text-[14px] font-semibold text-red-500">
-                  {formatNum(row.extruder.wastage)} <span className="text-gray-500 text-[12px] font-medium ml-1">({row.extruder.wastePct.toFixed(2)}%)</span>
-                </p>
-              </div>
-            </div>
-          </Card>
-
-          {/* Looms Card */}
-          <Card className="rounded-[16px] shadow-sm border border-gray-100 overflow-hidden bg-white p-5 flex flex-col gap-5">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-3">
-                <span className="bg-[#004D40] text-white w-[26px] h-[26px] rounded-[6px] flex items-center justify-center text-[13px] font-bold">2</span>
-                <span className="font-bold text-[#004D40] text-[15px]">Looms</span>
-              </div>
-              <img src={loomsIcon} alt="Looms" className="w-[26px] h-[26px] object-contain opacity-70" />
-            </div>
-
-            <div className="flex justify-between items-end">
-              <div>
-                <p className="text-[10px] font-extrabold uppercase tracking-widest text-gray-500 mb-1.5">PRODUCTION (MTRS)</p>
-                <p className="text-[26px] font-extrabold text-gray-900 leading-none">{formatNum(row.looms.output)}</p>
-              </div>
-              <div className="text-right">
-                <p className="text-[10px] font-extrabold uppercase tracking-widest text-gray-500 mb-1.5">EFFICIENCY</p>
-                <p className="text-[18px] font-bold text-[#00A87E] leading-none">{row.looms.wastePct > 0 ? (100 - row.looms.wastePct).toFixed(2) : 98.24}%</p>
-              </div>
-            </div>
-
-            <div className="flex gap-2">
-              <div className="flex-1 bg-[#F5F8F7] rounded-lg p-3">
-                <p className="text-[10.5px] font-medium text-gray-500 mb-1">Input</p>
-                <p className="text-[14px] font-semibold text-gray-800">{formatNum(row.looms.input)}</p>
-              </div>
-              <div className="flex-1 bg-[#F5F8F7] rounded-lg p-3">
-                <p className="text-[10.5px] font-medium text-gray-500 mb-1">Wastage (MTRS)</p>
-                <p className="text-[14px] font-semibold text-red-500">
-                  {formatNum(row.looms.wastage)} <span className="text-gray-500 text-[12px] font-medium ml-1">({row.looms.wastePct.toFixed(2)}%)</span>
-                </p>
-              </div>
-            </div>
-          </Card>
-
-          {/* Fabric Card */}
-          <Card className="rounded-[16px] shadow-sm border border-gray-100 overflow-hidden bg-white p-5 flex flex-col gap-5">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-3">
-                <span className="bg-[#004D40] text-white w-[26px] h-[26px] rounded-[6px] flex items-center justify-center text-[13px] font-bold">3</span>
-                <span className="font-bold text-[#004D40] text-[15px]">Fabric</span>
-              </div>
-              <Layers className="w-[24px] h-[24px] text-gray-400 opacity-80" />
-            </div>
-
-            <div className="flex justify-between items-end">
-              <div>
-                <p className="text-[10px] font-extrabold uppercase tracking-widest text-gray-500 mb-1.5">PRODUCTION (MTRS)</p>
-                <p className="text-[26px] font-extrabold text-gray-900 leading-none">{formatNum(row.fabric.output)}</p>
-              </div>
-              <div className="text-right">
-                <p className="text-[10px] font-extrabold uppercase tracking-widest text-gray-500 mb-1.5">EFFICIENCY</p>
-                <p className="text-[18px] font-bold text-[#00A87E] leading-none">{row.fabric.wastePct > 0 ? (100 - row.fabric.wastePct).toFixed(2) : 96.68}%</p>
-              </div>
-            </div>
-
-            <div className="flex gap-2">
-              <div className="flex-1 bg-[#F5F8F7] rounded-lg p-3">
-                <p className="text-[10.5px] font-medium text-gray-500 mb-1">Input</p>
-                <p className="text-[14px] font-semibold text-gray-800">{formatNum(row.fabric.input)}</p>
-              </div>
-              <div className="flex-1 bg-[#F5F8F7] rounded-lg p-3">
-                <p className="text-[10.5px] font-medium text-gray-500 mb-1">Wastage (MTRS)</p>
-                <p className="text-[14px] font-semibold text-red-500">
-                  {formatNum(row.fabric.wastage)} <span className="text-gray-500 text-[12px] font-medium ml-1">({row.fabric.wastePct.toFixed(2)}%)</span>
-                </p>
-              </div>
-            </div>
-          </Card>
+          <StageBlock
+            number={3}
+            icon={<Layers className="w-5 h-5 text-[#6D3FA0]" />}
+            title="Fabric Checking"
+            description="Final fabric is checked and wastage is recorded"
+            theme={stageTheme.fabric}
+            producedLabel="FABRIC CHECKED"
+            producedValue={formatNum(row.fabric.output)}
+            producedUnit="kg"
+            wasteLabel="FABRIC WASTE"
+            wasteValue={formatNum(row.fabric.wastage)}
+            wasteUnit="kg"
+            pills={fabricPills}
+            expanded={expandedStages.fabric}
+            onToggle={() => toggleStage('fabric')}
+            tableHeads={['SIZE', 'COLOR', 'CHECKED WEIGHT (KG)', 'WASTAGE (KG)', 'FINAL WEIGHT (KG)', 'ACTION']}
+            isLast
+          >
+            {fabricRows.length === 0 ? (
+              <TableRow>
+                <TableCell colSpan={6} className="h-16 text-center text-gray-400 text-xs">No entries for this date.</TableCell>
+              </TableRow>
+            ) : (
+              fabricRows.map((r) => (
+                <TableRow key={r.id}>
+                  <TableCell className="text-[12px] text-gray-800">{r.size}</TableCell>
+                  <TableCell className="text-[12px] text-gray-800">{r.color}</TableCell>
+                  <TableCell className="text-center text-[12px] font-semibold text-gray-900">{formatNum(r.input)}</TableCell>
+                  <TableCell className="text-center text-[12px] font-semibold text-red-500">{formatNum(r.fwKg + r.bwKg)}</TableCell>
+                  <TableCell className="text-center text-[12px] font-semibold text-gray-900">{formatNum(r.firstGrade + r.secondGrade)}</TableCell>
+                  <TableCell className="text-center"><CheckCircle2 className="w-4 h-4 text-purple-500 inline-block" /></TableCell>
+                </TableRow>
+              ))
+            )}
+          </StageBlock>
         </div>
-
-        {/* Breakdown Table */}
-        <Card className="rounded-[16px] shadow-sm border border-gray-100 overflow-hidden bg-white mt-1">
-          <div className="px-6 py-5 border-b border-gray-100">
-            <h3 className="font-bold text-[#004D40] flex items-center gap-2 text-[15px]">
-              <ClipboardList className="w-[18px] h-[18px]" /> Stage Breakdown - {formattedDate}
-            </h3>
-          </div>
-          <div className="overflow-x-auto">
-            <Table>
-              <TableHeader>
-                <TableRow className="border-b border-gray-100 bg-white hover:bg-white">
-                  <TableHead className="text-[9.5px] font-extrabold uppercase tracking-widest text-gray-600 h-[48px] w-[180px] pl-6">STAGE</TableHead>
-                  <TableHead className="text-[9.5px] font-extrabold uppercase tracking-widest text-gray-600 h-[48px]">DATE/TIME</TableHead>
-                  <TableHead className="text-[9.5px] font-extrabold uppercase tracking-widest text-gray-600 h-[48px]">SPECS (SIZE/COLOR/BRAND)</TableHead>
-                  <TableHead className="text-[9.5px] font-extrabold uppercase tracking-widest text-gray-600 h-[48px] text-center">INPUT / RAW MATERIAL</TableHead>
-                  <TableHead className="text-[9.5px] font-extrabold uppercase tracking-widest text-gray-600 h-[48px] text-center">PROCESS DETAILS</TableHead>
-                  <TableHead className="text-[9.5px] font-extrabold uppercase tracking-widest text-red-500 h-[48px] text-center">WASTAGE BREAKDOWN</TableHead>
-                  <TableHead className="text-[9.5px] font-extrabold uppercase tracking-widest text-gray-600 h-[48px] text-center">FINAL OUTPUT</TableHead>
-                  <TableHead className="text-[9.5px] font-extrabold uppercase tracking-widest text-gray-600 h-[48px] text-center">ACTIONS</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {/* Extruder Row */}
-                <TableRow className="border-b border-gray-100 hover:bg-gray-50 transition-colors">
-                  <TableCell className="py-5 pl-6 font-bold text-[#004D40] text-[13px] flex items-center gap-2.5">
-                    <span className="bg-[#00897B] text-white w-[22px] h-[22px] rounded-[5px] flex items-center justify-center text-[11px]">1</span>
-                    Extruder (KG)
-                  </TableCell>
-                  <TableCell className="py-4 text-gray-600 text-xs font-medium">
-                    {formattedDate}<br />08:30 AM
-                  </TableCell>
-                  <TableCell className="py-4 text-[11px] text-gray-800">
-                    <span className="font-semibold text-gray-500">Size:</span> 40"<br />
-                    <span className="font-semibold text-gray-500">Color:</span> Milky White<br />
-                    <span className="font-semibold text-gray-500">Brand:</span> Premium
-                  </TableCell>
-                  <TableCell className="py-4 text-center font-bold text-gray-900 text-[13px]">{formatNum(row.extruder.input)} kg</TableCell>
-                  <TableCell className="py-4 text-center text-[11px] text-gray-600">
-                    Bags: 87<br />
-                    Chems: 12.5 kg
-                  </TableCell>
-                  <TableCell className="py-4 text-center text-[11px] text-red-500 font-medium">
-                    Loose: 8.20 kg<br />
-                    Lumps: 6.20 kg
-                  </TableCell>
-                  <TableCell className="py-4 text-center font-bold text-[#004D40] text-[13px]">{formatNum(row.extruder.output)} kg</TableCell>
-                  <TableCell className="py-4 text-center">
-                    <Button variant="ghost" size="icon" className="h-6 w-6 text-gray-400 hover:text-[#00897B]"><Edit className="w-3.5 h-3.5" /></Button>
-                  </TableCell>
-                </TableRow>
-
-                {/* Looms Row */}
-                <TableRow className="border-b border-gray-100 hover:bg-gray-50 transition-colors">
-                  <TableCell className="py-5 pl-6 font-bold text-[#004D40] text-[13px] flex items-center gap-2.5">
-                    <span className="bg-[#004D40] text-white w-[22px] h-[22px] rounded-[5px] flex items-center justify-center text-[11px]">2</span>
-                    Looms (MTRS)
-                  </TableCell>
-                  <TableCell className="py-4 text-gray-600 text-xs font-medium">
-                    {formattedDate}<br />11:15 AM
-                  </TableCell>
-                  <TableCell className="py-4 text-[11px] text-gray-800">
-                    <span className="font-semibold text-gray-500">Width:</span> 38"<br />
-                    <span className="font-semibold text-gray-500">Mesh:</span> 10x10
-                  </TableCell>
-                  <TableCell className="py-4 text-center">
-                    <div className="font-bold text-gray-900 text-[13px]">{formatNum(row.looms.input)} kg</div>
-                    <div className="text-[9px] text-gray-400 font-medium">(Input Weight)</div>
-                  </TableCell>
-                  <TableCell className="py-4 text-center text-xs text-gray-400">-</TableCell>
-                  <TableCell className="py-4 text-center text-[11px] text-red-500 font-medium">
-                    Waste: {formatNum(row.looms.wastage)} kg
-                  </TableCell>
-                  <TableCell className="py-4 text-center font-bold text-[#004D40] text-[13px]">{formatNum(row.looms.output)} m</TableCell>
-                  <TableCell className="py-4 text-center">
-                    <Button variant="ghost" size="icon" className="h-6 w-6 text-gray-400 hover:text-[#00897B]"><Edit className="w-3.5 h-3.5" /></Button>
-                  </TableCell>
-                </TableRow>
-
-                {/* Fabric Row */}
-                <TableRow className="hover:bg-gray-50 transition-colors">
-                  <TableCell className="py-5 pl-6 font-bold text-[#004D40] text-[13px] flex items-center gap-2.5">
-                    <span className="bg-[#004D40] text-white w-[22px] h-[22px] rounded-[5px] flex items-center justify-center text-[11px]">3</span>
-                    Fabric (MTRS)
-                  </TableCell>
-                  <TableCell className="py-4 text-gray-600 text-xs font-medium">
-                    {formattedDate}<br />03:45 PM
-                  </TableCell>
-                  <TableCell className="py-4 text-[11px] text-gray-800">
-                    <span className="font-semibold text-gray-500">Type:</span> Circular
-                  </TableCell>
-                  <TableCell className="py-4 text-center">
-                    <div className="font-bold text-gray-900 text-[13px]">{formatNum(row.fabric.input)} m</div>
-                    <div className="text-[9px] text-gray-400 font-medium">(Received)</div>
-                  </TableCell>
-                  <TableCell className="py-4 text-center text-[11px] text-gray-600">
-                    Rolled: {formatNum(row.fabric.output)} m
-                  </TableCell>
-                  <TableCell className="py-4 text-center text-[11px] text-red-500 font-medium">
-                    Wastage: 42.00 m<br />
-                    Bit Waste: 20.00 m
-                  </TableCell>
-                  <TableCell className="py-4 text-center font-bold text-[#004D40] text-[13px]">{formatNum(row.fabric.output)} m</TableCell>
-                  <TableCell className="py-4 text-center">
-                    <Button variant="ghost" size="icon" className="h-6 w-6 text-gray-400 hover:text-[#00897B]"><Edit className="w-3.5 h-3.5" /></Button>
-                  </TableCell>
-                </TableRow>
-              </TableBody>
-            </Table>
-          </div>
-        </Card>
       </div>
 
       {/* Right Column (Sidebar) */}

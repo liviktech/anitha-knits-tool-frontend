@@ -8,6 +8,7 @@ import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/component
 import { DashboardModule } from './features/dashboard/dashboard-module';
 import { ProductionDetails } from './features/production/production-details';
 import { InventoryPage } from './features/inventory/inventory-page';
+import { LivikAdminShell } from './features/livik-admin/livik-admin-shell';
 import logo from '@/assets/anitha-knits-logo.png';
 
 const navItems = [
@@ -201,6 +202,8 @@ function App() {
     <BrowserRouter>
       <Routes>
         <Route path="/login" element={<LoginPage />} />
+        {/* Separate super-admin panel — its own shell/nav, deliberately not nested under AppShell. */}
+        <Route path="/livik-admin/*" element={<LivikAdminShell />} />
         <Route path="/*" element={<AppShell />} />
       </Routes>
     </BrowserRouter>

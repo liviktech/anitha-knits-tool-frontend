@@ -117,7 +117,7 @@ const themes = {
 
 type Theme = keyof typeof themes;
 
-interface ExtruderRow {
+export interface ExtruderRow {
   id: string;
   size: string;
   color: string;
@@ -131,7 +131,7 @@ interface ExtruderRow {
   yarnWasteKg: number;
 }
 
-function mapExtruderItem(item: ExtruderProductionItem): ExtruderRow {
+export function mapExtruderItem(item: ExtruderProductionItem): ExtruderRow {
   return {
     id: item.id,
     size: item.size?.name ?? '',
@@ -654,7 +654,7 @@ function ExtruderEditableRow({
   );
 }
 
-interface LoomRow {
+export interface LoomRow {
   id: string;
   size: string;
   color: string;
@@ -663,7 +663,7 @@ interface LoomRow {
   loomsWasteKg: number;
 }
 
-function mapLoomItem(item: LoomsProductionItem): LoomRow {
+export function mapLoomItem(item: LoomsProductionItem): LoomRow {
   return {
     id: item.id,
     size: item.size?.name ?? '',
@@ -962,7 +962,7 @@ export const LoomSection = forwardRef<SectionRef, SectionProps>(({ productionDat
   );
 });
 
-interface FabricRow {
+export interface FabricRow {
   id: string;
   size: string;
   color: string;
@@ -974,7 +974,7 @@ interface FabricRow {
   bwKg: number;
 }
 
-function mapFabricItem(item: FabricCheckingRecord): FabricRow {
+export function mapFabricItem(item: FabricCheckingRecord): FabricRow {
   return {
     id: item.id,
     size: item.size?.name ?? '',
