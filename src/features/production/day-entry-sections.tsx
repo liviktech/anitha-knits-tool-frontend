@@ -367,14 +367,14 @@ export const ExtruderSection = forwardRef<SectionRef, ExtruderSectionProps>(({ p
     setBrandManuallyEdited(false);
   };
 
-  const handleSave = async (): Promise<boolean | void> => {
+  const handleSave = async (): Promise<boolean> => {
     const sizeId = findIdByName(lookups.sizes, draft.size);
     const colorId = findIdByName(lookups.colors, draft.color);
     const brandId = findIdByName(lookups.brands, draft.brand);
     const chemicalId = findIdByName(lookups.chemicals, draft.chemical);
     if (!sizeId || !colorId || !brandId || !chemicalId) {
       console.error('Unable to resolve size/color/brand/chemical to a known master data id');
-      return;
+      return false;
     }
 
     const isNew = editingId === 'new';
@@ -414,6 +414,7 @@ export const ExtruderSection = forwardRef<SectionRef, ExtruderSectionProps>(({ p
       return true;
     } catch (error) {
       console.error('Error saving extruder entry:', error);
+      return false;
     } finally {
       setSaving(false);
     }
@@ -426,7 +427,7 @@ export const ExtruderSection = forwardRef<SectionRef, ExtruderSectionProps>(({ p
       if (!editingId) return true;
       // If draft is completely empty, ignore
       if (JSON.stringify(draft) === JSON.stringify(emptyExtruderDraft)) return true;
-      
+
       const success = await handleSave();
       return success ?? false;
     }
@@ -480,24 +481,8 @@ export const ExtruderSection = forwardRef<SectionRef, ExtruderSectionProps>(({ p
               </TableRow>
             ) : (
               <>
-                {rows.map((row) =>
-                  !readOnly && editingId === row.id ? (
-                    <ExtruderEditableRow
-                      key={row.id}
-                      draft={draft}
-                      setDraft={setDraft}
-                      lookups={lookups}
-                      saving={saving}
-                      onCancel={cancelEdit}
-                      resolveChemicalWeight={resolveChemicalWeight}
-                      resolveColorWeight={resolveColorWeight}
-                      onRawManualEdit={() => setRawManuallyEdited(true)}
-                      onChemicalManualEdit={() => setChemicalManuallyEdited(true)}
-                      onColorManualEdit={() => setColorManuallyEdited(true)}
-                      onBrandManualEdit={() => setBrandManuallyEdited(true)}
-                    />
-                  ) : (
-                    <TableRow key={row.id}>
+                {rows.map((row) => (
+                  <TableRow key={row.id} className={editingId === row.id ? 'bg-blue-50/30' : ''}>
                       <TableCell>{row.size}</TableCell>
                       <TableCell>{row.color}</TableCell>
                       <TableCell>{row.brand}</TableCell>
@@ -521,9 +506,9 @@ export const ExtruderSection = forwardRef<SectionRef, ExtruderSectionProps>(({ p
                         </TableCell>
                       )}
                     </TableRow>
-                  ),
+                  )
                 )}
-                {!readOnly && editingId === 'new' && (
+                {!readOnly && editingId !== null && (
                   <ExtruderEditableRow
                     draft={draft}
                     setDraft={setDraft}
@@ -560,7 +545,7 @@ export const ExtruderSection = forwardRef<SectionRef, ExtruderSectionProps>(({ p
             <Plus className="h-3 w-3" /> Add row
           </Button>
           {editingId !== null && (
-            <span className="text-2xs text-gray-400">Saved when you click &ldquo;Save day entry&rdquo; below</span>
+            <span className="text-2xs text-gray-400">Saved when you click &ldquo;Save&rdquo; below</span>
           )}
         </div>
       )}
@@ -967,7 +952,7 @@ export const LoomSection = forwardRef<SectionRef, SectionProps>(({ productionDat
             <Plus className="h-3 w-3" /> Add row
           </Button>
           {adding && (
-            <span className="text-2xs text-gray-400">Saved when you click &ldquo;Save day entry&rdquo; below</span>
+            <span className="text-2xs text-gray-400">Saved when you click &ldquo;Save&rdquo; below</span>
           )}
         </div>
       )}
@@ -1298,7 +1283,7 @@ export const FabricSection = forwardRef<SectionRef, SectionProps>(({ productionD
             <Plus className="h-3 w-3" /> Add row
           </Button>
           {adding && (
-            <span className="text-2xs text-gray-400">Saved when you click &ldquo;Save day entry&rdquo; below</span>
+            <span className="text-2xs text-gray-400">Saved when you click &ldquo;Save&rdquo; below</span>
           )}
         </div>
       )}

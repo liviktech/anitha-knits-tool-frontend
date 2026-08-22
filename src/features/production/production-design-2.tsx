@@ -197,11 +197,13 @@ function DayDetailView({
   onClose,
   dayWiseRows,
   setDate,
+  onEdit,
 }: {
   date: string;
   onClose: () => void;
   dayWiseRows: DayWiseRow[];
   setDate: (d: string) => void;
+  onEdit: (d: string) => void;
 }) {
   const row = dayWiseRows.find((r) => r.date === date) || dayWiseRows[0];
   const formattedDate = format(parseISO(date), 'dd MMM, yyyy');
@@ -288,6 +290,7 @@ function DayDetailView({
               variant="outline"
               size="sm"
               className="h-[34px] px-4 text-[#00897B] border-[#00897B]/20 font-bold uppercase tracking-wider text-[11px] gap-2 hover:bg-[#00897B]/5 bg-white"
+              onClick={() => onEdit(date)}
             >
               <Edit className="w-3.5 h-3.5" /> EDIT ENTRY
             </Button>
@@ -470,6 +473,7 @@ function DayDetailView({
 
 export function ProductionDesign2() {
   const [isNewEntryOpen, setIsNewEntryOpen] = useState(false);
+  const [editEntryDate, setEditEntryDate] = useState<string | null>(null);
   const [selectedDate, setSelectedDate] = useState<string | null>(null);
   const [isNavigating, setIsNavigating] = useState(false);
   const [isReportOpen, setIsReportOpen] = useState(false);
@@ -566,6 +570,7 @@ export function ProductionDesign2() {
               setIsNavigating(false);
             }, 300);
           }}
+          onEdit={(d) => setEditEntryDate(d)}
         />
       ) : (
         <div className="p-2.5 flex flex-col gap-3 flex-1">
@@ -806,7 +811,12 @@ export function ProductionDesign2() {
                         {/* Actions */}
                         <TableCell className="py-1">
                           <div className="flex items-center justify-center gap-2">
-                            <Button variant="outline" size="icon" className="h-6 w-6 rounded-md border-[#004D40]/30 text-[#004D40] hover:bg-[#004D40]/10">
+                            <Button 
+                              variant="outline" 
+                              size="icon" 
+                              className="h-6 w-6 rounded-md border-[#004D40]/30 text-[#004D40] hover:bg-[#004D40]/10"
+                              onClick={() => setEditEntryDate(row.date)}
+                            >
                               <Edit className="h-[14px] w-[14px]" />
                             </Button>
                             <Button variant="outline" size="icon" className="h-6 w-6 rounded-md border-red-200 text-red-600 hover:bg-red-50">
@@ -889,6 +899,7 @@ export function ProductionDesign2() {
         </div>
       )}
       {isNewEntryOpen && <NewEntry onClose={() => setIsNewEntryOpen(false)} />}
+      {editEntryDate && <NewEntry defaultDate={editEntryDate} onClose={() => setEditEntryDate(null)} />}
       <DayWiseReportModal open={isReportOpen} onOpenChange={setIsReportOpen} />
     </div>
   );
