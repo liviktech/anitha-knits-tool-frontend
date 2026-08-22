@@ -599,7 +599,7 @@ export function ProductionDesign2() {
           onEdit={(d) => navigate(`/production/new-entry?date=${d}`)}
         />
       ) : (
-        <div className="p-2.5 flex flex-col gap-3 flex-1">
+        <div className="p-2 flex flex-col gap-2 flex-1">
           {/* Summary Cards */}
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-2.5">
             <Card className="bg-white rounded-[14px] p-2 hover:shadow-md transition-all">
@@ -725,12 +725,12 @@ export function ProductionDesign2() {
 
           {/* Data Table Area */}
           <Card className="shadow-sm border-0 bg-white rounded-xl overflow-hidden gap-0 p-0 flex flex-col">
-            <CardHeader className="flex flex-col gap-3 border-b border-gray-300 px-3 pt-3 pb-0.5 sm:flex-row sm:items-center sm:justify-between bg-white">
-              <CardTitle className="text-[17px] font-bold text-[#004D40]  leading-tight flex items-center">
+            <CardHeader className="flex flex-col gap-1 border-b border-gray-300 px-3 py-1.5 !pb-1.5 sm:flex-row sm:items-center sm:justify-between bg-white">
+              <CardTitle className="text-[17px] font-bold text-[#004D40] leading-tight flex items-center">
                 <img src="/Table-icon.jpg" alt="" className="w-10 h-10 object-contain rounded-sm" />
                 Day Wise Production & Wastage Details
               </CardTitle>
-              <div className="flex flex-wrap gap-3 mt-1.5">
+              <div className="flex flex-wrap gap-2">
                 <Button variant="outline" size="sm" className="flex gap-2 font-bold uppercase tracking-wider text-[11px] h-8 px-3 text-gray-600 border-gray-400">
                   <Filter className="w-[14px] h-[14px]" /> FILTERS
                 </Button>
@@ -837,9 +837,9 @@ export function ProductionDesign2() {
                         {/* Actions */}
                         <TableCell className="py-1">
                           <div className="flex items-center justify-center gap-2">
-                            <Button 
-                              variant="outline" 
-                              size="icon" 
+                            <Button
+                              variant="outline"
+                              size="icon"
                               className="h-6 w-6 rounded-md border-[#004D40]/30 text-[#004D40] hover:bg-[#004D40]/10"
                               onClick={() => navigate(`/production/new-entry?date=${row.date}`)}
                             >

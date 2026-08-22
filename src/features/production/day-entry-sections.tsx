@@ -443,16 +443,16 @@ export const ExtruderSection = forwardRef<SectionRef, ExtruderSectionProps>(({ p
         <Table>
           <TableHeader>
             <TableRow className="hover:bg-transparent">
-              <TableHead className="text-2xs font-semibold uppercase tracking-wide text-gray-400">Size</TableHead>
-              <TableHead className="text-2xs font-semibold uppercase tracking-wide text-gray-400">Color</TableHead>
-              <TableHead className="text-2xs font-semibold uppercase tracking-wide text-gray-400">Brand</TableHead>
-              <TableHead className="text-2xs font-semibold uppercase tracking-wide text-gray-400">Chemical</TableHead>
-              <TableHead className="text-center text-2xs font-semibold uppercase tracking-wide text-gray-400">Raw Material (kg)</TableHead>
-              <TableHead className="text-center text-2xs font-semibold uppercase tracking-wide text-gray-400">Chem. Wt (kg)</TableHead>
-              <TableHead className="text-center text-2xs font-semibold uppercase tracking-wide text-gray-400">Yarn Output (kg)</TableHead>
-              <TableHead className="text-center text-2xs font-semibold uppercase tracking-wide text-gray-400">Lumps</TableHead>
-              <TableHead className="text-center text-2xs font-semibold uppercase tracking-wide text-gray-400">Yarn Waste</TableHead>
-              {!readOnly && <TableHead className="text-center text-2xs font-semibold uppercase tracking-wide text-gray-400">Action</TableHead>}
+              <TableHead className="text-xs font-semibold uppercase tracking-wide text-gray-700">Size</TableHead>
+              <TableHead className="text-xs font-semibold uppercase tracking-wide text-gray-700">Color</TableHead>
+              <TableHead className="text-xs font-semibold uppercase tracking-wide text-gray-700">Brand</TableHead>
+              <TableHead className="text-xs font-semibold uppercase tracking-wide text-gray-700">Chemical</TableHead>
+              <TableHead className="text-center text-xs font-semibold uppercase tracking-wide text-gray-700">Raw Material (kg)</TableHead>
+              <TableHead className="text-center text-xs font-semibold uppercase tracking-wide text-gray-700">Chem. Wt (kg)</TableHead>
+              <TableHead className="text-center text-xs font-semibold uppercase tracking-wide text-gray-700">Yarn Output (kg)</TableHead>
+              <TableHead className="text-center text-xs font-semibold uppercase tracking-wide text-gray-700">Lumps</TableHead>
+              <TableHead className="text-center text-xs font-semibold uppercase tracking-wide text-gray-700">Yarn Waste</TableHead>
+              {!readOnly && <TableHead className="text-center text-xs font-semibold uppercase tracking-wide text-gray-700">Action</TableHead>}
             </TableRow>
           </TableHeader>
           <TableBody>
@@ -821,11 +821,11 @@ export const LoomSection = forwardRef<SectionRef, SectionProps>(({ productionDat
         <Table>
           <TableHeader>
             <TableRow className="hover:bg-transparent">
-              <TableHead className="text-2xs font-semibold uppercase tracking-wide text-gray-400">Size</TableHead>
-              <TableHead className="text-2xs font-semibold uppercase tracking-wide text-gray-400">Color</TableHead>
-              <TableHead className="text-center text-2xs font-semibold uppercase tracking-wide text-gray-400">Yarn Input (kg)</TableHead>
-              <TableHead className="text-center text-2xs font-semibold uppercase tracking-wide text-gray-400">Fabric Output (kg)</TableHead>
-              <TableHead className="text-center text-2xs font-semibold uppercase tracking-wide text-gray-400">Looms Waste</TableHead>
+              <TableHead className="text-xs font-semibold uppercase tracking-wide text-gray-700">Size</TableHead>
+              <TableHead className="text-xs font-semibold uppercase tracking-wide text-gray-700">Color</TableHead>
+              <TableHead className="text-center text-xs font-semibold uppercase tracking-wide text-gray-700">Yarn Input (kg)</TableHead>
+              <TableHead className="text-center text-xs font-semibold uppercase tracking-wide text-gray-700">Fabric Output (kg)</TableHead>
+              <TableHead className="text-center text-xs font-semibold uppercase tracking-wide text-gray-700">Looms Waste</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
@@ -1119,14 +1119,14 @@ export const FabricSection = forwardRef<SectionRef, SectionProps>(({ productionD
         <Table>
           <TableHeader>
             <TableRow className="hover:bg-transparent">
-              <TableHead className="text-2xs font-semibold uppercase tracking-wide text-gray-400">Size</TableHead>
-              <TableHead className="text-2xs font-semibold uppercase tracking-wide text-gray-400">Color</TableHead>
-              <TableHead className="text-center text-2xs font-semibold uppercase tracking-wide text-gray-400">Fabric Input (kg)</TableHead>
-              <TableHead className="text-center text-2xs font-semibold uppercase tracking-wide text-gray-400">Pieces</TableHead>
-              <TableHead className="text-center text-2xs font-semibold uppercase tracking-wide text-gray-400">1st Grade (kg)</TableHead>
-              <TableHead className="text-center text-2xs font-semibold uppercase tracking-wide text-gray-400">2nd Grade (kg)</TableHead>
-              <TableHead className="text-center text-2xs font-semibold uppercase tracking-wide text-gray-400">FW</TableHead>
-              <TableHead className="text-center text-2xs font-semibold uppercase tracking-wide text-gray-400">BW</TableHead>
+              <TableHead className="text-xs font-semibold uppercase tracking-wide text-gray-700">Size</TableHead>
+              <TableHead className="text-xs font-semibold uppercase tracking-wide text-gray-700">Color</TableHead>
+              <TableHead className="text-center text-xs font-semibold uppercase tracking-wide text-gray-700">Fabric Input (kg)</TableHead>
+              <TableHead className="text-center text-xs font-semibold uppercase tracking-wide text-gray-700">Pieces</TableHead>
+              <TableHead className="text-center text-xs font-semibold uppercase tracking-wide text-gray-700">1st Grade (kg)</TableHead>
+              <TableHead className="text-center text-xs font-semibold uppercase tracking-wide text-gray-700">2nd Grade (kg)</TableHead>
+              <TableHead className="text-center text-xs font-semibold uppercase tracking-wide text-gray-700">FW</TableHead>
+              <TableHead className="text-center text-xs font-semibold uppercase tracking-wide text-gray-700">BW</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>

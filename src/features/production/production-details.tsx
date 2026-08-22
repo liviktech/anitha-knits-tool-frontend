@@ -52,7 +52,7 @@ function ProductionLayout() {
             )}
             <div>
               <h1 className="text-[20px] font-bold text-black leading-tight px-2">Daily Production & Wastage</h1>
-              <p className="text-[12.5px] text-gray-500 font-medium mt-1 px-2">Track daily production and wastage across all conversion processes</p>
+              <p className="text-[12.5px] text-gray-500 font-medium px-2">Track daily production and wastage across all conversion processes</p>
             </div>
           </div>
           <div className="flex flex-wrap items-center gap-3">

@@ -118,8 +118,8 @@ export function NewEntry({ onClose, defaultDate, readOnly = false }: NewEntryPro
   };
 
   return (
-    <div className="flex flex-col h-full bg-transparent">
-      <div className="flex-1 p-2 md:p-3 overflow-y-auto">
+    <div className="flex flex-col h-full bg-[#004D40]/5">
+      <div className="flex-1 p-2 md:p-2 overflow-y-auto ">
 
         {isCreateMode && (
           <div className="rounded-xl border border-gray-400 bg-white shadow-sm mb-3">
@@ -167,7 +167,7 @@ export function NewEntry({ onClose, defaultDate, readOnly = false }: NewEntryPro
         )}
 
         {/* Forms Container */}
-        <div className="flex flex-col gap-3">
+        <div className="flex flex-col gap-2.5">
           <ExtruderSection
             ref={extruderRef}
             productionDate={productionDate}
@@ -180,7 +180,7 @@ export function NewEntry({ onClose, defaultDate, readOnly = false }: NewEntryPro
         </div>
 
         {/* Footer */}
-        <div className="mt-3 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between rounded-xl bg-white p-4 shadow-sm border border-gray-100">
+        <div className="mt-3 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between rounded-xl bg-white p-4 shadow-sm border border-gray-400">
           <p className="text-xs text-gray-500">All weights are in Kilograms (kg)</p>
           <div className="flex items-center gap-3">
             {readOnly ? (
