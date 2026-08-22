@@ -38,7 +38,7 @@ function ProductionLayout() {
         `}</style>
 
         {/* Unified Header */}
-        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between px-4 pt-4 pb-2 bg-transparent shrink-0">
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between px-4 py-3 bg-[#F4F1E8] border-b border-gray-100 shrink-0">
           <div className="flex items-center gap-3">
             {showBackButton && (
               <Button

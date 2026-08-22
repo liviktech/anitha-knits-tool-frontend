@@ -535,23 +535,23 @@ export function ProductionDesign2() {
       <>
         <div className="flex items-center gap-2">
           <Select value={selectedMonth} onValueChange={setSelectedMonth}>
-            <SelectTrigger className="w-[100px] bg-white border border-gray-400 text-sm font-semibold text-gray-700 h-[38px] shadow-[0_1px_2px_rgba(0,0,0,0.05)] focus:ring-0 focus:ring-offset-0">
+            <SelectTrigger className="w-fit min-w-[70px] bg-white border border-gray-400 text-sm font-semibold text-gray-700 h-[38px] shadow-[0_1px_2px_rgba(0,0,0,0.05)] focus:ring-0 focus:ring-offset-0">
               <SelectValue placeholder="Month" />
             </SelectTrigger>
-            <SelectContent>
+            <SelectContent position="popper" side="bottom" className="max-h-[160px] overflow-y-auto w-fit min-w-[70px]">
               {['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'].map((m) => (
-                <SelectItem key={m} value={m}>{m}</SelectItem>
+                <SelectItem key={m} value={m} className="py-0.5 text-[13px]">{m}</SelectItem>
               ))}
             </SelectContent>
           </Select>
 
           <Select value={selectedYear} onValueChange={setSelectedYear}>
-            <SelectTrigger className="w-[85px] bg-white border border-gray-400 text-sm font-semibold text-gray-700 h-[38px] shadow-[0_1px_2px_rgba(0,0,0,0.05)] focus:ring-0 focus:ring-offset-0">
+            <SelectTrigger className="w-fit min-w-[70px] bg-white border border-gray-400 text-sm font-semibold text-gray-700 h-[38px] shadow-[0_1px_2px_rgba(0,0,0,0.05)] focus:ring-0 focus:ring-offset-0">
               <SelectValue placeholder="Year" />
             </SelectTrigger>
-            <SelectContent>
+            <SelectContent position="popper" side="bottom" className="max-h-[160px] overflow-y-auto w-fit min-w-[70px]">
               {['2024', '2025', '2026'].map((y) => (
-                <SelectItem key={y} value={y}>{y}</SelectItem>
+                <SelectItem key={y} value={y} className="py-0.5 text-[13px]">{y}</SelectItem>
               ))}
             </SelectContent>
           </Select>
