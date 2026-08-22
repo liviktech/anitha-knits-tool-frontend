@@ -492,41 +492,6 @@ export function ProductionDesign2() {
     [dayWiseRows, currentPage, pageSize],
   );
 
-  if (loadingDayWise) {
-    return (
-      <div className="h-full flex items-center justify-center">
-        <div className="flex items-center gap-2 text-gray-500">
-          <Loader size="xl" />
-          Loading production details...
-        </div>
-      </div>
-    );
-  }
-
-  const extruderSummary = {
-    input: apiSummary?.extruder.inputKg ?? 0,
-    output: apiSummary?.extruder.outputKg ?? 0,
-    wastage: apiSummary?.extruder.wastageKg ?? 0,
-  };
-  const efficiency = apiSummary?.extruder.efficiencyPct ?? 0;
-  const wastePct = apiSummary?.extruder.wastePct ?? 0;
-
-  const loomsSummary = {
-    input: apiSummary?.looms.inputKg ?? 0,
-    output: apiSummary?.looms.outputKg ?? 0,
-    wastage: apiSummary?.looms.wastageKg ?? 0,
-  };
-  const loomsEfficiency = apiSummary?.looms.efficiencyPct ?? 0;
-  const loomsWastePct = apiSummary?.looms.wastePct ?? 0;
-
-  const fabricSummary = {
-    input: apiSummary?.fabricChecking.inputKg ?? 0,
-    checked: apiSummary?.fabricChecking.outputKg ?? 0,
-    wastage: apiSummary?.fabricChecking.wastageKg ?? 0,
-  };
-  const fabricEfficiency = apiSummary?.fabricChecking.efficiencyPct ?? 0;
-  const fabricWastePct = apiSummary?.fabricChecking.wastePct ?? 0;
-
   const { setHeaderRight, setShowBackButton } = useProductionHeader();
 
   useEffect(() => {
@@ -570,6 +535,41 @@ export function ProductionDesign2() {
     };
   }, [setHeaderRight, setShowBackButton, navigate]);
 
+  if (loadingDayWise) {
+    return (
+      <div className="h-full flex items-center justify-center">
+        <div className="flex items-center gap-2 text-gray-500">
+          <Loader size="xl" />
+          Loading production details...
+        </div>
+      </div>
+    );
+  }
+
+  const extruderSummary = {
+    input: apiSummary?.extruder.inputKg ?? 0,
+    output: apiSummary?.extruder.outputKg ?? 0,
+    wastage: apiSummary?.extruder.wastageKg ?? 0,
+  };
+  const efficiency = apiSummary?.extruder.efficiencyPct ?? 0;
+  const wastePct = apiSummary?.extruder.wastePct ?? 0;
+
+  const loomsSummary = {
+    input: apiSummary?.looms.inputKg ?? 0,
+    output: apiSummary?.looms.outputKg ?? 0,
+    wastage: apiSummary?.looms.wastageKg ?? 0,
+  };
+  const loomsEfficiency = apiSummary?.looms.efficiencyPct ?? 0;
+  const loomsWastePct = apiSummary?.looms.wastePct ?? 0;
+
+  const fabricSummary = {
+    input: apiSummary?.fabricChecking.inputKg ?? 0,
+    checked: apiSummary?.fabricChecking.outputKg ?? 0,
+    wastage: apiSummary?.fabricChecking.wastageKg ?? 0,
+  };
+  const fabricEfficiency = apiSummary?.fabricChecking.efficiencyPct ?? 0;
+  const fabricWastePct = apiSummary?.fabricChecking.wastePct ?? 0;
+
   return (
     <div id="production-design-2-page" className="flex flex-col bg-[#004D40]/5 min-h-full relative">
       <style>{`
@@ -596,7 +596,7 @@ export function ProductionDesign2() {
               setIsNavigating(false);
             }, 300);
           }}
-          onEdit={(d) => setEditEntryDate(d)}
+          onEdit={(d) => navigate(`/production/new-entry?date=${d}`)}
         />
       ) : (
         <div className="p-2.5 flex flex-col gap-3 flex-1">
@@ -841,7 +841,7 @@ export function ProductionDesign2() {
                               variant="outline" 
                               size="icon" 
                               className="h-6 w-6 rounded-md border-[#004D40]/30 text-[#004D40] hover:bg-[#004D40]/10"
-                              onClick={() => setEditEntryDate(row.date)}
+                              onClick={() => navigate(`/production/new-entry?date=${row.date}`)}
                             >
                               <Edit className="h-[14px] w-[14px]" />
                             </Button>

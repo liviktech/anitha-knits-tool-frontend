@@ -1,5 +1,5 @@
 import { useState, type ReactNode, createContext, useContext } from 'react';
-import { useNavigate, Routes, Route, Outlet } from 'react-router-dom';
+import { useNavigate, useSearchParams, Routes, Route, Outlet } from 'react-router-dom';
 import { ExtruderEntry } from '@/features/extruder/extruder-entry';
 import { LoomEntry } from '@/features/looms/loom-entry';
 import { FabricEntry } from '@/features/fabric/fabric-entry';
@@ -107,9 +107,10 @@ function DayDetailsRoute() {
 
 function NewEntryRoute() {
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
   return (
     <div className="h-full overflow-y-auto">
-      <NewEntry onClose={() => navigate('/production')} />
+      <NewEntry onClose={() => navigate('/production')} defaultDate={searchParams.get('date')} />
     </div>
   );
 }
