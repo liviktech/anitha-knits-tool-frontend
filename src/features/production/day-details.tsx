@@ -48,7 +48,7 @@ export function DayDetails({ onClose }: DayDetailsProps) {
             Cancel
           </Button>
           <Button className="bg-emerald-500 text-white hover:bg-emerald-600 shadow">
-            Save day entry
+            Save
           </Button>
         </div>
       </div>

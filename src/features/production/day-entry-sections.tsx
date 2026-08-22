@@ -192,11 +192,24 @@ interface SectionProps {
   hideExisting?: boolean;
 }
 
+interface ExtruderSectionProps extends SectionProps {
+  /**
+   * Carried-forward Color/Chemical/Raw Material picked at the top of the
+   * "Add New Entry" modal (from the previous production date). Only used
+   * to seed a blank draft row, and only when same-day Inventory has no
+   * match of its own — Inventory is the more specific/authoritative source
+   * for "what's actually on hand today".
+   */
+  defaultColorName?: string;
+  defaultChemicalName?: string;
+  defaultBrandName?: string;
+}
+
 export interface SectionRef {
   saveDraft: () => Promise<boolean>;
 }
 
-export const ExtruderSection = forwardRef<SectionRef, SectionProps>(({ productionDate, autoAdd, readOnly, hideExisting }, ref) => {
+export const ExtruderSection = forwardRef<SectionRef, ExtruderSectionProps>(({ productionDate, autoAdd, readOnly, hideExisting, defaultColorName, defaultChemicalName, defaultBrandName }, ref) => {
   const queryClient = useQueryClient();
   const { data, isLoading } = useExtruderProductions(
     productionDate ? `?date_from=${productionDate}&date_to=${productionDate}` : '',
@@ -274,18 +287,18 @@ export const ExtruderSection = forwardRef<SectionRef, SectionProps>(({ productio
     setDraft({
       ...emptyExtruderDraft,
       raw: rawMaterialFromInventory > 0 ? String(rawMaterialFromInventory) : '',
-      chemical: firstChemicalRecord?.name ?? '',
+      chemical: firstChemicalRecord?.name ?? defaultChemicalName ?? '',
       chemicalKg: firstChemicalRecord ? String(firstChemicalRecord.weightKg) : '',
-      color: firstColorRecord?.name ?? '',
+      color: firstColorRecord?.name ?? defaultColorName ?? '',
       colorConsumedKg: firstColorRecord ? String(firstColorRecord.weightKg) : '',
-      brand: firstRawMaterialRecord?.name ?? '',
+      brand: firstRawMaterialRecord?.name ?? defaultBrandName ?? '',
     });
     setRawManuallyEdited(false);
     setChemicalManuallyEdited(false);
     setColorManuallyEdited(false);
     setBrandManuallyEdited(false);
     setEditingId('new');
-  }, [rawMaterialFromInventory, firstChemicalRecord, firstColorRecord, firstRawMaterialRecord]);
+  }, [rawMaterialFromInventory, firstChemicalRecord, firstColorRecord, firstRawMaterialRecord, defaultColorName, defaultChemicalName, defaultBrandName]);
 
   useEffect(() => {
     if (readOnly || !autoAdd || isLoading || hasAutoAddedRef.current) return;
@@ -314,13 +327,13 @@ export const ExtruderSection = forwardRef<SectionRef, SectionProps>(({ productio
     setDraft((current) => ({
       ...current,
       raw: rawManuallyEdited ? current.raw : (rawMaterialFromInventory > 0 ? String(rawMaterialFromInventory) : ''),
-      chemical: chemicalManuallyEdited ? current.chemical : (firstChemicalRecord?.name ?? ''),
+      chemical: chemicalManuallyEdited ? current.chemical : (firstChemicalRecord?.name ?? defaultChemicalName ?? ''),
       chemicalKg: chemicalManuallyEdited ? current.chemicalKg : (firstChemicalRecord ? String(firstChemicalRecord.weightKg) : ''),
-      color: colorManuallyEdited ? current.color : (firstColorRecord?.name ?? ''),
+      color: colorManuallyEdited ? current.color : (firstColorRecord?.name ?? defaultColorName ?? ''),
       colorConsumedKg: colorManuallyEdited ? current.colorConsumedKg : (firstColorRecord ? String(firstColorRecord.weightKg) : ''),
-      brand: brandManuallyEdited ? current.brand : (firstRawMaterialRecord?.name ?? ''),
+      brand: brandManuallyEdited ? current.brand : (firstRawMaterialRecord?.name ?? defaultBrandName ?? ''),
     }));
-  }, [editingId, rawMaterialFromInventory, firstChemicalRecord, firstColorRecord, firstRawMaterialRecord, rawManuallyEdited, chemicalManuallyEdited, colorManuallyEdited, brandManuallyEdited]);
+  }, [editingId, rawMaterialFromInventory, firstChemicalRecord, firstColorRecord, firstRawMaterialRecord, rawManuallyEdited, chemicalManuallyEdited, colorManuallyEdited, brandManuallyEdited, defaultColorName, defaultChemicalName, defaultBrandName]);
 
   const startEdit = (row: ExtruderRow) => {
     setDraft({

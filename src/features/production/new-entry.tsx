@@ -1,14 +1,15 @@
-import { useRef, useState } from 'react';
-import { format } from 'date-fns';
+import { useEffect, useMemo, useRef, useState } from 'react';
+import { format, subDays } from 'date-fns';
 import { Calendar as CalendarIcon } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Calendar } from '@/components/ui/calendar';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Loader } from '@/components/shared/loader';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
-import { DaySummaryCards, ExtruderSection, LoomSection, FabricSection } from './day-entry-sections';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { ExtruderSection, LoomSection, FabricSection } from './day-entry-sections';
 import type { SectionRef } from './day-entry-sections';
-import { useExtruderSummary } from '@/features/extruder/extruder-queries';
+import { useExtruderProductions, useLookups, type ExtruderProductionItem } from '@/features/extruder/extruder-queries';
 
 interface NewEntryProps {
   onClose: () => void;
@@ -18,9 +19,6 @@ interface NewEntryProps {
 }
 
 export function NewEntry({ onClose, defaultDate, readOnly = false }: NewEntryProps) {
-  const { summary } = useExtruderSummary();
-  const efficiency = summary.input > 0 ? (summary.output / summary.input) * 100 : 0;
-
   // Opened via "Add New Entry" (no date pre-selected) — a pure create flow that
   // always starts blank, even if the selected date already has records, as
   // opposed to Edit/View which load and display that day's existing data.
@@ -33,6 +31,40 @@ export function NewEntry({ onClose, defaultDate, readOnly = false }: NewEntryPro
   const [date, setDate] = useState<Date>(defaultDate ? new Date(defaultDate) : new Date());
   const productionDate = format(date, 'yyyy-MM-dd');
   const [submitting, setSubmitting] = useState(false);
+
+  const { data: lookupsData } = useLookups();
+  const lookups = lookupsData ?? { brands: [], colors: [], chemicals: [], sizes: [] };
+
+  // Most recent entry before the selected date — used to carry forward
+  // Raw Material/Chemical/Color as defaults for a brand-new day, so the
+  // user isn't re-picking the same batch info every time.
+  const previousDayQuery = useMemo(
+    () => `?date_to=${format(subDays(date, 1), 'yyyy-MM-dd')}&limit=100`,
+    [date],
+  );
+  const { data: previousExtruderData } = useExtruderProductions(previousDayQuery, isCreateMode);
+  const latestPreviousEntry = useMemo(() => {
+    const items = previousExtruderData?.data ?? [];
+    return items.reduce<ExtruderProductionItem | null>(
+      (latest, item) => (!latest || item.productionDate > latest.productionDate ? item : latest),
+      null,
+    );
+  }, [previousExtruderData]);
+
+  const [rawMaterial, setRawMaterial] = useState('');
+  const [chemical, setChemical] = useState('');
+  const [color, setColor] = useState('');
+  // Stops re-syncing to the previous day's values the moment the user picks
+  // any of the three themselves, same convention as the per-row Inventory
+  // sync in day-entry-sections.tsx.
+  const [topFieldsManuallyEdited, setTopFieldsManuallyEdited] = useState(false);
+
+  useEffect(() => {
+    if (!isCreateMode || topFieldsManuallyEdited || !latestPreviousEntry) return;
+    setRawMaterial(latestPreviousEntry.extruder?.brand?.name ?? '');
+    setChemical(latestPreviousEntry.extruder?.chemical?.name ?? '');
+    setColor(latestPreviousEntry.color?.name ?? '');
+  }, [isCreateMode, topFieldsManuallyEdited, latestPreviousEntry]);
 
   const handleSaveDayEntry = async () => {
     setSubmitting(true);
@@ -94,16 +126,59 @@ export function NewEntry({ onClose, defaultDate, readOnly = false }: NewEntryPro
           </div>
         </DialogHeader>
 
-        <DaySummaryCards
-          dnPlusKg={summary.output.toFixed(2)}
-          wasteKg={summary.wastage.toFixed(2)}
-          efficiencyPct={efficiency.toFixed(2)}
-          checkedKg="1,805.00"
-        />
+        {isCreateMode && (
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-3 mb-6 mt-4">
+            <div className="flex flex-col gap-1 rounded-xl border bg-white p-3 shadow-sm">
+              <label className="text-2xs font-semibold uppercase tracking-wide text-gray-500">Raw Material</label>
+              <Select
+                value={rawMaterial || undefined}
+                onValueChange={(value) => { setTopFieldsManuallyEdited(true); setRawMaterial(value); }}
+              >
+                <SelectTrigger className="h-10"><SelectValue placeholder="Select raw material" /></SelectTrigger>
+                <SelectContent>
+                  {lookups.brands.map((b) => <SelectItem key={b.id} value={b.name}>{b.name}</SelectItem>)}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="flex flex-col gap-1 rounded-xl border bg-white p-3 shadow-sm">
+              <label className="text-2xs font-semibold uppercase tracking-wide text-gray-500">Chemical</label>
+              <Select
+                value={chemical || undefined}
+                onValueChange={(value) => { setTopFieldsManuallyEdited(true); setChemical(value); }}
+              >
+                <SelectTrigger className="h-10"><SelectValue placeholder="Select chemical" /></SelectTrigger>
+                <SelectContent>
+                  {lookups.chemicals.map((c) => <SelectItem key={c.id} value={c.name}>{c.name}</SelectItem>)}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="flex flex-col gap-1 rounded-xl border bg-white p-3 shadow-sm">
+              <label className="text-2xs font-semibold uppercase tracking-wide text-gray-500">Color</label>
+              <Select
+                value={color || undefined}
+                onValueChange={(value) => { setTopFieldsManuallyEdited(true); setColor(value); }}
+              >
+                <SelectTrigger className="h-10"><SelectValue placeholder="Select color" /></SelectTrigger>
+                <SelectContent>
+                  {lookups.colors.map((c) => <SelectItem key={c.id} value={c.name}>{c.name}</SelectItem>)}
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+        )}
 
         {/* Forms Container */}
         <div className="flex flex-col gap-6">
-          <ExtruderSection ref={extruderRef} productionDate={productionDate} autoAdd={!readOnly} readOnly={readOnly} hideExisting={isCreateMode} />
+          <ExtruderSection
+            ref={extruderRef}
+            productionDate={productionDate}
+            autoAdd={!readOnly}
+            readOnly={readOnly}
+            hideExisting={isCreateMode}
+            defaultColorName={color}
+            defaultChemicalName={chemical}
+            defaultBrandName={rawMaterial}
+          />
           <LoomSection ref={loomRef} productionDate={productionDate} autoAdd={!readOnly} readOnly={readOnly} hideExisting={isCreateMode} />
           <FabricSection ref={fabricRef} productionDate={productionDate} autoAdd={!readOnly} readOnly={readOnly} hideExisting={isCreateMode} />
         </div>
@@ -127,7 +202,7 @@ export function NewEntry({ onClose, defaultDate, readOnly = false }: NewEntryPro
                   disabled={submitting}
                 >
                   {submitting && <Loader size="sm" className="mr-2" />}
-                  Save day entry
+                  Save
                 </Button>
               </>
             )}

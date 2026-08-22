@@ -4,10 +4,9 @@ import { BrowserRouter, Routes, Route, Navigate, NavLink, Link, useLocation, use
 import { LoginPage } from './features/auth/login-page';
 import { useAuth, defaultRouteFor } from './features/auth/auth-context';
 import type { AuthUser, CompanyUserRole } from './features/auth/auth-service';
-import { Settings, User, Wallet, Menu, Package, ChevronDown, LineChart, LayoutDashboard, LogOut } from 'lucide-react';
+import { Settings, User, Wallet, Menu, Package, LineChart, LayoutDashboard, LogOut } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet';
-import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import { DashboardModule } from './features/dashboard/dashboard-module';
 import { ProductionDetails } from './features/production/production-details';
 import { InventoryPage } from './features/inventory/inventory-page';
@@ -16,14 +15,7 @@ import threadIcon from '@/assets/thread.png';
 
 const navItems = [
   { to: '/dashboard', label: 'Dashboard', icon: LayoutDashboard },
-  {
-    to: '/production',
-    label: 'Production details',
-    icon: LineChart,
-    children: [
-      { to: '/production/design-2', label: 'Production Design 2' },
-    ],
-  },
+  { to: '/production', label: 'Production details', icon: LineChart },
   { to: '/inventory', label: 'Inventory', icon: Package },
   { to: '/employees', label: 'Employees', icon: User },
   { to: '/expenses', label: 'Expenses', icon: Wallet },
@@ -64,69 +56,10 @@ function NavLinks({ onNavigate }: { onNavigate?: () => void }) {
   const role = user?.kind === 'company-user' ? user.role : undefined;
   const currentNavItems = getNavItems(role);
 
-  const [openGroups, setOpenGroups] = useState<Record<string, boolean>>(() =>
-    Object.fromEntries(
-      currentNavItems
-        .filter((item) => item.children)
-        .map((item) => [item.to, item.children!.some((child) => location.pathname.startsWith(child.to))]),
-    ),
-  );
-
   return (
     <nav className="flex-1 px-2 py-4 space-y-1 font-['Inter',sans-serif]">
       {currentNavItems.map((item) => {
         const Icon = item.icon;
-        const isGroupActive = location.pathname.startsWith(item.to);
-        const isOpen = openGroups[item.to] ?? false;
-
-        if (item.children) {
-          return (
-            <Collapsible key={item.to} open={isOpen} onOpenChange={(next) => setOpenGroups((g) => ({ ...g, [item.to]: next }))}>
-              <div
-                className={`w-full flex items-center text-[13px] font-medium transition-colors rounded-lg ${isGroupActive ? 'text-white font-semibold bg-white/10' : 'text-white/70 hover:bg-white/5 hover:text-white'
-                  }`}
-              >
-                <NavLink
-                  to={item.to}
-                  onClick={() => {
-                    setOpenGroups((g) => ({ ...g, [item.to]: true }));
-                    onNavigate?.();
-                  }}
-                  className="flex-1 flex items-center gap-3 px-3 py-3"
-                >
-                  <Icon className={`w-5 h-5 shrink-0 ${isGroupActive ? 'text-white' : 'text-white/70'}`} strokeWidth={1.75} />
-                  {item.label}
-                </NavLink>
-                <CollapsibleTrigger asChild>
-                  <button
-                    type="button"
-                    aria-label={`Toggle ${item.label} sub-menu`}
-                    className="p-2.5 pr-3"
-                  >
-                    <ChevronDown className={`w-4 h-4 transition-transform ${isGroupActive ? 'text-white' : 'text-white/50'} ${isOpen ? 'rotate-180' : ''}`} />
-                  </button>
-                </CollapsibleTrigger>
-              </div>
-              <CollapsibleContent className="space-y-1 pt-1">
-                {item.children.map((child) => (
-                  <NavLink
-                    key={child.to}
-                    to={child.to}
-                    onClick={onNavigate}
-                    className={({ isActive }) =>
-                      `flex items-center w-full px-3 py-2 text-[12px] rounded-md transition-colors ${isActive
-                        ? 'text-white font-bold bg-white/10'
-                        : 'text-white/60 hover:bg-white/5 hover:text-white font-medium'
-                      }`
-                    }
-                  >
-                    {child.label}
-                  </NavLink>
-                ))}
-              </CollapsibleContent>
-            </Collapsible>
-          );
-        }
 
         return (
           <NavLink
