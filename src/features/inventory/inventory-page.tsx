@@ -26,6 +26,7 @@ import {
   type LoadSentRecord,
   type LoadSentCreatePayload,
 } from './load-sent-queries';
+import { useFabricCheckingRecords } from '@/features/fabric/fabric-queries';
 
 function todayIso() {
   return new Date().toISOString().slice(0, 10);
@@ -399,10 +400,41 @@ function LoadSentFormDialog({ onClose, record }: LoadSentFormDialogProps) {
 
 function LoadSentTab() {
   const queryClient = useQueryClient();
-  const { data, isLoading } = useLoadSentRecords('?limit=100');
-  const records = data?.data ?? [];
+  const { data: lookupsData } = useLookups();
+  const colors = lookupsData?.colors ?? [];
+  const sizes = lookupsData?.sizes ?? [];
+
+  const { data: sentData, isLoading: isSentLoading } = useLoadSentRecords('?limit=1000');
+  const { data: prodData, isLoading: isProdLoading } = useFabricCheckingRecords('?limit=1000');
+  
+  const records = sentData?.data ?? [];
+  const prodRecords = prodData?.data ?? [];
+  const isLoading = isSentLoading || isProdLoading;
+
   const totalKg = records.reduce((sum, r) => sum + r.weightKg, 0);
   const totalPieces = records.reduce((sum, r) => sum + r.pieceCount, 0);
+
+  const [selectedColorId, setSelectedColorId] = useState<string>('');
+
+  // Size balances for the selected color
+  const sizeBalancesForColor = sizes.map(s => {
+    if (!selectedColorId) return null;
+
+    const prodForSizeColor = prodRecords.filter(r => r.size.id === s.id && r.color.id === selectedColorId);
+    const prodKg = prodForSizeColor.reduce((sum, r) => sum + (r.fabricCheck?.firstGradeKg ?? 0) + (r.fabricCheck?.secondGradeKg ?? 0), 0);
+    const prodPcs = prodForSizeColor.reduce((sum, r) => sum + (r.fabricCheck?.pieceCount ?? 0), 0);
+
+    const sentForSizeColor = records.filter(r => r.size?.id === s.id && r.color?.id === selectedColorId);
+    const sentKg = sentForSizeColor.reduce((sum, r) => sum + r.weightKg, 0);
+    const sentPcs = sentForSizeColor.reduce((sum, r) => sum + r.pieceCount, 0);
+
+    return {
+      id: s.id,
+      name: s.name,
+      balanceKg: prodKg - sentKg,
+      balancePcs: prodPcs - sentPcs
+    };
+  }).filter(Boolean);
 
   const [formOpen, setFormOpen] = useState(false);
   const [editingRecord, setEditingRecord] = useState<LoadSentRecord | null>(null);
@@ -453,6 +485,73 @@ function LoadSentTab() {
           >
             <Plus className="h-3 w-3" /> Add sent stock
           </Button>
+        </div>
+      </div>
+
+      {/* Balance Summary Cards */}
+      <div className="p-4 bg-gray-50/50 border-b border-orange-100 flex justify-center">
+        <div className="flex flex-col sm:flex-row gap-6 rounded-xl border bg-white p-5 shadow-sm w-full max-w-[800px]">
+          {/* Left Side: Color Selection */}
+          <div className="flex flex-col gap-3 w-full sm:w-[35%] border-b sm:border-b-0 sm:border-r border-gray-100 pb-4 sm:pb-0 sm:pr-6">
+            <label className="text-2xs font-semibold uppercase tracking-wide text-gray-500">Select Color</label>
+            <div className="flex flex-col gap-1.5 max-h-[220px] overflow-y-auto pr-1">
+              {colors.map((c) => (
+                <button
+                  key={c.id}
+                  onClick={() => setSelectedColorId(c.id)}
+                  className={`text-left px-3 py-2 text-sm rounded-lg transition-colors ${
+                    selectedColorId === c.id 
+                      ? 'bg-[#004D40] text-white font-medium shadow-sm' 
+                      : 'hover:bg-gray-100 text-gray-700'
+                  }`}
+                >
+                  {c.name}
+                </button>
+              ))}
+              {colors.length === 0 && (
+                <p className="text-sm text-gray-400 py-2">No colors configured.</p>
+              )}
+            </div>
+          </div>
+
+          {/* Right Side: Size Balances */}
+          <div className="flex flex-col gap-2 w-full sm:w-[65%] pl-0 sm:pl-2">
+            <label className="text-2xs font-semibold uppercase tracking-wide text-gray-500 border-b pb-2">Available Size Stock</label>
+            {!selectedColorId ? (
+              <p className="text-sm text-gray-400 py-2 text-center mt-4">Select a color to view sizes.</p>
+            ) : sizeBalancesForColor.length === 0 ? (
+              <p className="text-sm text-gray-400 py-2 text-center mt-4">No sizes configured.</p>
+            ) : (
+              <div className="flex gap-8 max-h-[220px] overflow-y-auto pr-2">
+                {/* First 3 Sizes */}
+                <div className="flex flex-col flex-1">
+                  {sizeBalancesForColor.slice(0, 3).map((s) => (
+                    <div key={s!.id} className="flex items-center justify-between text-sm py-2 border-b border-gray-100 last:border-0">
+                      <span className="text-gray-700 font-medium">{s!.name}</span>
+                      <div className="flex flex-col items-end leading-tight">
+                        <span className="font-bold text-gray-900 text-[13px]">{s!.balancePcs} pcs</span>
+                        <span className="text-[11px] text-gray-500 font-medium">{s!.balanceKg.toFixed(2)} kg</span>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+                {/* Remaining Sizes */}
+                {sizeBalancesForColor.length > 3 && (
+                  <div className="flex flex-col flex-1">
+                    {sizeBalancesForColor.slice(3).map((s) => (
+                      <div key={s!.id} className="flex items-center justify-between text-sm py-2 border-b border-gray-100 last:border-0">
+                        <span className="text-gray-700 font-medium">{s!.name}</span>
+                        <div className="flex flex-col items-end leading-tight">
+                          <span className="font-bold text-gray-900 text-[13px]">{s!.balancePcs} pcs</span>
+                          <span className="text-[11px] text-gray-500 font-medium">{s!.balanceKg.toFixed(2)} kg</span>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
         </div>
       </div>
 

@@ -4,6 +4,7 @@ import { LoomEntry } from '@/features/looms/loom-entry';
 import { FabricEntry } from '@/features/fabric/fabric-entry';
 import { DayDetails } from './day-details';
 import { ProductionDesign2 } from './production-design-2';
+import { NewEntry } from './new-entry';
 
 function ExtruderRoute() {
   const navigate = useNavigate();
@@ -41,6 +42,15 @@ function DayDetailsRoute() {
   );
 }
 
+function NewEntryRoute() {
+  const navigate = useNavigate();
+  return (
+    <div className="h-full overflow-y-auto">
+      <NewEntry onClose={() => navigate('/production')} />
+    </div>
+  );
+}
+
 export function ProductionDetails() {
   return (
     <Routes>
@@ -49,6 +59,7 @@ export function ProductionDetails() {
       <Route path="loom" element={<LoomRoute />} />
       <Route path="fabric" element={<FabricRoute />} />
       <Route path="day-details" element={<DayDetailsRoute />} />
+      <Route path="new-entry" element={<NewEntryRoute />} />
     </Routes>
   );
 }

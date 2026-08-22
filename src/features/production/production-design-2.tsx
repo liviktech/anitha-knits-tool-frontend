@@ -23,6 +23,7 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
+import { useNavigate } from 'react-router-dom';
 
 function formatNum(n: number): string {
   return n.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
@@ -469,7 +470,7 @@ function DayDetailView({
 }
 
 export function ProductionDesign2() {
-  const [isNewEntryOpen, setIsNewEntryOpen] = useState(false);
+  const navigate = useNavigate();
   const [selectedDate, setSelectedDate] = useState<string | null>(null);
   const [isNavigating, setIsNavigating] = useState(false);
   const [isReportOpen, setIsReportOpen] = useState(false);
@@ -539,7 +540,7 @@ export function ProductionDesign2() {
           </div>
           <Button
             className="flex items-center gap-2 bg-[#004D40] hover:bg-[#00382e] text-white rounded-md px-3 py-2 h-auto text-[12px] font-bold tracking-wide shadow-[0_1px_2px_rgba(0,45,35,0.2)]"
-            onClick={() => setIsNewEntryOpen(true)}
+            onClick={() => navigate('/production/new-entry')}
           >
             <Plus className="w-3 h-3" />
             ADD NEW ENTRY
@@ -888,7 +889,6 @@ export function ProductionDesign2() {
           </Card>
         </div>
       )}
-      {isNewEntryOpen && <NewEntry onClose={() => setIsNewEntryOpen(false)} />}
       <DayWiseReportModal open={isReportOpen} onOpenChange={setIsReportOpen} />
     </div>
   );
