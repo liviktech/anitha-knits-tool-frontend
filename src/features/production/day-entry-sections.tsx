@@ -83,35 +83,35 @@ export function DaySummaryCards({ dnPlusKg, wasteKg, efficiencyPct, checkedKg }:
 }
 
 const themes = {
-  green: {
-    border: 'border-green-200',
-    headerBorder: 'border-green-100',
-    badgeBorder: 'border-green-200',
-    badgeBg: 'bg-green-50',
-    badgeText: 'text-green-700',
-    buttonBorder: 'border-green-200',
-    buttonText: 'text-green-700',
-    buttonHover: 'hover:bg-green-50 hover:text-green-800',
+  extruder: {
+    border: 'border-gray-400',
+    headerBg: 'bg-[#D6EEF7]',
+    headerText: 'text-[#0B5566]',
+    iconBg: 'bg-[#0B5566]',
+    iconColor: 'text-white',
+    buttonBorder: 'border-gray-300',
+    buttonText: 'text-gray-700',
+    buttonHover: 'hover:bg-gray-50 hover:text-gray-900',
   },
-  blue: {
-    border: 'border-blue-200',
-    headerBorder: 'border-blue-100',
-    badgeBorder: 'border-blue-200',
-    badgeBg: 'bg-blue-50',
-    badgeText: 'text-blue-700',
-    buttonBorder: 'border-blue-200',
-    buttonText: 'text-blue-700',
-    buttonHover: 'hover:bg-blue-50 hover:text-blue-800',
+  looms: {
+    border: 'border-gray-400',
+    headerBg: 'bg-[#FFF6BF]',
+    headerText: 'text-[#7A6A00]',
+    iconBg: 'bg-[#7A6A00]',
+    iconColor: 'text-white',
+    buttonBorder: 'border-gray-300',
+    buttonText: 'text-gray-700',
+    buttonHover: 'hover:bg-gray-50 hover:text-gray-900',
   },
-  purple: {
-    border: 'border-purple-200',
-    headerBorder: 'border-purple-100',
-    badgeBorder: 'border-purple-200',
-    badgeBg: 'bg-purple-50',
-    badgeText: 'text-purple-700',
-    buttonBorder: 'border-purple-200',
-    buttonText: 'text-purple-700',
-    buttonHover: 'hover:bg-purple-50 hover:text-purple-800',
+  fabric: {
+    border: 'border-gray-400',
+    headerBg: 'bg-[#DCEEDB]',
+    headerText: 'text-[#2F6B2F]',
+    iconBg: 'bg-[#2F6B2F]',
+    iconColor: 'text-white',
+    buttonBorder: 'border-gray-300',
+    buttonText: 'text-gray-700',
+    buttonHover: 'hover:bg-gray-50 hover:text-gray-900',
   },
 } as const;
 
@@ -274,14 +274,6 @@ export const ExtruderSection = forwardRef<SectionRef, ExtruderSectionProps>(({ p
   // filled in, that row's own (possibly auto-filled) values — otherwise the
   // header shows 0.00 the whole time in "Add New Entry", where there are no
   // saved rows yet to sum.
-  const totals = useMemo(() => {
-    const base = rows.reduce((acc, row) => ({ raw: acc.raw + row.raw, output: acc.output + row.output }), { raw: 0, output: 0 });
-    if (editingId === 'new') {
-      base.raw += parseFloat(draft.raw) || 0;
-      base.output += parseFloat(draft.output) || 0;
-    }
-    return base;
-  }, [rows, editingId, draft.raw, draft.output]);
 
   const startAdd = useCallback(() => {
     setDraft({
@@ -426,30 +418,22 @@ export const ExtruderSection = forwardRef<SectionRef, ExtruderSectionProps>(({ p
       if (!editingId) return true;
       // If draft is completely empty, ignore
       if (JSON.stringify(draft) === JSON.stringify(emptyExtruderDraft)) return true;
-      
+
       const success = await handleSave();
       return success ?? false;
     }
   }));
 
+  const theme = themes.extruder;
+
   return (
-    <div className="rounded-xl border border-green-200 bg-white shadow-sm overflow-hidden">
-      <div className="border-b border-green-100 p-4 bg-white flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-        <div className="flex items-center gap-3">
-          <div className="flex h-8 w-8 items-center justify-center rounded border border-green-200 bg-green-50 text-xs font-bold text-green-700">
-            EX
+    <div className={`rounded-xl border ${theme.border} bg-white shadow-sm overflow-hidden`}>
+      <div className={`p-3 ${theme.headerBg} flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between`}>
+        <div className={`flex items-center gap-3 text-[13px] font-extrabold ${theme.headerText} uppercase tracking-wider`}>
+          <div className={`${theme.iconBg} ${theme.iconColor} h-5 w-5 flex items-center justify-center rounded-sm text-[10px] font-bold`}>
+            1
           </div>
-          <h2 className="font-bold text-gray-900">Extruded Production – Entry</h2>
-        </div>
-        <div className="flex flex-wrap items-center gap-4 text-sm">
-          <div className="flex items-center gap-2">
-            <span className="text-gray-500">Raw material</span>
-            <Input type="number" className="h-8 w-24 text-right" value={totals.raw.toFixed(2)} readOnly />
-          </div>
-          <div className="flex items-center gap-2">
-            <span className="text-gray-500">Yarn output</span>
-            <Input type="number" className="h-8 w-24 text-right" value={totals.output.toFixed(2)} readOnly />
-          </div>
+          EXTRUDER PRODUCTION (KG)
         </div>
       </div>
 
@@ -553,15 +537,12 @@ export const ExtruderSection = forwardRef<SectionRef, ExtruderSectionProps>(({ p
           <Button
             variant="outline"
             size="sm"
-            className="h-8 gap-1 rounded-full border-green-200 text-green-700 hover:bg-green-50 hover:text-green-800"
+            className={`h-8 gap-1 rounded-full ${theme.buttonBorder} ${theme.buttonText} ${theme.buttonHover}`}
             onClick={startAdd}
             disabled={editingId !== null}
           >
             <Plus className="h-3 w-3" /> Add row
           </Button>
-          {editingId !== null && (
-            <span className="text-2xs text-gray-400">Saved when you click &ldquo;Save day entry&rdquo; below</span>
-          )}
         </div>
       )}
     </div>
@@ -743,20 +724,8 @@ export const LoomSection = forwardRef<SectionRef, SectionProps>(({ productionDat
   // See ExtruderSection: tracks whether the user has personally edited
   // Color/Yarn-Input. Starts false (untouched) and only flips to true from
   // an actual Select interaction — never from "nothing to suggest right
-  // now" — so it correctly re-arms when the date changes to one that does
-  // have matching stock.
+  // Tracks whether the user has personally edited a field that's otherwise auto-filled.
   const [colorManuallyEdited, setColorManuallyEdited] = useState(false);
-
-  // Header totals reflect saved rows plus, while a brand-new row is being
-  // filled in, that row's own (possibly auto-filled) values.
-  const totals = useMemo(() => {
-    const base = rows.reduce((acc, row) => ({ input: acc.input + row.input, output: acc.output + row.output }), { input: 0, output: 0 });
-    if (adding) {
-      base.input += parseFloat(draft.input) || 0;
-      base.output += parseFloat(draft.output) || 0;
-    }
-    return base;
-  }, [rows, adding, draft.input, draft.output]);
 
   const startAdd = useCallback(() => {
     setDraft({
@@ -849,26 +818,16 @@ export const LoomSection = forwardRef<SectionRef, SectionProps>(({ productionDat
     }
   }));
 
-  const theme = themes.blue;
+  const theme = themes.looms;
 
   return (
     <div className={`rounded-xl border ${theme.border} bg-white shadow-sm overflow-hidden`}>
-      <div className={`border-b ${theme.headerBorder} p-4 bg-white flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between`}>
-        <div className="flex items-center gap-3">
-          <div className={`flex h-8 w-8 items-center justify-center rounded border ${theme.badgeBorder} ${theme.badgeBg} text-xs font-bold ${theme.badgeText}`}>
-            LM
+      <div className={`p-3 ${theme.headerBg} flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between`}>
+        <div className={`flex items-center gap-3 text-[13px] font-extrabold ${theme.headerText} uppercase tracking-wider`}>
+          <div className={`${theme.iconBg} ${theme.iconColor} h-5 w-5 flex items-center justify-center rounded-sm text-[10px] font-bold`}>
+            2
           </div>
-          <h2 className="font-bold text-gray-900">Loom Production – Entry</h2>
-        </div>
-        <div className="flex flex-wrap items-center gap-4 text-sm">
-          <div className="flex items-center gap-2">
-            <span className="text-gray-500">Yarn input</span>
-            <Input type="number" className="h-8 w-24 text-right" value={totals.input.toFixed(2)} readOnly />
-          </div>
-          <div className="flex items-center gap-2">
-            <span className="text-gray-500">Fabric output</span>
-            <Input type="number" className="h-8 w-24 text-right" value={totals.output.toFixed(2)} readOnly />
-          </div>
+          LOOMS PRODUCTION (KG)
         </div>
       </div>
 
@@ -966,9 +925,6 @@ export const LoomSection = forwardRef<SectionRef, SectionProps>(({ productionDat
           >
             <Plus className="h-3 w-3" /> Add row
           </Button>
-          {adding && (
-            <span className="text-2xs text-gray-400">Saved when you click &ldquo;Save day entry&rdquo; below</span>
-          )}
         </div>
       )}
     </div>
@@ -1063,22 +1019,7 @@ export const FabricSection = forwardRef<SectionRef, SectionProps>(({ productionD
   // does have matching stock.
   const [colorManuallyEdited, setColorManuallyEdited] = useState(false);
 
-  // Header totals reflect saved rows plus, while a brand-new row is being
-  // filled in, that row's own (possibly auto-filled) values.
-  const totals = useMemo(() => {
-    const base = rows.reduce(
-      (acc, row) => ({
-        input: acc.input + row.input,
-        checked: acc.checked + row.firstGrade + row.secondGrade,
-      }),
-      { input: 0, checked: 0 },
-    );
-    if (adding) {
-      base.input += parseFloat(draft.input) || 0;
-      base.checked += (parseFloat(draft.firstGrade) || 0) + (parseFloat(draft.secondGrade) || 0);
-    }
-    return base;
-  }, [rows, adding, draft.input, draft.firstGrade, draft.secondGrade]);
+
 
   const startAdd = useCallback(() => {
     setDraft({
@@ -1175,26 +1116,16 @@ export const FabricSection = forwardRef<SectionRef, SectionProps>(({ productionD
     }
   }));
 
-  const theme = themes.purple;
+  const theme = themes.fabric;
 
   return (
     <div className={`rounded-xl border ${theme.border} bg-white shadow-sm overflow-hidden`}>
-      <div className={`border-b ${theme.headerBorder} p-4 bg-white flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between`}>
-        <div className="flex items-center gap-3">
-          <div className={`flex h-8 w-8 items-center justify-center rounded border ${theme.badgeBorder} ${theme.badgeBg} text-xs font-bold ${theme.badgeText}`}>
-            FB
+      <div className={`p-3 ${theme.headerBg} flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between`}>
+        <div className={`flex items-center gap-3 text-[13px] font-extrabold ${theme.headerText} uppercase tracking-wider`}>
+          <div className={`${theme.iconBg} ${theme.iconColor} h-5 w-5 flex items-center justify-center rounded-sm text-[10px] font-bold`}>
+            3
           </div>
-          <h2 className="font-bold text-gray-900">Fabric Checking – Entry</h2>
-        </div>
-        <div className="flex flex-wrap items-center gap-4 text-sm">
-          <div className="flex items-center gap-2">
-            <span className="text-gray-500">Fabric input</span>
-            <Input type="number" className="h-8 w-24 text-right" value={totals.input.toFixed(2)} readOnly />
-          </div>
-          <div className="flex items-center gap-2">
-            <span className="text-gray-500">Checked</span>
-            <Input type="number" className="h-8 w-24 text-right" value={totals.checked.toFixed(2)} readOnly />
-          </div>
+          FABRIC PRODUCTION (KG)
         </div>
       </div>
 
@@ -1297,9 +1228,6 @@ export const FabricSection = forwardRef<SectionRef, SectionProps>(({ productionD
           >
             <Plus className="h-3 w-3" /> Add row
           </Button>
-          {adding && (
-            <span className="text-2xs text-gray-400">Saved when you click &ldquo;Save day entry&rdquo; below</span>
-          )}
         </div>
       )}
     </div>
