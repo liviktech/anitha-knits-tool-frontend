@@ -68,7 +68,7 @@ export function useAuth() {
  * dashboard.
  */
 export function defaultRouteFor(user: AuthUser): string {
-  if (user.kind === 'platform-admin') return '/livik-admin';
+  if (user.kind === 'platform-admin') return '/admin';
   if (user.role === 'ADMIN') return '/production';
   return '/dashboard';
 }

@@ -10,7 +10,7 @@ import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sh
 import { DashboardModule } from './features/dashboard/dashboard-module';
 import { ProductionDetails } from './features/production/production-details';
 import { InventoryPage } from './features/inventory/inventory-page';
-import { LivikAdminShell } from './features/livik-admin/livik-admin-shell';
+import { LivikAdminShell } from './features/admin/livik-admin-shell';
 import threadIcon from '@/assets/thread.png';
 
 const navItems = [
@@ -187,7 +187,7 @@ function App() {
         {/* Separate super-admin panel — its own shell/nav, deliberately not nested under AppShell.
             Super admin's job here is onboarding companies, so this is their default landing spot. */}
         <Route
-          path="/livik-admin/*"
+          path="/admin/*"
           element={
             <RequireRole kind="platform-admin">
               <LivikAdminShell />

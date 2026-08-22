@@ -1,47 +1,26 @@
-import { Routes, Route, Navigate, NavLink } from 'react-router-dom';
+import { Routes, Route, Navigate, NavLink, useNavigate } from 'react-router-dom';
 import {
   Infinity as InfinityIcon,
   LayoutDashboard,
   Building2,
   Users,
-  Tag,
-  FlaskConical,
-  Palette,
-  Ruler,
-  BarChart3,
-  Trash2,
-  SlidersHorizontal,
-  FileText,
-  ClipboardList,
-  CheckSquare,
-  Archive,
-  Truck,
-  BarChart2,
-  Settings,
-  ChevronRight,
+  LogOut,
 } from 'lucide-react';
 import { CompanyDetailsPage } from './company-details-page';
 import { CompaniesListPage } from './companies-list-page';
-import { CompaniesProvider } from './companies-context';
+import { useAuth } from '@/features/auth/auth-context';
 
 const navItems = [
-  { to: '/livik-admin/dashboard', label: 'Dashboard', icon: LayoutDashboard },
-  { to: '/livik-admin/companies', label: 'Companies', icon: Building2 },
-  { to: '/livik-admin/users', label: 'Users', icon: Users },
-  { to: '/livik-admin/brands', label: 'Brands', icon: Tag },
-  { to: '/livik-admin/chemicals', label: 'Chemicals', icon: FlaskConical },
-  { to: '/livik-admin/colors', label: 'Colors', icon: Palette },
-  { to: '/livik-admin/sizes', label: 'Sizes', icon: Ruler },
-  { to: '/livik-admin/color-standards', label: 'Color Standards', icon: BarChart3 },
-  { to: '/livik-admin/wastage-types', label: 'Wastage Types', icon: Trash2 },
-  { to: '/livik-admin/production-settings', label: 'Production Settings', icon: SlidersHorizontal },
-  { to: '/livik-admin/production-records', label: 'Production Records', icon: FileText },
-  { to: '/livik-admin/wastage-records', label: 'Wastage Records', icon: ClipboardList },
-  { to: '/livik-admin/approval-events', label: 'Approval Events', icon: CheckSquare },
-  { to: '/livik-admin/inventories', label: 'Inventories', icon: Archive },
-  { to: '/livik-admin/load-sents', label: 'Load Sents', icon: Truck },
-  { to: '/livik-admin/reports', label: 'Reports', icon: BarChart2 },
-  { to: '/livik-admin/settings', label: 'Settings', icon: Settings },
+  { to: '/admin/dashboard', label: 'Dashboard', icon: LayoutDashboard },
+  { to: '/admin/companies', label: 'Companies', icon: Building2 },
+  { to: '/admin/users', label: 'Users', icon: Users },
+  // { to: '/admin/production-records', label: 'Production Records', icon: FileText },
+  // { to: '/admin/wastage-records', label: 'Wastage Records', icon: ClipboardList },
+  // { to: '/admin/approval-events', label: 'Approval Events', icon: CheckSquare },
+  // { to: '/admin/inventories', label: 'Inventories', icon: Archive },
+  // { to: '/admin/load-sents', label: 'Load Sents', icon: Truck },
+  // { to: '/admin/reports', label: 'Reports', icon: BarChart2 },
+  // { to: '/admin/settings', label: 'Settings', icon: Settings },
 ];
 
 function ComingSoon({ label }: { label: string }) {
@@ -59,6 +38,14 @@ function ComingSoon({ label }: { label: string }) {
  * production tool's routes and layout.
  */
 export function LivikAdminShell() {
+  const { logout } = useAuth();
+  const navigate = useNavigate();
+
+  function handleLogout() {
+    logout();
+    navigate('/login', { replace: true });
+  }
+
   return (
     <div className="flex h-screen w-full bg-[#F4F1E8] font-['Hanken_Grotesk',sans-serif]">
       <aside className="hidden lg:flex w-60 shrink-0 bg-[#233327] flex-col">
@@ -95,19 +82,25 @@ export function LivikAdminShell() {
             <div className="text-white text-[13px] font-semibold leading-tight">System Admin</div>
             <div className="text-white/50 text-[11px]">Super Admin</div>
           </div>
-          <ChevronRight className="w-4 h-4 text-white/40" />
+          <button
+            type="button"
+            onClick={handleLogout}
+            aria-label="Log out"
+            className="p-2 text-white/60 hover:text-white hover:bg-white/10 rounded-lg transition-colors"
+          >
+            <LogOut className="w-4 h-4" strokeWidth={1.75} />
+          </button>
         </div>
       </aside>
 
       <main className="flex-1 overflow-auto">
-        <CompaniesProvider>
         <Routes>
           <Route index element={<Navigate to="companies" replace />} />
           <Route path="dashboard" element={<ComingSoon label="Dashboard" />} />
           <Route path="companies" element={<CompaniesListPage />} />
           <Route path="companies/:companyId" element={<CompanyDetailsPage />} />
           <Route path="users" element={<ComingSoon label="Users" />} />
-          <Route path="brands" element={<ComingSoon label="Brands" />} />
+          {/* <Route path="brands" element={<ComingSoon label="Brands" />} />
           <Route path="chemicals" element={<ComingSoon label="Chemicals" />} />
           <Route path="colors" element={<ComingSoon label="Colors" />} />
           <Route path="sizes" element={<ComingSoon label="Sizes" />} />
@@ -120,9 +113,8 @@ export function LivikAdminShell() {
           <Route path="inventories" element={<ComingSoon label="Inventories" />} />
           <Route path="load-sents" element={<ComingSoon label="Load Sents" />} />
           <Route path="reports" element={<ComingSoon label="Reports" />} />
-          <Route path="settings" element={<ComingSoon label="Settings" />} />
+          <Route path="settings" element={<ComingSoon label="Settings" />} /> */}
         </Routes>
-        </CompaniesProvider>
       </main>
     </div>
   );
