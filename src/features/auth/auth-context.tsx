@@ -1,7 +1,6 @@
 import { createContext, useContext, useEffect, useState, type ReactNode } from 'react';
 import { login as loginRequest, type AuthUser } from './auth-service';
-
-const STORAGE_KEY = 'ak_auth_user';
+import { AUTH_STORAGE_KEY as STORAGE_KEY } from '@/lib/api-client';
 
 interface AuthContextValue {
   user: AuthUser | null;
@@ -32,6 +31,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       localStorage.removeItem(STORAGE_KEY);
     }
   }, [user]);
+
+  // api-client.ts broadcasts this when a request 401s and the refresh-cookie retry also fails
+  // (refresh token itself expired/missing) — the only recovery left is a fresh login.
+  useEffect(() => {
+    function handleSessionExpired() {
+      setUser(null);
+    }
+    window.addEventListener('auth:session-expired', handleSessionExpired);
+    return () => window.removeEventListener('auth:session-expired', handleSessionExpired);
+  }, []);
 
   async function login(mobile: string, password: string) {
     const nextUser = await loginRequest(mobile, password);

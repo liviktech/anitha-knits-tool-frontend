@@ -10,7 +10,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Loader } from '@/components/shared/loader';
 import { DeleteConfirmDialog } from '@/components/shared/delete-confirm-dialog';
-import { apiUrl } from '@/lib/api-client';
+import { apiFetch } from '@/lib/api-client';
 import { useLookups, findIdByName } from '@/lib/lookups';
 import {
   useInventoryRecords,
@@ -93,10 +93,9 @@ function InventoryFormDialog({ onClose, record }: InventoryFormDialogProps) {
         name: name.trim(),
         weightKg: parseFloat(weightKg) || 0,
       };
-      const response = await fetch(isEdit ? apiUrl(`/inventory/${record.id}`) : apiUrl('/inventory'), {
+      const response = await apiFetch(isEdit ? `/inventory/${record.id}` : '/inventory', {
         method: isEdit ? 'PATCH' : 'POST',
         headers: { 'Content-Type': 'application/json' },
-        credentials: 'include',
         body: JSON.stringify(payload),
       });
       if (!response.ok) throw new Error('Failed to save inventory record');
@@ -188,7 +187,7 @@ function InventoryReceiveTab() {
     if (!deleteTarget) return;
     setDeleting(true);
     try {
-      const response = await fetch(apiUrl(`/inventory/${deleteTarget.id}`), { method: 'DELETE', credentials: 'include' });
+      const response = await apiFetch(`/inventory/${deleteTarget.id}`, { method: 'DELETE' });
       if (!response.ok) throw new Error('Failed to delete inventory record');
       await queryClient.invalidateQueries({ queryKey: inventoryKeys.all });
       setDeleteTarget(null);
@@ -330,10 +329,9 @@ function LoadSentFormDialog({ onClose, record }: LoadSentFormDialogProps) {
         pieceCount: parseInt(pieceCount, 10) || 0,
         weightKg: parseFloat(weightKg) || 0,
       };
-      const response = await fetch(isEdit ? apiUrl(`/load-sent/${record.id}`) : apiUrl('/load-sent'), {
+      const response = await apiFetch(isEdit ? `/load-sent/${record.id}` : '/load-sent', {
         method: isEdit ? 'PATCH' : 'POST',
         headers: { 'Content-Type': 'application/json' },
-        credentials: 'include',
         body: JSON.stringify(payload),
       });
       if (!response.ok) throw new Error('Failed to save load sent record');
@@ -418,7 +416,7 @@ function LoadSentTab() {
     if (!deleteTarget) return;
     setDeleting(true);
     try {
-      const response = await fetch(apiUrl(`/load-sent/${deleteTarget.id}`), { method: 'DELETE', credentials: 'include' });
+      const response = await apiFetch(`/load-sent/${deleteTarget.id}`, { method: 'DELETE' });
       if (!response.ok) throw new Error('Failed to delete load sent record');
       await queryClient.invalidateQueries({ queryKey: loadSentKeys.all });
       setDeleteTarget(null);

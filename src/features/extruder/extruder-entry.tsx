@@ -14,7 +14,7 @@ import {
   type Lookups,
   type ExtruderCreatePayload,
 } from './extruder-queries';
-import { apiUrl } from '@/lib/api-client';
+import { apiFetch } from '@/lib/api-client';
 import { sumWastageByCode } from '@/lib/api-types';
 import { X, Edit, FileText } from 'lucide-react';
 
@@ -129,10 +129,9 @@ export function ExtruderEntry({ onClose }: ExtruderEntryProps) {
 
     setSubmitting(true);
     try {
-      const response = await fetch(apiUrl('/production/extruder'), {
+      const response = await apiFetch('/production/extruder', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        credentials: 'include',
         body: JSON.stringify(payload),
       });
 
@@ -184,10 +183,9 @@ export function ExtruderEntry({ onClose }: ExtruderEntryProps) {
 
     setSubmitting(true);
     try {
-      const response = await fetch(apiUrl(`/production/extruder/${editingId}`), {
+      const response = await apiFetch(`/production/extruder/${editingId}`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
-        credentials: 'include',
         body: JSON.stringify(payload),
       });
 

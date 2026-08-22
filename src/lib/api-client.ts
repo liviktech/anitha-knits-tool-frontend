@@ -10,9 +10,68 @@ export function apiUrl(path: string): string {
   return `${API_BASE_URL}${path}`;
 }
 
-/** fetch() + JSON parsing against the backend configured via VITE_API_BASE_URL. Sends the httpOnly auth cookie the backend's requireAuth middleware expects. */
-export async function fetchJson<T = unknown>(path: string, init?: RequestInit): Promise<T> {
+// Shared with auth-context.tsx, which owns reading/writing the stored user. Kept here (rather
+// than the other way around) so this module never has to import from auth-context.
+export const AUTH_STORAGE_KEY = 'ak_auth_user';
+
+type SessionKind = 'platform-admin' | 'company-user';
+
+function currentSessionKind(): SessionKind | null {
+  try {
+    const raw = localStorage.getItem(AUTH_STORAGE_KEY);
+    if (!raw) return null;
+    return (JSON.parse(raw) as { kind?: SessionKind }).kind ?? null;
+  } catch {
+    return null;
+  }
+}
+
+function refreshPathFor(kind: SessionKind): string {
+  return kind === 'platform-admin' ? '/platform/admin/refresh' : '/company/auth/refresh';
+}
+
+let pendingRefresh: Promise<boolean> | null = null;
+
+/**
+ * Calls the refresh endpoint matching the current session kind, exchanging the refresh
+ * cookie for a fresh access token. Concurrent 401s dedupe into a single in-flight call.
+ */
+function refreshSession(): Promise<boolean> {
+  const kind = currentSessionKind();
+  if (!kind) return Promise.resolve(false);
+
+  if (!pendingRefresh) {
+    pendingRefresh = fetch(apiUrl(refreshPathFor(kind)), { method: 'POST', credentials: 'include' })
+      .then((res) => res.ok)
+      .catch(() => false)
+      .finally(() => {
+        pendingRefresh = null;
+      });
+  }
+  return pendingRefresh;
+}
+
+/**
+ * fetch() against the backend configured via VITE_API_BASE_URL, sending the httpOnly auth
+ * cookie. The access token cookie is short-lived (15m); on a 401 this transparently retries
+ * once via the refresh cookie before giving up. If the refresh also fails, it broadcasts
+ * 'auth:session-expired' (auth-context.tsx listens and logs the user out).
+ */
+export async function apiFetch(path: string, init?: RequestInit): Promise<Response> {
   const response = await fetch(apiUrl(path), { credentials: 'include', ...init });
+  if (response.status !== 401) return response;
+
+  const refreshed = await refreshSession();
+  if (!refreshed) {
+    window.dispatchEvent(new Event('auth:session-expired'));
+    return response;
+  }
+  return fetch(apiUrl(path), { credentials: 'include', ...init });
+}
+
+/** apiFetch() + JSON parsing. */
+export async function fetchJson<T = unknown>(path: string, init?: RequestInit): Promise<T> {
+  const response = await apiFetch(path, init);
   if (!response.ok) throw new Error(`Request failed: ${path}`);
   return response.json();
 }

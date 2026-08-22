@@ -6,7 +6,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Loader } from '@/components/shared/loader';
 import { Plus, Edit2, X as XIcon } from 'lucide-react';
-import { apiUrl } from '@/lib/api-client';
+import { apiFetch } from '@/lib/api-client';
 import { sumWastageByCode } from '@/lib/api-types';
 import {
   useExtruderProductions,
@@ -385,8 +385,8 @@ export const ExtruderSection = forwardRef<SectionRef, SectionProps>(({ productio
         ? { ...basePayload, lumpsKg: parseFloat(draft.lumpsKg) || 0, yarnWasteKg: parseFloat(draft.yarnWasteKg) || 0 }
         : basePayload;
 
-      const response = await fetch(
-        isNew ? apiUrl('/production/extruder') : apiUrl(`/production/extruder/${editingId}`),
+      const response = await apiFetch(
+        isNew ? '/production/extruder' : `/production/extruder/${editingId}`,
         {
           method: isNew ? 'POST' : 'PATCH',
           headers: { 'Content-Type': 'application/json' },
@@ -807,10 +807,9 @@ export const LoomSection = forwardRef<SectionRef, SectionProps>(({ productionDat
         loomsWasteKg: parseFloat(draft.loomsWasteKg) || 0,
       };
 
-      const response = await fetch(apiUrl('/production/looms'), {
+      const response = await apiFetch('/production/looms', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        credentials: 'include',
         body: JSON.stringify(payload),
       });
       if (!response.ok) throw new Error('Failed to save entry');
@@ -1134,10 +1133,9 @@ export const FabricSection = forwardRef<SectionRef, SectionProps>(({ productionD
         bwKg: parseFloat(draft.bwKg) || 0,
       };
 
-      const response = await fetch(apiUrl('/fabric-checking'), {
+      const response = await apiFetch('/fabric-checking', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        credentials: 'include',
         body: JSON.stringify(payload),
       });
       if (!response.ok) throw new Error('Failed to save entry');
