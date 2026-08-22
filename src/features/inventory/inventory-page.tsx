@@ -436,8 +436,8 @@ function LoadSentTab() {
   const colors = lookupsData?.colors ?? [];
   const sizes = lookupsData?.sizes ?? [];
 
-  const { data: sentData, isLoading: isSentLoading } = useLoadSentRecords('?limit=1000');
-  const { data: prodData, isLoading: isProdLoading } = useFabricCheckingRecords('?limit=1000');
+  const { data: sentData, isLoading: isSentLoading } = useLoadSentRecords('?limit=100');
+  const { data: prodData, isLoading: isProdLoading } = useFabricCheckingRecords('?limit=100');
   
   const records = sentData?.data ?? [];
   const prodRecords = prodData?.data ?? [];

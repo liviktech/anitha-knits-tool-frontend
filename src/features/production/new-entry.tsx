@@ -71,8 +71,8 @@ export function NewEntry({ onClose, defaultDate, readOnly = false }: NewEntryPro
 
   // Most recent entry before the selected date — used to carry forward
   // Data for calculating live stock balances in create mode
-  const { data: allInvData } = useInventoryRecords('?limit=1000', isCreateMode);
-  const { data: allExtruderData } = useExtruderProductions('?limit=1000', isCreateMode);
+  const { data: allInvData } = useInventoryRecords('?limit=100', isCreateMode);
+  const { data: allExtruderData } = useExtruderProductions('?limit=100', isCreateMode);
   const inventoryRecords = allInvData?.data ?? [];
   const extruderRecords = allExtruderData?.data ?? [];
 
