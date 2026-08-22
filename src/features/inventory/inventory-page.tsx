@@ -19,6 +19,7 @@ import {
   type InventoryRecord,
   type InventoryType,
   type InventoryCreatePayload,
+  type InventoryUpdatePayload,
 } from './inventory-queries';
 import {
   useLoadSentRecords,
@@ -45,26 +46,29 @@ interface InventoryFormDialogProps {
   record: InventoryRecord | null;
 }
 
-/** Mounted only while the dialog is open (see call site), so state can
- * initialize once from `record` at mount instead of syncing via an effect. */
+/**
+ * Mounted only while the dialog is open (see call site), so state can
+ * initialize once from `record` at mount instead of syncing via an effect.
+ *
+ * Add and Edit are genuinely different operations against the real API:
+ * create (POST) supplies type + brandId/chemicalId/colorId and a
+ * quantityKg that's ADDED to the item's running balance, while update
+ * (PATCH) can only correct the date or directly SET the balance
+ * (weightKg) of an existing item — identity fields can't change there.
+ */
 function InventoryFormDialog({ onClose, record }: InventoryFormDialogProps) {
   const queryClient = useQueryClient();
   const { data: lookupsData, isLoading: lookupsLoading } = useLookups();
   const isEdit = !!record;
 
   const [date, setDate] = useState(record ? formatDate(record.date) : todayIso());
-  const [type, setType] = useState<InventoryType | ''>(record?.type ?? '');
-  const [name, setName] = useState(record?.name ?? '');
+  const [type, setType] = useState<InventoryType | ''>('');
+  const [itemId, setItemId] = useState('');
+  const [quantityKg, setQuantityKg] = useState('');
   const [weightKg, setWeightKg] = useState(record ? String(record.weightKg) : '');
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  // Name is a lookup-backed dropdown for every type — Raw Material picks
-  // from the brand master data, Chemical/Color from their own — since these
-  // names must match real master data. `isNameLookup` stays true while
-  // lookups are still loading so the field doesn't silently fall back to
-  // free text during that window.
-  const isNameLookup = type === 'RAW_MATERIAL' || type === 'CHEMICAL' || type === 'COLOR';
   const nameOptions =
     type === 'RAW_MATERIAL' ? lookupsData?.brands
     : type === 'CHEMICAL' ? lookupsData?.chemicals
@@ -74,28 +78,44 @@ function InventoryFormDialog({ onClose, record }: InventoryFormDialogProps) {
 
   const handleTypeChange = (value: InventoryType) => {
     setType(value);
-    // Clear the name when switching type so a stale free-text/dropdown value
-    // from the previous type can't be silently submitted for the new one.
-    if (value !== record?.type) setName('');
-    else setName(record?.name ?? '');
+    setItemId('');
   };
 
   const handleSubmit = async () => {
-    if (!type || !name.trim() || !weightKg) {
-      setError('Please fill in Type, Name, and Weight.');
-      return;
+    let url: string;
+    let method: 'POST' | 'PATCH';
+    let payload: InventoryCreatePayload | InventoryUpdatePayload;
+
+    if (isEdit) {
+      if (!weightKg.trim()) {
+        setError('Please enter the balance.');
+        return;
+      }
+      url = `/inventory/${record.id}`;
+      method = 'PATCH';
+      payload = { date, weightKg: parseFloat(weightKg) || 0 };
+    } else {
+      if (!type || !itemId || !quantityKg.trim()) {
+        setError('Please fill in Type, Name, and Quantity.');
+        return;
+      }
+      url = '/inventory';
+      method = 'POST';
+      payload = {
+        date,
+        type,
+        quantityKg: parseFloat(quantityKg) || 0,
+        ...(type === 'RAW_MATERIAL' && { brandId: itemId }),
+        ...(type === 'CHEMICAL' && { chemicalId: itemId }),
+        ...(type === 'COLOR' && { colorId: itemId }),
+      };
     }
+
     setSaving(true);
     setError(null);
     try {
-      const payload: InventoryCreatePayload = {
-        date,
-        type,
-        name: name.trim(),
-        weightKg: parseFloat(weightKg) || 0,
-      };
-      const response = await apiFetch(isEdit ? `/inventory/${record.id}` : '/inventory', {
-        method: isEdit ? 'PATCH' : 'POST',
+      const response = await apiFetch(url, {
+        method,
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload),
       });
@@ -115,47 +135,59 @@ function InventoryFormDialog({ onClose, record }: InventoryFormDialogProps) {
     <Dialog open onOpenChange={(next) => !saving && !next && onClose()}>
       <DialogContent className="sm:max-w-md">
         <DialogHeader>
-          <DialogTitle>{isEdit ? 'Edit Received Stock' : 'Add Received Stock'}</DialogTitle>
+          <DialogTitle>{isEdit ? 'Correct Stock Balance' : 'Add Received Stock'}</DialogTitle>
         </DialogHeader>
         <div className="flex flex-col gap-4">
           <div className="flex flex-col gap-1.5">
             <Label htmlFor="inv-date">Date</Label>
             <Input id="inv-date" type="date" value={date} onChange={(e) => setDate(e.target.value)} />
           </div>
-          <div className="flex flex-col gap-1.5">
-            <Label htmlFor="inv-type">Type</Label>
-            <Select value={type || undefined} onValueChange={(value) => handleTypeChange(value as InventoryType)}>
-              <SelectTrigger id="inv-type" className="w-full"><SelectValue placeholder="Select type" /></SelectTrigger>
-              <SelectContent>
-                {(Object.entries(inventoryTypeLabels) as [InventoryType, string][]).map(([value, label]) => (
-                  <SelectItem key={value} value={value}>{label}</SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
-          <div className="flex flex-col gap-1.5">
-            <Label htmlFor="inv-name">Name</Label>
-            {isNameLookup ? (
-              <Select value={name || undefined} onValueChange={setName} disabled={lookupsLoading}>
-                <SelectTrigger id="inv-name" className="w-full">
-                  {lookupsLoading ? (
-                    <span className="flex items-center gap-2 text-muted-foreground"><Loader size="sm" /> Loading...</span>
-                  ) : (
-                    <SelectValue placeholder={`Select ${nameLabel}`} />
-                  )}
-                </SelectTrigger>
-                <SelectContent>
-                  {(nameOptions ?? []).map((o) => <SelectItem key={o.id} value={o.name}>{o.name}</SelectItem>)}
-                </SelectContent>
-              </Select>
-            ) : (
-              <Input id="inv-name" placeholder="Select a type first" value={name} onChange={(e) => setName(e.target.value)} maxLength={150} disabled={!type} />
-            )}
-          </div>
-          <div className="flex flex-col gap-1.5">
-            <Label htmlFor="inv-weight">Weight (kg)</Label>
-            <Input id="inv-weight" type="number" value={weightKg} onChange={(e) => setWeightKg(e.target.value)} />
-          </div>
+
+          {isEdit ? (
+            <>
+              <div className="flex flex-col gap-1.5">
+                <Label>Item</Label>
+                <Input value={`${inventoryTypeLabels[record.type]} — ${record.name}`} disabled />
+              </div>
+              <div className="flex flex-col gap-1.5">
+                <Label htmlFor="inv-balance">Current Balance (kg)</Label>
+                <Input id="inv-balance" type="number" value={weightKg} onChange={(e) => setWeightKg(e.target.value)} />
+              </div>
+            </>
+          ) : (
+            <>
+              <div className="flex flex-col gap-1.5">
+                <Label htmlFor="inv-type">Type</Label>
+                <Select value={type || undefined} onValueChange={(value) => handleTypeChange(value as InventoryType)}>
+                  <SelectTrigger id="inv-type" className="w-full"><SelectValue placeholder="Select type" /></SelectTrigger>
+                  <SelectContent>
+                    {(Object.entries(inventoryTypeLabels) as [InventoryType, string][]).map(([value, label]) => (
+                      <SelectItem key={value} value={value}>{label}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="flex flex-col gap-1.5">
+                <Label htmlFor="inv-name">Name</Label>
+                <Select value={itemId || undefined} onValueChange={setItemId} disabled={!type || lookupsLoading}>
+                  <SelectTrigger id="inv-name" className="w-full">
+                    {lookupsLoading ? (
+                      <span className="flex items-center gap-2 text-muted-foreground"><Loader size="sm" /> Loading...</span>
+                    ) : (
+                      <SelectValue placeholder={type ? `Select ${nameLabel}` : 'Select a type first'} />
+                    )}
+                  </SelectTrigger>
+                  <SelectContent>
+                    {(nameOptions ?? []).map((o) => <SelectItem key={o.id} value={o.id}>{o.name}</SelectItem>)}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="flex flex-col gap-1.5">
+                <Label htmlFor="inv-quantity">Quantity to Add (kg)</Label>
+                <Input id="inv-quantity" type="number" value={quantityKg} onChange={(e) => setQuantityKg(e.target.value)} />
+              </div>
+            </>
+          )}
           {error && <p className="text-sm text-red-600">{error}</p>}
         </div>
         <DialogFooter>
@@ -460,105 +492,82 @@ function LoadSentTab() {
   };
 
   return (
-    <div className="rounded-xl border border-orange-200 bg-white shadow-sm overflow-hidden">
-      <div className="border-b border-orange-100 p-4 bg-white flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+    <div className="rounded-xl border border-orange-100 bg-white shadow-sm overflow-hidden">
+      <div className="border-b border-orange-100 p-5 bg-gradient-to-r from-orange-50/60 to-white flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div className="flex items-center gap-3">
-          <div className="flex h-8 w-8 items-center justify-center rounded border border-orange-200 bg-orange-50 text-orange-700">
-            <PackageMinus className="h-4 w-4" />
+          <div className="flex h-9 w-9 items-center justify-center rounded-lg border border-orange-200 bg-orange-50 text-orange-600 shadow-sm">
+            <PackageMinus className="h-4.5 w-4.5" />
           </div>
-          <h2 className="font-bold text-gray-900">Stock Sent</h2>
+          <div>
+            <h2 className="font-bold text-gray-900 leading-tight">Load Sent</h2>
+            <p className="text-xs text-gray-500">Stock dispatched out of the warehouse</p>
+          </div>
         </div>
-        <div className="flex flex-wrap items-center gap-4 text-sm">
-          <div className="flex items-center gap-2">
-            <span className="text-gray-500">Pieces</span>
-            <Input type="number" className="h-8 w-20 text-right" value={totalPieces} readOnly />
+        <div className="flex flex-wrap items-center gap-3 text-sm">
+          <div className="flex items-center gap-1.5 rounded-lg border border-gray-200 bg-white px-3 py-1.5">
+            <span className="text-xs font-medium text-gray-500">Pieces</span>
+            <span className="font-bold text-gray-900">{totalPieces}</span>
           </div>
-          <div className="flex items-center gap-2">
-            <span className="text-gray-500">Total</span>
-            <Input type="number" className="h-8 w-28 text-right" value={totalKg.toFixed(2)} readOnly />
-            <span className="text-gray-400">kg</span>
+          <div className="flex items-center gap-1.5 rounded-lg border border-gray-200 bg-white px-3 py-1.5">
+            <span className="text-xs font-medium text-gray-500">Total</span>
+            <span className="font-bold text-gray-900">{totalKg.toFixed(2)}</span>
+            <span className="text-xs text-gray-400">kg</span>
           </div>
           <Button
             size="sm"
-            className="h-8 gap-1 rounded-full bg-[#004D40] text-white hover:bg-[#00332a]"
+            className="h-8 gap-1.5 rounded-full bg-orange-600 text-white hover:bg-orange-700 shadow-sm"
             onClick={openCreate}
           >
-            <Plus className="h-3 w-3" /> Add sent stock
+            <Plus className="h-3.5 w-3.5" /> Add sent stock
           </Button>
         </div>
       </div>
 
-      {/* Balance Summary Cards */}
-      <div className="p-4 bg-gray-50/50 border-b border-orange-100 flex justify-center">
-        <div className="flex flex-col sm:flex-row gap-6 rounded-xl border bg-white p-5 shadow-sm w-full max-w-[800px]">
-          {/* Left Side: Color Selection */}
-          <div className="flex flex-col gap-3 w-full sm:w-[35%] border-b sm:border-b-0 sm:border-r border-gray-100 pb-4 sm:pb-0 sm:pr-6">
-            <label className="text-2xs font-semibold uppercase tracking-wide text-gray-500">Select Color</label>
-            <div className="flex flex-col gap-1.5 max-h-[220px] overflow-y-auto pr-1">
+      {/* Balance Summary */}
+      <div className="px-5 py-3 bg-orange-50/50 border-b border-orange-100 flex items-center gap-4 overflow-x-auto whitespace-nowrap">
+        <div className="flex items-center gap-2 shrink-0">
+          <span className="text-xs font-bold uppercase tracking-wide text-gray-500">Color:</span>
+          <Select value={selectedColorId ?? ''} onValueChange={setSelectedColorId}>
+            <SelectTrigger className="h-8 w-[160px] bg-white border-orange-200">
+              <SelectValue placeholder="Select Color" />
+            </SelectTrigger>
+            <SelectContent>
               {colors.map((c) => (
-                <button
-                  key={c.id}
-                  onClick={() => setSelectedColorId(c.id)}
-                  className={`text-left px-3 py-2 text-sm rounded-lg transition-colors ${
-                    selectedColorId === c.id 
-                      ? 'bg-[#004D40] text-white font-medium shadow-sm' 
-                      : 'hover:bg-gray-100 text-gray-700'
-                  }`}
-                >
-                  {c.name}
-                </button>
+                <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>
               ))}
               {colors.length === 0 && (
-                <p className="text-sm text-gray-400 py-2">No colors configured.</p>
+                <div className="px-2 py-1.5 text-sm text-gray-500">No colors</div>
               )}
-            </div>
-          </div>
-
-          {/* Right Side: Size Balances */}
-          <div className="flex flex-col gap-2 w-full sm:w-[65%] pl-0 sm:pl-2">
-            <label className="text-2xs font-semibold uppercase tracking-wide text-gray-500 border-b pb-2">Available Size Stock</label>
-            {!selectedColorId ? (
-              <p className="text-sm text-gray-400 py-2 text-center mt-4">Select a color to view sizes.</p>
-            ) : sizeBalancesForColor.length === 0 ? (
-              <p className="text-sm text-gray-400 py-2 text-center mt-4">No sizes configured.</p>
-            ) : (
-              <div className="flex gap-8 max-h-[220px] overflow-y-auto pr-2">
-                {/* First 3 Sizes */}
-                <div className="flex flex-col flex-1">
-                  {sizeBalancesForColor.slice(0, 3).map((s) => (
-                    <div key={s!.id} className="flex items-center justify-between text-sm py-2 border-b border-gray-100 last:border-0">
-                      <span className="text-gray-700 font-medium">{s!.name}</span>
-                      <div className="flex flex-col items-end leading-tight">
-                        <span className="font-bold text-gray-900 text-[13px]">{s!.balancePcs} pcs</span>
-                        <span className="text-[11px] text-gray-500 font-medium">{s!.balanceKg.toFixed(2)} kg</span>
-                      </div>
-                    </div>
-                  ))}
+            </SelectContent>
+          </Select>
+        </div>
+        
+        <div className="h-5 w-px bg-orange-200 shrink-0 mx-1"></div>
+        
+        <div className="flex items-center gap-3 shrink-0">
+          <span className="text-xs font-bold uppercase tracking-wide text-gray-500">Stock:</span>
+          {!selectedColorId ? (
+            <span className="text-sm text-gray-400">Select a color</span>
+          ) : sizeBalancesForColor.length === 0 ? (
+            <span className="text-sm text-gray-400">No sizes</span>
+          ) : (
+            <div className="flex items-center gap-2">
+              {sizeBalancesForColor.map((s) => (
+                <div key={s!.id} className="flex items-center gap-1.5 rounded bg-white border border-orange-100 px-2.5 py-1 shadow-sm">
+                  <span className="text-xs font-semibold text-gray-700">{s!.name}:</span>
+                  <span className="text-xs font-bold text-gray-900">{s!.balancePcs} <span className="font-normal text-gray-500 text-[10px]">pcs</span></span>
+                  <span className="text-xs font-medium text-gray-500 ml-0.5">({s!.balanceKg.toFixed(2)}kg)</span>
                 </div>
-                {/* Remaining Sizes */}
-                {sizeBalancesForColor.length > 3 && (
-                  <div className="flex flex-col flex-1">
-                    {sizeBalancesForColor.slice(3).map((s) => (
-                      <div key={s!.id} className="flex items-center justify-between text-sm py-2 border-b border-gray-100 last:border-0">
-                        <span className="text-gray-700 font-medium">{s!.name}</span>
-                        <div className="flex flex-col items-end leading-tight">
-                          <span className="font-bold text-gray-900 text-[13px]">{s!.balancePcs} pcs</span>
-                          <span className="text-[11px] text-gray-500 font-medium">{s!.balanceKg.toFixed(2)} kg</span>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                )}
-              </div>
-            )}
-          </div>
+              ))}
+            </div>
+          )}
         </div>
       </div>
 
       <div className="overflow-x-auto">
         <Table>
           <TableHeader>
-            <TableRow className="hover:bg-transparent">
+            <TableRow className="hover:bg-transparent border-b border-orange-100">
               <TableHead className="text-2xs font-semibold uppercase tracking-wide text-gray-400">Date</TableHead>
               <TableHead className="text-2xs font-semibold uppercase tracking-wide text-gray-400">Color</TableHead>
               <TableHead className="text-2xs font-semibold uppercase tracking-wide text-gray-400">Size</TableHead>
@@ -582,9 +591,13 @@ function LoadSentTab() {
               </TableRow>
             ) : (
               records.map((r) => (
-                <TableRow key={r.id}>
+                <TableRow key={r.id} className="hover:bg-orange-50/40">
                   <TableCell>{formatDate(r.date)}</TableCell>
-                  <TableCell>{r.color?.name ?? ''}</TableCell>
+                  <TableCell>
+                    <span className="inline-flex items-center rounded-full bg-orange-50 text-orange-700 px-2.5 py-0.5 text-xs font-semibold">
+                      {r.color?.name ?? '—'}
+                    </span>
+                  </TableCell>
                   <TableCell>{r.size?.name ?? ''}</TableCell>
                   <TableCell className="text-center">{r.pieceCount}</TableCell>
                   <TableCell className="text-center">{r.weightKg.toFixed(2)}</TableCell>
@@ -604,8 +617,6 @@ function LoadSentTab() {
           </TableBody>
         </Table>
       </div>
-
-
 
       {formOpen && <LoadSentFormDialog onClose={() => setFormOpen(false)} record={editingRecord} />}
       <DeleteConfirmDialog
@@ -631,9 +642,9 @@ export function InventoryPage() {
       </div>
 
       <Tabs defaultValue="receive">
-        <TabsList className="w-fit">
-          <TabsTrigger value="receive">Receive</TabsTrigger>
-          <TabsTrigger value="send">Send</TabsTrigger>
+        <TabsList variant="underline">
+          <TabsTrigger value="receive">Stock</TabsTrigger>
+          <TabsTrigger value="send">Load Sent</TabsTrigger>
         </TabsList>
         <TabsContent value="receive" className="mt-4">
           <InventoryReceiveTab />
