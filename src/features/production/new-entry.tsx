@@ -1,15 +1,15 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
-import { format, subDays } from 'date-fns';
+import { useEffect, useRef, useState } from 'react';
+import { format, parseISO } from 'date-fns';
 import { Calendar as CalendarIcon } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Calendar } from '@/components/ui/calendar';
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Loader } from '@/components/shared/loader';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { ExtruderSection, LoomSection, FabricSection } from './day-entry-sections';
 import type { SectionRef } from './day-entry-sections';
-import { useExtruderProductions, useLookups, type ExtruderProductionItem } from '@/features/extruder/extruder-queries';
+import { useExtruderProductions, useLookups } from '@/features/extruder/extruder-queries';
+import { useInventoryRecords } from '@/features/inventory/inventory-queries';
+import { useProductionHeader } from './production-details';
 
 interface NewEntryProps {
   onClose: () => void;
@@ -19,52 +19,81 @@ interface NewEntryProps {
 }
 
 export function NewEntry({ onClose, defaultDate, readOnly = false }: NewEntryProps) {
-  // Opened via "Add New Entry" (no date pre-selected) — a pure create flow that
-  // always starts blank, even if the selected date already has records, as
-  // opposed to Edit/View which load and display that day's existing data.
+  const { setHeaderRight, setShowBackButton, setOnBackClick } = useProductionHeader();
   const isCreateMode = !defaultDate && !readOnly;
 
   const extruderRef = useRef<SectionRef>(null);
   const loomRef = useRef<SectionRef>(null);
   const fabricRef = useRef<SectionRef>(null);
 
-  const [date, setDate] = useState<Date>(defaultDate ? new Date(defaultDate) : new Date());
+  const [date, setDate] = useState<Date>(defaultDate ? parseISO(defaultDate) : new Date());
   const productionDate = format(date, 'yyyy-MM-dd');
   const [submitting, setSubmitting] = useState(false);
 
   const { data: lookupsData } = useLookups();
   const lookups = lookupsData ?? { brands: [], colors: [], chemicals: [], sizes: [] };
 
-  // Most recent entry before the selected date — used to carry forward
-  // Raw Material/Chemical/Color as defaults for a brand-new day, so the
-  // user isn't re-picking the same batch info every time.
-  const previousDayQuery = useMemo(
-    () => `?date_to=${format(subDays(date, 1), 'yyyy-MM-dd')}&limit=100`,
-    [date],
-  );
-  const { data: previousExtruderData } = useExtruderProductions(previousDayQuery, isCreateMode);
-  const latestPreviousEntry = useMemo(() => {
-    const items = previousExtruderData?.data ?? [];
-    return items.reduce<ExtruderProductionItem | null>(
-      (latest, item) => (!latest || item.productionDate > latest.productionDate ? item : latest),
-      null,
-    );
-  }, [previousExtruderData]);
-
-  const [rawMaterial, setRawMaterial] = useState('');
-  const [chemical, setChemical] = useState('');
-  const [color, setColor] = useState('');
-  // Stops re-syncing to the previous day's values the moment the user picks
-  // any of the three themselves, same convention as the per-row Inventory
-  // sync in day-entry-sections.tsx.
-  const [topFieldsManuallyEdited, setTopFieldsManuallyEdited] = useState(false);
-
   useEffect(() => {
-    if (!isCreateMode || topFieldsManuallyEdited || !latestPreviousEntry) return;
-    setRawMaterial(latestPreviousEntry.extruder?.brand?.name ?? '');
-    setChemical(latestPreviousEntry.extruder?.chemical?.name ?? '');
-    setColor(latestPreviousEntry.color?.name ?? '');
-  }, [isCreateMode, topFieldsManuallyEdited, latestPreviousEntry]);
+    setShowBackButton(true);
+    setOnBackClick(() => onClose);
+
+    setHeaderRight(
+      <div className="flex flex-wrap items-center gap-3">
+        <Popover>
+          <PopoverTrigger asChild>
+            <Button
+              variant="outline"
+              disabled={readOnly || submitting}
+              className="flex items-center bg-white border border-gray-400 rounded-md px-4 py-2 h-auto shadow-[0_1px_2px_rgba(0,0,0,0.05)] hover:bg-gray-50 disabled:opacity-100"
+            >
+              <span className="text-sm font-semibold text-gray-700 mr-3">{format(date, 'dd MMM, yyyy')}</span>
+              <CalendarIcon className="w-4 h-4 text-gray-400" />
+            </Button>
+          </PopoverTrigger>
+          <PopoverContent className="w-auto p-0" align="end">
+            <Calendar
+              mode="single"
+              selected={date}
+              onSelect={(value) => value && setDate(value)}
+              autoFocus
+            />
+          </PopoverContent>
+        </Popover>
+      </div>
+    );
+
+    return () => {
+      setHeaderRight(null);
+      setShowBackButton(false);
+      setOnBackClick(undefined);
+    };
+  }, [setHeaderRight, setShowBackButton, setOnBackClick, onClose, date, readOnly, submitting]);
+
+  // Most recent entry before the selected date — used to carry forward
+  // Data for calculating live stock balances in create mode
+  const { data: allInvData } = useInventoryRecords('?limit=1000', isCreateMode);
+  const { data: allExtruderData } = useExtruderProductions('?limit=1000', isCreateMode);
+  const inventoryRecords = allInvData?.data ?? [];
+  const extruderRecords = allExtruderData?.data ?? [];
+
+  const getRawMaterialBalance = (name: string) => {
+    const received = inventoryRecords.filter(r => r.type === 'RAW_MATERIAL' && r.name === name).reduce((sum, r) => sum + r.weightKg, 0);
+    const consumed = extruderRecords.filter(r => r.extruder?.brand?.name === name).reduce((sum, r) => sum + (r.extruder?.rawMaterialKg ?? 0), 0);
+    return (received - consumed).toFixed(2);
+  };
+
+  const getChemicalBalance = (name: string) => {
+    const received = inventoryRecords.filter(r => r.type === 'CHEMICAL' && r.name === name).reduce((sum, r) => sum + r.weightKg, 0);
+    const consumed = extruderRecords.filter(r => r.extruder?.chemical?.name === name).reduce((sum, r) => sum + (r.extruder?.chemicalKg ?? 0), 0);
+    return (received - consumed).toFixed(2);
+  };
+
+  const getColorBalance = (name: string) => {
+    const received = inventoryRecords.filter(r => r.type === 'COLOR' && r.name === name).reduce((sum, r) => sum + r.weightKg, 0);
+    const consumed = extruderRecords.filter(r => r.color?.name === name).reduce((sum, r) => sum + (r.extruder?.colorConsumedKg ?? 0), 0);
+    return (received - consumed).toFixed(2);
+  };
+
 
   const handleSaveDayEntry = async () => {
     setSubmitting(true);
@@ -89,102 +118,69 @@ export function NewEntry({ onClose, defaultDate, readOnly = false }: NewEntryPro
   };
 
   return (
-    <Dialog open onOpenChange={(open) => !open && onClose()}>
-      <DialogContent className="max-w-6xl sm:max-w-6xl bg-[#f8f9fc] max-h-[90vh] overflow-y-auto">
-        <DialogHeader className="flex-col items-start gap-3 text-left sm:flex-row sm:items-center sm:justify-between">
-          <div className="flex flex-col">
-            <div className="flex items-center gap-3">
-              <Popover>
-                <PopoverTrigger asChild>
-                  <Button
-                    variant="outline"
-                    disabled={readOnly || submitting}
-                    className="h-auto gap-2 border-gray-200 px-3 py-1.5 text-2xl font-bold text-gray-900 hover:bg-gray-50 disabled:opacity-100"
-                  >
-                    <CalendarIcon className="h-5 w-5 text-gray-400" />
-                    {format(date, 'd MMM yyyy')}
-                  </Button>
-                </PopoverTrigger>
-                <PopoverContent className="w-auto p-0" align="start">
-                  <Calendar
-                    mode="single"
-                    selected={date}
-                    onSelect={(value) => value && setDate(value)}
-                    autoFocus
-                  />
-                </PopoverContent>
-              </Popover>
-              <DialogTitle className="sr-only">
-                {readOnly ? 'View' : defaultDate ? 'Edit' : 'Add'} production entry for {format(date, 'd MMM yyyy')}
-              </DialogTitle>
-              <span className="flex items-center gap-1.5 rounded-full border border-green-200 bg-green-50 px-2.5 py-0.5 text-2xs font-semibold text-green-700 uppercase tracking-wider">
-                <div className="h-1.5 w-1.5 rounded-full bg-green-500"></div>
-                {readOnly ? 'View Only' : 'Day Closed'}
-              </span>
-            </div>
-            <p className="text-sm text-gray-500 mt-1">Daily Production Overview</p>
-          </div>
-        </DialogHeader>
+    <div className="flex flex-col h-full bg-[#004D40]/5">
+      <div className="flex-1 p-2 md:p-2 overflow-y-auto ">
 
         {isCreateMode && (
-          <div className="grid grid-cols-1 gap-4 sm:grid-cols-3 mb-6 mt-4">
-            <div className="flex flex-col gap-1 rounded-xl border bg-white p-3 shadow-sm">
-              <label className="text-2xs font-semibold uppercase tracking-wide text-gray-500">Raw Material</label>
-              <Select
-                value={rawMaterial || undefined}
-                onValueChange={(value) => { setTopFieldsManuallyEdited(true); setRawMaterial(value); }}
-              >
-                <SelectTrigger className="h-10"><SelectValue placeholder="Select raw material" /></SelectTrigger>
-                <SelectContent>
-                  {lookups.brands.map((b) => <SelectItem key={b.id} value={b.name}>{b.name}</SelectItem>)}
-                </SelectContent>
-              </Select>
+          <div className="rounded-xl border border-gray-400 bg-white shadow-sm mb-3">
+            <div className="bg-gray-50 border-b border-gray-200 px-4 py-3 rounded-t-xl">
+              <h3 className="text-[13px] font-extrabold uppercase tracking-wider text-gray-700 flex items-center gap-2">
+                Inventory Balances
+              </h3>
             </div>
-            <div className="flex flex-col gap-1 rounded-xl border bg-white p-3 shadow-sm">
-              <label className="text-2xs font-semibold uppercase tracking-wide text-gray-500">Chemical</label>
-              <Select
-                value={chemical || undefined}
-                onValueChange={(value) => { setTopFieldsManuallyEdited(true); setChemical(value); }}
-              >
-                <SelectTrigger className="h-10"><SelectValue placeholder="Select chemical" /></SelectTrigger>
-                <SelectContent>
-                  {lookups.chemicals.map((c) => <SelectItem key={c.id} value={c.name}>{c.name}</SelectItem>)}
-                </SelectContent>
-              </Select>
-            </div>
-            <div className="flex flex-col gap-1 rounded-xl border bg-white p-3 shadow-sm">
-              <label className="text-2xs font-semibold uppercase tracking-wide text-gray-500">Color</label>
-              <Select
-                value={color || undefined}
-                onValueChange={(value) => { setTopFieldsManuallyEdited(true); setColor(value); }}
-              >
-                <SelectTrigger className="h-10"><SelectValue placeholder="Select color" /></SelectTrigger>
-                <SelectContent>
-                  {lookups.colors.map((c) => <SelectItem key={c.id} value={c.name}>{c.name}</SelectItem>)}
-                </SelectContent>
-              </Select>
+            <div className="p-4 grid grid-cols-1 gap-4 sm:grid-cols-3 sm:divide-x divide-gray-200">
+              <div className="flex flex-col gap-2 sm:pr-4">
+                <label className="text-[11px] font-bold uppercase tracking-wide text-gray-500 border-b pb-2">Raw Material Balance</label>
+                <div className="flex flex-col gap-2 max-h-[120px] overflow-y-auto pr-1">
+                  {lookups.brands.map((b) => (
+                    <div key={b.id} className="flex justify-between items-center text-[12.5px]">
+                      <span className="text-gray-700">{b.name}</span>
+                      <span className="font-semibold text-gray-900">{getRawMaterialBalance(b.name)} kg</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+              <div className="flex flex-col gap-2 sm:px-4 pt-4 sm:pt-0 border-t sm:border-t-0 border-gray-200">
+                <label className="text-[11px] font-bold uppercase tracking-wide text-gray-500 border-b pb-2">Chemical Balance</label>
+                <div className="flex flex-col gap-2 max-h-[120px] overflow-y-auto pr-1">
+                  {lookups.chemicals.map((c) => (
+                    <div key={c.id} className="flex justify-between items-center text-[12.5px]">
+                      <span className="text-gray-700">{c.name}</span>
+                      <span className="font-semibold text-gray-900">{getChemicalBalance(c.name)} kg</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+              <div className="flex flex-col gap-2 sm:pl-4 pt-4 sm:pt-0 border-t sm:border-t-0 border-gray-200">
+                <label className="text-[11px] font-bold uppercase tracking-wide text-gray-500 border-b pb-2">Color Balance</label>
+                <div className="flex flex-col gap-2 max-h-[120px] overflow-y-auto pr-1">
+                  {lookups.colors.map((c) => (
+                    <div key={c.id} className="flex justify-between items-center text-[12.5px]">
+                      <span className="text-gray-700">{c.name}</span>
+                      <span className="font-semibold text-gray-900">{getColorBalance(c.name)} kg</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
             </div>
           </div>
         )}
 
         {/* Forms Container */}
-        <div className="flex flex-col gap-6">
+        <div className="flex flex-col gap-2.5">
           <ExtruderSection
             ref={extruderRef}
             productionDate={productionDate}
             autoAdd={!readOnly}
             readOnly={readOnly}
             hideExisting={isCreateMode}
-            defaultColorName={color}
-            defaultChemicalName={chemical}
-            defaultBrandName={rawMaterial}
           />
           <LoomSection ref={loomRef} productionDate={productionDate} autoAdd={!readOnly} readOnly={readOnly} hideExisting={isCreateMode} />
           <FabricSection ref={fabricRef} productionDate={productionDate} autoAdd={!readOnly} readOnly={readOnly} hideExisting={isCreateMode} />
         </div>
 
         {/* Footer */}
-        <div className="mt-2 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between rounded-xl bg-white p-4 shadow-sm border border-gray-100">
+        <div className="mt-3 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between rounded-xl bg-white p-4 shadow-sm border border-gray-400">
           <p className="text-xs text-gray-500">All weights are in Kilograms (kg)</p>
           <div className="flex items-center gap-3">
             {readOnly ? (
@@ -208,7 +204,7 @@ export function NewEntry({ onClose, defaultDate, readOnly = false }: NewEntryPro
             )}
           </div>
         </div>
-      </DialogContent>
-    </Dialog>
+      </div>
+    </div>
   );
 }

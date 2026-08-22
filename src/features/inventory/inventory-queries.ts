@@ -1,13 +1,7 @@
 import { useQuery } from '@tanstack/react-query';
 import { fetchJson } from '@/lib/api-client';
-import type { PaginationMeta } from '@/lib/api-types';
+import type { MasterDataRef, PaginationMeta } from '@/lib/api-types';
 
-/**
- * The live /api/docs.json still advertises RAW_MATERIAL/CHEMICAL/YARN/FABRIC
- * for this field — that's a stale doc. Confirmed against the real backend
- * (POST validation error message) that the actual accepted values are these
- * three; YARN/FABRIC now reject with a 400.
- */
 export type InventoryType = 'RAW_MATERIAL' | 'CHEMICAL' | 'COLOR';
 
 export const inventoryTypeLabels: Record<InventoryType, string> = {
@@ -16,13 +10,21 @@ export const inventoryTypeLabels: Record<InventoryType, string> = {
   COLOR:'Color',
 };
 
-/** Matches the real API's InventoryRecord schema (see /api/docs). */
+/**
+ * Matches the real API's InventoryRecord schema (see /api/docs). This is the
+ * current standing balance for one item (one type + brand/chemical/color),
+ * updated in place by POST — not a per-transaction log entry. `name` is
+ * auto-filled server-side from whichever of brand/chemical/color is linked.
+ */
 export interface InventoryRecord {
   id: string;
   date: string;
   type: InventoryType;
   name: string;
   weightKg: number;
+  brand: MasterDataRef | null;
+  chemical: MasterDataRef | null;
+  color: MasterDataRef | null;
   createdAt: string;
   createdBy: string;
   updatedAt: string;
@@ -35,16 +37,31 @@ export interface InventoryListResponse {
   meta: PaginationMeta;
 }
 
-/** Matches InventoryCreateRequest — additionalProperties: false, so send exactly this shape. */
+/**
+ * Matches InventoryCreateRequest — additionalProperties: false, so send
+ * exactly this shape. quantityKg is ADDED to the item's current balance, not
+ * set as the new total. Send exactly one of brandId/chemicalId/colorId,
+ * matching type.
+ */
 export interface InventoryCreatePayload {
   date?: string; // date, e.g. "2026-08-20" — optional, defaults to now server-side
   type: InventoryType;
-  name: string;
-  weightKg: number;
+  brandId?: string;
+  chemicalId?: string;
+  colorId?: string;
+  quantityKg: number;
 }
 
-/** Matches InventoryUpdateRequest — every field optional, at least one required. */
-export type InventoryUpdatePayload = Partial<InventoryCreatePayload>;
+/**
+ * Matches InventoryUpdateRequest — a manual correction of the balance
+ * already on file. Item identity (type/brandId/chemicalId/colorId) cannot
+ * be changed here; weightKg SETS the balance directly (unlike create's
+ * additive quantityKg).
+ */
+export interface InventoryUpdatePayload {
+  date?: string;
+  weightKg?: number;
+}
 
 export const inventoryKeys = {
   all: ['inventory-records'] as const,

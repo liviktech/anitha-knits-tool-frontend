@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useMemo, useState, useEffect } from 'react';
 import '@fontsource-variable/hanken-grotesk';
 import '@fontsource-variable/inter';
 import { parseISO, format } from 'date-fns';
@@ -11,8 +11,8 @@ import { useLoomsProductions } from '@/features/looms/loom-queries';
 import { useFabricCheckingRecords } from '@/features/fabric/fabric-queries';
 import { useDayWiseProduction, type DayWiseRow } from './day-wise-queries';
 import { mapExtruderItem, mapLoomItem, mapFabricItem } from './day-entry-sections';
-import { NewEntry } from './new-entry';
 import { DayWiseReportModal } from './day-wise-report-modal';
+import { useProductionHeader } from './production-details';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import {
@@ -23,6 +23,8 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { useNavigate } from 'react-router-dom';
 
 function formatNum(n: number): string {
   return n.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
@@ -472,8 +474,7 @@ function DayDetailView({
 }
 
 export function ProductionDesign2() {
-  const [isNewEntryOpen, setIsNewEntryOpen] = useState(false);
-  const [editEntryDate, setEditEntryDate] = useState<string | null>(null);
+  const navigate = useNavigate();
   const [selectedDate, setSelectedDate] = useState<string | null>(null);
   const [isNavigating, setIsNavigating] = useState(false);
   const [isReportOpen, setIsReportOpen] = useState(false);
@@ -481,6 +482,8 @@ export function ProductionDesign2() {
 
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(10);
+  const [selectedMonth, setSelectedMonth] = useState('Jul');
+  const [selectedYear, setSelectedYear] = useState('2026');
   const totalPages = Math.max(1, Math.ceil(dayWiseRows.length / pageSize));
   const currentPage = Math.min(page, totalPages);
 
@@ -488,6 +491,49 @@ export function ProductionDesign2() {
     () => dayWiseRows.slice((currentPage - 1) * pageSize, currentPage * pageSize),
     [dayWiseRows, currentPage, pageSize],
   );
+
+  const { setHeaderRight, setShowBackButton } = useProductionHeader();
+
+  useEffect(() => {
+    setShowBackButton(false);
+    setHeaderRight(
+      <>
+        <div className="flex items-center gap-2">
+          <Select value={selectedMonth} onValueChange={setSelectedMonth}>
+            <SelectTrigger className="w-fit min-w-[70px] bg-white border border-gray-400 text-sm font-semibold text-gray-700 h-[38px] shadow-[0_1px_2px_rgba(0,0,0,0.05)] focus:ring-0 focus:ring-offset-0">
+              <SelectValue placeholder="Month" />
+            </SelectTrigger>
+            <SelectContent position="popper" side="bottom" className="max-h-[160px] overflow-y-auto w-fit min-w-[70px]">
+              {['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'].map((m) => (
+                <SelectItem key={m} value={m} className="py-0.5 text-[13px]">{m}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+
+          <Select value={selectedYear} onValueChange={setSelectedYear}>
+            <SelectTrigger className="w-fit min-w-[70px] bg-white border border-gray-400 text-sm font-semibold text-gray-700 h-[38px] shadow-[0_1px_2px_rgba(0,0,0,0.05)] focus:ring-0 focus:ring-offset-0">
+              <SelectValue placeholder="Year" />
+            </SelectTrigger>
+            <SelectContent position="popper" side="bottom" className="max-h-[160px] overflow-y-auto w-fit min-w-[70px]">
+              {['2024', '2025', '2026'].map((y) => (
+                <SelectItem key={y} value={y} className="py-0.5 text-[13px]">{y}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+        <Button
+          className="flex items-center gap-2 bg-[#004D40] hover:bg-[#00382e] text-white rounded-md px-3 py-2 h-auto text-[12px] font-bold tracking-wide shadow-[0_1px_2px_rgba(0,45,35,0.2)]"
+          onClick={() => navigate('/production/new-entry')}
+        >
+          <Plus className="w-3 h-3" />
+          ADD NEW ENTRY
+        </Button>
+      </>
+    );
+    return () => {
+      setHeaderRight(null);
+    };
+  }, [setHeaderRight, setShowBackButton, navigate]);
 
   if (loadingDayWise) {
     return (
@@ -525,31 +571,11 @@ export function ProductionDesign2() {
   const fabricWastePct = apiSummary?.fabricChecking.wastePct ?? 0;
 
   return (
-    <div id="production-design-2-page" className="flex flex-col bg-[#004D40]/5 min-h-full h-full flex-1">
+    <div id="production-design-2-page" className="flex flex-col bg-[#004D40]/5 min-h-full relative">
       <style>{`
         #production-design-2-page, #production-design-2-page * { font-family: 'Hanken Grotesk Variable', 'Hanken Grotesk', sans-serif !important; }
         #production-design-2-page .font-inter { font-family: 'Inter Variable', 'Inter', sans-serif !important; }
       `}</style>
-      {/* Header Area */}
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between px-4 py-3 bg-[#F4F1E8] border-b border-gray-100">
-        <div>
-          <h1 className="text-[22px] font-bold text-black leading-tight px-2">Daily Production & Wastage</h1>
-          <p className="text-[12.5px] text-gray-500 font-medium mt-1 px-2">Track daily production and wastage across all conversion processes</p>
-        </div>
-        <div className="flex flex-wrap items-center gap-3">
-          <div className="flex items-center bg-white border border-gray-400 rounded-md px-4 py-2 shadow-[0_1px_2px_rgba(0,0,0,0.05)]">
-            <span className="text-sm font-semibold text-gray-700 mr-3">30 Jul, 2026</span>
-            <Calendar className="w-4 h-4 text-gray-400" />
-          </div>
-          <Button
-            className="flex items-center gap-2 bg-[#004D40] hover:bg-[#00382e] text-white rounded-md px-3 py-2 h-auto text-[12px] font-bold tracking-wide shadow-[0_1px_2px_rgba(0,45,35,0.2)]"
-            onClick={() => setIsNewEntryOpen(true)}
-          >
-            <Plus className="w-3 h-3" />
-            ADD NEW ENTRY
-          </Button>
-        </div>
-      </div>
 
       {isNavigating ? (
         <div className="flex-1 flex items-center justify-center min-h-[500px]">
@@ -570,10 +596,10 @@ export function ProductionDesign2() {
               setIsNavigating(false);
             }, 300);
           }}
-          onEdit={(d) => setEditEntryDate(d)}
+          onEdit={(d) => navigate(`/production/new-entry?date=${d}`)}
         />
       ) : (
-        <div className="p-2.5 flex flex-col gap-3 flex-1">
+        <div className="p-2 flex flex-col gap-2 flex-1">
           {/* Summary Cards */}
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-2.5">
             <Card className="bg-white rounded-[14px] p-2 hover:shadow-md transition-all">
@@ -698,13 +724,13 @@ export function ProductionDesign2() {
           </div>
 
           {/* Data Table Area */}
-          <Card className="shadow-sm border-0 bg-white rounded-xl overflow-hidden gap-0 p-0 flex-1 flex flex-col">
-            <CardHeader className="flex flex-col gap-3 border-b border-gray-300 px-3 pt-3 pb-0.5 sm:flex-row sm:items-center sm:justify-between bg-white">
-              <CardTitle className="text-[17px] font-bold text-[#004D40]  leading-tight flex items-center">
+          <Card className="shadow-sm border-0 bg-white rounded-xl overflow-hidden gap-0 p-0 flex flex-col">
+            <CardHeader className="flex flex-col gap-1 border-b border-gray-300 px-3 py-1.5 !pb-1.5 sm:flex-row sm:items-center sm:justify-between bg-white">
+              <CardTitle className="text-[17px] font-bold text-[#004D40] leading-tight flex items-center">
                 <img src="/Table-icon.jpg" alt="" className="w-10 h-10 object-contain rounded-sm" />
                 Day Wise Production & Wastage Details
               </CardTitle>
-              <div className="flex flex-wrap gap-3 mt-1.5">
+              <div className="flex flex-wrap gap-2">
                 <Button variant="outline" size="sm" className="flex gap-2 font-bold uppercase tracking-wider text-[11px] h-8 px-3 text-gray-600 border-gray-400">
                   <Filter className="w-[14px] h-[14px]" /> FILTERS
                 </Button>
@@ -718,7 +744,7 @@ export function ProductionDesign2() {
                 </Button>
               </div>
             </CardHeader>
-            <div className="overflow-auto w-full flex-1">
+            <div className="overflow-x-auto w-full">
               <Table className="w-full">
                 <TableHeader>
                   <TableRow className="hover:bg-transparent border-b border-gray-300">
@@ -811,11 +837,11 @@ export function ProductionDesign2() {
                         {/* Actions */}
                         <TableCell className="py-1">
                           <div className="flex items-center justify-center gap-2">
-                            <Button 
-                              variant="outline" 
-                              size="icon" 
+                            <Button
+                              variant="outline"
+                              size="icon"
                               className="h-6 w-6 rounded-md border-[#004D40]/30 text-[#004D40] hover:bg-[#004D40]/10"
-                              onClick={() => setEditEntryDate(row.date)}
+                              onClick={() => navigate(`/production/new-entry?date=${row.date}`)}
                             >
                               <Edit className="h-[14px] w-[14px]" />
                             </Button>
@@ -898,8 +924,6 @@ export function ProductionDesign2() {
           </Card>
         </div>
       )}
-      {isNewEntryOpen && <NewEntry onClose={() => setIsNewEntryOpen(false)} />}
-      {editEntryDate && <NewEntry defaultDate={editEntryDate} onClose={() => setEditEntryDate(null)} />}
       <DayWiseReportModal open={isReportOpen} onOpenChange={setIsReportOpen} />
     </div>
   );
