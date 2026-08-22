@@ -197,11 +197,13 @@ function DayDetailView({
   onClose,
   dayWiseRows,
   setDate,
+  onEdit,
 }: {
   date: string;
   onClose: () => void;
   dayWiseRows: DayWiseRow[];
   setDate: (d: string) => void;
+  onEdit: (d: string) => void;
 }) {
   const row = dayWiseRows.find((r) => r.date === date) || dayWiseRows[0];
   const formattedDate = format(parseISO(date), 'dd MMM, yyyy');
@@ -288,6 +290,7 @@ function DayDetailView({
               variant="outline"
               size="sm"
               className="h-[34px] px-4 text-[#00897B] border-[#00897B]/20 font-bold uppercase tracking-wider text-[11px] gap-2 hover:bg-[#00897B]/5 bg-white"
+              onClick={() => onEdit(date)}
             >
               <Edit className="w-3.5 h-3.5" /> EDIT ENTRY
             </Button>
@@ -422,8 +425,8 @@ function DayDetailView({
 
       {/* Right Column (Sidebar) */}
       <div className="w-[270px] lg:flex-shrink-0 flex flex-col border-l border-gray-100/50 bg-white shadow-[-4px_0_15px_-3px_rgba(0,0,0,0.02)]">
-        <div className="p-5 pb-4 bg-[#004D40]/5 border-b border-gray-200 flex flex-col gap-3">
-          <h3 className="font-semibold text-[#003140] text-[15px]">Production Dates</h3>
+        <div className="p-1 pb-1 bg-[#004D40]/5 border-b border-gray-200 flex flex-col gap-3">
+          <h3 className="font-semibold text-[#003140] text-[18px]">Production Dates</h3>
           <div className="relative">
             <Search className="w-4 h-4 text-gray-400 absolute left-3 top-1/2 -translate-y-1/2" />
             <input
@@ -470,6 +473,7 @@ function DayDetailView({
 
 export function ProductionDesign2() {
   const [isNewEntryOpen, setIsNewEntryOpen] = useState(false);
+  const [editEntryDate, setEditEntryDate] = useState<string | null>(null);
   const [selectedDate, setSelectedDate] = useState<string | null>(null);
   const [isNavigating, setIsNavigating] = useState(false);
   const [isReportOpen, setIsReportOpen] = useState(false);
@@ -566,6 +570,7 @@ export function ProductionDesign2() {
               setIsNavigating(false);
             }, 300);
           }}
+          onEdit={(d) => setEditEntryDate(d)}
         />
       ) : (
         <div className="p-2.5 flex flex-col gap-3 flex-1">
@@ -718,19 +723,19 @@ export function ProductionDesign2() {
                 <TableHeader>
                   <TableRow className="hover:bg-transparent border-b border-gray-300">
                     <TableHead rowSpan={2} className="text-center font-bold text-gray-800 align-middle border-r border-gray-300 min-w-[120px] bg-white text-xs uppercase tracking-wider">Date</TableHead>
-                    <TableHead colSpan={4} className="text-[#0B5566] font-bold bg-[#D6EEF7] border-r border-gray-300 py-3 text-xs uppercase tracking-wider">
+                    <TableHead colSpan={4} className="text-[#0B5566] font-bold bg-[#D6EEF7] border-r border-gray-300 py-2 text-xs uppercase tracking-wider">
                       <span className="flex items-center justify-center gap-2 text-[13px] font-extrabold">
                         <span className="bg-[#0B5566] text-white w-5 h-5 rounded-sm flex items-center justify-center text-[10px] font-bold">1</span>
                         EXTRUDER PRODUCTION (KG)
                       </span>
                     </TableHead>
-                    <TableHead colSpan={4} className="text-[#7A6A00] font-bold bg-[#FFF6BF] border-r border-gray-300 py-3 text-xs uppercase tracking-wider">
+                    <TableHead colSpan={4} className="text-[#7A6A00] font-bold bg-[#FFF6BF] border-r border-gray-300 py-2 text-xs uppercase tracking-wider">
                       <span className="flex items-center justify-center gap-2 text-[13px] font-extrabold">
                         <span className="bg-[#7A6A00] text-white w-5 h-5 rounded-sm flex items-center justify-center text-[10px] font-bold">2</span>
                         LOOMS PRODUCTION (KG)
                       </span>
                     </TableHead>
-                    <TableHead colSpan={4} className="text-[#2F6B2F] font-bold bg-[#DCEEDB] border-r border-gray-300 py-3 text-xs uppercase tracking-wider">
+                    <TableHead colSpan={4} className="text-[#2F6B2F] font-bold bg-[#DCEEDB] border-r border-gray-300 py-2 text-xs uppercase tracking-wider">
                       <span className="flex items-center justify-center gap-2 text-[13px] font-extrabold">
                         <span className="bg-[#2F6B2F] text-white w-5 h-5 rounded-sm flex items-center justify-center text-[10px] font-bold">3</span>
                         FABRIC PRODUCTION (KG)
@@ -740,20 +745,20 @@ export function ProductionDesign2() {
                   </TableRow>
                   <TableRow className="hover:bg-transparent bg-white border-b border-gray-300">
                     {/* Extruder */}
-                    <TableHead className="text-center text-gray-800 font-extrabold text-[12px] uppercase tracking-wider h-10">Input</TableHead>
-                    <TableHead className="text-center text-gray-800 font-extrabold text-[12px] uppercase tracking-wider h-10">Output</TableHead>
-                    <TableHead className="text-center text-gray-800 font-extrabold text-[12px] uppercase tracking-wider h-10">Wastage</TableHead>
-                    <TableHead className="text-center text-gray-800 font-extrabold text-[12px] uppercase tracking-wider border-r border-gray-300 h-10">Waste %</TableHead>
+                    <TableHead className="text-center text-gray-800 font-extrabold text-[12px] uppercase tracking-wider h-8">Input</TableHead>
+                    <TableHead className="text-center text-gray-800 font-extrabold text-[12px] uppercase tracking-wider h-8">Output</TableHead>
+                    <TableHead className="text-center text-gray-800 font-extrabold text-[12px] uppercase tracking-wider h-8">Wastage</TableHead>
+                    <TableHead className="text-center text-gray-800 font-extrabold text-[12px] uppercase tracking-wider border-r border-gray-300 h-8">Waste %</TableHead>
                     {/* Looms */}
-                    <TableHead className="text-center text-gray-800 font-extrabold text-[12px] uppercase tracking-wider h-10">Input</TableHead>
-                    <TableHead className="text-center text-gray-800 font-extrabold text-[12px] uppercase tracking-wider h-10">Output</TableHead>
-                    <TableHead className="text-center text-gray-800 font-extrabold text-[12px] uppercase tracking-wider h-10">Wastage</TableHead>
-                    <TableHead className="text-center text-gray-800 font-extrabold text-[12px] uppercase tracking-wider border-r border-gray-300 h-10">Waste %</TableHead>
+                    <TableHead className="text-center text-gray-800 font-extrabold text-[12px] uppercase tracking-wider h-8">Input</TableHead>
+                    <TableHead className="text-center text-gray-800 font-extrabold text-[12px] uppercase tracking-wider h-8">Output</TableHead>
+                    <TableHead className="text-center text-gray-800 font-extrabold text-[12px] uppercase tracking-wider h-8">Wastage</TableHead>
+                    <TableHead className="text-center text-gray-800 font-extrabold text-[12px] uppercase tracking-wider border-r border-gray-300 h-8">Waste %</TableHead>
                     {/* Fabric */}
-                    <TableHead className="text-center text-gray-800 font-extrabold text-[12px] uppercase tracking-wider h-10">Input</TableHead>
-                    <TableHead className="text-center text-gray-800 font-extrabold text-[12px] uppercase tracking-wider h-10">Output</TableHead>
-                    <TableHead className="text-center text-gray-800 font-extrabold text-[12px] uppercase tracking-wider h-10">Wastage</TableHead>
-                    <TableHead className="text-center text-gray-800 font-extrabold text-[12px] uppercase tracking-wider h-10">Waste %</TableHead>
+                    <TableHead className="text-center text-gray-800 font-extrabold text-[12px] uppercase tracking-wider h-8">Input</TableHead>
+                    <TableHead className="text-center text-gray-800 font-extrabold text-[12px] uppercase tracking-wider h-8">Output</TableHead>
+                    <TableHead className="text-center text-gray-800 font-extrabold text-[12px] uppercase tracking-wider h-8">Wastage</TableHead>
+                    <TableHead className="text-center text-gray-800 font-extrabold text-[12px] uppercase tracking-wider border-r border-gray-300 h-8">Waste %</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody className="bg-white">
@@ -773,7 +778,7 @@ export function ProductionDesign2() {
                     pagedRows.map((row) => (
                       <TableRow key={row.date} className="border-b border-gray-300 hover:bg-gray-50 transition-colors group">
                         <TableCell
-                          className="text-center font-bold text-[#004D40] border-r border-gray-300 text-[14px] py-4 cursor-pointer hover:underline"
+                          className="text-center font-bold text-[#004D40] border-r border-gray-300 text-[14px] py-1 cursor-pointer hover:underline"
                           onClick={() => {
                             setIsNavigating(true);
                             setTimeout(() => {
@@ -786,30 +791,35 @@ export function ProductionDesign2() {
                         </TableCell>
 
                         {/* Extruder */}
-                        <TableCell className="text-center text-gray-800 font-medium text-[14px] py-4">{formatNum(row.extruder.input)}</TableCell>
-                        <TableCell className="text-center text-gray-800 font-medium text-[14px] py-4">{formatNum(row.extruder.output)}</TableCell>
-                        <TableCell className="text-center text-gray-800 font-medium text-[14px] py-4">{formatNum(row.extruder.wastage)}</TableCell>
-                        <TableCell className="text-center text-gray-800 font-medium text-[14px] py-4 border-r border-gray-300">{row.extruder.wastePct.toFixed(2)}%</TableCell>
+                        <TableCell className="text-center text-gray-800 font-medium text-[14px] py-1">{formatNum(row.extruder.input)}</TableCell>
+                        <TableCell className="text-center text-gray-800 font-medium text-[14px] py-1">{formatNum(row.extruder.output)}</TableCell>
+                        <TableCell className="text-center text-gray-800 font-medium text-[14px] py-1">{formatNum(row.extruder.wastage)}</TableCell>
+                        <TableCell className="text-center text-gray-800 font-medium text-[14px] py-1 border-r border-gray-300">{row.extruder.wastePct.toFixed(2)}%</TableCell>
 
                         {/* Looms */}
-                        <TableCell className="text-center text-gray-800 font-medium text-[14px] py-4">{formatNum(row.looms.input)}</TableCell>
-                        <TableCell className="text-center text-gray-800 font-medium text-[14px] py-4">{formatNum(row.looms.output)}</TableCell>
-                        <TableCell className="text-center text-gray-800 font-medium text-[14px] py-4">{formatNum(row.looms.wastage)}</TableCell>
-                        <TableCell className="text-center text-gray-800 font-medium text-[14px] py-4 border-r border-gray-300">{row.looms.wastePct.toFixed(2)}%</TableCell>
+                        <TableCell className="text-center text-gray-800 font-medium text-[14px] py-1">{formatNum(row.looms.input)}</TableCell>
+                        <TableCell className="text-center text-gray-800 font-medium text-[14px] py-1">{formatNum(row.looms.output)}</TableCell>
+                        <TableCell className="text-center text-gray-800 font-medium text-[14px] py-1">{formatNum(row.looms.wastage)}</TableCell>
+                        <TableCell className="text-center text-gray-800 font-medium text-[14px] py-1 border-r border-gray-300">{row.looms.wastePct.toFixed(2)}%</TableCell>
 
                         {/* Fabric */}
-                        <TableCell className="text-center text-gray-800 font-medium text-[14px] py-4">{formatNum(row.fabric.input)}</TableCell>
-                        <TableCell className="text-center text-gray-800 font-medium text-[14px] py-4">{formatNum(row.fabric.output)}</TableCell>
-                        <TableCell className="text-center text-gray-800 font-medium text-[14px] py-4">{formatNum(row.fabric.wastage)}</TableCell>
-                        <TableCell className="text-center text-gray-800 font-medium text-[14px] py-4">{row.fabric.wastePct.toFixed(2)}%</TableCell>
+                        <TableCell className="text-center text-gray-800 font-medium text-[14px] py-1">{formatNum(row.fabric.input)}</TableCell>
+                        <TableCell className="text-center text-gray-800 font-medium text-[14px] py-1">{formatNum(row.fabric.output)}</TableCell>
+                        <TableCell className="text-center text-gray-800 font-medium text-[14px] py-1">{formatNum(row.fabric.wastage)}</TableCell>
+                        <TableCell className="text-center text-gray-800 font-medium text-[14px] py-1 border-r border-gray-300">{row.fabric.wastePct.toFixed(2)}%</TableCell>
 
                         {/* Actions */}
-                        <TableCell className="py-4">
+                        <TableCell className="py-1">
                           <div className="flex items-center justify-center gap-2">
-                            <Button variant="outline" size="icon" className="h-8 w-8 rounded-md border-[#004D40]/30 text-[#004D40] hover:bg-[#004D40]/10">
+                            <Button 
+                              variant="outline" 
+                              size="icon" 
+                              className="h-6 w-6 rounded-md border-[#004D40]/30 text-[#004D40] hover:bg-[#004D40]/10"
+                              onClick={() => setEditEntryDate(row.date)}
+                            >
                               <Edit className="h-[14px] w-[14px]" />
                             </Button>
-                            <Button variant="outline" size="icon" className="h-8 w-8 rounded-md border-red-200 text-red-600 hover:bg-red-50">
+                            <Button variant="outline" size="icon" className="h-6 w-6 rounded-md border-red-200 text-red-600 hover:bg-red-50">
                               <Trash2 className="h-[14px] w-[14px]" />
                             </Button>
                           </div>
@@ -820,7 +830,7 @@ export function ProductionDesign2() {
 
                   {!loadingDayWise && dayWiseRows.length > 0 && (
                     <TableRow className="bg-white font-bold hover:bg-white border-t-2 border-gray-400">
-                      <TableCell className="text-center border-r border-gray-400 text-gray-900 text-[14px] py-4">TOTAL</TableCell>
+                      <TableCell className="text-center border-r border-gray-400 text-gray-900 text-[14px] py-1">TOTAL</TableCell>
                       {/* Extruder Total */}
                       <TableCell className="text-center text-[#00897B] text-[14px]">{formatNum(dayWiseTotals.extruder.input)}</TableCell>
                       <TableCell className="text-center text-[#00897B] text-[14px]">{formatNum(dayWiseTotals.extruder.output)}</TableCell>
@@ -835,7 +845,7 @@ export function ProductionDesign2() {
                       <TableCell className="text-center text-[#00897B] text-[14px]">{formatNum(dayWiseTotals.fabric.input)}</TableCell>
                       <TableCell className="text-center text-[#00897B] text-[14px]">{formatNum(dayWiseTotals.fabric.output)}</TableCell>
                       <TableCell className="text-center text-[#00897B] text-[14px]">{formatNum(dayWiseTotals.fabric.wastage)}</TableCell>
-                      <TableCell className="text-center text-[#00897B] text-[14px]">{dayWiseTotals.fabric.wastePct.toFixed(2)}%</TableCell>
+                      <TableCell className="text-center text-[#00897B] text-[14px] border-r border-gray-400">{dayWiseTotals.fabric.wastePct.toFixed(2)}%</TableCell>
                       <TableCell></TableCell>
                     </TableRow>
                   )}
@@ -889,6 +899,7 @@ export function ProductionDesign2() {
         </div>
       )}
       {isNewEntryOpen && <NewEntry onClose={() => setIsNewEntryOpen(false)} />}
+      {editEntryDate && <NewEntry defaultDate={editEntryDate} onClose={() => setEditEntryDate(null)} />}
       <DayWiseReportModal open={isReportOpen} onOpenChange={setIsReportOpen} />
     </div>
   );
