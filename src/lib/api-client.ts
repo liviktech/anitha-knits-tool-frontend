@@ -75,3 +75,19 @@ export async function fetchJson<T = unknown>(path: string, init?: RequestInit): 
   if (!response.ok) throw new Error(`Request failed: ${path}`);
   return response.json();
 }
+
+/**
+ * Extracts the backend's own error message from a failed Response (the
+ * ApiError envelope is `{ success: false, error: { code, message, details } }`),
+ * falling back to a generic message if the body isn't in that shape — e.g. a
+ * network-level failure with no JSON body, or an upstream proxy's own error
+ * page. Never throws.
+ */
+export async function extractApiErrorMessage(response: Response, fallback = 'Something went wrong. Please try again.'): Promise<string> {
+  try {
+    const body = (await response.json()) as { error?: { message?: string } };
+    return body.error?.message ?? fallback;
+  } catch {
+    return fallback;
+  }
+}

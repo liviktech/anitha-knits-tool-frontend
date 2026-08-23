@@ -6,7 +6,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Loader } from '@/components/shared/loader';
 import { Plus, Edit2, X as XIcon } from 'lucide-react';
-import { apiFetch } from '@/lib/api-client';
+import { apiFetch, extractApiErrorMessage } from '@/lib/api-client';
 import { sumWastageByCode } from '@/lib/api-types';
 import {
   useExtruderProductions,
@@ -31,7 +31,6 @@ import {
   type FabricCheckingCreatePayload,
 } from '@/features/fabric/fabric-queries';
 import { dashboardProductionKey } from './day-wise-queries';
-import { useInventoryRecords, sumInventoryWeight } from '@/features/inventory/inventory-queries';
 
 /**
  * Shared between the day-close view (day-details.tsx) and the entry modal
@@ -155,7 +154,6 @@ interface ExtruderDraft {
   raw: string;
   chemicalKg: string;
   output: string;
-  /** Not a rendered field — auto-derived from Color's matching Inventory (COLOR) stock, sent to the API as-is. */
   colorConsumedKg: string;
   lumpsKg: string;
   yarnWasteKg: string;
@@ -167,10 +165,6 @@ const emptyExtruderDraft: ExtruderDraft = { size: '', color: '', brand: '', chem
 interface ExtruderNewRow {
   key: string;
   draft: ExtruderDraft;
-  rawManuallyEdited: boolean;
-  chemicalManuallyEdited: boolean;
-  colorManuallyEdited: boolean;
-  brandManuallyEdited: boolean;
   outputManuallyEdited: boolean;
 }
 
@@ -218,24 +212,11 @@ interface SectionProps {
   hideExisting?: boolean;
 }
 
-interface ExtruderSectionProps extends SectionProps {
-  /**
-   * Carried-forward Color/Chemical/Raw Material picked at the top of the
-   * "Add New Entry" modal (from the previous production date). Only used
-   * to seed a blank draft row, and only when same-day Inventory has no
-   * match of its own — Inventory is the more specific/authoritative source
-   * for "what's actually on hand today".
-   */
-  defaultColorName?: string;
-  defaultChemicalName?: string;
-  defaultBrandName?: string;
-}
-
 export interface SectionRef {
   saveDraft: () => Promise<boolean>;
 }
 
-export const ExtruderSection = forwardRef<SectionRef, ExtruderSectionProps>(({ productionDate, autoAdd, readOnly, hideExisting, defaultColorName, defaultChemicalName, defaultBrandName }, ref) => {
+export const ExtruderSection = forwardRef<SectionRef, SectionProps>(({ productionDate, autoAdd, readOnly, hideExisting }, ref) => {
   const queryClient = useQueryClient();
   const { data, isLoading } = useExtruderProductions(
     productionDate ? `?date_from=${productionDate}&date_to=${productionDate}` : '',
@@ -243,30 +224,6 @@ export const ExtruderSection = forwardRef<SectionRef, ExtruderSectionProps>(({ p
   );
   const { data: lookupsData } = useLookups();
   const lookups: Lookups = lookupsData ?? { brands: [], colors: [], chemicals: [], sizes: [] };
-
-  // Same-day Inventory stock, used to auto-suggest Raw Material/Chemical/Color
-  // weights below — nothing here adds a visible field, it only fills in the
-  // ones that already exist.
-  const { data: inventoryData } = useInventoryRecords(
-    productionDate ? `?date_from=${productionDate}&date_to=${productionDate}` : '',
-    !readOnly,
-  );
-  const inventoryRecords = useMemo(() => inventoryData?.data ?? [], [inventoryData]);
-  const rawMaterialFromInventory = useMemo(() => sumInventoryWeight(inventoryRecords, 'RAW_MATERIAL'), [inventoryRecords]);
-  // The day's first Chemical/Color inventory entry, if any — used to
-  // auto-select the dropdown itself (not just its weight) when a blank row
-  // opens, same as Raw Material.
-  const firstChemicalRecord = useMemo(() => inventoryRecords.find((r) => r.type === 'CHEMICAL'), [inventoryRecords]);
-  const firstColorRecord = useMemo(() => inventoryRecords.find((r) => r.type === 'COLOR'), [inventoryRecords]);
-  const firstRawMaterialRecord = useMemo(() => inventoryRecords.find((r) => r.type === 'RAW_MATERIAL'), [inventoryRecords]);
-  const resolveChemicalWeight = (name: string) => {
-    const kg = sumInventoryWeight(inventoryRecords, 'CHEMICAL', name);
-    return kg > 0 ? kg : undefined;
-  };
-  const resolveColorWeight = (name: string) => {
-    const kg = sumInventoryWeight(inventoryRecords, 'COLOR', name);
-    return kg > 0 ? kg : undefined;
-  };
 
   const rows = useMemo(() => {
     // hideExisting means this instance never fetched — but `enabled: false`
@@ -293,41 +250,17 @@ export const ExtruderSection = forwardRef<SectionRef, ExtruderSectionProps>(({ p
   const hasAutoAddedRef = useRef(false);
   const nextRowKeyRef = useRef(0);
 
-  // Header totals reflect saved rows plus, while a brand-new row is being
-  // filled in, that row's own (possibly auto-filled) values — otherwise the
-  // header shows 0.00 the whole time in "Add New Entry", where there are no
-  // saved rows yet to sum.
-
-  const buildPrefilledDraft = useCallback(
-    (): ExtruderDraft => ({
-      ...emptyExtruderDraft,
-      raw: rawMaterialFromInventory > 0 ? String(rawMaterialFromInventory) : '',
-      chemical: firstChemicalRecord?.name ?? defaultChemicalName ?? '',
-      chemicalKg: firstChemicalRecord ? String(firstChemicalRecord.weightKg) : '',
-      color: firstColorRecord?.name ?? defaultColorName ?? '',
-      colorConsumedKg: firstColorRecord ? String(firstColorRecord.weightKg) : '',
-      brand: firstRawMaterialRecord?.name ?? defaultBrandName ?? '',
-    }),
-    [rawMaterialFromInventory, firstChemicalRecord, firstColorRecord, firstRawMaterialRecord, defaultColorName, defaultChemicalName, defaultBrandName],
-  );
-
   // Appends a fresh blank draft row — never blocked by other rows already
-  // being open, so multiple new entries can be filled in before Save.
+  // being open, so multiple new entries can be filled in before Save. Every
+  // field starts empty; nothing is auto-filled from Inventory or anywhere
+  // else — the user selects/types every value, and only Output reacts once
+  // real values have been entered (see suggestExtruderOutput / updateNewRow).
   const startAdd = useCallback(() => {
-    const draft = buildPrefilledDraft();
     setNewRows((current) => [
       ...current,
-      {
-        key: `new-${nextRowKeyRef.current++}`,
-        draft: { ...draft, output: suggestExtruderOutput(draft) },
-        rawManuallyEdited: false,
-        chemicalManuallyEdited: false,
-        colorManuallyEdited: false,
-        brandManuallyEdited: false,
-        outputManuallyEdited: false,
-      },
+      { key: `new-${nextRowKeyRef.current++}`, draft: { ...emptyExtruderDraft }, outputManuallyEdited: false },
     ]);
-  }, [buildPrefilledDraft]);
+  }, []);
 
   useEffect(() => {
     if (readOnly || !autoAdd || isLoading || hasAutoAddedRef.current) return;
@@ -338,34 +271,7 @@ export const ExtruderSection = forwardRef<SectionRef, ExtruderSectionProps>(({ p
       // fires once per mount, so it can't cascade into further renders.
       startAdd();
     }
-    // The ref guard above makes this effect idempotent, so re-running it
-    // when startAdd's identity changes (e.g. rawMaterialFromInventory
-    // updates) is harmless — it's included only to satisfy exhaustive-deps.
   }, [readOnly, autoAdd, isLoading, rows.length, newRows.length, startAdd]);
-
-  // Keep every untouched new-row draft synced to Inventory as it changes —
-  // whether that's the user picking a different date, or editing/deleting
-  // the matching Inventory record while this form is open — including
-  // clearing a field back out if its match disappears. A field on a given
-  // row stops syncing the moment the user manually touches it (see the
-  // Select/Input handlers below, which set that row's *ManuallyEdited flag).
-  useEffect(() => {
-    // eslint-disable-next-line react-hooks/set-state-in-effect
-    setNewRows((current) =>
-      current.map((row) => {
-        const nextDraft = {
-          ...row.draft,
-          raw: row.rawManuallyEdited ? row.draft.raw : (rawMaterialFromInventory > 0 ? String(rawMaterialFromInventory) : ''),
-          chemical: row.chemicalManuallyEdited ? row.draft.chemical : (firstChemicalRecord?.name ?? defaultChemicalName ?? ''),
-          chemicalKg: row.chemicalManuallyEdited ? row.draft.chemicalKg : (firstChemicalRecord ? String(firstChemicalRecord.weightKg) : ''),
-          color: row.colorManuallyEdited ? row.draft.color : (firstColorRecord?.name ?? defaultColorName ?? ''),
-          colorConsumedKg: row.colorManuallyEdited ? row.draft.colorConsumedKg : (firstColorRecord ? String(firstColorRecord.weightKg) : ''),
-          brand: row.brandManuallyEdited ? row.draft.brand : (firstRawMaterialRecord?.name ?? defaultBrandName ?? ''),
-        };
-        return { ...row, draft: row.outputManuallyEdited ? nextDraft : { ...nextDraft, output: suggestExtruderOutput(nextDraft) } };
-      }),
-    );
-  }, [rawMaterialFromInventory, firstChemicalRecord, firstColorRecord, firstRawMaterialRecord, defaultColorName, defaultChemicalName, defaultBrandName]);
 
   // Single choke point for every field edit on a new row — recomputes the
   // suggested Yarn Output from the row's own values unless the user has
@@ -379,8 +285,8 @@ export const ExtruderSection = forwardRef<SectionRef, ExtruderSectionProps>(({ p
       }),
     );
   };
-  const markNewRowManualEdit = (key: string, field: 'rawManuallyEdited' | 'chemicalManuallyEdited' | 'colorManuallyEdited' | 'brandManuallyEdited' | 'outputManuallyEdited') => {
-    setNewRows((current) => current.map((row) => (row.key === key ? { ...row, [field]: true } : row)));
+  const markNewRowOutputManualEdit = (key: string) => {
+    setNewRows((current) => current.map((row) => (row.key === key ? { ...row, outputManuallyEdited: true } : row)));
   };
   const removeNewRow = (key: string) => {
     setNewRows((current) => current.filter((row) => row.key !== key));
@@ -416,6 +322,18 @@ export const ExtruderSection = forwardRef<SectionRef, ExtruderSectionProps>(({ p
       setErrorMessage('Select Size, Color, Brand and Chemical before saving.');
       return false;
     }
+    if (!((parseFloat(editDraft.raw) || 0) > 0)) {
+      setErrorMessage('Enter Raw Material (kg) — it must be greater than 0.');
+      return false;
+    }
+    if (!((parseFloat(editDraft.chemicalKg) || 0) > 0)) {
+      setErrorMessage('Enter Chem. Wt (kg) — it must be greater than 0.');
+      return false;
+    }
+    if (!((parseFloat(editDraft.output) || 0) > 0)) {
+      setErrorMessage('Enter Yarn Output (kg) — it must be greater than 0.');
+      return false;
+    }
 
     try {
       const payload: ExtruderUpdatePayload = {
@@ -430,8 +348,8 @@ export const ExtruderSection = forwardRef<SectionRef, ExtruderSectionProps>(({ p
         // 0 explicitly clears that wastage on the backend rather than leaving it untouched.
         lumpsKg: parseFloat(editDraft.lumpsKg) || 0,
         yarnWasteKg: parseFloat(editDraft.yarnWasteKg) || 0,
-        // Omitted (not just 0) when there's no matching Color inventory, so
-        // the backend falls back to its own standard-based auto-computation.
+        // Omitted (not just 0) when left blank, so the backend falls back to
+        // its own standard-based auto-computation.
         ...(editDraft.colorConsumedKg ? { colorConsumedKg: parseFloat(editDraft.colorConsumedKg) || 0 } : {}),
       };
 
@@ -440,7 +358,10 @@ export const ExtruderSection = forwardRef<SectionRef, ExtruderSectionProps>(({ p
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload),
       });
-      if (!response.ok) throw new Error('Failed to save entry');
+      if (!response.ok) {
+        setErrorMessage(await extractApiErrorMessage(response, 'Failed to save the entry. Please try again.'));
+        return false;
+      }
 
       await queryClient.invalidateQueries({ queryKey: extruderKeys.all });
       await queryClient.invalidateQueries({ queryKey: dashboardProductionKey });
@@ -460,6 +381,18 @@ export const ExtruderSection = forwardRef<SectionRef, ExtruderSectionProps>(({ p
     const chemicalId = findIdByName(lookups.chemicals, row.draft.chemical);
     if (!sizeId || !colorId || !brandId || !chemicalId) {
       setErrorMessage('Select Size, Color, Brand and Chemical before saving.');
+      return false;
+    }
+    if (!((parseFloat(row.draft.raw) || 0) > 0)) {
+      setErrorMessage('Enter Raw Material (kg) — it must be greater than 0.');
+      return false;
+    }
+    if (!((parseFloat(row.draft.chemicalKg) || 0) > 0)) {
+      setErrorMessage('Enter Chem. Wt (kg) — it must be greater than 0.');
+      return false;
+    }
+    if (!((parseFloat(row.draft.output) || 0) > 0)) {
+      setErrorMessage('Enter Yarn Output (kg) — it must be greater than 0.');
       return false;
     }
 
@@ -482,7 +415,9 @@ export const ExtruderSection = forwardRef<SectionRef, ExtruderSectionProps>(({ p
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload),
       });
-      if (!response.ok) setErrorMessage('Failed to save one or more entries. Please try again.');
+      if (!response.ok) {
+        setErrorMessage(await extractApiErrorMessage(response, 'Failed to save one or more entries. Please try again.'));
+      }
       return response.ok;
     } catch (error) {
       console.error('Error saving extruder entry:', error);
@@ -599,8 +534,6 @@ export const ExtruderSection = forwardRef<SectionRef, ExtruderSectionProps>(({ p
                     lookups={lookups}
                     saving={saving}
                     onCancel={cancelEdit}
-                    resolveChemicalWeight={resolveChemicalWeight}
-                    resolveColorWeight={resolveColorWeight}
                   />
                 )}
                 {!readOnly &&
@@ -612,13 +545,7 @@ export const ExtruderSection = forwardRef<SectionRef, ExtruderSectionProps>(({ p
                       lookups={lookups}
                       saving={saving}
                       onCancel={() => removeNewRow(row.key)}
-                      resolveChemicalWeight={resolveChemicalWeight}
-                      resolveColorWeight={resolveColorWeight}
-                      onRawManualEdit={() => markNewRowManualEdit(row.key, 'rawManuallyEdited')}
-                      onChemicalManualEdit={() => markNewRowManualEdit(row.key, 'chemicalManuallyEdited')}
-                      onColorManualEdit={() => markNewRowManualEdit(row.key, 'colorManuallyEdited')}
-                      onBrandManualEdit={() => markNewRowManualEdit(row.key, 'brandManuallyEdited')}
-                      onOutputManualEdit={() => markNewRowManualEdit(row.key, 'outputManuallyEdited')}
+                      onOutputManualEdit={() => markNewRowOutputManualEdit(row.key)}
                     />
                   ))}
                 {rows.length === 0 && newRows.length === 0 && editingId === null && (
@@ -658,14 +585,6 @@ interface ExtruderEditableRowProps {
   lookups: Lookups;
   saving: boolean;
   onCancel: () => void;
-  resolveChemicalWeight: (name: string) => number | undefined;
-  resolveColorWeight: (name: string) => number | undefined;
-  /** Called the moment the user directly edits a field that can also be
-   * Inventory-auto-filled, so the parent stops re-syncing it from Inventory. */
-  onRawManualEdit?: () => void;
-  onChemicalManualEdit?: () => void;
-  onColorManualEdit?: () => void;
-  onBrandManualEdit?: () => void;
   /** Called the moment the user types directly into Output, so the parent
    * stops overwriting it with the suggested mass-balance value. */
   onOutputManualEdit?: () => void;
@@ -677,18 +596,12 @@ function ExtruderEditableRow({
   lookups,
   saving,
   onCancel,
-  resolveChemicalWeight,
-  resolveColorWeight,
-  onRawManualEdit,
-  onChemicalManualEdit,
-  onColorManualEdit,
-  onBrandManualEdit,
   onOutputManualEdit,
 }: ExtruderEditableRowProps) {
   return (
     <TableRow>
       <TableCell>
-        <Select value={draft.size || undefined} onValueChange={(value) => setDraft({ ...draft, size: value })}>
+        <Select value={draft.size} onValueChange={(value) => setDraft({ ...draft, size: value })}>
           <SelectTrigger className="h-10"><SelectValue placeholder="Size" /></SelectTrigger>
           <SelectContent>
             {lookups.sizes.map((s) => <SelectItem key={s.id} value={s.name}>{s.name}</SelectItem>)}
@@ -696,14 +609,7 @@ function ExtruderEditableRow({
         </Select>
       </TableCell>
       <TableCell>
-        <Select
-          value={draft.color || undefined}
-          onValueChange={(value) => {
-            onColorManualEdit?.();
-            const colorKg = resolveColorWeight(value);
-            setDraft({ ...draft, color: value, colorConsumedKg: colorKg !== undefined ? String(colorKg) : '' });
-          }}
-        >
+        <Select value={draft.color} onValueChange={(value) => setDraft({ ...draft, color: value })}>
           <SelectTrigger className="h-10"><SelectValue placeholder="Color" /></SelectTrigger>
           <SelectContent>
             {lookups.colors.map((c) => <SelectItem key={c.id} value={c.name}>{c.name}</SelectItem>)}
@@ -711,13 +617,7 @@ function ExtruderEditableRow({
         </Select>
       </TableCell>
       <TableCell>
-        <Select
-          value={draft.brand || undefined}
-          onValueChange={(value) => {
-            onBrandManualEdit?.();
-            setDraft({ ...draft, brand: value });
-          }}
-        >
+        <Select value={draft.brand} onValueChange={(value) => setDraft({ ...draft, brand: value })}>
           <SelectTrigger className="h-10"><SelectValue placeholder="Brand" /></SelectTrigger>
           <SelectContent>
             {lookups.brands.map((b) => <SelectItem key={b.id} value={b.name}>{b.name}</SelectItem>)}
@@ -725,23 +625,16 @@ function ExtruderEditableRow({
         </Select>
       </TableCell>
       <TableCell>
-        <Select
-          value={draft.chemical || undefined}
-          onValueChange={(value) => {
-            onChemicalManualEdit?.();
-            const chemKg = resolveChemicalWeight(value);
-            setDraft({ ...draft, chemical: value, chemicalKg: chemKg !== undefined ? String(chemKg) : draft.chemicalKg });
-          }}
-        >
+        <Select value={draft.chemical} onValueChange={(value) => setDraft({ ...draft, chemical: value })}>
           <SelectTrigger className="h-10"><SelectValue placeholder="Chemical" /></SelectTrigger>
           <SelectContent>
             {lookups.chemicals.map((c) => <SelectItem key={c.id} value={c.name}>{c.name}</SelectItem>)}
           </SelectContent>
         </Select>
       </TableCell>
-      <TableCell><Input type="number" className="h-10 w-full text-center" value={draft.raw} onChange={(e) => { onRawManualEdit?.(); setDraft({ ...draft, raw: e.target.value }); }} /></TableCell>
-      <TableCell><Input type="number" className="h-10 w-full text-center" value={draft.chemicalKg} onChange={(e) => { onChemicalManualEdit?.(); setDraft({ ...draft, chemicalKg: e.target.value }); }} /></TableCell>
-      <TableCell><Input type="number" className="h-10 w-full text-center" value={draft.colorConsumedKg} placeholder="auto" onChange={(e) => { onColorManualEdit?.(); setDraft({ ...draft, colorConsumedKg: e.target.value }); }} /></TableCell>
+      <TableCell><Input type="number" className="h-10 w-full text-center" value={draft.raw} onChange={(e) => setDraft({ ...draft, raw: e.target.value })} /></TableCell>
+      <TableCell><Input type="number" className="h-10 w-full text-center" value={draft.chemicalKg} onChange={(e) => setDraft({ ...draft, chemicalKg: e.target.value })} /></TableCell>
+      <TableCell><Input type="number" className="h-10 w-full text-center" value={draft.colorConsumedKg} placeholder="auto" onChange={(e) => setDraft({ ...draft, colorConsumedKg: e.target.value })} /></TableCell>
       <TableCell><Input type="number" className="h-10 w-full text-center" value={draft.lumpsKg} onChange={(e) => setDraft({ ...draft, lumpsKg: e.target.value })} /></TableCell>
       <TableCell><Input type="number" className="h-10 w-full text-center" value={draft.yarnWasteKg} onChange={(e) => setDraft({ ...draft, yarnWasteKg: e.target.value })} /></TableCell>
       <TableCell><Input type="number" className="h-10 w-full text-center" value={draft.output} placeholder="suggested" onChange={(e) => { onOutputManualEdit?.(); setDraft({ ...draft, output: e.target.value }); }} /></TableCell>
@@ -790,7 +683,6 @@ const emptyLoomDraft: LoomDraft = { size: '', color: '', input: '', output: '', 
 interface LoomNewRow {
   key: string;
   draft: LoomDraft;
-  colorManuallyEdited: boolean;
   outputManuallyEdited: boolean;
 }
 
@@ -819,19 +711,6 @@ export const LoomSection = forwardRef<SectionRef, SectionProps>(({ productionDat
   const { data: lookupsData } = useLookups();
   const lookups: Lookups = lookupsData ?? { brands: [], colors: [], chemicals: [], sizes: [] };
 
-  // Same-day Color inventory, used to auto-suggest Yarn Input (kg) when the
-  // user picks a Color below — fills the existing field, adds nothing new.
-  const { data: inventoryData } = useInventoryRecords(
-    productionDate ? `?date_from=${productionDate}&date_to=${productionDate}` : '',
-    !readOnly,
-  );
-  const inventoryRecords = useMemo(() => inventoryData?.data ?? [], [inventoryData]);
-  const firstColorRecord = useMemo(() => inventoryRecords.find((r) => r.type === 'COLOR'), [inventoryRecords]);
-  const resolveColorWeight = (name: string) => {
-    const kg = sumInventoryWeight(inventoryRecords, 'COLOR', name);
-    return kg > 0 ? kg : undefined;
-  };
-
   const rows = useMemo(() => {
     // See ExtruderSection's rows useMemo: `enabled: false` doesn't hide
     // data already cached under this exact query key from another instance.
@@ -849,24 +728,17 @@ export const LoomSection = forwardRef<SectionRef, SectionProps>(({ productionDat
   const hasAutoAddedRef = useRef(false);
   const nextRowKeyRef = useRef(0);
 
-  const buildPrefilledDraft = useCallback(
-    (): LoomDraft => ({
-      ...emptyLoomDraft,
-      color: firstColorRecord?.name ?? '',
-      input: firstColorRecord ? String(firstColorRecord.weightKg) : '',
-    }),
-    [firstColorRecord],
-  );
-
   // Appends a fresh blank draft row — never blocked by other rows already
-  // being open, so multiple new entries can be filled in before Save.
+  // being open, so multiple new entries can be filled in before Save. Every
+  // field starts empty; nothing is auto-filled from Inventory — only Output
+  // reacts once the user has entered real values (see suggestLoomOutput /
+  // updateNewRow below).
   const startAdd = useCallback(() => {
-    const draft = buildPrefilledDraft();
     setNewRows((current) => [
       ...current,
-      { key: `new-${nextRowKeyRef.current++}`, draft: { ...draft, output: suggestLoomOutput(draft) }, colorManuallyEdited: false, outputManuallyEdited: false },
+      { key: `new-${nextRowKeyRef.current++}`, draft: { ...emptyLoomDraft }, outputManuallyEdited: false },
     ]);
-  }, [buildPrefilledDraft]);
+  }, []);
 
   useEffect(() => {
     if (readOnly || !autoAdd || isLoading || hasAutoAddedRef.current) return;
@@ -879,22 +751,6 @@ export const LoomSection = forwardRef<SectionRef, SectionProps>(({ productionDat
     }
   }, [readOnly, autoAdd, isLoading, rows.length, newRows.length, startAdd]);
 
-  // Keep every untouched new-row draft synced to Inventory as it changes —
-  // whether that's the user picking a different date, or editing/deleting
-  // the matching Inventory record while this form is open — including
-  // clearing Color/Yarn-Input back out if the match disappears. Stops the
-  // moment the user manually picks a Color on that row themselves.
-  useEffect(() => {
-    // eslint-disable-next-line react-hooks/set-state-in-effect
-    setNewRows((current) =>
-      current.map((row) => {
-        if (row.colorManuallyEdited) return row;
-        const nextDraft = { ...row.draft, color: firstColorRecord?.name ?? '', input: firstColorRecord ? String(firstColorRecord.weightKg) : '' };
-        return { ...row, draft: row.outputManuallyEdited ? nextDraft : { ...nextDraft, output: suggestLoomOutput(nextDraft) } };
-      }),
-    );
-  }, [firstColorRecord]);
-
   // Single choke point for every field edit on a new row — recomputes the
   // suggested Fabric Output from the row's own values unless the user has
   // typed into Output directly.
@@ -905,9 +761,6 @@ export const LoomSection = forwardRef<SectionRef, SectionProps>(({ productionDat
         return { ...row, draft: row.outputManuallyEdited ? draft : { ...draft, output: suggestLoomOutput(draft) } };
       }),
     );
-  };
-  const markNewRowColorManualEdit = (key: string) => {
-    setNewRows((current) => current.map((row) => (row.key === key ? { ...row, colorManuallyEdited: true } : row)));
   };
   const markNewRowOutputManualEdit = (key: string) => {
     setNewRows((current) => current.map((row) => (row.key === key ? { ...row, outputManuallyEdited: true } : row)));
@@ -921,6 +774,14 @@ export const LoomSection = forwardRef<SectionRef, SectionProps>(({ productionDat
     const colorId = findIdByName(lookups.colors, row.draft.color);
     if (!sizeId || !colorId) {
       setErrorMessage('Select Size and Color before saving.');
+      return false;
+    }
+    if (!((parseFloat(row.draft.input) || 0) > 0)) {
+      setErrorMessage('Enter Yarn Input (kg) — it must be greater than 0.');
+      return false;
+    }
+    if (!((parseFloat(row.draft.output) || 0) > 0)) {
+      setErrorMessage('Enter Fabric Output (kg) — it must be greater than 0.');
       return false;
     }
 
@@ -938,7 +799,9 @@ export const LoomSection = forwardRef<SectionRef, SectionProps>(({ productionDat
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload),
       });
-      if (!response.ok) setErrorMessage('Failed to save one or more entries. Please try again.');
+      if (!response.ok) {
+        setErrorMessage(await extractApiErrorMessage(response, 'Failed to save one or more entries. Please try again.'));
+      }
       return response.ok;
     } catch (error) {
       console.error('Error saving loom entry:', error);
@@ -1020,7 +883,7 @@ export const LoomSection = forwardRef<SectionRef, SectionProps>(({ productionDat
                   newRows.map((row) => (
                     <TableRow key={row.key}>
                       <TableCell>
-                        <Select value={row.draft.size || undefined} onValueChange={(value) => updateNewRow(row.key, { ...row.draft, size: value })}>
+                        <Select value={row.draft.size} onValueChange={(value) => updateNewRow(row.key, { ...row.draft, size: value })}>
                           <SelectTrigger className="h-10"><SelectValue placeholder="Size" /></SelectTrigger>
                           <SelectContent>
                             {lookups.sizes.map((s) => <SelectItem key={s.id} value={s.name}>{s.name}</SelectItem>)}
@@ -1029,12 +892,8 @@ export const LoomSection = forwardRef<SectionRef, SectionProps>(({ productionDat
                       </TableCell>
                       <TableCell>
                         <Select
-                          value={row.draft.color || undefined}
-                          onValueChange={(value) => {
-                            markNewRowColorManualEdit(row.key);
-                            const colorKg = resolveColorWeight(value);
-                            updateNewRow(row.key, { ...row.draft, color: value, input: colorKg !== undefined ? String(colorKg) : row.draft.input });
-                          }}
+                          value={row.draft.color}
+                          onValueChange={(value) => updateNewRow(row.key, { ...row.draft, color: value })}
                         >
                           <SelectTrigger className="h-10"><SelectValue placeholder="Color" /></SelectTrigger>
                           <SelectContent>
@@ -1047,7 +906,7 @@ export const LoomSection = forwardRef<SectionRef, SectionProps>(({ productionDat
                           type="number"
                           className="h-10 w-full text-center"
                           value={row.draft.input}
-                          onChange={(e) => { markNewRowColorManualEdit(row.key); updateNewRow(row.key, { ...row.draft, input: e.target.value }); }}
+                          onChange={(e) => updateNewRow(row.key, { ...row.draft, input: e.target.value })}
                         />
                       </TableCell>
                       <TableCell>
@@ -1154,7 +1013,6 @@ const emptyFabricDraft: FabricDraft = { size: '', color: '', input: '', output: 
 interface FabricNewRow {
   key: string;
   draft: FabricDraft;
-  colorManuallyEdited: boolean;
   outputManuallyEdited: boolean;
 }
 
@@ -1184,19 +1042,6 @@ export const FabricSection = forwardRef<SectionRef, SectionProps>(({ productionD
   const { data: lookupsData } = useLookups();
   const lookups: Lookups = lookupsData ?? { brands: [], colors: [], chemicals: [], sizes: [] };
 
-  // Same-day Color inventory, used to auto-suggest Fabric Input (kg) when the
-  // user picks a Color below — fills the existing field, adds nothing new.
-  const { data: inventoryData } = useInventoryRecords(
-    productionDate ? `?date_from=${productionDate}&date_to=${productionDate}` : '',
-    !readOnly,
-  );
-  const inventoryRecords = useMemo(() => inventoryData?.data ?? [], [inventoryData]);
-  const firstColorRecord = useMemo(() => inventoryRecords.find((r) => r.type === 'COLOR'), [inventoryRecords]);
-  const resolveColorWeight = (name: string) => {
-    const kg = sumInventoryWeight(inventoryRecords, 'COLOR', name);
-    return kg > 0 ? kg : undefined;
-  };
-
   const rows = useMemo(() => {
     // See ExtruderSection's rows useMemo: `enabled: false` doesn't hide
     // data already cached under this exact query key from another instance.
@@ -1214,24 +1059,17 @@ export const FabricSection = forwardRef<SectionRef, SectionProps>(({ productionD
   const hasAutoAddedRef = useRef(false);
   const nextRowKeyRef = useRef(0);
 
-  const buildPrefilledDraft = useCallback(
-    (): FabricDraft => ({
-      ...emptyFabricDraft,
-      color: firstColorRecord?.name ?? '',
-      input: firstColorRecord ? String(firstColorRecord.weightKg) : '',
-    }),
-    [firstColorRecord],
-  );
-
   // Appends a fresh blank draft row — never blocked by other rows already
-  // being open, so multiple new entries can be filled in before Save.
+  // being open, so multiple new entries can be filled in before Save. Every
+  // field starts empty; nothing is auto-filled from Inventory — only Output
+  // reacts once the user has entered real values (see suggestFabricOutput /
+  // updateNewRow below).
   const startAdd = useCallback(() => {
-    const draft = buildPrefilledDraft();
     setNewRows((current) => [
       ...current,
-      { key: `new-${nextRowKeyRef.current++}`, draft: { ...draft, output: suggestFabricOutput(draft) }, colorManuallyEdited: false, outputManuallyEdited: false },
+      { key: `new-${nextRowKeyRef.current++}`, draft: { ...emptyFabricDraft }, outputManuallyEdited: false },
     ]);
-  }, [buildPrefilledDraft]);
+  }, []);
 
   useEffect(() => {
     if (readOnly || !autoAdd || isLoading || hasAutoAddedRef.current) return;
@@ -1244,22 +1082,6 @@ export const FabricSection = forwardRef<SectionRef, SectionProps>(({ productionD
     }
   }, [readOnly, autoAdd, isLoading, rows.length, newRows.length, startAdd]);
 
-  // Keep every untouched new-row draft synced to Inventory as it changes —
-  // whether that's the user picking a different date, or editing/deleting
-  // the matching Inventory record while this form is open — including
-  // clearing Color/Fabric-Input back out if the match disappears. Stops the
-  // moment the user manually picks a Color on that row themselves.
-  useEffect(() => {
-    // eslint-disable-next-line react-hooks/set-state-in-effect
-    setNewRows((current) =>
-      current.map((row) => {
-        if (row.colorManuallyEdited) return row;
-        const nextDraft = { ...row.draft, color: firstColorRecord?.name ?? '', input: firstColorRecord ? String(firstColorRecord.weightKg) : '' };
-        return { ...row, draft: row.outputManuallyEdited ? nextDraft : { ...nextDraft, output: suggestFabricOutput(nextDraft) } };
-      }),
-    );
-  }, [firstColorRecord]);
-
   // Single choke point for every field edit on a new row — recomputes the
   // suggested Output from the row's own values unless the user has typed
   // into Output directly.
@@ -1270,9 +1092,6 @@ export const FabricSection = forwardRef<SectionRef, SectionProps>(({ productionD
         return { ...row, draft: row.outputManuallyEdited ? draft : { ...draft, output: suggestFabricOutput(draft) } };
       }),
     );
-  };
-  const markNewRowColorManualEdit = (key: string) => {
-    setNewRows((current) => current.map((row) => (row.key === key ? { ...row, colorManuallyEdited: true } : row)));
   };
   const markNewRowOutputManualEdit = (key: string) => {
     setNewRows((current) => current.map((row) => (row.key === key ? { ...row, outputManuallyEdited: true } : row)));
@@ -1286,6 +1105,10 @@ export const FabricSection = forwardRef<SectionRef, SectionProps>(({ productionD
     const colorId = findIdByName(lookups.colors, row.draft.color);
     if (!sizeId || !colorId) {
       setErrorMessage('Select Size and Color before saving.');
+      return false;
+    }
+    if (!((parseFloat(row.draft.input) || 0) > 0)) {
+      setErrorMessage('Enter Fabric Input (kg) — it must be greater than 0.');
       return false;
     }
 
@@ -1304,7 +1127,9 @@ export const FabricSection = forwardRef<SectionRef, SectionProps>(({ productionD
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload),
       });
-      if (!response.ok) setErrorMessage('Failed to save one or more entries. Please try again.');
+      if (!response.ok) {
+        setErrorMessage(await extractApiErrorMessage(response, 'Failed to save one or more entries. Please try again.'));
+      }
       return response.ok;
     } catch (error) {
       console.error('Error saving fabric checking entry:', error);
@@ -1388,7 +1213,7 @@ export const FabricSection = forwardRef<SectionRef, SectionProps>(({ productionD
                   newRows.map((row) => (
                     <TableRow key={row.key}>
                       <TableCell>
-                        <Select value={row.draft.size || undefined} onValueChange={(value) => updateNewRow(row.key, { ...row.draft, size: value })}>
+                        <Select value={row.draft.size} onValueChange={(value) => updateNewRow(row.key, { ...row.draft, size: value })}>
                           <SelectTrigger className="h-10"><SelectValue placeholder="Size" /></SelectTrigger>
                           <SelectContent>
                             {lookups.sizes.map((s) => <SelectItem key={s.id} value={s.name}>{s.name}</SelectItem>)}
@@ -1397,12 +1222,8 @@ export const FabricSection = forwardRef<SectionRef, SectionProps>(({ productionD
                       </TableCell>
                       <TableCell>
                         <Select
-                          value={row.draft.color || undefined}
-                          onValueChange={(value) => {
-                            markNewRowColorManualEdit(row.key);
-                            const colorKg = resolveColorWeight(value);
-                            updateNewRow(row.key, { ...row.draft, color: value, input: colorKg !== undefined ? String(colorKg) : row.draft.input });
-                          }}
+                          value={row.draft.color}
+                          onValueChange={(value) => updateNewRow(row.key, { ...row.draft, color: value })}
                         >
                           <SelectTrigger className="h-10"><SelectValue placeholder="Color" /></SelectTrigger>
                           <SelectContent>
@@ -1415,7 +1236,7 @@ export const FabricSection = forwardRef<SectionRef, SectionProps>(({ productionD
                           type="number"
                           className="h-10 w-full text-center"
                           value={row.draft.input}
-                          onChange={(e) => { markNewRowColorManualEdit(row.key); updateNewRow(row.key, { ...row.draft, input: e.target.value }); }}
+                          onChange={(e) => updateNewRow(row.key, { ...row.draft, input: e.target.value })}
                         />
                       </TableCell>
                       <TableCell><Input type="number" className="h-10 w-full text-center" value={row.draft.fwKg} onChange={(e) => updateNewRow(row.key, { ...row.draft, fwKg: e.target.value })} /></TableCell>
