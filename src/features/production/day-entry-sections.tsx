@@ -163,6 +163,32 @@ interface ExtruderDraft {
 
 const emptyExtruderDraft: ExtruderDraft = { size: '', color: '', brand: '', chemical: '', raw: '', chemicalKg: '', output: '', colorConsumedKg: '', lumpsKg: '', yarnWasteKg: '' };
 
+/** One pending (unsaved) new-entry row — several of these can be open at once. */
+interface ExtruderNewRow {
+  key: string;
+  draft: ExtruderDraft;
+  rawManuallyEdited: boolean;
+  chemicalManuallyEdited: boolean;
+  colorManuallyEdited: boolean;
+  brandManuallyEdited: boolean;
+  outputManuallyEdited: boolean;
+}
+
+/**
+ * Suggests Yarn Output as a mass balance — raw material + chemical + colour
+ * consumed, minus recorded waste — so it pre-fills as the user enters
+ * input/waste but can still be typed over freely (see outputManuallyEdited).
+ * Chemical/colour mass is ADDED during extrusion (PRD), so this is not a
+ * simple input-minus-waste subtraction. Never negative; blank until there's
+ * something to suggest.
+ */
+function suggestExtruderOutput(draft: Pick<ExtruderDraft, 'raw' | 'chemicalKg' | 'colorConsumedKg' | 'lumpsKg' | 'yarnWasteKg'>): string {
+  const inputMassKg = (parseFloat(draft.raw) || 0) + (parseFloat(draft.chemicalKg) || 0) + (parseFloat(draft.colorConsumedKg) || 0);
+  const wasteKg = (parseFloat(draft.lumpsKg) || 0) + (parseFloat(draft.yarnWasteKg) || 0);
+  const suggested = Math.max(0, inputMassKg - wasteKg);
+  return suggested > 0 ? suggested.toFixed(2) : '';
+}
+
 /**
  * Extruder is the only category wired to the real API so far (CRUD only —
  * there's no delete endpoint, and approve/reject/pending status handling is
@@ -255,28 +281,24 @@ export const ExtruderSection = forwardRef<SectionRef, ExtruderSectionProps>(({ p
       .filter((row) => row.raw > 0 || row.output > 0 || row.chemicalKg > 0);
   }, [data, productionDate, hideExisting]);
 
-  const [editingId, setEditingId] = useState<string | 'new' | null>(null);
-  const [draft, setDraft] = useState<ExtruderDraft>(emptyExtruderDraft);
+  // Editing an EXISTING saved record — a single slot, since editing more
+  // than one saved row at a time isn't a supported flow. Adding brand-new
+  // rows is a separate, array-backed flow below so multiple can be open at
+  // once (see ExtruderNewRow/newRows).
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [editDraft, setEditDraft] = useState<ExtruderDraft>(emptyExtruderDraft);
+  const [newRows, setNewRows] = useState<ExtruderNewRow[]>([]);
   const [saving, setSaving] = useState(false);
   const hasAutoAddedRef = useRef(false);
-  // Tracks whether the user has personally edited a field that's otherwise
-  // kept synced to Inventory. Starts false (untouched) and only ever flips
-  // to true from an actual Select/Input interaction (see the handlers
-  // below) — never from "there happened to be nothing to suggest right
-  // now," so it correctly re-arms when the user changes the date to one
-  // that does have matching stock, instead of getting stuck off forever.
-  const [rawManuallyEdited, setRawManuallyEdited] = useState(false);
-  const [chemicalManuallyEdited, setChemicalManuallyEdited] = useState(false);
-  const [colorManuallyEdited, setColorManuallyEdited] = useState(false);
-  const [brandManuallyEdited, setBrandManuallyEdited] = useState(false);
+  const nextRowKeyRef = useRef(0);
 
   // Header totals reflect saved rows plus, while a brand-new row is being
   // filled in, that row's own (possibly auto-filled) values — otherwise the
   // header shows 0.00 the whole time in "Add New Entry", where there are no
   // saved rows yet to sum.
 
-  const startAdd = useCallback(() => {
-    setDraft({
+  const buildPrefilledDraft = useCallback(
+    (): ExtruderDraft => ({
       ...emptyExtruderDraft,
       raw: rawMaterialFromInventory > 0 ? String(rawMaterialFromInventory) : '',
       chemical: firstChemicalRecord?.name ?? defaultChemicalName ?? '',
@@ -284,51 +306,87 @@ export const ExtruderSection = forwardRef<SectionRef, ExtruderSectionProps>(({ p
       color: firstColorRecord?.name ?? defaultColorName ?? '',
       colorConsumedKg: firstColorRecord ? String(firstColorRecord.weightKg) : '',
       brand: firstRawMaterialRecord?.name ?? defaultBrandName ?? '',
-    });
-    setRawManuallyEdited(false);
-    setChemicalManuallyEdited(false);
-    setColorManuallyEdited(false);
-    setBrandManuallyEdited(false);
-    setEditingId('new');
-  }, [rawMaterialFromInventory, firstChemicalRecord, firstColorRecord, firstRawMaterialRecord, defaultColorName, defaultChemicalName, defaultBrandName]);
+    }),
+    [rawMaterialFromInventory, firstChemicalRecord, firstColorRecord, firstRawMaterialRecord, defaultColorName, defaultChemicalName, defaultBrandName],
+  );
+
+  // Appends a fresh blank draft row — never blocked by other rows already
+  // being open, so multiple new entries can be filled in before Save.
+  const startAdd = useCallback(() => {
+    const draft = buildPrefilledDraft();
+    setNewRows((current) => [
+      ...current,
+      {
+        key: `new-${nextRowKeyRef.current++}`,
+        draft: { ...draft, output: suggestExtruderOutput(draft) },
+        rawManuallyEdited: false,
+        chemicalManuallyEdited: false,
+        colorManuallyEdited: false,
+        brandManuallyEdited: false,
+        outputManuallyEdited: false,
+      },
+    ]);
+  }, [buildPrefilledDraft]);
 
   useEffect(() => {
     if (readOnly || !autoAdd || isLoading || hasAutoAddedRef.current) return;
-    if (rows.length === 0 && editingId === null) {
+    if (rows.length === 0 && newRows.length === 0) {
       hasAutoAddedRef.current = true;
       // One-shot: open a blank draft row the first time this date resolves
       // with no existing records. The ref above guarantees this only ever
       // fires once per mount, so it can't cascade into further renders.
-      // eslint-disable-next-line react-hooks/set-state-in-effect
       startAdd();
     }
     // The ref guard above makes this effect idempotent, so re-running it
     // when startAdd's identity changes (e.g. rawMaterialFromInventory
     // updates) is harmless — it's included only to satisfy exhaustive-deps.
-  }, [readOnly, autoAdd, isLoading, rows.length, editingId, startAdd]);
+  }, [readOnly, autoAdd, isLoading, rows.length, newRows.length, startAdd]);
 
-  // Keep an untouched draft synced to Inventory as it changes — whether
-  // that's the user picking a different date, or editing/deleting the
-  // matching Inventory record while this form is open — including clearing
-  // a field back out if its match disappears. A field stops syncing the
-  // moment the user manually touches it (see the Select/Input handlers
-  // below, which set the corresponding *ManuallyEdited flag to true).
+  // Keep every untouched new-row draft synced to Inventory as it changes —
+  // whether that's the user picking a different date, or editing/deleting
+  // the matching Inventory record while this form is open — including
+  // clearing a field back out if its match disappears. A field on a given
+  // row stops syncing the moment the user manually touches it (see the
+  // Select/Input handlers below, which set that row's *ManuallyEdited flag).
   useEffect(() => {
-    if (editingId !== 'new') return;
     // eslint-disable-next-line react-hooks/set-state-in-effect
-    setDraft((current) => ({
-      ...current,
-      raw: rawManuallyEdited ? current.raw : (rawMaterialFromInventory > 0 ? String(rawMaterialFromInventory) : ''),
-      chemical: chemicalManuallyEdited ? current.chemical : (firstChemicalRecord?.name ?? defaultChemicalName ?? ''),
-      chemicalKg: chemicalManuallyEdited ? current.chemicalKg : (firstChemicalRecord ? String(firstChemicalRecord.weightKg) : ''),
-      color: colorManuallyEdited ? current.color : (firstColorRecord?.name ?? defaultColorName ?? ''),
-      colorConsumedKg: colorManuallyEdited ? current.colorConsumedKg : (firstColorRecord ? String(firstColorRecord.weightKg) : ''),
-      brand: brandManuallyEdited ? current.brand : (firstRawMaterialRecord?.name ?? defaultBrandName ?? ''),
-    }));
-  }, [editingId, rawMaterialFromInventory, firstChemicalRecord, firstColorRecord, firstRawMaterialRecord, rawManuallyEdited, chemicalManuallyEdited, colorManuallyEdited, brandManuallyEdited, defaultColorName, defaultChemicalName, defaultBrandName]);
+    setNewRows((current) =>
+      current.map((row) => {
+        const nextDraft = {
+          ...row.draft,
+          raw: row.rawManuallyEdited ? row.draft.raw : (rawMaterialFromInventory > 0 ? String(rawMaterialFromInventory) : ''),
+          chemical: row.chemicalManuallyEdited ? row.draft.chemical : (firstChemicalRecord?.name ?? defaultChemicalName ?? ''),
+          chemicalKg: row.chemicalManuallyEdited ? row.draft.chemicalKg : (firstChemicalRecord ? String(firstChemicalRecord.weightKg) : ''),
+          color: row.colorManuallyEdited ? row.draft.color : (firstColorRecord?.name ?? defaultColorName ?? ''),
+          colorConsumedKg: row.colorManuallyEdited ? row.draft.colorConsumedKg : (firstColorRecord ? String(firstColorRecord.weightKg) : ''),
+          brand: row.brandManuallyEdited ? row.draft.brand : (firstRawMaterialRecord?.name ?? defaultBrandName ?? ''),
+        };
+        return { ...row, draft: row.outputManuallyEdited ? nextDraft : { ...nextDraft, output: suggestExtruderOutput(nextDraft) } };
+      }),
+    );
+  }, [rawMaterialFromInventory, firstChemicalRecord, firstColorRecord, firstRawMaterialRecord, defaultColorName, defaultChemicalName, defaultBrandName]);
+
+  // Single choke point for every field edit on a new row — recomputes the
+  // suggested Yarn Output from the row's own values unless the user has
+  // typed into Output directly (see outputManuallyEdited / onOutputManualEdit).
+  const updateNewRow = (key: string, draft: ExtruderDraft) => {
+    setNewRows((current) =>
+      current.map((row) => {
+        if (row.key !== key) return row;
+        const nextDraft = row.outputManuallyEdited ? draft : { ...draft, output: suggestExtruderOutput(draft) };
+        return { ...row, draft: nextDraft };
+      }),
+    );
+  };
+  const markNewRowManualEdit = (key: string, field: 'rawManuallyEdited' | 'chemicalManuallyEdited' | 'colorManuallyEdited' | 'brandManuallyEdited' | 'outputManuallyEdited') => {
+    setNewRows((current) => current.map((row) => (row.key === key ? { ...row, [field]: true } : row)));
+  };
+  const removeNewRow = (key: string) => {
+    setNewRows((current) => current.filter((row) => row.key !== key));
+  };
 
   const startEdit = (row: ExtruderRow) => {
-    setDraft({
+    setEditDraft({
       size: row.size,
       color: row.color,
       brand: row.brand,
@@ -340,64 +398,44 @@ export const ExtruderSection = forwardRef<SectionRef, ExtruderSectionProps>(({ p
       lumpsKg: String(row.lumpsKg),
       yarnWasteKg: String(row.yarnWasteKg),
     });
-    // Editing an existing saved record — its values are the record's own,
-    // never Inventory-derived suggestions to keep syncing (the sync effect
-    // is scoped to editingId === 'new' anyway, but keep this consistent).
-    setRawManuallyEdited(true);
-    setChemicalManuallyEdited(true);
-    setColorManuallyEdited(true);
-    setBrandManuallyEdited(true);
     setEditingId(row.id);
   };
 
   const cancelEdit = () => {
     setEditingId(null);
-    setDraft(emptyExtruderDraft);
-    setRawManuallyEdited(false);
-    setChemicalManuallyEdited(false);
-    setColorManuallyEdited(false);
-    setBrandManuallyEdited(false);
+    setEditDraft(emptyExtruderDraft);
   };
 
-  const handleSave = async (): Promise<boolean> => {
-    const sizeId = findIdByName(lookups.sizes, draft.size);
-    const colorId = findIdByName(lookups.colors, draft.color);
-    const brandId = findIdByName(lookups.brands, draft.brand);
-    const chemicalId = findIdByName(lookups.chemicals, draft.chemical);
+  const handleSaveExisting = async (): Promise<boolean> => {
+    const sizeId = findIdByName(lookups.sizes, editDraft.size);
+    const colorId = findIdByName(lookups.colors, editDraft.color);
+    const brandId = findIdByName(lookups.brands, editDraft.brand);
+    const chemicalId = findIdByName(lookups.chemicals, editDraft.chemical);
     if (!sizeId || !colorId || !brandId || !chemicalId) {
       console.error('Unable to resolve size/color/brand/chemical to a known master data id');
       return false;
     }
 
-    const isNew = editingId === 'new';
-    setSaving(true);
     try {
-      const basePayload = {
+      const payload: ExtruderUpdatePayload = {
         productionDate: productionDate ?? new Date().toISOString().slice(0, 10),
         sizeId,
         colorId,
         brandId,
         chemicalId,
-        rawMaterialKg: parseFloat(draft.raw) || 0,
-        chemicalKg: parseFloat(draft.chemicalKg) || 0,
-        yarnOutputKg: parseFloat(draft.output) || 0,
+        rawMaterialKg: parseFloat(editDraft.raw) || 0,
+        chemicalKg: parseFloat(editDraft.chemicalKg) || 0,
+        yarnOutputKg: parseFloat(editDraft.output) || 0,
         // Omitted (not just 0) when there's no matching Color inventory, so
         // the backend falls back to its own standard-based auto-computation.
-        ...(draft.colorConsumedKg ? { colorConsumedKg: parseFloat(draft.colorConsumedKg) || 0 } : {}),
+        ...(editDraft.colorConsumedKg ? { colorConsumedKg: parseFloat(editDraft.colorConsumedKg) || 0 } : {}),
       };
-      // The update endpoint doesn't accept lumpsKg/yarnWasteKg at all (unlike create).
-      const payload: ExtruderCreatePayload | ExtruderUpdatePayload = isNew
-        ? { ...basePayload, lumpsKg: parseFloat(draft.lumpsKg) || 0, yarnWasteKg: parseFloat(draft.yarnWasteKg) || 0 }
-        : basePayload;
 
-      const response = await apiFetch(
-        isNew ? '/production/extruder' : `/production/extruder/${editingId}`,
-        {
-          method: isNew ? 'POST' : 'PATCH',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(payload),
-        },
-      );
+      const response = await apiFetch(`/production/extruder/${editingId}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
+      });
       if (!response.ok) throw new Error('Failed to save entry');
 
       await queryClient.invalidateQueries({ queryKey: extruderKeys.all });
@@ -407,23 +445,74 @@ export const ExtruderSection = forwardRef<SectionRef, ExtruderSectionProps>(({ p
     } catch (error) {
       console.error('Error saving extruder entry:', error);
       return false;
-    } finally {
-      setSaving(false);
+    }
+  };
+
+  const handleSaveNewRow = async (row: ExtruderNewRow): Promise<boolean> => {
+    const sizeId = findIdByName(lookups.sizes, row.draft.size);
+    const colorId = findIdByName(lookups.colors, row.draft.color);
+    const brandId = findIdByName(lookups.brands, row.draft.brand);
+    const chemicalId = findIdByName(lookups.chemicals, row.draft.chemical);
+    if (!sizeId || !colorId || !brandId || !chemicalId) {
+      console.error('Unable to resolve size/color/brand/chemical to a known master data id');
+      return false;
+    }
+
+    try {
+      const payload: ExtruderCreatePayload = {
+        productionDate: productionDate ?? new Date().toISOString().slice(0, 10),
+        sizeId,
+        colorId,
+        brandId,
+        chemicalId,
+        rawMaterialKg: parseFloat(row.draft.raw) || 0,
+        chemicalKg: parseFloat(row.draft.chemicalKg) || 0,
+        yarnOutputKg: parseFloat(row.draft.output) || 0,
+        lumpsKg: parseFloat(row.draft.lumpsKg) || 0,
+        yarnWasteKg: parseFloat(row.draft.yarnWasteKg) || 0,
+        ...(row.draft.colorConsumedKg ? { colorConsumedKg: parseFloat(row.draft.colorConsumedKg) || 0 } : {}),
+      };
+      const response = await apiFetch('/production/extruder', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
+      });
+      return response.ok;
+    } catch (error) {
+      console.error('Error saving extruder entry:', error);
+      return false;
     }
   };
 
   useImperativeHandle(ref, () => ({
     saveDraft: async () => {
       if (readOnly) return true;
-      // If we're not adding/editing, nothing to save
-      if (!editingId) return true;
-      // If draft is completely empty, ignore
-      if (JSON.stringify(draft) === JSON.stringify(emptyExtruderDraft)) return true;
+      let allOk = true;
+      setSaving(true);
+      try {
+        if (editingId && JSON.stringify(editDraft) !== JSON.stringify(emptyExtruderDraft)) {
+          const ok = await handleSaveExisting();
+          if (!ok) allOk = false;
+        }
 
-
-      const success = await handleSave();
-      return success ?? false;
-    }
+        // Blank/untouched rows are silently skipped rather than treated as
+        // failures — they simply stay open for the user to fill in later.
+        const rowsToSave = newRows.filter((row) => JSON.stringify(row.draft) !== JSON.stringify(emptyExtruderDraft));
+        if (rowsToSave.length > 0) {
+          const results = await Promise.all(rowsToSave.map((row) => handleSaveNewRow(row)));
+          const succeededKeys = new Set(rowsToSave.filter((_, i) => results[i]).map((row) => row.key));
+          if (succeededKeys.size > 0) {
+            setNewRows((current) => current.filter((row) => !succeededKeys.has(row.key)));
+            await queryClient.invalidateQueries({ queryKey: extruderKeys.all });
+            await queryClient.invalidateQueries({ queryKey: dashboardProductionKey });
+          }
+          if (succeededKeys.size < rowsToSave.length) allOk = false;
+        }
+      } finally {
+        setSaving(false);
+      }
+      return allOk;
+    },
   }));
 
   const theme = themes.extruder;
@@ -449,16 +538,17 @@ export const ExtruderSection = forwardRef<SectionRef, ExtruderSectionProps>(({ p
               <TableHead className="text-xs font-semibold uppercase tracking-wide text-gray-700">Chemical</TableHead>
               <TableHead className="text-center text-xs font-semibold uppercase tracking-wide text-gray-700">Raw Material (kg)</TableHead>
               <TableHead className="text-center text-xs font-semibold uppercase tracking-wide text-gray-700">Chem. Wt (kg)</TableHead>
-              <TableHead className="text-center text-xs font-semibold uppercase tracking-wide text-gray-700">Yarn Output (kg)</TableHead>
+              <TableHead className="text-center text-xs font-semibold uppercase tracking-wide text-gray-700">Color Consumed (kg)</TableHead>
               <TableHead className="text-center text-xs font-semibold uppercase tracking-wide text-gray-700">Lumps</TableHead>
               <TableHead className="text-center text-xs font-semibold uppercase tracking-wide text-gray-700">Yarn Waste</TableHead>
+              <TableHead className="text-center text-xs font-semibold uppercase tracking-wide text-gray-700">Yarn Output (kg)</TableHead>
               {!readOnly && <TableHead className="text-center text-xs font-semibold uppercase tracking-wide text-gray-700">Action</TableHead>}
             </TableRow>
           </TableHeader>
           <TableBody>
             {isLoading ? (
               <TableRow>
-                <TableCell colSpan={readOnly ? 9 : 10} className="h-20 text-center">
+                <TableCell colSpan={readOnly ? 10 : 11} className="h-20 text-center">
                   <div className="flex items-center justify-center gap-2 text-gray-500">
                     <Loader size="sm" /> Loading entries...
                   </div>
@@ -474,9 +564,10 @@ export const ExtruderSection = forwardRef<SectionRef, ExtruderSectionProps>(({ p
                       <TableCell>{row.chemical}</TableCell>
                       <TableCell className="text-center">{row.raw.toFixed(2)}</TableCell>
                       <TableCell className="text-center">{row.chemicalKg.toFixed(2)}</TableCell>
-                      <TableCell className="text-center">{row.output.toFixed(2)}</TableCell>
+                      <TableCell className="text-center">{row.colorConsumedKg.toFixed(2)}</TableCell>
                       <TableCell className="text-center">{row.lumpsKg.toFixed(2)}</TableCell>
                       <TableCell className="text-center">{row.yarnWasteKg.toFixed(2)}</TableCell>
+                      <TableCell className="text-center">{row.output.toFixed(2)}</TableCell>
                       {!readOnly && (
                         <TableCell className="text-center">
                           <Button
@@ -495,21 +586,36 @@ export const ExtruderSection = forwardRef<SectionRef, ExtruderSectionProps>(({ p
                 )}
                 {!readOnly && editingId !== null && (
                   <ExtruderEditableRow
-                    draft={draft}
-                    setDraft={setDraft}
+                    draft={editDraft}
+                    setDraft={setEditDraft}
                     lookups={lookups}
                     saving={saving}
                     onCancel={cancelEdit}
                     resolveChemicalWeight={resolveChemicalWeight}
                     resolveColorWeight={resolveColorWeight}
-                    onRawManualEdit={() => setRawManuallyEdited(true)}
-                    onChemicalManualEdit={() => setChemicalManuallyEdited(true)}
-                    onColorManualEdit={() => setColorManuallyEdited(true)}
                   />
                 )}
-                {rows.length === 0 && editingId !== 'new' && (
+                {!readOnly &&
+                  newRows.map((row) => (
+                    <ExtruderEditableRow
+                      key={row.key}
+                      draft={row.draft}
+                      setDraft={(draft) => updateNewRow(row.key, draft)}
+                      lookups={lookups}
+                      saving={saving}
+                      onCancel={() => removeNewRow(row.key)}
+                      resolveChemicalWeight={resolveChemicalWeight}
+                      resolveColorWeight={resolveColorWeight}
+                      onRawManualEdit={() => markNewRowManualEdit(row.key, 'rawManuallyEdited')}
+                      onChemicalManualEdit={() => markNewRowManualEdit(row.key, 'chemicalManuallyEdited')}
+                      onColorManualEdit={() => markNewRowManualEdit(row.key, 'colorManuallyEdited')}
+                      onBrandManualEdit={() => markNewRowManualEdit(row.key, 'brandManuallyEdited')}
+                      onOutputManualEdit={() => markNewRowManualEdit(row.key, 'outputManuallyEdited')}
+                    />
+                  ))}
+                {rows.length === 0 && newRows.length === 0 && editingId === null && (
                   <TableRow>
-                    <TableCell colSpan={readOnly ? 9 : 10} className="h-20 text-center text-gray-500">No entries yet.</TableCell>
+                    <TableCell colSpan={readOnly ? 10 : 11} className="h-20 text-center text-gray-500">No entries yet.</TableCell>
                   </TableRow>
                 )}
               </>
@@ -525,7 +631,7 @@ export const ExtruderSection = forwardRef<SectionRef, ExtruderSectionProps>(({ p
             size="sm"
             className={`h-8 gap-1 rounded-full ${theme.buttonBorder} ${theme.buttonText} ${theme.buttonHover}`}
             onClick={startAdd}
-            disabled={editingId !== null}
+            disabled={saving}
           >
             <Plus className="h-3 w-3" /> Add row
           </Button>
@@ -549,6 +655,9 @@ interface ExtruderEditableRowProps {
   onChemicalManualEdit?: () => void;
   onColorManualEdit?: () => void;
   onBrandManualEdit?: () => void;
+  /** Called the moment the user types directly into Output, so the parent
+   * stops overwriting it with the suggested mass-balance value. */
+  onOutputManualEdit?: () => void;
 }
 
 function ExtruderEditableRow({
@@ -563,6 +672,7 @@ function ExtruderEditableRow({
   onChemicalManualEdit,
   onColorManualEdit,
   onBrandManualEdit,
+  onOutputManualEdit,
 }: ExtruderEditableRowProps) {
   return (
     <TableRow>
@@ -620,9 +730,10 @@ function ExtruderEditableRow({
       </TableCell>
       <TableCell><Input type="number" className="h-10 w-full text-center" value={draft.raw} onChange={(e) => { onRawManualEdit?.(); setDraft({ ...draft, raw: e.target.value }); }} /></TableCell>
       <TableCell><Input type="number" className="h-10 w-full text-center" value={draft.chemicalKg} onChange={(e) => { onChemicalManualEdit?.(); setDraft({ ...draft, chemicalKg: e.target.value }); }} /></TableCell>
-      <TableCell><Input type="number" className="h-10 w-full text-center" value={draft.output} onChange={(e) => setDraft({ ...draft, output: e.target.value })} /></TableCell>
+      <TableCell><Input type="number" className="h-10 w-full text-center" value={draft.colorConsumedKg} placeholder="auto" onChange={(e) => { onColorManualEdit?.(); setDraft({ ...draft, colorConsumedKg: e.target.value }); }} /></TableCell>
       <TableCell><Input type="number" className="h-10 w-full text-center" value={draft.lumpsKg} onChange={(e) => setDraft({ ...draft, lumpsKg: e.target.value })} /></TableCell>
       <TableCell><Input type="number" className="h-10 w-full text-center" value={draft.yarnWasteKg} onChange={(e) => setDraft({ ...draft, yarnWasteKg: e.target.value })} /></TableCell>
+      <TableCell><Input type="number" className="h-10 w-full text-center" value={draft.output} placeholder="suggested" onChange={(e) => { onOutputManualEdit?.(); setDraft({ ...draft, output: e.target.value }); }} /></TableCell>
       <TableCell className="text-center">
         <div className="flex items-center justify-center gap-2">
           <Button variant="ghost" size="icon-sm" className="rounded-full bg-gray-100 text-gray-500 hover:bg-gray-200" aria-label="Cancel" onClick={onCancel} disabled={saving}>
@@ -664,6 +775,24 @@ interface LoomDraft {
 
 const emptyLoomDraft: LoomDraft = { size: '', color: '', input: '', output: '', loomsWasteKg: '' };
 
+/** One pending (unsaved) new-entry row — several of these can be open at once. */
+interface LoomNewRow {
+  key: string;
+  draft: LoomDraft;
+  colorManuallyEdited: boolean;
+  outputManuallyEdited: boolean;
+}
+
+/**
+ * Suggests Fabric Output as Yarn Input minus Looms Waste, so it pre-fills as
+ * the user enters input/waste but can still be typed over freely (see
+ * outputManuallyEdited). Never negative; blank until there's something to suggest.
+ */
+function suggestLoomOutput(draft: Pick<LoomDraft, 'input' | 'loomsWasteKg'>): string {
+  const suggested = Math.max(0, (parseFloat(draft.input) || 0) - (parseFloat(draft.loomsWasteKg) || 0));
+  return suggested > 0 ? suggested.toFixed(2) : '';
+}
+
 /**
  * Looms only has create/list/get endpoints — no edit, approve, or reject yet
  * — so unlike ExtruderSection, existing rows are read-only and there's no
@@ -703,105 +832,129 @@ export const LoomSection = forwardRef<SectionRef, SectionProps>(({ productionDat
       .filter((row) => row.input > 0 || row.output > 0 || row.loomsWasteKg > 0);
   }, [data, productionDate, hideExisting]);
 
-  const [adding, setAdding] = useState(false);
-  const [draft, setDraft] = useState<LoomDraft>(emptyLoomDraft);
+  const [newRows, setNewRows] = useState<LoomNewRow[]>([]);
   const [saving, setSaving] = useState(false);
   const hasAutoAddedRef = useRef(false);
-  // See ExtruderSection: tracks whether the user has personally edited
-  // Color/Yarn-Input. Starts false (untouched) and only flips to true from
-  // an actual Select interaction — never from "nothing to suggest right
-  // Tracks whether the user has personally edited a field that's otherwise auto-filled.
-  const [colorManuallyEdited, setColorManuallyEdited] = useState(false);
+  const nextRowKeyRef = useRef(0);
 
-  const startAdd = useCallback(() => {
-    setDraft({
+  const buildPrefilledDraft = useCallback(
+    (): LoomDraft => ({
       ...emptyLoomDraft,
       color: firstColorRecord?.name ?? '',
       input: firstColorRecord ? String(firstColorRecord.weightKg) : '',
-    });
-    setColorManuallyEdited(false);
-    setAdding(true);
-  }, [firstColorRecord]);
+    }),
+    [firstColorRecord],
+  );
+
+  // Appends a fresh blank draft row — never blocked by other rows already
+  // being open, so multiple new entries can be filled in before Save.
+  const startAdd = useCallback(() => {
+    const draft = buildPrefilledDraft();
+    setNewRows((current) => [
+      ...current,
+      { key: `new-${nextRowKeyRef.current++}`, draft: { ...draft, output: suggestLoomOutput(draft) }, colorManuallyEdited: false, outputManuallyEdited: false },
+    ]);
+  }, [buildPrefilledDraft]);
 
   useEffect(() => {
     if (readOnly || !autoAdd || isLoading || hasAutoAddedRef.current) return;
-    if (rows.length === 0 && !adding) {
+    if (rows.length === 0 && newRows.length === 0) {
       hasAutoAddedRef.current = true;
       // One-shot: open a blank draft row the first time this date resolves
       // with no existing records. The ref above guarantees this only ever
       // fires once per mount, so it can't cascade into further renders.
-      // eslint-disable-next-line react-hooks/set-state-in-effect
       startAdd();
     }
-  }, [readOnly, autoAdd, isLoading, rows.length, adding, startAdd]);
+  }, [readOnly, autoAdd, isLoading, rows.length, newRows.length, startAdd]);
 
-  // Keep an untouched draft synced to Inventory as it changes — whether
-  // that's the user picking a different date, or editing/deleting the
-  // matching Inventory record while this form is open — including clearing
-  // Color/Yarn-Input back out if the match disappears. Stops the moment the
-  // user manually picks a Color themselves (see the Select's onValueChange).
+  // Keep every untouched new-row draft synced to Inventory as it changes —
+  // whether that's the user picking a different date, or editing/deleting
+  // the matching Inventory record while this form is open — including
+  // clearing Color/Yarn-Input back out if the match disappears. Stops the
+  // moment the user manually picks a Color on that row themselves.
   useEffect(() => {
-    if (!adding || colorManuallyEdited) return;
     // eslint-disable-next-line react-hooks/set-state-in-effect
-    setDraft((current) => ({
-      ...current,
-      color: firstColorRecord?.name ?? '',
-      input: firstColorRecord ? String(firstColorRecord.weightKg) : '',
-    }));
-  }, [adding, colorManuallyEdited, firstColorRecord]);
+    setNewRows((current) =>
+      current.map((row) => {
+        if (row.colorManuallyEdited) return row;
+        const nextDraft = { ...row.draft, color: firstColorRecord?.name ?? '', input: firstColorRecord ? String(firstColorRecord.weightKg) : '' };
+        return { ...row, draft: row.outputManuallyEdited ? nextDraft : { ...nextDraft, output: suggestLoomOutput(nextDraft) } };
+      }),
+    );
+  }, [firstColorRecord]);
 
-  const cancelAdd = () => {
-    setAdding(false);
-    setDraft(emptyLoomDraft);
-    setColorManuallyEdited(false);
+  // Single choke point for every field edit on a new row — recomputes the
+  // suggested Fabric Output from the row's own values unless the user has
+  // typed into Output directly.
+  const updateNewRow = (key: string, draft: LoomDraft) => {
+    setNewRows((current) =>
+      current.map((row) => {
+        if (row.key !== key) return row;
+        return { ...row, draft: row.outputManuallyEdited ? draft : { ...draft, output: suggestLoomOutput(draft) } };
+      }),
+    );
+  };
+  const markNewRowColorManualEdit = (key: string) => {
+    setNewRows((current) => current.map((row) => (row.key === key ? { ...row, colorManuallyEdited: true } : row)));
+  };
+  const markNewRowOutputManualEdit = (key: string) => {
+    setNewRows((current) => current.map((row) => (row.key === key ? { ...row, outputManuallyEdited: true } : row)));
+  };
+  const removeNewRow = (key: string) => {
+    setNewRows((current) => current.filter((row) => row.key !== key));
   };
 
-  const handleSave = async () => {
-    const sizeId = findIdByName(lookups.sizes, draft.size);
-    const colorId = findIdByName(lookups.colors, draft.color);
+  const handleSaveNewRow = async (row: LoomNewRow): Promise<boolean> => {
+    const sizeId = findIdByName(lookups.sizes, row.draft.size);
+    const colorId = findIdByName(lookups.colors, row.draft.color);
     if (!sizeId || !colorId) {
       console.error('Unable to resolve size/color to a known master data id');
-      return;
+      return false;
     }
 
-    setSaving(true);
     try {
       const payload: LoomsCreatePayload = {
         productionDate: productionDate ?? new Date().toISOString().slice(0, 10),
         sizeId,
         colorId,
-        yarnInputKg: parseFloat(draft.input) || 0,
-        fabricOutputKg: parseFloat(draft.output) || 0,
-        loomsWasteKg: parseFloat(draft.loomsWasteKg) || 0,
+        yarnInputKg: parseFloat(row.draft.input) || 0,
+        fabricOutputKg: parseFloat(row.draft.output) || 0,
+        loomsWasteKg: parseFloat(row.draft.loomsWasteKg) || 0,
       };
-
       const response = await apiFetch('/production/looms', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload),
       });
-      if (!response.ok) throw new Error('Failed to save entry');
-
-      await queryClient.invalidateQueries({ queryKey: loomsKeys.all });
-      await queryClient.invalidateQueries({ queryKey: dashboardProductionKey });
-      cancelAdd();
-      return true;
+      return response.ok;
     } catch (error) {
       console.error('Error saving loom entry:', error);
       return false;
-    } finally {
-      setSaving(false);
     }
   };
 
   useImperativeHandle(ref, () => ({
     saveDraft: async () => {
       if (readOnly) return true;
-      if (!adding) return true;
-      if (JSON.stringify(draft) === JSON.stringify(emptyLoomDraft)) return true;
-      const success = await handleSave();
-      return success ?? false;
-    }
+      // Blank/untouched rows are silently skipped rather than treated as
+      // failures — they simply stay open for the user to fill in later.
+      const rowsToSave = newRows.filter((row) => JSON.stringify(row.draft) !== JSON.stringify(emptyLoomDraft));
+      if (rowsToSave.length === 0) return true;
+
+      setSaving(true);
+      try {
+        const results = await Promise.all(rowsToSave.map((row) => handleSaveNewRow(row)));
+        const succeededKeys = new Set(rowsToSave.filter((_, i) => results[i]).map((row) => row.key));
+        if (succeededKeys.size > 0) {
+          setNewRows((current) => current.filter((row) => !succeededKeys.has(row.key)));
+          await queryClient.invalidateQueries({ queryKey: loomsKeys.all });
+          await queryClient.invalidateQueries({ queryKey: dashboardProductionKey });
+        }
+        return succeededKeys.size === rowsToSave.length;
+      } finally {
+        setSaving(false);
+      }
+    },
   }));
 
   const theme = themes.looms;
@@ -824,8 +977,8 @@ export const LoomSection = forwardRef<SectionRef, SectionProps>(({ productionDat
               <TableHead className="text-xs font-semibold uppercase tracking-wide text-gray-700">Size</TableHead>
               <TableHead className="text-xs font-semibold uppercase tracking-wide text-gray-700">Color</TableHead>
               <TableHead className="text-center text-xs font-semibold uppercase tracking-wide text-gray-700">Yarn Input (kg)</TableHead>
-              <TableHead className="text-center text-xs font-semibold uppercase tracking-wide text-gray-700">Fabric Output (kg)</TableHead>
               <TableHead className="text-center text-xs font-semibold uppercase tracking-wide text-gray-700">Looms Waste</TableHead>
+              <TableHead className="text-center text-xs font-semibold uppercase tracking-wide text-gray-700">Fabric Output (kg)</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
@@ -844,52 +997,69 @@ export const LoomSection = forwardRef<SectionRef, SectionProps>(({ productionDat
                     <TableCell>{row.size}</TableCell>
                     <TableCell>{row.color}</TableCell>
                     <TableCell className="text-center">{row.input.toFixed(2)}</TableCell>
-                    <TableCell className="text-center">{row.output.toFixed(2)}</TableCell>
                     <TableCell className="text-center">{row.loomsWasteKg.toFixed(2)}</TableCell>
+                    <TableCell className="text-center">{row.output.toFixed(2)}</TableCell>
                   </TableRow>
                 ))}
-                {!readOnly && adding && (
-                  <TableRow>
-                    <TableCell>
-                      <Select value={draft.size || undefined} onValueChange={(value) => setDraft({ ...draft, size: value })}>
-                        <SelectTrigger className="h-10"><SelectValue placeholder="Size" /></SelectTrigger>
-                        <SelectContent>
-                          {lookups.sizes.map((s) => <SelectItem key={s.id} value={s.name}>{s.name}</SelectItem>)}
-                        </SelectContent>
-                      </Select>
-                    </TableCell>
-                    <TableCell>
-                      <Select
-                        value={draft.color || undefined}
-                        onValueChange={(value) => {
-                          setColorManuallyEdited(true);
-                          const colorKg = resolveColorWeight(value);
-                          setDraft({ ...draft, color: value, input: colorKg !== undefined ? String(colorKg) : draft.input });
-                        }}
-                      >
-                        <SelectTrigger className="h-10"><SelectValue placeholder="Color" /></SelectTrigger>
-                        <SelectContent>
-                          {lookups.colors.map((c) => <SelectItem key={c.id} value={c.name}>{c.name}</SelectItem>)}
-                        </SelectContent>
-                      </Select>
-                    </TableCell>
-                    <TableCell>
-                      <Input type="number" className="h-10 w-full text-center" value={draft.input} onChange={(e) => { setColorManuallyEdited(true); setDraft({ ...draft, input: e.target.value }); }} />
-                    </TableCell>
-                    <TableCell>
-                      <Input type="number" className="h-10 w-full text-center" value={draft.output} onChange={(e) => setDraft({ ...draft, output: e.target.value })} />
-                    </TableCell>
-                    <TableCell>
-                      <div className="flex items-center gap-2">
-                        <Input type="number" className="h-10 w-full text-center" value={draft.loomsWasteKg} onChange={(e) => setDraft({ ...draft, loomsWasteKg: e.target.value })} />
-                        <Button variant="ghost" size="icon-sm" className="rounded-full bg-gray-100 text-gray-500 hover:bg-gray-200 shrink-0" aria-label="Cancel" onClick={cancelAdd} disabled={saving}>
-                          <XIcon className="h-3.5 w-3.5" />
-                        </Button>
-                      </div>
-                    </TableCell>
-                  </TableRow>
-                )}
-                {rows.length === 0 && !adding && (
+                {!readOnly &&
+                  newRows.map((row) => (
+                    <TableRow key={row.key}>
+                      <TableCell>
+                        <Select value={row.draft.size || undefined} onValueChange={(value) => updateNewRow(row.key, { ...row.draft, size: value })}>
+                          <SelectTrigger className="h-10"><SelectValue placeholder="Size" /></SelectTrigger>
+                          <SelectContent>
+                            {lookups.sizes.map((s) => <SelectItem key={s.id} value={s.name}>{s.name}</SelectItem>)}
+                          </SelectContent>
+                        </Select>
+                      </TableCell>
+                      <TableCell>
+                        <Select
+                          value={row.draft.color || undefined}
+                          onValueChange={(value) => {
+                            markNewRowColorManualEdit(row.key);
+                            const colorKg = resolveColorWeight(value);
+                            updateNewRow(row.key, { ...row.draft, color: value, input: colorKg !== undefined ? String(colorKg) : row.draft.input });
+                          }}
+                        >
+                          <SelectTrigger className="h-10"><SelectValue placeholder="Color" /></SelectTrigger>
+                          <SelectContent>
+                            {lookups.colors.map((c) => <SelectItem key={c.id} value={c.name}>{c.name}</SelectItem>)}
+                          </SelectContent>
+                        </Select>
+                      </TableCell>
+                      <TableCell>
+                        <Input
+                          type="number"
+                          className="h-10 w-full text-center"
+                          value={row.draft.input}
+                          onChange={(e) => { markNewRowColorManualEdit(row.key); updateNewRow(row.key, { ...row.draft, input: e.target.value }); }}
+                        />
+                      </TableCell>
+                      <TableCell>
+                        <Input
+                          type="number"
+                          className="h-10 w-full text-center"
+                          value={row.draft.loomsWasteKg}
+                          onChange={(e) => updateNewRow(row.key, { ...row.draft, loomsWasteKg: e.target.value })}
+                        />
+                      </TableCell>
+                      <TableCell>
+                        <div className="flex items-center gap-2">
+                          <Input
+                            type="number"
+                            className="h-10 w-full text-center"
+                            value={row.draft.output}
+                            placeholder="suggested"
+                            onChange={(e) => { markNewRowOutputManualEdit(row.key); updateNewRow(row.key, { ...row.draft, output: e.target.value }); }}
+                          />
+                          <Button variant="ghost" size="icon-sm" className="rounded-full bg-gray-100 text-gray-500 hover:bg-gray-200 shrink-0" aria-label="Cancel" onClick={() => removeNewRow(row.key)} disabled={saving}>
+                            <XIcon className="h-3.5 w-3.5" />
+                          </Button>
+                        </div>
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                {rows.length === 0 && newRows.length === 0 && (
                   <TableRow>
                     <TableCell colSpan={5} className="h-20 text-center text-gray-500">No entries yet.</TableCell>
                   </TableRow>
@@ -907,7 +1077,7 @@ export const LoomSection = forwardRef<SectionRef, SectionProps>(({ productionDat
             size="sm"
             className={`h-8 gap-1 rounded-full ${theme.buttonBorder} ${theme.buttonText} ${theme.buttonHover}`}
             onClick={startAdd}
-            disabled={adding}
+            disabled={saving}
           >
             <Plus className="h-3 w-3" /> Add row
           </Button>
@@ -922,22 +1092,30 @@ export interface FabricRow {
   size: string;
   color: string;
   input: number;
+  /** Final Stock/Output; falls back to firstGrade+secondGrade for records created before this field existed. */
+  output: number;
+  /** @deprecated No longer collected via the entry UI; kept for older records and other consumers. */
   pieceCount: number;
+  /** @deprecated No longer collected via the entry UI; kept for older records and other consumers. */
   firstGrade: number;
+  /** @deprecated No longer collected via the entry UI; kept for older records and other consumers. */
   secondGrade: number;
   fwKg: number;
   bwKg: number;
 }
 
 export function mapFabricItem(item: FabricCheckingRecord): FabricRow {
+  const firstGrade = item.fabricCheck?.firstGradeKg ?? 0;
+  const secondGrade = item.fabricCheck?.secondGradeKg ?? 0;
   return {
     id: item.id,
     size: item.size?.name ?? '',
     color: item.color?.name ?? '',
     input: item.fabricCheck?.fabricInputKg ?? 0,
+    output: item.fabricCheck?.outputKg ?? (firstGrade + secondGrade),
     pieceCount: item.fabricCheck?.pieceCount ?? 0,
-    firstGrade: item.fabricCheck?.firstGradeKg ?? 0,
-    secondGrade: item.fabricCheck?.secondGradeKg ?? 0,
+    firstGrade,
+    secondGrade,
     fwKg: sumWastageByCode(item.wastages, 'FW'),
     bwKg: sumWastageByCode(item.wastages, 'BW'),
   };
@@ -947,14 +1125,32 @@ interface FabricDraft {
   size: string;
   color: string;
   input: string;
-  pieceCount: string;
-  firstGrade: string;
-  secondGrade: string;
+  output: string;
   fwKg: string;
   bwKg: string;
 }
 
-const emptyFabricDraft: FabricDraft = { size: '', color: '', input: '', pieceCount: '', firstGrade: '', secondGrade: '', fwKg: '', bwKg: '' };
+const emptyFabricDraft: FabricDraft = { size: '', color: '', input: '', output: '', fwKg: '', bwKg: '' };
+
+/** One pending (unsaved) new-entry row — several of these can be open at once. */
+interface FabricNewRow {
+  key: string;
+  draft: FabricDraft;
+  colorManuallyEdited: boolean;
+  outputManuallyEdited: boolean;
+}
+
+/**
+ * Suggests Output/Final Stock as Fabric Input minus FW+BW wastage, so it
+ * pre-fills as the user enters input/waste but can still be typed over
+ * freely (see outputManuallyEdited). Never negative; blank until there's
+ * something to suggest.
+ */
+function suggestFabricOutput(draft: Pick<FabricDraft, 'input' | 'fwKg' | 'bwKg'>): string {
+  const wasteKg = (parseFloat(draft.fwKg) || 0) + (parseFloat(draft.bwKg) || 0);
+  const suggested = Math.max(0, (parseFloat(draft.input) || 0) - wasteKg);
+  return suggested > 0 ? suggested.toFixed(2) : '';
+}
 
 /**
  * Fabric Checking lives at /fabric-checking (not nested under /production)
@@ -994,112 +1190,130 @@ export const FabricSection = forwardRef<SectionRef, SectionProps>(({ productionD
       .filter((row) => row.input > 0 || row.firstGrade > 0 || row.secondGrade > 0 || row.fwKg > 0 || row.bwKg > 0);
   }, [data, productionDate, hideExisting]);
 
-  const [adding, setAdding] = useState(false);
-  const [draft, setDraft] = useState<FabricDraft>(emptyFabricDraft);
+  const [newRows, setNewRows] = useState<FabricNewRow[]>([]);
   const [saving, setSaving] = useState(false);
   const hasAutoAddedRef = useRef(false);
-  // See ExtruderSection: tracks whether the user has personally edited
-  // Color/Fabric-Input. Starts false (untouched) and only flips to true
-  // from an actual Select interaction — never from "nothing to suggest
-  // right now" — so it correctly re-arms when the date changes to one that
-  // does have matching stock.
-  const [colorManuallyEdited, setColorManuallyEdited] = useState(false);
+  const nextRowKeyRef = useRef(0);
 
-
-
-  const startAdd = useCallback(() => {
-    setDraft({
+  const buildPrefilledDraft = useCallback(
+    (): FabricDraft => ({
       ...emptyFabricDraft,
       color: firstColorRecord?.name ?? '',
       input: firstColorRecord ? String(firstColorRecord.weightKg) : '',
-    });
-    setColorManuallyEdited(false);
-    setAdding(true);
-  }, [firstColorRecord]);
+    }),
+    [firstColorRecord],
+  );
+
+  // Appends a fresh blank draft row — never blocked by other rows already
+  // being open, so multiple new entries can be filled in before Save.
+  const startAdd = useCallback(() => {
+    const draft = buildPrefilledDraft();
+    setNewRows((current) => [
+      ...current,
+      { key: `new-${nextRowKeyRef.current++}`, draft: { ...draft, output: suggestFabricOutput(draft) }, colorManuallyEdited: false, outputManuallyEdited: false },
+    ]);
+  }, [buildPrefilledDraft]);
 
   useEffect(() => {
     if (readOnly || !autoAdd || isLoading || hasAutoAddedRef.current) return;
-    if (rows.length === 0 && !adding) {
+    if (rows.length === 0 && newRows.length === 0) {
       hasAutoAddedRef.current = true;
       // One-shot: open a blank draft row the first time this date resolves
       // with no existing records. The ref above guarantees this only ever
       // fires once per mount, so it can't cascade into further renders.
-      // eslint-disable-next-line react-hooks/set-state-in-effect
       startAdd();
     }
-  }, [readOnly, autoAdd, isLoading, rows.length, adding, startAdd]);
+  }, [readOnly, autoAdd, isLoading, rows.length, newRows.length, startAdd]);
 
-  // Keep an untouched draft synced to Inventory as it changes — whether
-  // that's the user picking a different date, or editing/deleting the
-  // matching Inventory record while this form is open — including clearing
-  // Color/Fabric-Input back out if the match disappears. Stops the moment
-  // the user manually picks a Color themselves (see the Select's
-  // onValueChange).
+  // Keep every untouched new-row draft synced to Inventory as it changes —
+  // whether that's the user picking a different date, or editing/deleting
+  // the matching Inventory record while this form is open — including
+  // clearing Color/Fabric-Input back out if the match disappears. Stops the
+  // moment the user manually picks a Color on that row themselves.
   useEffect(() => {
-    if (!adding || colorManuallyEdited) return;
     // eslint-disable-next-line react-hooks/set-state-in-effect
-    setDraft((current) => ({
-      ...current,
-      color: firstColorRecord?.name ?? '',
-      input: firstColorRecord ? String(firstColorRecord.weightKg) : '',
-    }));
-  }, [adding, colorManuallyEdited, firstColorRecord]);
+    setNewRows((current) =>
+      current.map((row) => {
+        if (row.colorManuallyEdited) return row;
+        const nextDraft = { ...row.draft, color: firstColorRecord?.name ?? '', input: firstColorRecord ? String(firstColorRecord.weightKg) : '' };
+        return { ...row, draft: row.outputManuallyEdited ? nextDraft : { ...nextDraft, output: suggestFabricOutput(nextDraft) } };
+      }),
+    );
+  }, [firstColorRecord]);
 
-  const cancelAdd = () => {
-    setAdding(false);
-    setDraft(emptyFabricDraft);
-    setColorManuallyEdited(false);
+  // Single choke point for every field edit on a new row — recomputes the
+  // suggested Output from the row's own values unless the user has typed
+  // into Output directly.
+  const updateNewRow = (key: string, draft: FabricDraft) => {
+    setNewRows((current) =>
+      current.map((row) => {
+        if (row.key !== key) return row;
+        return { ...row, draft: row.outputManuallyEdited ? draft : { ...draft, output: suggestFabricOutput(draft) } };
+      }),
+    );
+  };
+  const markNewRowColorManualEdit = (key: string) => {
+    setNewRows((current) => current.map((row) => (row.key === key ? { ...row, colorManuallyEdited: true } : row)));
+  };
+  const markNewRowOutputManualEdit = (key: string) => {
+    setNewRows((current) => current.map((row) => (row.key === key ? { ...row, outputManuallyEdited: true } : row)));
+  };
+  const removeNewRow = (key: string) => {
+    setNewRows((current) => current.filter((row) => row.key !== key));
   };
 
-  const handleSave = async () => {
-    const sizeId = findIdByName(lookups.sizes, draft.size);
-    const colorId = findIdByName(lookups.colors, draft.color);
+  const handleSaveNewRow = async (row: FabricNewRow): Promise<boolean> => {
+    const sizeId = findIdByName(lookups.sizes, row.draft.size);
+    const colorId = findIdByName(lookups.colors, row.draft.color);
     if (!sizeId || !colorId) {
       console.error('Unable to resolve size/color to a known master data id');
-      return;
+      return false;
     }
 
-    setSaving(true);
     try {
       const payload: FabricCheckingCreatePayload = {
         productionDate: productionDate ?? new Date().toISOString().slice(0, 10),
         sizeId,
         colorId,
-        fabricInputKg: parseFloat(draft.input) || 0,
-        pieceCount: parseInt(draft.pieceCount, 10) || 0,
-        firstGradeKg: parseFloat(draft.firstGrade) || 0,
-        secondGradeKg: parseFloat(draft.secondGrade) || 0,
-        fwKg: parseFloat(draft.fwKg) || 0,
-        bwKg: parseFloat(draft.bwKg) || 0,
+        fabricInputKg: parseFloat(row.draft.input) || 0,
+        outputKg: parseFloat(row.draft.output) || 0,
+        fwKg: parseFloat(row.draft.fwKg) || 0,
+        bwKg: parseFloat(row.draft.bwKg) || 0,
       };
-
       const response = await apiFetch('/fabric-checking', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload),
       });
-      if (!response.ok) throw new Error('Failed to save entry');
-
-      await queryClient.invalidateQueries({ queryKey: fabricCheckingKeys.all });
-      await queryClient.invalidateQueries({ queryKey: dashboardProductionKey });
-      cancelAdd();
-      return true;
+      return response.ok;
     } catch (error) {
       console.error('Error saving fabric checking entry:', error);
       return false;
-    } finally {
-      setSaving(false);
     }
   };
 
   useImperativeHandle(ref, () => ({
     saveDraft: async () => {
       if (readOnly) return true;
-      if (!adding) return true;
-      if (JSON.stringify(draft) === JSON.stringify(emptyFabricDraft)) return true;
-      const success = await handleSave();
-      return success ?? false;
-    }
+      // Blank/untouched rows are silently skipped rather than treated as
+      // failures — they simply stay open for the user to fill in later.
+      const rowsToSave = newRows.filter((row) => JSON.stringify(row.draft) !== JSON.stringify(emptyFabricDraft));
+      if (rowsToSave.length === 0) return true;
+
+      setSaving(true);
+      try {
+        const results = await Promise.all(rowsToSave.map((row) => handleSaveNewRow(row)));
+        const succeededKeys = new Set(rowsToSave.filter((_, i) => results[i]).map((row) => row.key));
+        if (succeededKeys.size > 0) {
+          setNewRows((current) => current.filter((row) => !succeededKeys.has(row.key)));
+          await queryClient.invalidateQueries({ queryKey: fabricCheckingKeys.all });
+          await queryClient.invalidateQueries({ queryKey: dashboardProductionKey });
+        }
+        return succeededKeys.size === rowsToSave.length;
+      } finally {
+        setSaving(false);
+      }
+    },
   }));
 
   const theme = themes.fabric;
@@ -1122,17 +1336,15 @@ export const FabricSection = forwardRef<SectionRef, SectionProps>(({ productionD
               <TableHead className="text-xs font-semibold uppercase tracking-wide text-gray-700">Size</TableHead>
               <TableHead className="text-xs font-semibold uppercase tracking-wide text-gray-700">Color</TableHead>
               <TableHead className="text-center text-xs font-semibold uppercase tracking-wide text-gray-700">Fabric Input (kg)</TableHead>
-              <TableHead className="text-center text-xs font-semibold uppercase tracking-wide text-gray-700">Pieces</TableHead>
-              <TableHead className="text-center text-xs font-semibold uppercase tracking-wide text-gray-700">1st Grade (kg)</TableHead>
-              <TableHead className="text-center text-xs font-semibold uppercase tracking-wide text-gray-700">2nd Grade (kg)</TableHead>
               <TableHead className="text-center text-xs font-semibold uppercase tracking-wide text-gray-700">FW</TableHead>
               <TableHead className="text-center text-xs font-semibold uppercase tracking-wide text-gray-700">BW</TableHead>
+              <TableHead className="text-center text-xs font-semibold uppercase tracking-wide text-gray-700">Output (kg)</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
             {isLoading ? (
               <TableRow>
-                <TableCell colSpan={8} className="h-20 text-center">
+                <TableCell colSpan={6} className="h-20 text-center">
                   <div className="flex items-center justify-center gap-2 text-gray-500">
                     <Loader size="sm" /> Loading entries...
                   </div>
@@ -1145,56 +1357,66 @@ export const FabricSection = forwardRef<SectionRef, SectionProps>(({ productionD
                     <TableCell>{row.size}</TableCell>
                     <TableCell>{row.color}</TableCell>
                     <TableCell className="text-center">{row.input.toFixed(2)}</TableCell>
-                    <TableCell className="text-center">{row.pieceCount}</TableCell>
-                    <TableCell className="text-center">{row.firstGrade.toFixed(2)}</TableCell>
-                    <TableCell className="text-center">{row.secondGrade.toFixed(2)}</TableCell>
                     <TableCell className="text-center">{row.fwKg.toFixed(2)}</TableCell>
                     <TableCell className="text-center">{row.bwKg.toFixed(2)}</TableCell>
+                    <TableCell className="text-center">{row.output.toFixed(2)}</TableCell>
                   </TableRow>
                 ))}
-                {!readOnly && adding && (
+                {!readOnly &&
+                  newRows.map((row) => (
+                    <TableRow key={row.key}>
+                      <TableCell>
+                        <Select value={row.draft.size || undefined} onValueChange={(value) => updateNewRow(row.key, { ...row.draft, size: value })}>
+                          <SelectTrigger className="h-10"><SelectValue placeholder="Size" /></SelectTrigger>
+                          <SelectContent>
+                            {lookups.sizes.map((s) => <SelectItem key={s.id} value={s.name}>{s.name}</SelectItem>)}
+                          </SelectContent>
+                        </Select>
+                      </TableCell>
+                      <TableCell>
+                        <Select
+                          value={row.draft.color || undefined}
+                          onValueChange={(value) => {
+                            markNewRowColorManualEdit(row.key);
+                            const colorKg = resolveColorWeight(value);
+                            updateNewRow(row.key, { ...row.draft, color: value, input: colorKg !== undefined ? String(colorKg) : row.draft.input });
+                          }}
+                        >
+                          <SelectTrigger className="h-10"><SelectValue placeholder="Color" /></SelectTrigger>
+                          <SelectContent>
+                            {lookups.colors.map((c) => <SelectItem key={c.id} value={c.name}>{c.name}</SelectItem>)}
+                          </SelectContent>
+                        </Select>
+                      </TableCell>
+                      <TableCell>
+                        <Input
+                          type="number"
+                          className="h-10 w-full text-center"
+                          value={row.draft.input}
+                          onChange={(e) => { markNewRowColorManualEdit(row.key); updateNewRow(row.key, { ...row.draft, input: e.target.value }); }}
+                        />
+                      </TableCell>
+                      <TableCell><Input type="number" className="h-10 w-full text-center" value={row.draft.fwKg} onChange={(e) => updateNewRow(row.key, { ...row.draft, fwKg: e.target.value })} /></TableCell>
+                      <TableCell><Input type="number" className="h-10 w-full text-center" value={row.draft.bwKg} onChange={(e) => updateNewRow(row.key, { ...row.draft, bwKg: e.target.value })} /></TableCell>
+                      <TableCell>
+                        <div className="flex items-center gap-2">
+                          <Input
+                            type="number"
+                            className="h-10 w-full text-center"
+                            value={row.draft.output}
+                            placeholder="suggested"
+                            onChange={(e) => { markNewRowOutputManualEdit(row.key); updateNewRow(row.key, { ...row.draft, output: e.target.value }); }}
+                          />
+                          <Button variant="ghost" size="icon-sm" className="rounded-full bg-gray-100 text-gray-500 hover:bg-gray-200 shrink-0" aria-label="Cancel" onClick={() => removeNewRow(row.key)} disabled={saving}>
+                            <XIcon className="h-3.5 w-3.5" />
+                          </Button>
+                        </div>
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                {rows.length === 0 && newRows.length === 0 && (
                   <TableRow>
-                    <TableCell>
-                      <Select value={draft.size || undefined} onValueChange={(value) => setDraft({ ...draft, size: value })}>
-                        <SelectTrigger className="h-10"><SelectValue placeholder="Size" /></SelectTrigger>
-                        <SelectContent>
-                          {lookups.sizes.map((s) => <SelectItem key={s.id} value={s.name}>{s.name}</SelectItem>)}
-                        </SelectContent>
-                      </Select>
-                    </TableCell>
-                    <TableCell>
-                      <Select
-                        value={draft.color || undefined}
-                        onValueChange={(value) => {
-                          setColorManuallyEdited(true);
-                          const colorKg = resolveColorWeight(value);
-                          setDraft({ ...draft, color: value, input: colorKg !== undefined ? String(colorKg) : draft.input });
-                        }}
-                      >
-                        <SelectTrigger className="h-10"><SelectValue placeholder="Color" /></SelectTrigger>
-                        <SelectContent>
-                          {lookups.colors.map((c) => <SelectItem key={c.id} value={c.name}>{c.name}</SelectItem>)}
-                        </SelectContent>
-                      </Select>
-                    </TableCell>
-                    <TableCell><Input type="number" className="h-10 w-full text-center" value={draft.input} onChange={(e) => { setColorManuallyEdited(true); setDraft({ ...draft, input: e.target.value }); }} /></TableCell>
-                    <TableCell><Input type="number" className="h-10 w-full text-center" value={draft.pieceCount} onChange={(e) => setDraft({ ...draft, pieceCount: e.target.value })} /></TableCell>
-                    <TableCell><Input type="number" className="h-10 w-full text-center" value={draft.firstGrade} onChange={(e) => setDraft({ ...draft, firstGrade: e.target.value })} /></TableCell>
-                    <TableCell><Input type="number" className="h-10 w-full text-center" value={draft.secondGrade} onChange={(e) => setDraft({ ...draft, secondGrade: e.target.value })} /></TableCell>
-                    <TableCell><Input type="number" className="h-10 w-full text-center" value={draft.fwKg} onChange={(e) => setDraft({ ...draft, fwKg: e.target.value })} /></TableCell>
-                    <TableCell>
-                      <div className="flex items-center gap-2">
-                        <Input type="number" className="h-10 w-full text-center" value={draft.bwKg} onChange={(e) => setDraft({ ...draft, bwKg: e.target.value })} />
-                        <Button variant="ghost" size="icon-sm" className="rounded-full bg-gray-100 text-gray-500 hover:bg-gray-200 shrink-0" aria-label="Cancel" onClick={cancelAdd} disabled={saving}>
-                          <XIcon className="h-3.5 w-3.5" />
-                        </Button>
-                      </div>
-                    </TableCell>
-                  </TableRow>
-                )}
-                {rows.length === 0 && !adding && (
-                  <TableRow>
-                    <TableCell colSpan={8} className="h-20 text-center text-gray-500">No entries yet.</TableCell>
+                    <TableCell colSpan={6} className="h-20 text-center text-gray-500">No entries yet.</TableCell>
                   </TableRow>
                 )}
               </>
@@ -1210,7 +1432,7 @@ export const FabricSection = forwardRef<SectionRef, SectionProps>(({ productionD
             size="sm"
             className={`h-8 gap-1 rounded-full ${theme.buttonBorder} ${theme.buttonText} ${theme.buttonHover}`}
             onClick={startAdd}
-            disabled={adding}
+            disabled={saving}
           >
             <Plus className="h-3 w-3" /> Add row
           </Button>

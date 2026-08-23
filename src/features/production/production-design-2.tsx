@@ -239,7 +239,7 @@ function DayDetailView({
       (fabricData?.data ?? [])
         .filter((item) => item.productionDate.startsWith(date))
         .map(mapFabricItem)
-        .filter((r) => r.input > 0 || r.firstGrade > 0 || r.secondGrade > 0 || r.fwKg > 0 || r.bwKg > 0),
+        .filter((r) => r.input > 0 || r.output > 0 || r.fwKg > 0 || r.bwKg > 0),
     [fabricData, date],
   );
 
@@ -416,7 +416,7 @@ function DayDetailView({
                   <TableCell className="text-[12px] text-gray-800">{r.color}</TableCell>
                   <TableCell className="text-center text-[12px] font-semibold text-gray-900">{formatNum(r.input)}</TableCell>
                   <TableCell className="text-center text-[12px] font-semibold text-red-500">{formatNum(r.fwKg + r.bwKg)}</TableCell>
-                  <TableCell className="text-center text-[12px] font-semibold text-gray-900">{formatNum(r.firstGrade + r.secondGrade)}</TableCell>
+                  <TableCell className="text-center text-[12px] font-semibold text-gray-900">{formatNum(r.output)}</TableCell>
                   <TableCell className="text-center"><CheckCircle2 className="w-4 h-4 text-purple-500 inline-block" /></TableCell>
                 </TableRow>
               ))
@@ -772,19 +772,19 @@ export function ProductionDesign2() {
                   <TableRow className="hover:bg-transparent bg-white border-b border-gray-300">
                     {/* Extruder */}
                     <TableHead className="text-center text-gray-800 font-extrabold text-[12px] uppercase tracking-wider h-8">Input</TableHead>
-                    <TableHead className="text-center text-gray-800 font-extrabold text-[12px] uppercase tracking-wider h-8">Output</TableHead>
                     <TableHead className="text-center text-gray-800 font-extrabold text-[12px] uppercase tracking-wider h-8">Wastage</TableHead>
-                    <TableHead className="text-center text-gray-800 font-extrabold text-[12px] uppercase tracking-wider border-r border-gray-300 h-8">Waste %</TableHead>
+                    <TableHead className="text-center text-gray-800 font-extrabold text-[12px] uppercase tracking-wider h-8">Waste %</TableHead>
+                    <TableHead className="text-center text-gray-800 font-extrabold text-[12px] uppercase tracking-wider border-r border-gray-300 h-8">Output</TableHead>
                     {/* Looms */}
                     <TableHead className="text-center text-gray-800 font-extrabold text-[12px] uppercase tracking-wider h-8">Input</TableHead>
-                    <TableHead className="text-center text-gray-800 font-extrabold text-[12px] uppercase tracking-wider h-8">Output</TableHead>
                     <TableHead className="text-center text-gray-800 font-extrabold text-[12px] uppercase tracking-wider h-8">Wastage</TableHead>
-                    <TableHead className="text-center text-gray-800 font-extrabold text-[12px] uppercase tracking-wider border-r border-gray-300 h-8">Waste %</TableHead>
+                    <TableHead className="text-center text-gray-800 font-extrabold text-[12px] uppercase tracking-wider h-8">Waste %</TableHead>
+                    <TableHead className="text-center text-gray-800 font-extrabold text-[12px] uppercase tracking-wider border-r border-gray-300 h-8">Output</TableHead>
                     {/* Fabric */}
                     <TableHead className="text-center text-gray-800 font-extrabold text-[12px] uppercase tracking-wider h-8">Input</TableHead>
-                    <TableHead className="text-center text-gray-800 font-extrabold text-[12px] uppercase tracking-wider h-8">Output</TableHead>
                     <TableHead className="text-center text-gray-800 font-extrabold text-[12px] uppercase tracking-wider h-8">Wastage</TableHead>
-                    <TableHead className="text-center text-gray-800 font-extrabold text-[12px] uppercase tracking-wider border-r border-gray-300 h-8">Waste %</TableHead>
+                    <TableHead className="text-center text-gray-800 font-extrabold text-[12px] uppercase tracking-wider h-8">Waste %</TableHead>
+                    <TableHead className="text-center text-gray-800 font-extrabold text-[12px] uppercase tracking-wider border-r border-gray-300 h-8">Output</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody className="bg-white">
@@ -818,21 +818,21 @@ export function ProductionDesign2() {
 
                         {/* Extruder */}
                         <TableCell className="text-center text-gray-800 font-medium text-[14px] py-1">{formatNum(row.extruder.input)}</TableCell>
-                        <TableCell className="text-center text-gray-800 font-medium text-[14px] py-1">{formatNum(row.extruder.output)}</TableCell>
                         <TableCell className="text-center text-gray-800 font-medium text-[14px] py-1">{formatNum(row.extruder.wastage)}</TableCell>
-                        <TableCell className="text-center text-gray-800 font-medium text-[14px] py-1 border-r border-gray-300">{row.extruder.wastePct.toFixed(2)}%</TableCell>
+                        <TableCell className="text-center text-gray-800 font-medium text-[14px] py-1">{row.extruder.wastePct.toFixed(2)}%</TableCell>
+                        <TableCell className="text-center text-gray-800 font-medium text-[14px] py-1 border-r border-gray-300">{formatNum(row.extruder.output)}</TableCell>
 
                         {/* Looms */}
                         <TableCell className="text-center text-gray-800 font-medium text-[14px] py-1">{formatNum(row.looms.input)}</TableCell>
-                        <TableCell className="text-center text-gray-800 font-medium text-[14px] py-1">{formatNum(row.looms.output)}</TableCell>
                         <TableCell className="text-center text-gray-800 font-medium text-[14px] py-1">{formatNum(row.looms.wastage)}</TableCell>
-                        <TableCell className="text-center text-gray-800 font-medium text-[14px] py-1 border-r border-gray-300">{row.looms.wastePct.toFixed(2)}%</TableCell>
+                        <TableCell className="text-center text-gray-800 font-medium text-[14px] py-1">{row.looms.wastePct.toFixed(2)}%</TableCell>
+                        <TableCell className="text-center text-gray-800 font-medium text-[14px] py-1 border-r border-gray-300">{formatNum(row.looms.output)}</TableCell>
 
                         {/* Fabric */}
                         <TableCell className="text-center text-gray-800 font-medium text-[14px] py-1">{formatNum(row.fabric.input)}</TableCell>
-                        <TableCell className="text-center text-gray-800 font-medium text-[14px] py-1">{formatNum(row.fabric.output)}</TableCell>
                         <TableCell className="text-center text-gray-800 font-medium text-[14px] py-1">{formatNum(row.fabric.wastage)}</TableCell>
-                        <TableCell className="text-center text-gray-800 font-medium text-[14px] py-1 border-r border-gray-300">{row.fabric.wastePct.toFixed(2)}%</TableCell>
+                        <TableCell className="text-center text-gray-800 font-medium text-[14px] py-1">{row.fabric.wastePct.toFixed(2)}%</TableCell>
+                        <TableCell className="text-center text-gray-800 font-medium text-[14px] py-1 border-r border-gray-300">{formatNum(row.fabric.output)}</TableCell>
 
                         {/* Actions */}
                         <TableCell className="py-1">
@@ -859,19 +859,19 @@ export function ProductionDesign2() {
                       <TableCell className="text-center border-r border-gray-400 text-gray-900 text-[14px] py-1">TOTAL</TableCell>
                       {/* Extruder Total */}
                       <TableCell className="text-center text-[#00897B] text-[14px]">{formatNum(dayWiseTotals.extruder.input)}</TableCell>
-                      <TableCell className="text-center text-[#00897B] text-[14px]">{formatNum(dayWiseTotals.extruder.output)}</TableCell>
                       <TableCell className="text-center text-[#00897B] text-[14px]">{formatNum(dayWiseTotals.extruder.wastage)}</TableCell>
-                      <TableCell className="text-center text-[#00897B] text-[14px] border-r border-gray-400">{dayWiseTotals.extruder.wastePct.toFixed(2)}%</TableCell>
+                      <TableCell className="text-center text-[#00897B] text-[14px]">{dayWiseTotals.extruder.wastePct.toFixed(2)}%</TableCell>
+                      <TableCell className="text-center text-[#00897B] text-[14px] border-r border-gray-400">{formatNum(dayWiseTotals.extruder.output)}</TableCell>
                       {/* Looms Total */}
                       <TableCell className="text-center text-[#00897B] text-[14px]">{formatNum(dayWiseTotals.looms.input)}</TableCell>
-                      <TableCell className="text-center text-[#00897B] text-[14px]">{formatNum(dayWiseTotals.looms.output)}</TableCell>
                       <TableCell className="text-center text-[#00897B] text-[14px]">{formatNum(dayWiseTotals.looms.wastage)}</TableCell>
-                      <TableCell className="text-center text-[#00897B] text-[14px] border-r border-gray-400">{dayWiseTotals.looms.wastePct.toFixed(2)}%</TableCell>
+                      <TableCell className="text-center text-[#00897B] text-[14px]">{dayWiseTotals.looms.wastePct.toFixed(2)}%</TableCell>
+                      <TableCell className="text-center text-[#00897B] text-[14px] border-r border-gray-400">{formatNum(dayWiseTotals.looms.output)}</TableCell>
                       {/* Fabric Total */}
                       <TableCell className="text-center text-[#00897B] text-[14px]">{formatNum(dayWiseTotals.fabric.input)}</TableCell>
-                      <TableCell className="text-center text-[#00897B] text-[14px]">{formatNum(dayWiseTotals.fabric.output)}</TableCell>
                       <TableCell className="text-center text-[#00897B] text-[14px]">{formatNum(dayWiseTotals.fabric.wastage)}</TableCell>
-                      <TableCell className="text-center text-[#00897B] text-[14px] border-r border-gray-400">{dayWiseTotals.fabric.wastePct.toFixed(2)}%</TableCell>
+                      <TableCell className="text-center text-[#00897B] text-[14px]">{dayWiseTotals.fabric.wastePct.toFixed(2)}%</TableCell>
+                      <TableCell className="text-center text-[#00897B] text-[14px] border-r border-gray-400">{formatNum(dayWiseTotals.fabric.output)}</TableCell>
                       <TableCell></TableCell>
                     </TableRow>
                   )}

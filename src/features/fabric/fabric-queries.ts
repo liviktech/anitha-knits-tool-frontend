@@ -7,8 +7,12 @@ export type FabricCheckingStatus = 'DRAFT' | 'SUBMITTED' | 'PENDING_APPROVAL' | 
 
 export interface FabricCheckDetail {
   fabricInputKg: number;
+  outputKg: number | null;
+  /** @deprecated No longer collected via the entry UI; kept for records created before the change. */
   pieceCount: number;
+  /** @deprecated No longer collected via the entry UI; kept for records created before the change. */
   firstGradeKg: number;
+  /** @deprecated No longer collected via the entry UI; kept for records created before the change. */
   secondGradeKg: number;
 }
 
@@ -48,9 +52,7 @@ export interface FabricCheckingCreatePayload {
   colorId: string;
   sizeId: string;
   fabricInputKg: number;
-  pieceCount: number;
-  firstGradeKg: number;
-  secondGradeKg: number;
+  outputKg: number;
   fwKg: number;
   bwKg: number;
   remarks?: string;
@@ -77,9 +79,11 @@ export interface FabricCheckingSummary {
 
 /**
  * Aggregates fabric-checking totals across a list query. "Checked" is
- * firstGradeKg + secondGradeKg (the two graded outputs); wastage is derived
- * as fabricInputKg minus that sum — a display-only convenience, not a value
- * the backend tracks or expects back.
+ * outputKg (the entry screen's single Final Stock/Output figure); records
+ * created before that field existed fall back to firstGradeKg + secondGradeKg
+ * so old data still summarizes sensibly. Wastage is derived as fabricInputKg
+ * minus that sum — a display-only convenience, not a value the backend
+ * tracks or expects back.
  */
 export function useFabricCheckingSummary(query: string = '?limit=100') {
   const { data, isLoading } = useFabricCheckingRecords(query);
@@ -89,7 +93,9 @@ export function useFabricCheckingSummary(query: string = '?limit=100') {
     return items.reduce(
       (acc, item) => {
         const input = item.fabricCheck?.fabricInputKg ?? 0;
-        const checked = (item.fabricCheck?.firstGradeKg ?? 0) + (item.fabricCheck?.secondGradeKg ?? 0);
+        const checked =
+          item.fabricCheck?.outputKg ??
+          (item.fabricCheck?.firstGradeKg ?? 0) + (item.fabricCheck?.secondGradeKg ?? 0);
         acc.input += input;
         acc.checked += checked;
         acc.wastage += Math.max(input - checked, 0);

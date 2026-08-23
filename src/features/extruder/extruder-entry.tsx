@@ -257,9 +257,16 @@ export function ExtruderEntry({ onClose }: ExtruderEntryProps) {
                 </Select>
               </div>
 
-              <div className="space-y-1 flex-1 min-w-[130px]">
-                <label className="text-xs font-semibold text-gray-500">Color Consumed (kg)</label>
-                <Input type="text" value={colorConsumedKg} onChange={(e) => setColorConsumedKg(e.target.value)} className="w-full" placeholder="auto" />
+              <div className="space-y-1 flex-1 min-w-[120px]">
+                <label className="text-xs font-semibold text-gray-500">Brand *</label>
+                <Select value={brand || undefined} onValueChange={setBrand}>
+                  <SelectTrigger className="w-full">
+                    <SelectValue placeholder="Brand" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {lookups.brands.map((b) => <SelectItem key={b.id} value={b.name}>{b.name}</SelectItem>)}
+                  </SelectContent>
+                </Select>
               </div>
 
               <div className="space-y-1 flex-1 min-w-[120px]">
@@ -273,38 +280,27 @@ export function ExtruderEntry({ onClose }: ExtruderEntryProps) {
                   </SelectContent>
                 </Select>
               </div>
-
-              <div className="space-y-1 flex-1 min-w-[100px]">
-                <label className="text-xs font-semibold text-gray-500">Chem. Wt (kg) *</label>
-                <Input type="text" value={chemWt} onChange={(e) => setChemWt(e.target.value)} className="w-full" />
-              </div>
             </div>
 
             {/* Row 2 */}
             <div className="flex flex-wrap gap-4 items-end mt-2">
-              <div className="space-y-1 flex-1 min-w-[120px]">
-                <label className="text-xs font-semibold text-gray-500">Brand *</label>
-                <Select value={brand || undefined} onValueChange={setBrand}>
-                  <SelectTrigger className="w-full">
-                    <SelectValue placeholder="Brand" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {lookups.brands.map((b) => <SelectItem key={b.id} value={b.name}>{b.name}</SelectItem>)}
-                  </SelectContent>
-                </Select>
-              </div>
-
               <div className="space-y-1 flex-1 min-w-[100px]">
                 <label className="text-xs font-semibold text-gray-500">Raw Material (kg) *</label>
                 <Input type="text" value={raw} onChange={(e) => setRaw(e.target.value)} className="w-full" />
               </div>
 
-              <div className="space-y-1 flex-1 min-w-[120px]">
-                <label className="text-xs font-semibold text-gray-500">Yarn Output (kg) *</label>
-                <Input type="text" value={output} onChange={(e) => setOutput(e.target.value)} className="w-full" />
+              <div className="space-y-1 flex-1 min-w-[100px]">
+                <label className="text-xs font-semibold text-gray-500">Chem. Wt (kg) *</label>
+                <Input type="text" value={chemWt} onChange={(e) => setChemWt(e.target.value)} className="w-full" />
+              </div>
+
+              <div className="space-y-1 flex-1 min-w-[130px]">
+                <label className="text-xs font-semibold text-gray-500">Color Consumed (kg)</label>
+                <Input type="text" value={colorConsumedKg} onChange={(e) => setColorConsumedKg(e.target.value)} className="w-full" placeholder="auto" />
               </div>
             </div>
 
+            {/* Row 3 */}
             <div className="flex flex-wrap gap-4 items-end mt-2">
               <div className="space-y-1 flex-1 min-w-[120px]">
                 <label className="text-xs font-semibold text-gray-500">Lumps (kg)</label>
@@ -314,6 +310,11 @@ export function ExtruderEntry({ onClose }: ExtruderEntryProps) {
               <div className="space-y-1 flex-1 min-w-[120px]">
                 <label className="text-xs font-semibold text-gray-500">Yarn Waste (kg)</label>
                 <Input type="text" value={yarnWasteKg} onChange={(e) => setYarnWasteKg(e.target.value)} className="w-full" />
+              </div>
+
+              <div className="space-y-1 flex-1 min-w-[120px]">
+                <label className="text-xs font-semibold text-gray-500">Yarn Output (kg) *</label>
+                <Input type="text" value={output} onChange={(e) => setOutput(e.target.value)} className="w-full" />
               </div>
             </div>
           </div>
@@ -352,6 +353,8 @@ export function ExtruderEntry({ onClose }: ExtruderEntryProps) {
                   <TableHead className="text-center font-semibold bg-gray-50">Raw Mat. (kg)</TableHead>
                   <TableHead className="text-center font-semibold bg-gray-50">Chem. Wt (kg)</TableHead>
                   <TableHead className="text-center font-semibold bg-gray-50">Color Consumed (kg)</TableHead>
+                  <TableHead className="text-center font-semibold bg-gray-50">Lumps (kg)</TableHead>
+                  <TableHead className="text-center font-semibold bg-gray-50">Yarn Waste (kg)</TableHead>
                   <TableHead className="text-center font-semibold bg-gray-50">Yarn Output (kg)</TableHead>
                   <TableHead className="text-center font-semibold bg-gray-50">Actions</TableHead>
                 </TableRow>
@@ -359,7 +362,7 @@ export function ExtruderEntry({ onClose }: ExtruderEntryProps) {
               <TableBody>
                 {loading ? (
                   <TableRow>
-                    <TableCell colSpan={9} className="h-24 text-center">
+                    <TableCell colSpan={11} className="h-24 text-center">
                       <div className="flex justify-center items-center gap-2 text-gray-500">
                         <Loader size="lg" />
                         Loading entries...
@@ -368,7 +371,7 @@ export function ExtruderEntry({ onClose }: ExtruderEntryProps) {
                   </TableRow>
                 ) : entries.length === 0 ? (
                   <TableRow>
-                    <TableCell colSpan={9} className="h-24 text-center text-gray-500">
+                    <TableCell colSpan={11} className="h-24 text-center text-gray-500">
                       No entries found.
                     </TableCell>
                   </TableRow>
@@ -381,6 +384,8 @@ export function ExtruderEntry({ onClose }: ExtruderEntryProps) {
                     <TableCell className="text-center font-bold text-green-600 border-r">{row.raw.toFixed(2)}</TableCell>
                     <TableCell className="text-center font-medium border-r">{row.chemicalKg.toFixed(2)}</TableCell>
                     <TableCell className="text-center font-medium border-r">{row.colorConsumedKg.toFixed(2)}</TableCell>
+                    <TableCell className="text-center font-medium border-r">{row.lumpsKg.toFixed(2)}</TableCell>
+                    <TableCell className="text-center font-medium border-r">{row.yarnWasteKg.toFixed(2)}</TableCell>
                     <TableCell className="text-center font-bold text-green-700 border-r">{row.output.toFixed(2)}</TableCell>
                     <TableCell className="text-center">
                       <div className="flex items-center justify-center gap-2">
