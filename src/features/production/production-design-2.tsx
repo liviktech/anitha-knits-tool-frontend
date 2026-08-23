@@ -1,15 +1,18 @@
 import { useMemo, useState, useEffect } from 'react';
+import { useQueryClient } from '@tanstack/react-query';
 import '@fontsource-variable/hanken-grotesk';
 import '@fontsource-variable/inter';
 import { parseISO, format } from 'date-fns';
 import { Calendar, Plus, Edit, Trash2, Filter, Download, Layers, Search, ChevronRight, CheckCircle2, Gauge } from 'lucide-react';
 import { Loader } from '@/components/shared/loader';
+import { DeleteConfirmDialog } from '@/components/shared/delete-confirm-dialog';
+import { apiFetch, fetchJson } from '@/lib/api-client';
 import extruderIcon from '@/assets/extruder-icon.png';
 import loomsIcon from '@/assets/looms-icon.png';
-import { useExtruderProductions } from '@/features/extruder/extruder-queries';
-import { useLoomsProductions } from '@/features/looms/loom-queries';
-import { useFabricCheckingRecords } from '@/features/fabric/fabric-queries';
-import { useDayWiseProduction, type DayWiseRow } from './day-wise-queries';
+import { useExtruderProductions, extruderKeys } from '@/features/extruder/extruder-queries';
+import { useLoomsProductions, loomsKeys } from '@/features/looms/loom-queries';
+import { useFabricCheckingRecords, fabricCheckingKeys } from '@/features/fabric/fabric-queries';
+import { useDayWiseProduction, dashboardProductionKey, type DayWiseRow } from './day-wise-queries';
 import { mapExtruderItem, mapLoomItem, mapFabricItem } from './day-entry-sections';
 import { DayWiseReportModal } from './day-wise-report-modal';
 import { useProductionHeader } from './production-details';
@@ -218,6 +221,39 @@ function DayDetailView({
   const { data: loomsData } = useLoomsProductions(dateQuery);
   const { data: fabricData } = useFabricCheckingRecords(dateQuery);
 
+  const queryClient = useQueryClient();
+  const [confirmDeleteOpen, setConfirmDeleteOpen] = useState(false);
+  const [deletingDay, setDeletingDay] = useState(false);
+
+  // Deletes every Extruder/Looms/Fabric Checking record for this date — the
+  // three lists above are already loaded for exactly this date, so no extra
+  // fetch is needed before issuing the deletes.
+  const handleDeleteDay = async () => {
+    setDeletingDay(true);
+    try {
+      const targets = [
+        ...(extruderData?.data ?? []).map((r) => ({ path: '/production/extruder', id: r.id })),
+        ...(loomsData?.data ?? []).map((r) => ({ path: '/production/looms', id: r.id })),
+        ...(fabricData?.data ?? []).map((r) => ({ path: '/fabric-checking', id: r.id })),
+      ];
+      const results = await Promise.all(targets.map(({ path, id }) => apiFetch(`${path}/${id}`, { method: 'DELETE' })));
+      if (results.some((r) => !r.ok)) throw new Error('Failed to delete one or more entries');
+
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: extruderKeys.all }),
+        queryClient.invalidateQueries({ queryKey: loomsKeys.all }),
+        queryClient.invalidateQueries({ queryKey: fabricCheckingKeys.all }),
+        queryClient.invalidateQueries({ queryKey: dashboardProductionKey }),
+      ]);
+      setConfirmDeleteOpen(false);
+      onClose();
+    } catch (error) {
+      console.error('Error deleting day entries:', error);
+    } finally {
+      setDeletingDay(false);
+    }
+  };
+
   const extruderRows = useMemo(
     () =>
       (extruderData?.data ?? [])
@@ -273,6 +309,7 @@ function DayDetailView({
   }, [fabricRows]);
 
   return (
+    <>
     <div className="flex-1 flex flex-col lg:flex-row gap-4 p-4">
       {/* Left Column */}
       <div className="flex-1 flex flex-col gap-4">
@@ -300,6 +337,7 @@ function DayDetailView({
               variant="outline"
               size="icon"
               className="h-[34px] w-[34px] text-red-400 border-red-100 hover:bg-red-50 bg-white"
+              onClick={() => setConfirmDeleteOpen(true)}
             >
               <Trash2 className="w-4 h-4" />
             </Button>
@@ -470,15 +508,62 @@ function DayDetailView({
         </div>
       </div>
     </div>
+    <DeleteConfirmDialog
+      open={confirmDeleteOpen}
+      onOpenChange={setConfirmDeleteOpen}
+      title="Delete this day's entries?"
+      description={`Removes every Extruder, Looms, and Fabric Checking record for ${formattedDate}. This action cannot be undone.`}
+      isPending={deletingDay}
+      onConfirm={handleDeleteDay}
+    />
+    </>
   );
 }
 
 export function ProductionDesign2() {
   const navigate = useNavigate();
+  const queryClient = useQueryClient();
   const [selectedDate, setSelectedDate] = useState<string | null>(null);
   const [isNavigating, setIsNavigating] = useState(false);
   const [isReportOpen, setIsReportOpen] = useState(false);
+  const [deleteTargetDate, setDeleteTargetDate] = useState<string | null>(null);
+  const [deletingDate, setDeletingDate] = useState(false);
   const { rows: dayWiseRows, totals: dayWiseTotals, isLoading: loadingDayWise, apiSummary } = useDayWiseProduction();
+
+  // Deletes every Extruder/Looms/Fabric Checking record for one date — the
+  // day-wise table only has aggregated totals for each row, not record ids,
+  // so this fetches the real records for that date first, then removes each.
+  const handleDeleteDate = async () => {
+    if (!deleteTargetDate) return;
+    setDeletingDate(true);
+    try {
+      const dateQuery = `?date_from=${deleteTargetDate}&date_to=${deleteTargetDate}&limit=100`;
+      const [extruderRes, loomsRes, fabricRes] = await Promise.all([
+        fetchJson<{ data: { id: string }[] }>(`/production/extruder${dateQuery}`),
+        fetchJson<{ data: { id: string }[] }>(`/production/looms${dateQuery}`),
+        fetchJson<{ data: { id: string }[] }>(`/fabric-checking${dateQuery}`),
+      ]);
+
+      const results = await Promise.all([
+        ...extruderRes.data.map((r) => apiFetch(`/production/extruder/${r.id}`, { method: 'DELETE' })),
+        ...loomsRes.data.map((r) => apiFetch(`/production/looms/${r.id}`, { method: 'DELETE' })),
+        ...fabricRes.data.map((r) => apiFetch(`/fabric-checking/${r.id}`, { method: 'DELETE' })),
+      ]);
+      if (results.some((r) => !r.ok)) throw new Error('Failed to delete one or more entries');
+
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: extruderKeys.all }),
+        queryClient.invalidateQueries({ queryKey: loomsKeys.all }),
+        queryClient.invalidateQueries({ queryKey: fabricCheckingKeys.all }),
+        queryClient.invalidateQueries({ queryKey: dashboardProductionKey }),
+      ]);
+      setDeleteTargetDate(null);
+    } catch (error) {
+      console.error('Error deleting day entries:', error);
+    } finally {
+      setDeletingDate(false);
+    }
+  };
 
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(10);
@@ -845,7 +930,12 @@ export function ProductionDesign2() {
                             >
                               <Edit className="h-[14px] w-[14px]" />
                             </Button>
-                            <Button variant="outline" size="icon" className="h-6 w-6 rounded-md border-red-200 text-red-600 hover:bg-red-50">
+                            <Button
+                              variant="outline"
+                              size="icon"
+                              className="h-6 w-6 rounded-md border-red-200 text-red-600 hover:bg-red-50"
+                              onClick={() => setDeleteTargetDate(row.date)}
+                            >
                               <Trash2 className="h-[14px] w-[14px]" />
                             </Button>
                           </div>
@@ -925,6 +1015,18 @@ export function ProductionDesign2() {
         </div>
       )}
       <DayWiseReportModal open={isReportOpen} onOpenChange={setIsReportOpen} />
+      <DeleteConfirmDialog
+        open={!!deleteTargetDate}
+        onOpenChange={(open) => !open && setDeleteTargetDate(null)}
+        title="Delete this day's entries?"
+        description={
+          deleteTargetDate
+            ? `Removes every Extruder, Looms, and Fabric Checking record for ${format(parseISO(deleteTargetDate), 'dd MMM, yyyy')}. This action cannot be undone.`
+            : undefined
+        }
+        isPending={deletingDate}
+        onConfirm={handleDeleteDate}
+      />
     </div>
   );
 }

@@ -69,7 +69,8 @@ export interface ExtruderCreatePayload {
  * PENDING_APPROVAL. Unlike create, the update endpoint does not accept
  * lumpsKg/yarnWasteKg at all (additionalProperties: false rejects them).
  */
-export type ExtruderUpdatePayload = Partial<Omit<ExtruderCreatePayload, 'lumpsKg' | 'yarnWasteKg'>>;
+/** lumpsKg/yarnWasteKg: omit to leave unchanged, 0 to clear, positive to set/replace. */
+export type ExtruderUpdatePayload = Partial<ExtruderCreatePayload>;
 
 export const extruderKeys = {
   all: ['extruder-productions'] as const,

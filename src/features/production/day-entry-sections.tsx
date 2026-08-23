@@ -289,6 +289,7 @@ export const ExtruderSection = forwardRef<SectionRef, ExtruderSectionProps>(({ p
   const [editDraft, setEditDraft] = useState<ExtruderDraft>(emptyExtruderDraft);
   const [newRows, setNewRows] = useState<ExtruderNewRow[]>([]);
   const [saving, setSaving] = useState(false);
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const hasAutoAddedRef = useRef(false);
   const nextRowKeyRef = useRef(0);
 
@@ -412,7 +413,7 @@ export const ExtruderSection = forwardRef<SectionRef, ExtruderSectionProps>(({ p
     const brandId = findIdByName(lookups.brands, editDraft.brand);
     const chemicalId = findIdByName(lookups.chemicals, editDraft.chemical);
     if (!sizeId || !colorId || !brandId || !chemicalId) {
-      console.error('Unable to resolve size/color/brand/chemical to a known master data id');
+      setErrorMessage('Select Size, Color, Brand and Chemical before saving.');
       return false;
     }
 
@@ -426,6 +427,9 @@ export const ExtruderSection = forwardRef<SectionRef, ExtruderSectionProps>(({ p
         rawMaterialKg: parseFloat(editDraft.raw) || 0,
         chemicalKg: parseFloat(editDraft.chemicalKg) || 0,
         yarnOutputKg: parseFloat(editDraft.output) || 0,
+        // 0 explicitly clears that wastage on the backend rather than leaving it untouched.
+        lumpsKg: parseFloat(editDraft.lumpsKg) || 0,
+        yarnWasteKg: parseFloat(editDraft.yarnWasteKg) || 0,
         // Omitted (not just 0) when there's no matching Color inventory, so
         // the backend falls back to its own standard-based auto-computation.
         ...(editDraft.colorConsumedKg ? { colorConsumedKg: parseFloat(editDraft.colorConsumedKg) || 0 } : {}),
@@ -444,6 +448,7 @@ export const ExtruderSection = forwardRef<SectionRef, ExtruderSectionProps>(({ p
       return true;
     } catch (error) {
       console.error('Error saving extruder entry:', error);
+      setErrorMessage('Failed to save the entry. Please try again.');
       return false;
     }
   };
@@ -454,7 +459,7 @@ export const ExtruderSection = forwardRef<SectionRef, ExtruderSectionProps>(({ p
     const brandId = findIdByName(lookups.brands, row.draft.brand);
     const chemicalId = findIdByName(lookups.chemicals, row.draft.chemical);
     if (!sizeId || !colorId || !brandId || !chemicalId) {
-      console.error('Unable to resolve size/color/brand/chemical to a known master data id');
+      setErrorMessage('Select Size, Color, Brand and Chemical before saving.');
       return false;
     }
 
@@ -477,9 +482,11 @@ export const ExtruderSection = forwardRef<SectionRef, ExtruderSectionProps>(({ p
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload),
       });
+      if (!response.ok) setErrorMessage('Failed to save one or more entries. Please try again.');
       return response.ok;
     } catch (error) {
       console.error('Error saving extruder entry:', error);
+      setErrorMessage('Failed to save one or more entries. Please try again.');
       return false;
     }
   };
@@ -489,6 +496,7 @@ export const ExtruderSection = forwardRef<SectionRef, ExtruderSectionProps>(({ p
       if (readOnly) return true;
       let allOk = true;
       setSaving(true);
+      setErrorMessage(null);
       try {
         if (editingId && JSON.stringify(editDraft) !== JSON.stringify(emptyExtruderDraft)) {
           const ok = await handleSaveExisting();
@@ -625,16 +633,19 @@ export const ExtruderSection = forwardRef<SectionRef, ExtruderSectionProps>(({ p
       </div>
 
       {!readOnly && (
-        <div className="p-4 border-t border-gray-50 flex items-center gap-3">
-          <Button
-            variant="outline"
-            size="sm"
-            className={`h-8 gap-1 rounded-full ${theme.buttonBorder} ${theme.buttonText} ${theme.buttonHover}`}
-            onClick={startAdd}
-            disabled={saving}
-          >
-            <Plus className="h-3 w-3" /> Add row
-          </Button>
+        <div className="p-4 border-t border-gray-50 flex flex-col gap-2">
+          <div className="flex items-center gap-3">
+            <Button
+              variant="outline"
+              size="sm"
+              className={`h-8 gap-1 rounded-full ${theme.buttonBorder} ${theme.buttonText} ${theme.buttonHover}`}
+              onClick={startAdd}
+              disabled={saving}
+            >
+              <Plus className="h-3 w-3" /> Add row
+            </Button>
+          </div>
+          {errorMessage && <p className="text-xs font-medium text-red-600">{errorMessage}</p>}
         </div>
       )}
     </div>
@@ -834,6 +845,7 @@ export const LoomSection = forwardRef<SectionRef, SectionProps>(({ productionDat
 
   const [newRows, setNewRows] = useState<LoomNewRow[]>([]);
   const [saving, setSaving] = useState(false);
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const hasAutoAddedRef = useRef(false);
   const nextRowKeyRef = useRef(0);
 
@@ -908,7 +920,7 @@ export const LoomSection = forwardRef<SectionRef, SectionProps>(({ productionDat
     const sizeId = findIdByName(lookups.sizes, row.draft.size);
     const colorId = findIdByName(lookups.colors, row.draft.color);
     if (!sizeId || !colorId) {
-      console.error('Unable to resolve size/color to a known master data id');
+      setErrorMessage('Select Size and Color before saving.');
       return false;
     }
 
@@ -926,9 +938,11 @@ export const LoomSection = forwardRef<SectionRef, SectionProps>(({ productionDat
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload),
       });
+      if (!response.ok) setErrorMessage('Failed to save one or more entries. Please try again.');
       return response.ok;
     } catch (error) {
       console.error('Error saving loom entry:', error);
+      setErrorMessage('Failed to save one or more entries. Please try again.');
       return false;
     }
   };
@@ -942,6 +956,7 @@ export const LoomSection = forwardRef<SectionRef, SectionProps>(({ productionDat
       if (rowsToSave.length === 0) return true;
 
       setSaving(true);
+      setErrorMessage(null);
       try {
         const results = await Promise.all(rowsToSave.map((row) => handleSaveNewRow(row)));
         const succeededKeys = new Set(rowsToSave.filter((_, i) => results[i]).map((row) => row.key));
@@ -1071,16 +1086,19 @@ export const LoomSection = forwardRef<SectionRef, SectionProps>(({ productionDat
       </div>
 
       {!readOnly && (
-        <div className="p-4 border-t border-gray-50 flex items-center gap-3">
-          <Button
-            variant="outline"
-            size="sm"
-            className={`h-8 gap-1 rounded-full ${theme.buttonBorder} ${theme.buttonText} ${theme.buttonHover}`}
-            onClick={startAdd}
-            disabled={saving}
-          >
-            <Plus className="h-3 w-3" /> Add row
-          </Button>
+        <div className="p-4 border-t border-gray-50 flex flex-col gap-2">
+          <div className="flex items-center gap-3">
+            <Button
+              variant="outline"
+              size="sm"
+              className={`h-8 gap-1 rounded-full ${theme.buttonBorder} ${theme.buttonText} ${theme.buttonHover}`}
+              onClick={startAdd}
+              disabled={saving}
+            >
+              <Plus className="h-3 w-3" /> Add row
+            </Button>
+          </div>
+          {errorMessage && <p className="text-xs font-medium text-red-600">{errorMessage}</p>}
         </div>
       )}
     </div>
@@ -1192,6 +1210,7 @@ export const FabricSection = forwardRef<SectionRef, SectionProps>(({ productionD
 
   const [newRows, setNewRows] = useState<FabricNewRow[]>([]);
   const [saving, setSaving] = useState(false);
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const hasAutoAddedRef = useRef(false);
   const nextRowKeyRef = useRef(0);
 
@@ -1266,7 +1285,7 @@ export const FabricSection = forwardRef<SectionRef, SectionProps>(({ productionD
     const sizeId = findIdByName(lookups.sizes, row.draft.size);
     const colorId = findIdByName(lookups.colors, row.draft.color);
     if (!sizeId || !colorId) {
-      console.error('Unable to resolve size/color to a known master data id');
+      setErrorMessage('Select Size and Color before saving.');
       return false;
     }
 
@@ -1285,9 +1304,11 @@ export const FabricSection = forwardRef<SectionRef, SectionProps>(({ productionD
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload),
       });
+      if (!response.ok) setErrorMessage('Failed to save one or more entries. Please try again.');
       return response.ok;
     } catch (error) {
       console.error('Error saving fabric checking entry:', error);
+      setErrorMessage('Failed to save one or more entries. Please try again.');
       return false;
     }
   };
@@ -1301,6 +1322,7 @@ export const FabricSection = forwardRef<SectionRef, SectionProps>(({ productionD
       if (rowsToSave.length === 0) return true;
 
       setSaving(true);
+      setErrorMessage(null);
       try {
         const results = await Promise.all(rowsToSave.map((row) => handleSaveNewRow(row)));
         const succeededKeys = new Set(rowsToSave.filter((_, i) => results[i]).map((row) => row.key));
@@ -1426,16 +1448,19 @@ export const FabricSection = forwardRef<SectionRef, SectionProps>(({ productionD
       </div>
 
       {!readOnly && (
-        <div className="p-4 border-t border-gray-50 flex items-center gap-3">
-          <Button
-            variant="outline"
-            size="sm"
-            className={`h-8 gap-1 rounded-full ${theme.buttonBorder} ${theme.buttonText} ${theme.buttonHover}`}
-            onClick={startAdd}
-            disabled={saving}
-          >
-            <Plus className="h-3 w-3" /> Add row
-          </Button>
+        <div className="p-4 border-t border-gray-50 flex flex-col gap-2">
+          <div className="flex items-center gap-3">
+            <Button
+              variant="outline"
+              size="sm"
+              className={`h-8 gap-1 rounded-full ${theme.buttonBorder} ${theme.buttonText} ${theme.buttonHover}`}
+              onClick={startAdd}
+              disabled={saving}
+            >
+              <Plus className="h-3 w-3" /> Add row
+            </Button>
+          </div>
+          {errorMessage && <p className="text-xs font-medium text-red-600">{errorMessage}</p>}
         </div>
       )}
     </div>
