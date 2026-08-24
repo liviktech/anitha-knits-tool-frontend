@@ -19,7 +19,9 @@ interface NewEntryProps {
 }
 
 export function NewEntry({ onClose, defaultDate, readOnly = false }: NewEntryProps) {
-  const { setHeaderRight, setShowBackButton, setOnBackClick } = useProductionHeader();
+  const { setHeaderRight, setShowBackButton, setOnBackClick, setHeaderTitle } = useProductionHeader();
+  const isCreateMode = !defaultDate && !readOnly;
+
   const extruderRef = useRef<SectionRef>(null);
   const loomRef = useRef<SectionRef>(null);
   const fabricRef = useRef<SectionRef>(null);
@@ -34,6 +36,7 @@ export function NewEntry({ onClose, defaultDate, readOnly = false }: NewEntryPro
   const lookups = lookupsData ?? { brands: [], colors: [], chemicals: [], sizes: [] };
 
   useEffect(() => {
+    setHeaderTitle('Add new Daily production details');
     setShowBackButton(true);
     setOnBackClick(() => onClose);
 
@@ -64,11 +67,12 @@ export function NewEntry({ onClose, defaultDate, readOnly = false }: NewEntryPro
     );
 
     return () => {
+      setHeaderTitle(null);
       setHeaderRight(null);
       setShowBackButton(false);
       setOnBackClick(undefined);
     };
-  }, [setHeaderRight, setShowBackButton, setOnBackClick, onClose, date, readOnly, submitting]);
+  }, [setHeaderRight, setShowBackButton, setOnBackClick, setHeaderTitle, onClose, date, readOnly, submitting]);
 
   // Most recent entry before the selected date — used to carry forward
   // Data for calculating live stock balances in create mode
@@ -77,7 +81,7 @@ export function NewEntry({ onClose, defaultDate, readOnly = false }: NewEntryPro
   const inventoryRecords = allInvData?.data ?? [];
   const extruderRecords = allExtruderData?.data ?? [];
 
-  const getRawMaterialBalance = (name: string) => {
+  const getHDPEBalance = (name: string) => {
     const received = inventoryRecords.filter(r => r.type === 'HDPE' && r.name === name).reduce((sum, r) => sum + r.weightKg, 0);
     const consumed = extruderRecords.filter(r => r.extruder?.brand?.name === name).reduce((sum, r) => sum + (r.extruder?.rawMaterialKg ?? 0), 0);
     return (received - consumed).toFixed(2);
@@ -95,7 +99,7 @@ export function NewEntry({ onClose, defaultDate, readOnly = false }: NewEntryPro
     return (received - consumed).toFixed(2);
   };
 
-  const totalRawMaterial = lookups.brands.reduce((sum, b) => sum + parseFloat(getRawMaterialBalance(b.name) || '0'), 0).toFixed(2);
+  const totalRawMaterial = lookups.brands.reduce((sum, b) => sum + parseFloat(getHDPEBalance(b.name) || '0'), 0).toFixed(2);
   const totalChemical = lookups.chemicals.reduce((sum, c) => sum + parseFloat(getChemicalBalance(c.name) || '0'), 0).toFixed(2);
   const totalColor = lookups.colors.reduce((sum, c) => sum + parseFloat(getColorBalance(c.name) || '0'), 0).toFixed(2);
 
@@ -153,7 +157,7 @@ export function NewEntry({ onClose, defaultDate, readOnly = false }: NewEntryPro
                       {lookups.brands.map((b) => (
                         <div key={b.id} className="flex justify-between items-center text-[12.5px]">
                           <span className="text-gray-700">{b.name}</span>
-                          <span className="font-semibold text-gray-900">{getRawMaterialBalance(b.name)} kg</span>
+                          <span className="font-semibold text-gray-900">{getHDPEBalance(b.name)} kg</span>
                         </div>
                       ))}
                     </div>
@@ -219,20 +223,19 @@ export function NewEntry({ onClose, defaultDate, readOnly = false }: NewEntryPro
         </div>
 
         {/* Footer */}
-        <div className="mt-3 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between rounded-xl bg-white p-4 shadow-sm border border-gray-400">
-          <p className="text-xs text-gray-500">All weights are in Kilograms (kg)</p>
+        <div className="mt-4 mb-8 flex justify-end">
           <div className="flex items-center gap-3">
             {readOnly ? (
-              <Button variant="outline" onClick={onClose} className="border-gray-200 text-gray-700">
+              <Button variant="outline" onClick={onClose} className="border-gray-300 text-gray-700 bg-white">
                 Close
               </Button>
             ) : (
               <>
-                <Button variant="outline" onClick={onClose} className="border-gray-200 text-gray-700" disabled={submitting}>
+                <Button variant="outline" onClick={onClose} className="border-gray-300 text-gray-700 bg-white font-semibold shadow-sm" disabled={submitting}>
                   Cancel
                 </Button>
                 <Button
-                  className="bg-emerald-500 text-white hover:bg-emerald-600 shadow"
+                  className="bg-[#004D40] text-white hover:bg-[#00382e] font-semibold shadow-sm px-6"
                   onClick={handleSaveDayEntry}
                   disabled={submitting}
                 >

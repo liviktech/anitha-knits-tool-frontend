@@ -119,7 +119,7 @@ function AppShell() {
       <aside className="hidden lg:flex w-50 shrink-0 flex-col overflow-y-auto">
         <Link to="/dashboard" className="flex items-center justify-center gap-2 py-6 px-4 cursor-pointer">
           <img src={threadIcon} alt="" className="h-6 w-6 shrink-0 object-contain brightness-0 invert" />
-          <span className="text-[20px] font-serif font-bold text-white tracking-widest whitespace-nowrap">LK KnitOps</span>
+          <span className="text-[20px] font-serif font-bold text-white tracking-widest whitespace-nowrap">LK Knits</span>
         </Link>
         <NavLinks />
         <div className="p-2">
@@ -131,7 +131,7 @@ function AppShell() {
       <header className="flex items-center justify-between border-b bg-[#004D40] px-4 py-3 lg:hidden">
         <Link to="/dashboard" className="flex items-center gap-2 cursor-pointer">
           <img src={threadIcon} alt="" className="h-5 w-5 shrink-0 object-contain brightness-0 invert" />
-          <span className="text-[18px] font-serif font-bold text-white tracking-widest whitespace-nowrap">LK KnitOps</span>
+          <span className="text-[18px] font-serif font-bold text-white tracking-widest whitespace-nowrap">LK Knits</span>
         </Link>
         <Sheet open={mobileNavOpen} onOpenChange={setMobileNavOpen}>
           <Button variant="ghost" size="icon" className="text-white hover:bg-white/20 hover:text-white" onClick={() => setMobileNavOpen(true)}>
@@ -141,7 +141,7 @@ function AppShell() {
             <SheetHeader className="py-6 px-4">
               <SheetTitle className="flex items-center justify-center gap-2">
                 <img src={threadIcon} alt="" className="h-6 w-6 shrink-0 object-contain brightness-0 invert" />
-                <span className="text-[20px] font-serif font-bold text-white tracking-widest whitespace-nowrap">LK KnitOps</span>
+                <span className="text-[20px] font-serif font-bold text-white tracking-widest whitespace-nowrap">LK Knits</span>
               </SheetTitle>
             </SheetHeader>
             <NavLinks onNavigate={() => setMobileNavOpen(false)} />

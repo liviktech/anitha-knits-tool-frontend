@@ -973,18 +973,30 @@ export interface FabricRow {
   size: string;
   color: string;
   input: number;
+  /** Final Stock/Output; falls back to firstGrade+secondGrade for records created before this field existed. */
   output: number;
+  /** @deprecated No longer collected via the entry UI; kept for older records and other consumers. */
+  pieceCount: number;
+  /** @deprecated No longer collected via the entry UI; kept for older records and other consumers. */
+  firstGrade: number;
+  /** @deprecated No longer collected via the entry UI; kept for older records and other consumers. */
+  secondGrade: number;
   fwKg: number;
   bwKg: number;
 }
 
 export function mapFabricItem(item: FabricCheckingRecord): FabricRow {
+  const firstGrade = (item.fabricCheck as any)?.firstGradeKg ?? 0;
+  const secondGrade = (item.fabricCheck as any)?.secondGradeKg ?? 0;
   return {
     id: item.id,
     size: item.size?.name ?? '',
     color: item.color?.name ?? '',
     input: item.fabricCheck?.fabricInputKg ?? 0,
-    output: item.fabricCheck?.outputKg ?? 0,
+    output: item.fabricCheck?.outputKg ?? (firstGrade + secondGrade),
+    pieceCount: (item.fabricCheck as any)?.pieceCount ?? 0,
+    firstGrade,
+    secondGrade,
     fwKg: sumWastageByCode(item.wastages, 'FW'),
     bwKg: sumWastageByCode(item.wastages, 'BW'),
   };
@@ -1042,7 +1054,7 @@ export const FabricSection = forwardRef<SectionRef, SectionProps>(({ productionD
     return items
       .filter((item) => !productionDate || item.productionDate.startsWith(productionDate))
       .map(mapFabricItem)
-      .filter((row) => row.input > 0 || row.output > 0 || row.fwKg > 0 || row.bwKg > 0);
+      .filter((row) => row.input > 0 || row.firstGrade > 0 || row.secondGrade > 0 || row.fwKg > 0 || row.bwKg > 0);
   }, [data, productionDate, hideExisting]);
 
   const [newRows, setNewRows] = useState<FabricNewRow[]>([]);
@@ -1338,7 +1350,6 @@ export const FabricDeliveredSection = forwardRef<SectionRef, SectionProps>(({ au
             <TableRow className="hover:bg-transparent">
               <TableHead className="text-xs font-semibold uppercase tracking-wide text-gray-700">Size</TableHead>
               <TableHead className="text-xs font-semibold uppercase tracking-wide text-gray-700">Color</TableHead>
-              <TableHead className="text-center text-xs font-semibold uppercase tracking-wide text-gray-700">Wastage (kg)</TableHead>
               <TableHead className="text-center text-xs font-semibold uppercase tracking-wide text-gray-700">Delivered (kg)</TableHead>
             </TableRow>
           </TableHeader>
@@ -1363,14 +1374,6 @@ export const FabricDeliveredSection = forwardRef<SectionRef, SectionProps>(({ au
                     </Select>
                   </TableCell>
                   <TableCell>
-                    <Input
-                      type="number"
-                      className="h-10 w-full text-center"
-                      value={row.draft.wastage}
-                      onChange={(e) => updateNewRow(row.key, { ...row.draft, wastage: e.target.value })}
-                    />
-                  </TableCell>
-                  <TableCell>
                     <div className="flex items-center gap-2">
                       <Input
                         type="number"
@@ -1387,7 +1390,7 @@ export const FabricDeliveredSection = forwardRef<SectionRef, SectionProps>(({ au
               ))}
             {newRows.length === 0 && (
               <TableRow>
-                <TableCell colSpan={4} className="h-20 text-center text-gray-500">No entries yet.</TableCell>
+                <TableCell colSpan={3} className="h-20 text-center text-gray-500">No entries yet.</TableCell>
               </TableRow>
             )}
           </TableBody>
@@ -1395,18 +1398,21 @@ export const FabricDeliveredSection = forwardRef<SectionRef, SectionProps>(({ au
       </div>
 
       {!readOnly && (
-        <div className="p-4 border-t border-gray-50 flex flex-col gap-2">
-          <div className="flex items-center gap-3">
-            <Button
-              variant="outline"
-              size="sm"
-              className={`h-8 gap-1 rounded-full ${theme.buttonBorder} ${theme.buttonText} ${theme.buttonHover}`}
-              onClick={startAdd}
-              disabled={saving}
-            >
-              <Plus className="h-3 w-3" /> Add row
-            </Button>
+        <div className="flex flex-col border-t border-gray-100">
+          <div className="p-4 flex flex-col gap-2">
+            <div className="flex items-center gap-3">
+              <Button
+                variant="outline"
+                size="sm"
+                className={`h-8 gap-1 rounded-full ${theme.buttonBorder} ${theme.buttonText} ${theme.buttonHover}`}
+                onClick={startAdd}
+                disabled={saving}
+              >
+                <Plus className="h-3 w-3" /> Add row
+              </Button>
+            </div>
           </div>
+
         </div>
       )}
     </div>

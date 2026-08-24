@@ -3,7 +3,7 @@ import { useQueryClient } from '@tanstack/react-query';
 import '@fontsource-variable/hanken-grotesk';
 import '@fontsource-variable/inter';
 import { parseISO, format } from 'date-fns';
-import { Calendar, Plus, Edit, Trash2, Download, Layers, Search, ChevronRight, CheckCircle2, Gauge,  ChevronDown } from 'lucide-react';
+import { Calendar, Plus, Edit, Trash2, Download, Layers, ChevronRight, CheckCircle2, ChevronDown } from 'lucide-react';
 import { Loader } from '@/components/shared/loader';
 import { DeleteConfirmDialog } from '@/components/shared/delete-confirm-dialog';
 import { apiFetch, fetchJson } from '@/lib/api-client';
@@ -73,6 +73,13 @@ const stageTheme = {
     pillText: 'text-purple-700',
     pillBorder: 'border-purple-100',
   },
+  fabricDelivered: {
+    circle: 'bg-[#61401E]',
+    text: 'text-[#61401E]',
+    pillBg: 'bg-[#f2caa0]',
+    pillText: 'text-[#61401E]',
+    pillBorder: 'border-gray-400',
+  },
 } as const;
 
 interface StagePill {
@@ -135,44 +142,47 @@ function StageBlock({
         <p className={`font-bold text-[14px] ${theme.text}`}>{title}</p>
 
         <Card className="rounded-2xl border border-gray-100 shadow-sm bg-white p-4 flex flex-col gap-4">
-          <div className="flex flex-wrap items-start justify-between gap-3">
-            <p className="text-[12px] text-gray-500 italic">{description}</p>
+          <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+            <div className="flex flex-wrap items-center gap-x-8 gap-y-3">
+              <div>
+                <p className={`text-[10px] font-extrabold uppercase tracking-wide ${theme.text} mb-1`}>{producedLabel}</p>
+                <p className={`text-[20px] font-extrabold ${theme.text} leading-none`}>
+                  {producedValue} <span className="text-[11px] font-medium text-gray-400">{producedUnit}</span>
+                </p>
+              </div>
+              <div>
+                <p className={`text-[10px] font-extrabold uppercase tracking-wide ${theme.text} mb-1`}>{wasteLabel}</p>
+                <p className="text-[20px] font-extrabold text-red-500 leading-none">
+                  {wasteValue} <span className="text-[11px] font-medium text-gray-400">{wasteUnit}</span>
+                </p>
+              </div>
+              {pills.length > 0 && (
+                <div className="flex flex-wrap gap-2">
+                  {pills.map((p, i) => (
+                    <span
+                      key={`${p.label}-${i}`}
+                      className={`inline-flex items-center gap-1.5 rounded-md border ${theme.pillBorder} ${theme.pillBg} ${theme.pillText} px-2.5 py-1 text-[11px] font-semibold whitespace-nowrap`}
+                    >
+                      {p.label} {p.value}
+                    </span>
+                  ))}
+                </div>
+              )}
+            </div>
+
             <Button
               variant="ghost"
               size="sm"
               onClick={onToggle}
-              className={`h-7 px-3 rounded-md ${theme.pillBg} ${theme.pillText} text-[11px] font-bold gap-1 hover:opacity-80`}
+              className={`h-7 px-3 rounded-md ${theme.pillBg} ${theme.pillText} text-[11px] font-bold gap-1 hover:opacity-80 shrink-0 self-start md:self-auto`}
             >
               View Details <ChevronRight className={`w-3.5 h-3.5 transition-transform ${expanded ? 'rotate-90' : ''}`} />
             </Button>
           </div>
 
-          <div className="flex flex-wrap items-center gap-x-8 gap-y-3">
-            <div>
-              <p className={`text-2xs font-extrabold uppercase tracking-wide ${theme.text} mb-1`}>{producedLabel}</p>
-              <p className={`text-[20px] font-extrabold ${theme.text} leading-none`}>
-                {producedValue} <span className="text-[11px] font-medium text-gray-400">{producedUnit}</span>
-              </p>
-            </div>
-            <div>
-              <p className={`text-2xs font-extrabold uppercase tracking-wide ${theme.text} mb-1`}>{wasteLabel}</p>
-              <p className="text-[20px] font-extrabold text-red-500 leading-none">
-                {wasteValue} <span className="text-[11px] font-medium text-gray-400">{wasteUnit}</span>
-              </p>
-            </div>
-            {pills.length > 0 && (
-              <div className="flex flex-wrap gap-2">
-                {pills.map((p, i) => (
-                  <span
-                    key={`${p.label}-${i}`}
-                    className={`inline-flex items-center gap-1.5 rounded-md border ${theme.pillBorder} ${theme.pillBg} ${theme.pillText} px-2.5 py-1 text-[11px] font-semibold whitespace-nowrap`}
-                  >
-                    {p.label} {p.value}
-                  </span>
-                ))}
-              </div>
-            )}
-          </div>
+          {description && (
+            <p className="text-[12px] text-gray-500 italic mt-[-8px]">{description}</p>
+          )}
 
           {expanded && (
             <div className="overflow-x-auto -mx-1 border-t border-gray-100 pt-3">
@@ -203,29 +213,61 @@ function DayDetailView({
   date,
   onClose,
   dayWiseRows,
-  setDate,
-  onEdit,
 }: {
   date: string;
   onClose: () => void;
   dayWiseRows: DayWiseRow[];
-  setDate: (d: string) => void;
-  onEdit: (d: string) => void;
 }) {
+  const navigate = useNavigate();
+  const queryClient = useQueryClient();
+  const { setHeaderTitle } = useProductionHeader();
   const row = dayWiseRows.find((r) => r.date === date) || dayWiseRows[0];
   const formattedDate = format(parseISO(date), 'dd MMM, yyyy');
 
-  const [expandedStages, setExpandedStages] = useState<Record<string, boolean>>({ extruder: true, looms: true, fabric: true });
+  const [expandedStages, setExpandedStages] = useState<Record<string, boolean>>({ extruder: true, looms: true, fabric: true, fabricDelivered: true });
   const toggleStage = (key: string) => setExpandedStages((s) => ({ ...s, [key]: !s[key] }));
+
+  useEffect(() => {
+    setHeaderTitle('View daily production details');
+    return () => setHeaderTitle(null);
+  }, [setHeaderTitle]);
 
   const dateQuery = `?date_from=${date}&date_to=${date}`;
   const { data: extruderData } = useExtruderProductions(dateQuery);
   const { data: loomsData } = useLoomsProductions(dateQuery);
   const { data: fabricData } = useFabricCheckingRecords(dateQuery);
 
-  const queryClient = useQueryClient();
+  const { setHeaderRight } = useProductionHeader();
   const [confirmDeleteOpen, setConfirmDeleteOpen] = useState(false);
   const [deletingDay, setDeletingDay] = useState(false);
+
+  useEffect(() => {
+    setHeaderRight(
+      <div className="flex items-center gap-3">
+        <div className="flex items-center gap-2 mr-4">
+          <Calendar className="w-[18px] h-[18px] text-[#004D40]" />
+          <span className="text-[15px] font-bold text-[#004D40]">{formattedDate}</span>
+        </div>
+        <Button
+          variant="outline"
+          size="sm"
+          className="h-[34px] px-4 text-[#00897B] border-[#00897B]/20 font-bold uppercase tracking-wider text-[11px] gap-2 hover:bg-[#00897B]/5 bg-white"
+          onClick={() => navigate(`/production/new-entry?date=${date}&from=details`)}
+        >
+          <Edit className="w-3.5 h-3.5" /> EDIT ENTRY
+        </Button>
+        <Button
+          variant="outline"
+          size="icon"
+          className="h-[34px] w-[34px] text-red-400 border-red-100 hover:bg-red-50 bg-white"
+          onClick={() => setConfirmDeleteOpen(true)}
+        >
+          <Trash2 className="w-4 h-4" />
+        </Button>
+      </div>
+    );
+    return () => setHeaderRight(null);
+  }, [setHeaderRight, formattedDate, date, navigate, setConfirmDeleteOpen]);
 
   // Deletes every Extruder/Looms/Fabric Checking record for this date — the
   // three lists above are already loaded for exactly this date, so no extra
@@ -312,47 +354,9 @@ function DayDetailView({
 
   return (
     <>
-      <div className="flex-1 flex flex-col lg:flex-row gap-4 p-4">
+      <div className="flex-1 flex flex-col lg:flex-row gap-4 p-3">
         {/* Left Column */}
         <div className="flex-1 flex flex-col gap-4">
-          {/* Detail Header */}
-          <div className="flex flex-wrap items-center justify-between gap-4">
-            <div>
-              <h2 className="text-[22px] font-bold text-[#004D40] flex items-center gap-2 leading-none">
-                <Calendar className="w-[22px] h-[22px]" />
-                {formattedDate}
-              </h2>
-              <p className="text-[12.5px] text-gray-500 font-medium mt-2">
-                Detailed production metrics for the selected date.
-              </p>
-            </div>
-            <div className="flex items-center gap-2">
-              <Button
-                variant="outline"
-                size="sm"
-                className="h-[34px] px-4 text-[#00897B] border-[#00897B]/20 font-bold uppercase tracking-wider text-[11px] gap-2 hover:bg-[#00897B]/5 bg-white"
-                onClick={() => onEdit(date)}
-              >
-                <Edit className="w-3.5 h-3.5" /> EDIT ENTRY
-              </Button>
-              <Button
-                variant="outline"
-                size="icon"
-                className="h-[34px] w-[34px] text-red-400 border-red-100 hover:bg-red-50 bg-white"
-                onClick={() => setConfirmDeleteOpen(true)}
-              >
-                <Trash2 className="w-4 h-4" />
-              </Button>
-              <Button
-                variant="outline"
-                size="sm"
-                className="h-[34px] ml-2 text-gray-500 bg-white"
-                onClick={onClose}
-              >
-                Close
-              </Button>
-            </div>
-          </div>
 
           {/* Stage Timeline */}
           <div className="flex flex-col">
@@ -360,7 +364,7 @@ function DayDetailView({
               number={1}
               icon={<img src={extruderIcon} alt="Extruder" className="w-6 h-6 object-contain" />}
               title="Extruder Production"
-              description="HDPE Materials is converted into tape (DN+ / LUMPS)"
+              description=""
               theme={stageTheme.extruder}
               producedLabel="DN+ PRODUCED"
               producedValue={formatNum(row.extruder.output)}
@@ -396,7 +400,7 @@ function DayDetailView({
               number={2}
               icon={<img src={loomsIcon} alt="Looms" className="w-6 h-6 object-contain" />}
               title="Looms Production"
-              description="Tapes are woven into fabric on looms"
+              description=""
               theme={stageTheme.looms}
               producedLabel="FABRIC PRODUCED"
               producedValue={formatNum(row.looms.output)}
@@ -431,7 +435,7 @@ function DayDetailView({
               number={3}
               icon={<Layers className="w-5 h-5 text-[#6D3FA0]" />}
               title="Fabric Checking"
-              description="Final fabric is checked and wastage is recorded"
+              description=""
               theme={stageTheme.fabric}
               producedLabel="FABRIC CHECKED"
               producedValue={formatNum(row.fabric.output)}
@@ -443,7 +447,6 @@ function DayDetailView({
               expanded={expandedStages.fabric}
               onToggle={() => toggleStage('fabric')}
               tableHeads={['SIZE', 'COLOR', 'CHECKED WEIGHT (KG)', 'WASTAGE (KG)', 'FINAL WEIGHT (KG)', 'ACTION']}
-              isLast
             >
               {fabricRows.length === 0 ? (
                 <TableRow>
@@ -462,51 +465,29 @@ function DayDetailView({
                 ))
               )}
             </StageBlock>
-          </div>
-        </div>
 
-        {/* Right Column (Sidebar) */}
-        <div className="w-[220px] lg:flex-shrink-0 flex flex-col border-l border-gray-100/50 bg-white shadow-[-4px_0_15px_-3px_rgba(0,0,0,0.02)]">
-          <div className="p-1 pb-1 bg-[#004D40]/5 border-b border-gray-200 flex flex-col gap-3">
-            <h3 className="font-semibold text-[#003140] text-[18px]">Production Dates</h3>
-            <div className="relative">
-              <Search className="w-4 h-4 text-gray-400 absolute left-3 top-1/2 -translate-y-1/2" />
-              <input
-                type="text"
-                placeholder="Search dates..."
-                className="w-full h-[38px] pl-9 pr-3 rounded-[6px] border border-gray-200 text-[13px] text-gray-600 bg-white focus:outline-none focus:border-[#00897B] focus:ring-1 focus:ring-[#00897B]/20"
-              />
-            </div>
-          </div>
-
-          <div className="flex flex-col gap-1 overflow-y-auto max-h-[600px] p-4">
-            {dayWiseRows.map((dr) => {
-              const isSelected = dr.date === date;
-              const dFormat = format(parseISO(dr.date), 'dd MMM, yyyy');
-              const stageOutputs = [dr.extruder.output, dr.looms.output, dr.fabric.output];
-              const stageCount = stageOutputs.filter((v) => v > 0).length;
-              const totalOutput = stageOutputs.reduce((sum, v) => sum + v, 0);
-              return (
-                <div
-                  key={dr.date}
-                  className={`p-3.5 rounded-[6px] cursor-pointer transition-colors border ${isSelected ? 'bg-[#EBF1F0] border-[#B5CBC8]' : 'hover:bg-gray-50 border-transparent'}`}
-                  onClick={() => setDate(dr.date)}
-                >
-                  <div className="flex justify-between items-start">
-                    <div className="font-semibold text-[#003140] text-[15px]">{dFormat}</div>
-                    {isSelected && (
-                      <span className="bg-[#BDE8DF] text-[#00796B] text-[11px] font-medium px-2 py-0.5 rounded-[4px]">Current</span>
-                    )}
-                  </div>
-                  <div className="flex items-center gap-1.5 mt-2.5 text-[12px] text-[#2F4A47] font-medium">
-                    <Layers className="w-3.5 h-3.5 text-[#5F7D7A]" />
-                    {stageCount} {stageCount === 1 ? 'Stage' : 'Stages'}
-                    <Gauge className="w-3.5 h-3.5 text-[#5F7D7A] ml-2" />
-                    {formatNum(totalOutput)} kg/m
-                  </div>
-                </div>
-              );
-            })}
+            <StageBlock
+              number={4}
+              icon={<img src="/delivery.png" alt="Fabric Delivered" className="w-5 h-5 object-contain" />}
+              title="Fabric Delivered"
+              description=""
+              theme={stageTheme.fabricDelivered}
+              producedLabel="DELIVERED"
+              producedValue={formatNum(0)}
+              producedUnit="kg"
+              wasteLabel="WASTAGE"
+              wasteValue={formatNum(0)}
+              wasteUnit="kg"
+              pills={[]}
+              expanded={expandedStages.fabricDelivered}
+              onToggle={() => toggleStage('fabricDelivered')}
+              tableHeads={['SIZE', 'COLOR', 'DELIVERED (KG)', 'ACTION']}
+              isLast
+            >
+              <TableRow>
+                <TableCell colSpan={4} className="h-16 text-center text-gray-400 text-xs">No entries for this date.</TableCell>
+              </TableRow>
+            </StageBlock>
           </div>
         </div>
       </div>
@@ -594,38 +575,7 @@ export function ProductionDesign2() {
     if (selectedDate) {
       setShowBackButton(true);
       setOnBackClick(() => () => setSelectedDate(null));
-
-      setHeaderRight(
-        <div className="flex flex-wrap items-center gap-3">
-          <Popover>
-            <PopoverTrigger asChild>
-              <Button
-                variant="outline"
-                className="flex items-center bg-white border border-gray-400 rounded-md px-4 py-2 h-auto shadow-[0_1px_2px_rgba(0,0,0,0.05)] hover:bg-gray-50"
-              >
-                <span className="text-sm font-semibold text-gray-700 mr-3">{format(parseISO(selectedDate), 'MMMM yyyy')}</span>
-                <Calendar className="w-4 h-4 text-gray-400" />
-              </Button>
-            </PopoverTrigger>
-            <PopoverContent className="w-auto p-0" align="end">
-              <CalendarComponent
-                mode="single"
-                selected={parseISO(selectedDate)}
-                onSelect={(value) => {
-                  if (value) {
-                    setIsNavigating(true);
-                    setTimeout(() => {
-                      setSelectedDate(format(value, 'yyyy-MM-dd'));
-                      setIsNavigating(false);
-                    }, 300);
-                  }
-                }}
-                autoFocus
-              />
-            </PopoverContent>
-          </Popover>
-        </div>
-      );
+      // Right header will be set by DayDetailView component
     } else {
       setShowBackButton(false);
       setOnBackClick(undefined);
@@ -639,7 +589,7 @@ export function ProductionDesign2() {
                   variant="outline"
                   className="flex items-center bg-white border border-gray-400 rounded-md px-3 py-2 h-auto shadow-[0_1px_2px_rgba(0,0,0,0.05)] hover:bg-gray-50"
                 >
-                  <span className="text-sm font-semibold text-[#003140] mr-1.5">{format(filterDate, 'dd MMM, yyyy')}</span>
+                  <span className="text-sm font-semibold text-[#003140] mr-1.5">{format(filterDate, 'MMMM yyyy')}</span>
                   <Calendar className="w-4 h-4 text-gray-700" />
                 </Button>
               </PopoverTrigger>
@@ -648,6 +598,7 @@ export function ProductionDesign2() {
                   mode="single"
                   selected={filterDate}
                   onSelect={(value) => value && setFilterDate(value)}
+                  onMonthChange={(month) => setFilterDate(month)}
                   autoFocus
                 />
               </PopoverContent>
@@ -732,7 +683,6 @@ export function ProductionDesign2() {
               setIsNavigating(false);
             }, 300);
           }}
-          onEdit={(d) => navigate(`/production/new-entry?date=${d}&from=details`)}
         />
       ) : (
         <div className="p-2 flex flex-col gap-2 flex-1">
