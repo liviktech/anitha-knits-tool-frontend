@@ -310,212 +310,212 @@ function DayDetailView({
 
   return (
     <>
-    <div className="flex-1 flex flex-col lg:flex-row gap-4 p-4">
-      {/* Left Column */}
-      <div className="flex-1 flex flex-col gap-4">
-        {/* Detail Header */}
-        <div className="flex flex-wrap items-center justify-between gap-4">
-          <div>
-            <h2 className="text-[22px] font-bold text-[#004D40] flex items-center gap-2 leading-none">
-              <Calendar className="w-[22px] h-[22px]" />
-              {formattedDate}
-            </h2>
-            <p className="text-[12.5px] text-gray-500 font-medium mt-2">
-              Detailed production metrics for the selected date.
-            </p>
-          </div>
-          <div className="flex items-center gap-2">
-            <Button
-              variant="outline"
-              size="sm"
-              className="h-[34px] px-4 text-[#00897B] border-[#00897B]/20 font-bold uppercase tracking-wider text-[11px] gap-2 hover:bg-[#00897B]/5 bg-white"
-              onClick={() => onEdit(date)}
-            >
-              <Edit className="w-3.5 h-3.5" /> EDIT ENTRY
-            </Button>
-            <Button
-              variant="outline"
-              size="icon"
-              className="h-[34px] w-[34px] text-red-400 border-red-100 hover:bg-red-50 bg-white"
-              onClick={() => setConfirmDeleteOpen(true)}
-            >
-              <Trash2 className="w-4 h-4" />
-            </Button>
-            <Button
-              variant="outline"
-              size="sm"
-              className="h-[34px] ml-2 text-gray-500 bg-white"
-              onClick={onClose}
-            >
-              Close
-            </Button>
-          </div>
-        </div>
-
-        {/* Stage Timeline */}
-        <div className="flex flex-col">
-          <StageBlock
-            number={1}
-            icon={<img src={extruderIcon} alt="Extruder" className="w-6 h-6 object-contain" />}
-            title="Extruder Production"
-            description="Raw materials is converted into tape (DN+ / LUMPS)"
-            theme={stageTheme.extruder}
-            producedLabel="DN+ PRODUCED"
-            producedValue={formatNum(row.extruder.output)}
-            producedUnit="kg"
-            wasteLabel="WASTE + LUMPS"
-            wasteValue={formatNum(row.extruder.wastage)}
-            wasteUnit="kg"
-            pills={extruderPills}
-            expanded={expandedStages.extruder}
-            onToggle={() => toggleStage('extruder')}
-            tableHeads={['SIZE', 'COLOR', 'BRAND', 'RAW MATERIAL (KG)', 'WASTE (KG)', 'LUMPS (KG)', 'ACTION']}
-          >
-            {extruderRows.length === 0 ? (
-              <TableRow>
-                <TableCell colSpan={7} className="h-16 text-center text-gray-400 text-xs">No entries for this date.</TableCell>
-              </TableRow>
-            ) : (
-              extruderRows.map((r) => (
-                <TableRow key={r.id}>
-                  <TableCell className="text-[12px] text-gray-800">{r.size}</TableCell>
-                  <TableCell className="text-[12px] text-gray-800">{r.color}</TableCell>
-                  <TableCell className="text-[12px] text-gray-800">{r.brand}</TableCell>
-                  <TableCell className="text-center text-[12px] font-semibold text-gray-900">{formatNum(r.raw)}</TableCell>
-                  <TableCell className="text-center text-[12px] font-semibold text-red-500">{formatNum(r.yarnWasteKg)}</TableCell>
-                  <TableCell className="text-center text-[12px] font-semibold text-gray-700">{formatNum(r.lumpsKg)}</TableCell>
-                  <TableCell className="text-center"><CheckCircle2 className="w-4 h-4 text-emerald-500 inline-block" /></TableCell>
-                </TableRow>
-              ))
-            )}
-          </StageBlock>
-
-          <StageBlock
-            number={2}
-            icon={<img src={loomsIcon} alt="Looms" className="w-6 h-6 object-contain" />}
-            title="Looms Production"
-            description="Tapes are woven into fabric on looms"
-            theme={stageTheme.looms}
-            producedLabel="FABRIC PRODUCED"
-            producedValue={formatNum(row.looms.output)}
-            producedUnit="kg"
-            wasteLabel="LOOMS WASTE"
-            wasteValue={formatNum(row.looms.wastage)}
-            wasteUnit="kg"
-            pills={loomsPills}
-            expanded={expandedStages.looms}
-            onToggle={() => toggleStage('looms')}
-            tableHeads={['SIZE', 'COLOR', 'INPUT WEIGHT (KG)', 'WASTE (KG)', 'FINAL WEIGHT (KG)', 'ACTION']}
-          >
-            {loomRows.length === 0 ? (
-              <TableRow>
-                <TableCell colSpan={6} className="h-16 text-center text-gray-400 text-xs">No entries for this date.</TableCell>
-              </TableRow>
-            ) : (
-              loomRows.map((r) => (
-                <TableRow key={r.id}>
-                  <TableCell className="text-[12px] text-gray-800">{r.size}</TableCell>
-                  <TableCell className="text-[12px] text-gray-800">{r.color}</TableCell>
-                  <TableCell className="text-center text-[12px] font-semibold text-gray-900">{formatNum(r.input)}</TableCell>
-                  <TableCell className="text-center text-[12px] font-semibold text-red-500">{formatNum(r.loomsWasteKg)}</TableCell>
-                  <TableCell className="text-center text-[12px] font-semibold text-gray-900">{formatNum(r.output)}</TableCell>
-                  <TableCell className="text-center"><CheckCircle2 className="w-4 h-4 text-blue-500 inline-block" /></TableCell>
-                </TableRow>
-              ))
-            )}
-          </StageBlock>
-
-          <StageBlock
-            number={3}
-            icon={<Layers className="w-5 h-5 text-[#6D3FA0]" />}
-            title="Fabric Checking"
-            description="Final fabric is checked and wastage is recorded"
-            theme={stageTheme.fabric}
-            producedLabel="FABRIC CHECKED"
-            producedValue={formatNum(row.fabric.output)}
-            producedUnit="kg"
-            wasteLabel="FABRIC WASTE"
-            wasteValue={formatNum(row.fabric.wastage)}
-            wasteUnit="kg"
-            pills={fabricPills}
-            expanded={expandedStages.fabric}
-            onToggle={() => toggleStage('fabric')}
-            tableHeads={['SIZE', 'COLOR', 'CHECKED WEIGHT (KG)', 'WASTAGE (KG)', 'FINAL WEIGHT (KG)', 'ACTION']}
-            isLast
-          >
-            {fabricRows.length === 0 ? (
-              <TableRow>
-                <TableCell colSpan={6} className="h-16 text-center text-gray-400 text-xs">No entries for this date.</TableCell>
-              </TableRow>
-            ) : (
-              fabricRows.map((r) => (
-                <TableRow key={r.id}>
-                  <TableCell className="text-[12px] text-gray-800">{r.size}</TableCell>
-                  <TableCell className="text-[12px] text-gray-800">{r.color}</TableCell>
-                  <TableCell className="text-center text-[12px] font-semibold text-gray-900">{formatNum(r.input)}</TableCell>
-                  <TableCell className="text-center text-[12px] font-semibold text-red-500">{formatNum(r.fwKg + r.bwKg)}</TableCell>
-                  <TableCell className="text-center text-[12px] font-semibold text-gray-900">{formatNum(r.output)}</TableCell>
-                  <TableCell className="text-center"><CheckCircle2 className="w-4 h-4 text-purple-500 inline-block" /></TableCell>
-                </TableRow>
-              ))
-            )}
-          </StageBlock>
-        </div>
-      </div>
-
-      {/* Right Column (Sidebar) */}
-      <div className="w-[270px] lg:flex-shrink-0 flex flex-col border-l border-gray-100/50 bg-white shadow-[-4px_0_15px_-3px_rgba(0,0,0,0.02)]">
-        <div className="p-1 pb-1 bg-[#004D40]/5 border-b border-gray-200 flex flex-col gap-3">
-          <h3 className="font-semibold text-[#003140] text-[18px]">Production Dates</h3>
-          <div className="relative">
-            <Search className="w-4 h-4 text-gray-400 absolute left-3 top-1/2 -translate-y-1/2" />
-            <input
-              type="text"
-              placeholder="Search dates..."
-              className="w-full h-[38px] pl-9 pr-3 rounded-[6px] border border-gray-200 text-[13px] text-gray-600 bg-white focus:outline-none focus:border-[#00897B] focus:ring-1 focus:ring-[#00897B]/20"
-            />
-          </div>
-        </div>
-
-        <div className="flex flex-col gap-1 overflow-y-auto max-h-[600px] p-4">
-          {dayWiseRows.map((dr) => {
-            const isSelected = dr.date === date;
-            const dFormat = format(parseISO(dr.date), 'dd MMM, yyyy');
-            const stageOutputs = [dr.extruder.output, dr.looms.output, dr.fabric.output];
-            const stageCount = stageOutputs.filter((v) => v > 0).length;
-            const totalOutput = stageOutputs.reduce((sum, v) => sum + v, 0);
-            return (
-              <div
-                key={dr.date}
-                className={`p-3.5 rounded-[6px] cursor-pointer transition-colors border ${isSelected ? 'bg-[#EBF1F0] border-[#B5CBC8]' : 'hover:bg-gray-50 border-transparent'}`}
-                onClick={() => setDate(dr.date)}
+      <div className="flex-1 flex flex-col lg:flex-row gap-4 p-4">
+        {/* Left Column */}
+        <div className="flex-1 flex flex-col gap-4">
+          {/* Detail Header */}
+          <div className="flex flex-wrap items-center justify-between gap-4">
+            <div>
+              <h2 className="text-[22px] font-bold text-[#004D40] flex items-center gap-2 leading-none">
+                <Calendar className="w-[22px] h-[22px]" />
+                {formattedDate}
+              </h2>
+              <p className="text-[12.5px] text-gray-500 font-medium mt-2">
+                Detailed production metrics for the selected date.
+              </p>
+            </div>
+            <div className="flex items-center gap-2">
+              <Button
+                variant="outline"
+                size="sm"
+                className="h-[34px] px-4 text-[#00897B] border-[#00897B]/20 font-bold uppercase tracking-wider text-[11px] gap-2 hover:bg-[#00897B]/5 bg-white"
+                onClick={() => onEdit(date)}
               >
-                <div className="flex justify-between items-start">
-                  <div className="font-semibold text-[#003140] text-[15px]">{dFormat}</div>
-                  {isSelected && (
-                    <span className="bg-[#BDE8DF] text-[#00796B] text-[11px] font-medium px-2 py-0.5 rounded-[4px]">Current</span>
-                  )}
+                <Edit className="w-3.5 h-3.5" /> EDIT ENTRY
+              </Button>
+              <Button
+                variant="outline"
+                size="icon"
+                className="h-[34px] w-[34px] text-red-400 border-red-100 hover:bg-red-50 bg-white"
+                onClick={() => setConfirmDeleteOpen(true)}
+              >
+                <Trash2 className="w-4 h-4" />
+              </Button>
+              <Button
+                variant="outline"
+                size="sm"
+                className="h-[34px] ml-2 text-gray-500 bg-white"
+                onClick={onClose}
+              >
+                Close
+              </Button>
+            </div>
+          </div>
+
+          {/* Stage Timeline */}
+          <div className="flex flex-col">
+            <StageBlock
+              number={1}
+              icon={<img src={extruderIcon} alt="Extruder" className="w-6 h-6 object-contain" />}
+              title="Extruder Production"
+              description="Raw materials is converted into tape (DN+ / LUMPS)"
+              theme={stageTheme.extruder}
+              producedLabel="DN+ PRODUCED"
+              producedValue={formatNum(row.extruder.output)}
+              producedUnit="kg"
+              wasteLabel="WASTE + LUMPS"
+              wasteValue={formatNum(row.extruder.wastage)}
+              wasteUnit="kg"
+              pills={extruderPills}
+              expanded={expandedStages.extruder}
+              onToggle={() => toggleStage('extruder')}
+              tableHeads={['SIZE', 'COLOR', 'BRAND', 'RAW MATERIAL (KG)', 'WASTE (KG)', 'LUMPS (KG)', 'ACTION']}
+            >
+              {extruderRows.length === 0 ? (
+                <TableRow>
+                  <TableCell colSpan={7} className="h-16 text-center text-gray-400 text-xs">No entries for this date.</TableCell>
+                </TableRow>
+              ) : (
+                extruderRows.map((r) => (
+                  <TableRow key={r.id}>
+                    <TableCell className="text-[12px] text-gray-800">{r.size}</TableCell>
+                    <TableCell className="text-[12px] text-gray-800">{r.color}</TableCell>
+                    <TableCell className="text-[12px] text-gray-800">{r.brand}</TableCell>
+                    <TableCell className="text-center text-[12px] font-semibold text-gray-900">{formatNum(r.raw)}</TableCell>
+                    <TableCell className="text-center text-[12px] font-semibold text-red-500">{formatNum(r.yarnWasteKg)}</TableCell>
+                    <TableCell className="text-center text-[12px] font-semibold text-gray-700">{formatNum(r.lumpsKg)}</TableCell>
+                    <TableCell className="text-center"><CheckCircle2 className="w-4 h-4 text-emerald-500 inline-block" /></TableCell>
+                  </TableRow>
+                ))
+              )}
+            </StageBlock>
+
+            <StageBlock
+              number={2}
+              icon={<img src={loomsIcon} alt="Looms" className="w-6 h-6 object-contain" />}
+              title="Looms Production"
+              description="Tapes are woven into fabric on looms"
+              theme={stageTheme.looms}
+              producedLabel="FABRIC PRODUCED"
+              producedValue={formatNum(row.looms.output)}
+              producedUnit="kg"
+              wasteLabel="LOOMS WASTE"
+              wasteValue={formatNum(row.looms.wastage)}
+              wasteUnit="kg"
+              pills={loomsPills}
+              expanded={expandedStages.looms}
+              onToggle={() => toggleStage('looms')}
+              tableHeads={['SIZE', 'COLOR', 'INPUT WEIGHT (KG)', 'WASTE (KG)', 'FINAL WEIGHT (KG)', 'ACTION']}
+            >
+              {loomRows.length === 0 ? (
+                <TableRow>
+                  <TableCell colSpan={6} className="h-16 text-center text-gray-400 text-xs">No entries for this date.</TableCell>
+                </TableRow>
+              ) : (
+                loomRows.map((r) => (
+                  <TableRow key={r.id}>
+                    <TableCell className="text-[12px] text-gray-800">{r.size}</TableCell>
+                    <TableCell className="text-[12px] text-gray-800">{r.color}</TableCell>
+                    <TableCell className="text-center text-[12px] font-semibold text-gray-900">{formatNum(r.input)}</TableCell>
+                    <TableCell className="text-center text-[12px] font-semibold text-red-500">{formatNum(r.loomsWasteKg)}</TableCell>
+                    <TableCell className="text-center text-[12px] font-semibold text-gray-900">{formatNum(r.output)}</TableCell>
+                    <TableCell className="text-center"><CheckCircle2 className="w-4 h-4 text-blue-500 inline-block" /></TableCell>
+                  </TableRow>
+                ))
+              )}
+            </StageBlock>
+
+            <StageBlock
+              number={3}
+              icon={<Layers className="w-5 h-5 text-[#6D3FA0]" />}
+              title="Fabric Checking"
+              description="Final fabric is checked and wastage is recorded"
+              theme={stageTheme.fabric}
+              producedLabel="FABRIC CHECKED"
+              producedValue={formatNum(row.fabric.output)}
+              producedUnit="kg"
+              wasteLabel="FABRIC WASTE"
+              wasteValue={formatNum(row.fabric.wastage)}
+              wasteUnit="kg"
+              pills={fabricPills}
+              expanded={expandedStages.fabric}
+              onToggle={() => toggleStage('fabric')}
+              tableHeads={['SIZE', 'COLOR', 'CHECKED WEIGHT (KG)', 'WASTAGE (KG)', 'FINAL WEIGHT (KG)', 'ACTION']}
+              isLast
+            >
+              {fabricRows.length === 0 ? (
+                <TableRow>
+                  <TableCell colSpan={6} className="h-16 text-center text-gray-400 text-xs">No entries for this date.</TableCell>
+                </TableRow>
+              ) : (
+                fabricRows.map((r) => (
+                  <TableRow key={r.id}>
+                    <TableCell className="text-[12px] text-gray-800">{r.size}</TableCell>
+                    <TableCell className="text-[12px] text-gray-800">{r.color}</TableCell>
+                    <TableCell className="text-center text-[12px] font-semibold text-gray-900">{formatNum(r.input)}</TableCell>
+                    <TableCell className="text-center text-[12px] font-semibold text-red-500">{formatNum(r.fwKg + r.bwKg)}</TableCell>
+                    <TableCell className="text-center text-[12px] font-semibold text-gray-900">{formatNum(r.output)}</TableCell>
+                    <TableCell className="text-center"><CheckCircle2 className="w-4 h-4 text-purple-500 inline-block" /></TableCell>
+                  </TableRow>
+                ))
+              )}
+            </StageBlock>
+          </div>
+        </div>
+
+        {/* Right Column (Sidebar) */}
+        <div className="w-[270px] lg:flex-shrink-0 flex flex-col border-l border-gray-100/50 bg-white shadow-[-4px_0_15px_-3px_rgba(0,0,0,0.02)]">
+          <div className="p-1 pb-1 bg-[#004D40]/5 border-b border-gray-200 flex flex-col gap-3">
+            <h3 className="font-semibold text-[#003140] text-[18px]">Production Dates</h3>
+            <div className="relative">
+              <Search className="w-4 h-4 text-gray-400 absolute left-3 top-1/2 -translate-y-1/2" />
+              <input
+                type="text"
+                placeholder="Search dates..."
+                className="w-full h-[38px] pl-9 pr-3 rounded-[6px] border border-gray-200 text-[13px] text-gray-600 bg-white focus:outline-none focus:border-[#00897B] focus:ring-1 focus:ring-[#00897B]/20"
+              />
+            </div>
+          </div>
+
+          <div className="flex flex-col gap-1 overflow-y-auto max-h-[600px] p-4">
+            {dayWiseRows.map((dr) => {
+              const isSelected = dr.date === date;
+              const dFormat = format(parseISO(dr.date), 'dd MMM, yyyy');
+              const stageOutputs = [dr.extruder.output, dr.looms.output, dr.fabric.output];
+              const stageCount = stageOutputs.filter((v) => v > 0).length;
+              const totalOutput = stageOutputs.reduce((sum, v) => sum + v, 0);
+              return (
+                <div
+                  key={dr.date}
+                  className={`p-3.5 rounded-[6px] cursor-pointer transition-colors border ${isSelected ? 'bg-[#EBF1F0] border-[#B5CBC8]' : 'hover:bg-gray-50 border-transparent'}`}
+                  onClick={() => setDate(dr.date)}
+                >
+                  <div className="flex justify-between items-start">
+                    <div className="font-semibold text-[#003140] text-[15px]">{dFormat}</div>
+                    {isSelected && (
+                      <span className="bg-[#BDE8DF] text-[#00796B] text-[11px] font-medium px-2 py-0.5 rounded-[4px]">Current</span>
+                    )}
+                  </div>
+                  <div className="flex items-center gap-1.5 mt-2.5 text-[12px] text-[#2F4A47] font-medium">
+                    <Layers className="w-3.5 h-3.5 text-[#5F7D7A]" />
+                    {stageCount} {stageCount === 1 ? 'Stage' : 'Stages'}
+                    <Gauge className="w-3.5 h-3.5 text-[#5F7D7A] ml-2" />
+                    {formatNum(totalOutput)} kg/m
+                  </div>
                 </div>
-                <div className="flex items-center gap-1.5 mt-2.5 text-[12px] text-[#2F4A47] font-medium">
-                  <Layers className="w-3.5 h-3.5 text-[#5F7D7A]" />
-                  {stageCount} {stageCount === 1 ? 'Stage' : 'Stages'}
-                  <Gauge className="w-3.5 h-3.5 text-[#5F7D7A] ml-2" />
-                  {formatNum(totalOutput)} kg/m
-                </div>
-              </div>
-            );
-          })}
+              );
+            })}
+          </div>
         </div>
       </div>
-    </div>
-    <DeleteConfirmDialog
-      open={confirmDeleteOpen}
-      onOpenChange={setConfirmDeleteOpen}
-      title="Delete this day's entries?"
-      description={`Removes every Extruder, Looms, and Fabric Checking record for ${formattedDate}. This action cannot be undone.`}
-      isPending={deletingDay}
-      onConfirm={handleDeleteDay}
-    />
+      <DeleteConfirmDialog
+        open={confirmDeleteOpen}
+        onOpenChange={setConfirmDeleteOpen}
+        title="Delete this day's entries?"
+        description={`Removes every Extruder, Looms, and Fabric Checking record for ${formattedDate}. This action cannot be undone.`}
+        isPending={deletingDay}
+        onConfirm={handleDeleteDay}
+      />
     </>
   );
 }
@@ -816,9 +816,6 @@ export function ProductionDesign2() {
                 Day Wise Production & Wastage Details
               </CardTitle>
               <div className="flex flex-wrap gap-2">
-                <Button variant="outline" size="sm" className="flex gap-2 font-bold uppercase tracking-wider text-[11px] h-8 px-3 text-gray-600 border-gray-400">
-                  <Filter className="w-[14px] h-[14px]" /> FILTERS
-                </Button>
                 <Button
                   variant="outline"
                   size="sm"
