@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
-import { Plus, Edit2, Trash2, PackagePlus, PackageMinus } from 'lucide-react';
+import { Plus, Edit2, Trash2, PackagePlus, PackageMinus, ArrowLeft } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -71,9 +71,9 @@ function InventoryFormDialog({ onClose, record }: InventoryFormDialogProps) {
 
   const nameOptions =
     type === 'RAW_MATERIAL' ? lookupsData?.brands
-    : type === 'CHEMICAL' ? lookupsData?.chemicals
-    : type === 'COLOR' ? lookupsData?.colors
-    : undefined;
+      : type === 'CHEMICAL' ? lookupsData?.chemicals
+        : type === 'COLOR' ? lookupsData?.colors
+          : undefined;
   const nameLabel = type === 'RAW_MATERIAL' ? 'brand' : type === 'CHEMICAL' ? 'chemical' : 'color';
 
   const handleTypeChange = (value: InventoryType) => {
@@ -202,7 +202,7 @@ function InventoryFormDialog({ onClose, record }: InventoryFormDialogProps) {
   );
 }
 
-function InventoryReceiveTab() {
+function InventoryReceiveTab({ onBack }: { onBack: () => void }) {
   const queryClient = useQueryClient();
   const { data, isLoading } = useInventoryRecords('?limit=100');
   const records = data?.data ?? [];
@@ -235,6 +235,9 @@ function InventoryReceiveTab() {
     <div className="rounded-xl border border-green-200 bg-white shadow-sm overflow-hidden">
       <div className="border-b border-green-100 p-4 bg-white flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div className="flex items-center gap-3">
+          <Button variant="ghost" size="icon-sm" className="mr-1 rounded-full text-gray-500 hover:text-gray-900 hover:bg-gray-100" onClick={onBack}>
+            <ArrowLeft className="h-4 w-4" />
+          </Button>
           <div className="flex h-8 w-8 items-center justify-center rounded border border-green-200 bg-green-50 text-green-700">
             <PackagePlus className="h-4 w-4" />
           </div>
@@ -430,7 +433,7 @@ function LoadSentFormDialog({ onClose, record }: LoadSentFormDialogProps) {
   );
 }
 
-function LoadSentTab() {
+function LoadSentTab({ onBack }: { onBack: () => void }) {
   const queryClient = useQueryClient();
   const { data: lookupsData } = useLookups();
   const colors = lookupsData?.colors ?? [];
@@ -438,7 +441,7 @@ function LoadSentTab() {
 
   const { data: sentData, isLoading: isSentLoading } = useLoadSentRecords('?limit=100');
   const { data: prodData, isLoading: isProdLoading } = useFabricCheckingRecords('?limit=100');
-  
+
   const records = sentData?.data ?? [];
   const prodRecords = prodData?.data ?? [];
   const isLoading = isSentLoading || isProdLoading;
@@ -495,6 +498,9 @@ function LoadSentTab() {
     <div className="rounded-xl border border-orange-100 bg-white shadow-sm overflow-hidden">
       <div className="border-b border-orange-100 p-5 bg-gradient-to-r from-orange-50/60 to-white flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div className="flex items-center gap-3">
+          <Button variant="ghost" size="icon-sm" className="mr-1 rounded-full text-gray-500 hover:text-gray-900 hover:bg-gray-100" onClick={onBack}>
+            <ArrowLeft className="h-4 w-4" />
+          </Button>
           <div className="flex h-9 w-9 items-center justify-center rounded-lg border border-orange-200 bg-orange-50 text-orange-600 shadow-sm">
             <PackageMinus className="h-4.5 w-4.5" />
           </div>
@@ -541,9 +547,9 @@ function LoadSentTab() {
             </SelectContent>
           </Select>
         </div>
-        
+
         <div className="h-5 w-px bg-orange-200 shrink-0 mx-1"></div>
-        
+
         <div className="flex items-center gap-3 shrink-0">
           <span className="text-xs font-bold uppercase tracking-wide text-gray-500">Stock:</span>
           {!selectedColorId ? (
@@ -633,7 +639,191 @@ function LoadSentTab() {
 
 /* ---------------------------------------------------------------------- */
 
+function StockSummaryCard({ onClick }: { onClick: () => void }) {
+  const { data } = useInventoryRecords('?limit=100');
+  const records = data?.data ?? [];
+
+  const [month, setMonth] = useState(() => new Date().toISOString().slice(0, 7)); // YYYY-MM
+
+  const monthRecords = records.filter(r => r.date.startsWith(month));
+  const totalStock = monthRecords.reduce((sum, r) => sum + r.weightKg, 0);
+
+  const uniqueDays = Array.from(new Set(monthRecords.map(r => r.date.slice(0, 10)))).sort().reverse().slice(0, 3);
+
+  const threeDaysData = uniqueDays.map(day => {
+    const dayRecords = monthRecords.filter(r => r.date.startsWith(day));
+    const totalWeight = dayRecords.reduce((sum, r) => sum + r.weightKg, 0);
+    const rawMaterialWeight = dayRecords.filter(r => r.type === 'RAW_MATERIAL').reduce((sum, r) => sum + r.weightKg, 0);
+    const colorWeight = dayRecords.filter(r => r.type === 'COLOR').reduce((sum, r) => sum + r.weightKg, 0);
+    const chemicalWeight = dayRecords.filter(r => r.type === 'CHEMICAL').reduce((sum, r) => sum + r.weightKg, 0);
+    const types = Array.from(new Set(dayRecords.map(r => inventoryTypeLabels[r.type]))).join(', ');
+    const names = Array.from(new Set(dayRecords.map(r => r.name).filter(Boolean))).join(', ');
+    return { day, totalWeight, rawMaterialWeight, colorWeight, chemicalWeight, types, names };
+  });
+
+  return (
+    <div className="rounded-xl border border-green-200 bg-white shadow-sm overflow-hidden cursor-pointer hover:shadow-lg transition-all duration-300 transform hover:-translate-y-1 relative group" onClick={onClick}>
+      <div className="p-3 border-b border-green-200 bg-gradient-to-br from-green-50 via-emerald-50/50 to-white relative overflow-hidden flex items-center justify-between">
+        {/* Subtle decorative circle */}
+        <div className="absolute -right-8 -top-8 w-32 h-32 bg-green-400/5 rounded-full blur-2xl group-hover:bg-green-400/10 transition-colors pointer-events-none"></div>
+        <div className="flex items-center gap-3 relative z-10">
+          <div className="flex h-10 w-10 items-center justify-center rounded-lg border border-green-200 bg-green-50 text-green-700 shadow-sm shrink-0">
+            <PackagePlus className="h-5 w-5" />
+          </div>
+          <div className="flex flex-col">
+            <h2 className="font-bold text-gray-900 text-lg leading-tight">Stock Received</h2>
+            <p className="text-xs text-gray-500">Warehouse In-flow</p>
+          </div>
+        </div>
+        
+        <div className="flex items-center gap-4 relative z-10" onClick={e => e.stopPropagation()}>
+          <div className="text-right hidden sm:block">
+            <p className="text-[10px] font-semibold text-gray-500 uppercase tracking-wide">Total Stock</p>
+            <p className="text-xl font-bold text-gray-900 leading-none">{totalStock.toFixed(2)} <span className="text-xs font-normal text-gray-500">kg</span></p>
+          </div>
+          <Input type="month" value={month} onChange={e => setMonth(e.target.value)} className="h-9 text-sm w-36 bg-white/60" />
+        </div>
+      </div>
+      <div className="p-3 bg-gradient-to-br from-gray-50 to-green-50/20 flex-1 h-full min-h-[180px]">
+        <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">Last 3 Days</p>
+        {threeDaysData.length === 0 ? (
+          <p className="text-sm text-gray-400">No stock received this month.</p>
+        ) : (
+          <Table className="bg-white/80 backdrop-blur-sm rounded-xl overflow-hidden shadow-sm border border-gray-100/50">
+            <TableHeader>
+              <TableRow className="hover:bg-transparent border-b border-gray-100 bg-gray-50/50">
+                <TableHead className="text-2xs font-semibold uppercase tracking-wide text-gray-500">Date</TableHead>
+                <TableHead className="text-2xs font-semibold uppercase tracking-wide text-gray-500">Item Types</TableHead>
+                <TableHead className="text-2xs font-semibold uppercase tracking-wide text-gray-500">Names</TableHead>
+                <TableHead className="text-right text-2xs font-semibold uppercase tracking-wide text-gray-500">Raw Material</TableHead>
+                <TableHead className="text-right text-2xs font-semibold uppercase tracking-wide text-gray-500">Color</TableHead>
+                <TableHead className="text-right text-2xs font-semibold uppercase tracking-wide text-gray-500">Chemical</TableHead>
+                <TableHead className="text-right text-2xs font-semibold uppercase tracking-wide text-gray-500">Total Weight</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {threeDaysData.map(d => (
+                <TableRow key={d.day} className="hover:bg-green-50/60 border-b border-gray-100/50 transition-colors">
+                  <TableCell className="font-medium text-gray-900 text-sm">{formatDate(d.day)}</TableCell>
+                  <TableCell>
+                    {d.types ? (
+                      <span className="inline-flex items-center rounded-md bg-green-50 px-2 py-1 text-xs font-medium text-green-700 ring-1 ring-inset ring-green-600/20">{d.types}</span>
+                    ) : (
+                      <span className="text-gray-400 text-xs">N/A</span>
+                    )}
+                  </TableCell>
+                  <TableCell className="text-gray-600 text-xs font-medium max-w-[200px] truncate" title={d.names || '—'}>{d.names || '—'}</TableCell>
+                  <TableCell className="text-right text-gray-600 text-xs font-medium">{d.rawMaterialWeight.toFixed(2)}</TableCell>
+                  <TableCell className="text-right text-gray-600 text-xs font-medium">{d.colorWeight.toFixed(2)}</TableCell>
+                  <TableCell className="text-right text-gray-600 text-xs font-medium">{d.chemicalWeight.toFixed(2)}</TableCell>
+                  <TableCell className="text-right font-bold text-green-700">{d.totalWeight.toFixed(2)} kg</TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
+        )}
+      </div>
+    </div>
+  );
+}
+
+function LoadSentSummaryCard({ onClick }: { onClick: () => void }) {
+  const { data } = useLoadSentRecords('?limit=100');
+  const records = data?.data ?? [];
+
+  const [month, setMonth] = useState(() => new Date().toISOString().slice(0, 7)); // YYYY-MM
+
+  const monthRecords = records.filter(r => r.date.startsWith(month));
+  const totalWeight = monthRecords.reduce((sum, r) => sum + r.weightKg, 0);
+  const totalPieces = monthRecords.reduce((sum, r) => sum + r.pieceCount, 0);
+
+  const uniqueDays = Array.from(new Set(monthRecords.map(r => r.date.slice(0, 10)))).sort().reverse().slice(0, 3);
+
+  const threeDaysData = uniqueDays.map(day => {
+    const dayRecords = monthRecords.filter(r => r.date.startsWith(day));
+    const dayWeight = dayRecords.reduce((sum, r) => sum + r.weightKg, 0);
+    const dayPieces = dayRecords.reduce((sum, r) => sum + r.pieceCount, 0);
+    const colors = Array.from(new Set(dayRecords.map(r => r.color?.name).filter(Boolean))).join(', ');
+    return { day, dayWeight, dayPieces, colors };
+  });
+
+  return (
+    <div className="rounded-xl border border-orange-200 bg-white shadow-sm overflow-hidden cursor-pointer hover:shadow-lg transition-all duration-300 transform hover:-translate-y-1 relative group" onClick={onClick}>
+      <div className="p-3 border-b border-orange-200 bg-gradient-to-br from-orange-50 via-rose-50/50 to-white relative overflow-hidden flex items-center justify-between">
+        {/* Subtle decorative circle */}
+        <div className="absolute -right-8 -top-8 w-32 h-32 bg-orange-400/5 rounded-full blur-2xl group-hover:bg-orange-400/10 transition-colors pointer-events-none"></div>
+        <div className="flex items-center gap-3 relative z-10">
+          <div className="flex h-10 w-10 items-center justify-center rounded-lg border border-orange-200 bg-orange-50 text-orange-700 shadow-sm shrink-0">
+            <PackageMinus className="h-5 w-5" />
+          </div>
+          <div className="flex flex-col">
+            <h2 className="font-bold text-gray-900 text-lg leading-tight">Load Sent</h2>
+            <p className="text-xs text-gray-500">Warehouse Out-flow</p>
+          </div>
+        </div>
+        
+        <div className="flex items-center gap-4 relative z-10" onClick={e => e.stopPropagation()}>
+          <div className="text-right hidden sm:flex sm:items-end sm:gap-3">
+            <div>
+              <p className="text-[10px] font-semibold text-gray-500 uppercase tracking-wide">Total Weight</p>
+              <p className="text-xl font-bold text-gray-900 leading-none">{totalWeight.toFixed(2)} <span className="text-xs font-normal text-gray-500">kg</span></p>
+            </div>
+            <div className="pb-0.5">
+              <span className="text-xs font-semibold text-gray-500">{totalPieces} pcs</span>
+            </div>
+          </div>
+          <Input type="month" value={month} onChange={e => setMonth(e.target.value)} className="h-9 text-sm w-36 bg-white/60" />
+        </div>
+      </div>
+      <div className="p-3 bg-gradient-to-br from-gray-50 to-orange-50/20 flex-1 h-full min-h-[180px]">
+        <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">Last 3 Days</p>
+        {threeDaysData.length === 0 ? (
+          <p className="text-sm text-gray-400">No load sent this month.</p>
+        ) : (
+          <Table className="bg-white/80 backdrop-blur-sm rounded-xl overflow-hidden shadow-sm border border-gray-100/50">
+            <TableHeader>
+              <TableRow className="hover:bg-transparent border-b border-gray-100 bg-gray-50/50">
+                <TableHead className="text-2xs font-semibold uppercase tracking-wide text-gray-500">Date</TableHead>
+                <TableHead className="text-2xs font-semibold uppercase tracking-wide text-gray-500">Colors</TableHead>
+                <TableHead className="text-center text-2xs font-semibold uppercase tracking-wide text-gray-500">Pieces</TableHead>
+                <TableHead className="text-right text-2xs font-semibold uppercase tracking-wide text-gray-500">Total Weight</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {threeDaysData.map(d => (
+                <TableRow key={d.day} className="hover:bg-orange-50/60 border-b border-gray-100/50 transition-colors">
+                  <TableCell className="font-medium text-gray-900 text-sm">{formatDate(d.day)}</TableCell>
+                  <TableCell>
+                    {d.colors ? (
+                      <span className="inline-flex items-center rounded-md bg-orange-50 px-2 py-1 text-xs font-medium text-orange-700 ring-1 ring-inset ring-orange-600/20">{d.colors}</span>
+                    ) : (
+                      <span className="text-gray-400 text-xs">N/A</span>
+                    )}
+                  </TableCell>
+                  <TableCell className="text-center text-gray-700 font-medium">{d.dayPieces}</TableCell>
+                  <TableCell className="text-right font-bold text-orange-700">{d.dayWeight.toFixed(2)} kg</TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
+        )}
+      </div>
+    </div>
+  );
+}
+
+function InventorySummary({ onSelect }: { onSelect: (view: 'receive' | 'send') => void }) {
+  return (
+    <div className="flex flex-col gap-6">
+      <StockSummaryCard onClick={() => onSelect('receive')} />
+      <LoadSentSummaryCard onClick={() => onSelect('send')} />
+    </div>
+  );
+}
+
 export function InventoryPage() {
+  const [activeView, setActiveView] = useState<'summary' | 'receive' | 'send'>('summary');
+
   return (
     <div className="flex flex-col gap-6 p-4">
       <div>
@@ -641,18 +831,9 @@ export function InventoryPage() {
         <p className="text-sm text-gray-500">Track stock received into and sent out of the warehouse</p>
       </div>
 
-      <Tabs defaultValue="receive">
-        <TabsList variant="underline">
-          <TabsTrigger value="receive">Stock</TabsTrigger>
-          <TabsTrigger value="send">Load Sent</TabsTrigger>
-        </TabsList>
-        <TabsContent value="receive" className="mt-4">
-          <InventoryReceiveTab />
-        </TabsContent>
-        <TabsContent value="send" className="mt-4">
-          <LoadSentTab />
-        </TabsContent>
-      </Tabs>
+      {activeView === 'summary' && <InventorySummary onSelect={setActiveView} />}
+      {activeView === 'receive' && <InventoryReceiveTab onBack={() => setActiveView('summary')} />}
+      {activeView === 'send' && <LoadSentTab onBack={() => setActiveView('summary')} />}
     </div>
   );
 }

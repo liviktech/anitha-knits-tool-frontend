@@ -57,6 +57,7 @@ export function NewEntry({ onClose, defaultDate, readOnly = false }: NewEntryPro
               mode="single"
               selected={date}
               onSelect={(value) => value && setDate(value)}
+              disabled={(d) => d < new Date(new Date().setHours(0, 0, 0, 0))}
               autoFocus
             />
           </PopoverContent>
@@ -212,11 +213,11 @@ export function NewEntry({ onClose, defaultDate, readOnly = false }: NewEntryPro
             productionDate={productionDate}
             autoAdd={!readOnly}
             readOnly={readOnly}
-            hideExisting={isCreateMode}
+            hideExisting={false}
           />
-          <LoomSection ref={loomRef} productionDate={productionDate} autoAdd={!readOnly} readOnly={readOnly} hideExisting={isCreateMode} />
-          <FabricSection ref={fabricRef} productionDate={productionDate} autoAdd={!readOnly} readOnly={readOnly} hideExisting={isCreateMode} />
-          <FabricDeliveredSection ref={fabricDeliveredRef} productionDate={productionDate} autoAdd={!readOnly} readOnly={readOnly} hideExisting={isCreateMode} />
+          <LoomSection ref={loomRef} productionDate={productionDate} autoAdd={!readOnly} readOnly={readOnly} hideExisting={false} />
+          <FabricSection ref={fabricRef} productionDate={productionDate} autoAdd={!readOnly} readOnly={readOnly} hideExisting={false} />
+          <FabricDeliveredSection ref={fabricDeliveredRef} productionDate={productionDate} autoAdd={!readOnly} readOnly={readOnly} hideExisting={false} />
         </div>
 
         {/* Footer */}

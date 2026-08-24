@@ -274,14 +274,11 @@ export const ExtruderSection = forwardRef<SectionRef, SectionProps>(({ productio
 
   useEffect(() => {
     if (readOnly || !autoAdd || isLoading || hasAutoAddedRef.current) return;
-    if (rows.length === 0 && newRows.length === 0) {
+    if (newRows.length === 0) {
       hasAutoAddedRef.current = true;
-      // One-shot: open a blank draft row the first time this date resolves
-      // with no existing records. The ref above guarantees this only ever
-      // fires once per mount, so it can't cascade into further renders.
       startAdd();
     }
-  }, [readOnly, autoAdd, isLoading, rows.length, newRows.length, startAdd]);
+  }, [readOnly, autoAdd, isLoading, newRows.length, startAdd]);
 
   // Single choke point for every field edit on a new row — recomputes the
   // suggested Yarn Output from the row's own values unless the user has
@@ -509,6 +506,27 @@ export const ExtruderSection = forwardRef<SectionRef, SectionProps>(({ productio
               </TableRow>
             ) : (
               <>
+                {!readOnly &&
+                  newRows.map((row) => (
+                    <ExtruderEditableRow
+                      key={row.key}
+                      draft={row.draft}
+                      setDraft={(draft) => updateNewRow(row.key, draft)}
+                      lookups={lookups}
+                      saving={saving}
+                      onCancel={() => removeNewRow(row.key)}
+                      onOutputManualEdit={() => markNewRowOutputManualEdit(row.key)}
+                    />
+                  ))}
+                {!readOnly && editingId !== null && (
+                  <ExtruderEditableRow
+                    draft={editDraft}
+                    setDraft={setEditDraft}
+                    lookups={lookups}
+                    saving={saving}
+                    onCancel={cancelEdit}
+                  />
+                )}
                 {rows.map((row) => (
                   <TableRow key={row.id} className={editingId === row.id ? 'bg-blue-50/30' : ''}>
                     <TableCell>{row.size}</TableCell>
@@ -537,27 +555,6 @@ export const ExtruderSection = forwardRef<SectionRef, SectionProps>(({ productio
                   </TableRow>
                 )
                 )}
-                {!readOnly && editingId !== null && (
-                  <ExtruderEditableRow
-                    draft={editDraft}
-                    setDraft={setEditDraft}
-                    lookups={lookups}
-                    saving={saving}
-                    onCancel={cancelEdit}
-                  />
-                )}
-                {!readOnly &&
-                  newRows.map((row) => (
-                    <ExtruderEditableRow
-                      key={row.key}
-                      draft={row.draft}
-                      setDraft={(draft) => updateNewRow(row.key, draft)}
-                      lookups={lookups}
-                      saving={saving}
-                      onCancel={() => removeNewRow(row.key)}
-                      onOutputManualEdit={() => markNewRowOutputManualEdit(row.key)}
-                    />
-                  ))}
                 {rows.length === 0 && newRows.length === 0 && editingId === null && (
                   <TableRow>
                     <TableCell colSpan={readOnly ? 10 : 11} className="h-20 text-center text-gray-500">No entries yet.</TableCell>
@@ -752,14 +749,11 @@ export const LoomSection = forwardRef<SectionRef, SectionProps>(({ productionDat
 
   useEffect(() => {
     if (readOnly || !autoAdd || isLoading || hasAutoAddedRef.current) return;
-    if (rows.length === 0 && newRows.length === 0) {
+    if (newRows.length === 0) {
       hasAutoAddedRef.current = true;
-      // One-shot: open a blank draft row the first time this date resolves
-      // with no existing records. The ref above guarantees this only ever
-      // fires once per mount, so it can't cascade into further renders.
       startAdd();
     }
-  }, [readOnly, autoAdd, isLoading, rows.length, newRows.length, startAdd]);
+  }, [readOnly, autoAdd, isLoading, newRows.length, startAdd]);
 
   // Single choke point for every field edit on a new row — recomputes the
   // suggested Fabric Output from the row's own values unless the user has
@@ -880,15 +874,6 @@ export const LoomSection = forwardRef<SectionRef, SectionProps>(({ productionDat
               </TableRow>
             ) : (
               <>
-                {rows.map((row) => (
-                  <TableRow key={row.id}>
-                    <TableCell>{row.size}</TableCell>
-                    <TableCell>{row.color}</TableCell>
-                    <TableCell className="text-center">{row.input.toFixed(2)}</TableCell>
-                    <TableCell className="text-center">{row.loomsWasteKg.toFixed(2)}</TableCell>
-                    <TableCell className="text-center">{row.output.toFixed(2)}</TableCell>
-                  </TableRow>
-                ))}
                 {!readOnly &&
                   newRows.map((row) => (
                     <TableRow key={row.key}>
@@ -943,6 +928,15 @@ export const LoomSection = forwardRef<SectionRef, SectionProps>(({ productionDat
                       </TableCell>
                     </TableRow>
                   ))}
+                {rows.map((row) => (
+                  <TableRow key={row.id}>
+                    <TableCell>{row.size}</TableCell>
+                    <TableCell>{row.color}</TableCell>
+                    <TableCell className="text-center">{row.input.toFixed(2)}</TableCell>
+                    <TableCell className="text-center">{row.loomsWasteKg.toFixed(2)}</TableCell>
+                    <TableCell className="text-center">{row.output.toFixed(2)}</TableCell>
+                  </TableRow>
+                ))}
                 {rows.length === 0 && newRows.length === 0 && (
                   <TableRow>
                     <TableCell colSpan={5} className="h-20 text-center text-gray-500">No entries yet.</TableCell>
@@ -1083,14 +1077,11 @@ export const FabricSection = forwardRef<SectionRef, SectionProps>(({ productionD
 
   useEffect(() => {
     if (readOnly || !autoAdd || isLoading || hasAutoAddedRef.current) return;
-    if (rows.length === 0 && newRows.length === 0) {
+    if (newRows.length === 0) {
       hasAutoAddedRef.current = true;
-      // One-shot: open a blank draft row the first time this date resolves
-      // with no existing records. The ref above guarantees this only ever
-      // fires once per mount, so it can't cascade into further renders.
       startAdd();
     }
-  }, [readOnly, autoAdd, isLoading, rows.length, newRows.length, startAdd]);
+  }, [readOnly, autoAdd, isLoading, newRows.length, startAdd]);
 
   // Single choke point for every field edit on a new row — recomputes the
   // suggested Output from the row's own values unless the user has typed
@@ -1209,16 +1200,6 @@ export const FabricSection = forwardRef<SectionRef, SectionProps>(({ productionD
               </TableRow>
             ) : (
               <>
-                {rows.map((row) => (
-                  <TableRow key={row.id}>
-                    <TableCell>{row.size}</TableCell>
-                    <TableCell>{row.color}</TableCell>
-                    <TableCell className="text-center">{row.input.toFixed(2)}</TableCell>
-                    <TableCell className="text-center">{row.fwKg.toFixed(2)}</TableCell>
-                    <TableCell className="text-center">{row.bwKg.toFixed(2)}</TableCell>
-                    <TableCell className="text-center">{row.output.toFixed(2)}</TableCell>
-                  </TableRow>
-                ))}
                 {!readOnly &&
                   newRows.map((row) => (
                     <TableRow key={row.key}>
@@ -1267,6 +1248,16 @@ export const FabricSection = forwardRef<SectionRef, SectionProps>(({ productionD
                       </TableCell>
                     </TableRow>
                   ))}
+                {rows.map((row) => (
+                  <TableRow key={row.id}>
+                    <TableCell>{row.size}</TableCell>
+                    <TableCell>{row.color}</TableCell>
+                    <TableCell className="text-center">{row.input.toFixed(2)}</TableCell>
+                    <TableCell className="text-center">{row.fwKg.toFixed(2)}</TableCell>
+                    <TableCell className="text-center">{row.bwKg.toFixed(2)}</TableCell>
+                    <TableCell className="text-center">{row.output.toFixed(2)}</TableCell>
+                  </TableRow>
+                ))}
                 {rows.length === 0 && newRows.length === 0 && (
                   <TableRow>
                     <TableCell colSpan={6} className="h-20 text-center text-gray-500">No entries yet.</TableCell>
