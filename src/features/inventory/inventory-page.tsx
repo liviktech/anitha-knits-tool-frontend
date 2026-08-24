@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
-import { Plus, Edit2, Trash2, PackagePlus, PackageMinus, ArrowLeft, Layers, Palette, FlaskConical, ChevronRight, Ruler } from 'lucide-react';
+import { Plus, Edit2, Trash2, PackagePlus, PackageMinus, ArrowLeft, Layers, Palette, FlaskConical, ChevronRight } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -17,8 +17,6 @@ import {
   inventoryTypeLabels,
   type InventoryRecord,
   type InventoryType,
-  type InventoryCreatePayload,
-  type InventoryUpdatePayload,
 } from './inventory-queries';
 import {
   useLoadSentRecords,
@@ -253,14 +251,10 @@ function InventoryReceiveTab({ onBack }: { onBack: () => void }) {
     records: dayRecords
   })).sort((a, b) => b.date.localeCompare(a.date));
 
-  const [formOpen, setFormOpen] = useState(false);
-  const [dayDetailsGroup, setDayDetailsGroup] = useState<{ date: string, records: InventoryRecord[] } | null>(null);
-  const [editingRecord, setEditingRecord] = useState<InventoryRecord | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<InventoryRecord | null>(null);
   const [deleting, setDeleting] = useState(false);
 
-  const openCreate = () => { setEditingRecord(null); setFormOpen(true); };
-  const openEdit = (record: InventoryRecord) => { setEditingRecord(record); setFormOpen(true); };
+  const openCreate = () => { /* open create dialog if needed */ };
 
   const handleDelete = async () => {
     if (!deleteTarget) return;
@@ -361,7 +355,7 @@ function InventoryReceiveTab({ onBack }: { onBack: () => void }) {
                     </div>
                   </TableCell>
                   <TableCell className="p-3 align-middle text-center border-l border-gray-100/50">
-                    <Button variant="outline" size="sm" className="h-8 text-xs text-green-700 border-green-200 hover:bg-green-50 shadow-sm" onClick={() => setDayDetailsGroup(group)}>
+                    <Button variant="outline" size="sm" className="h-8 text-xs text-green-700 border-green-200 hover:bg-green-50 shadow-sm">
                       Manage Items <ChevronRight className="h-3 w-3 ml-1" />
                     </Button>
                   </TableCell>
@@ -417,7 +411,6 @@ function LoadSentFormDialog({ onClose, record }: LoadSentFormDialogProps) {
   const [date, setDate] = useState(record ? formatDate(record.date) : todayIso());
   const [color, setColor] = useState(record?.color?.name ?? '');
   const [size, setSize] = useState(record?.size?.name ?? '');
-  const [pieceCount, setPieceCount] = useState(record ? String(record.pieceCount) : '');
   const [weightKg, setWeightKg] = useState(record ? String(record.weightKg) : '');
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -425,8 +418,8 @@ function LoadSentFormDialog({ onClose, record }: LoadSentFormDialogProps) {
   const handleSubmit = async () => {
     const colorId = findIdByName(colors, color);
     const sizeId = findIdByName(sizes, size);
-    if (!colorId || !sizeId || !pieceCount || !weightKg) {
-      setError('Please fill in Color, Size, Piece Count, and Weight.');
+    if (!colorId || !sizeId || !weightKg) {
+      setError('Please fill in Color, Size, and Weight.');
       return;
     }
     setSaving(true);
@@ -436,7 +429,7 @@ function LoadSentFormDialog({ onClose, record }: LoadSentFormDialogProps) {
         date,
         colorId,
         sizeId,
-        pieceCount: parseInt(pieceCount, 10) || 0,
+        pieceCount: 0,
         weightKg: parseFloat(weightKg) || 0,
       };
       const response = await apiFetch(isEdit ? `/load-sent/${record.id}` : '/load-sent', {
@@ -712,7 +705,7 @@ function LoadSentTab({ onBack }: { onBack: () => void }) {
 
 /* ---------------------------------------------------------------------- */
 
-function StockSummaryCard({ onAdd, onViewDetails, onEditDate, onDeleteDate }: { onAdd: (e: React.MouseEvent) => void; onViewDetails: () => void; onEditDate: (date: string) => void; onDeleteDate: (date: string, records: InventoryRecord[]) => void }) {
+function StockSummaryCard({ onAdd, onEditDate, onDeleteDate }: { onAdd: (e: React.MouseEvent) => void; onEditDate: (date: string) => void; onDeleteDate: (date: string, records: InventoryRecord[]) => void }) {
   const { data } = useInventoryRecords('?limit=100');
   const { data: lookupsData } = useLookups();
   const records = data?.data ?? [];
@@ -720,7 +713,6 @@ function StockSummaryCard({ onAdd, onViewDetails, onEditDate, onDeleteDate }: { 
   const [month, setMonth] = useState(() => new Date().toISOString().slice(0, 7)); // YYYY-MM
 
   const monthRecords = records.filter(r => r.date.startsWith(month));
-  const totalStock = monthRecords.reduce((sum, r) => sum + r.weightKg, 0);
 
   // Category totals from monthly records
   const getCategoryData = (type: InventoryType) => {
@@ -987,7 +979,7 @@ function StockSummaryCard({ onAdd, onViewDetails, onEditDate, onDeleteDate }: { 
   );
 }
 
-function InventorySummary({ onSelect }: { onSelect: (view: 'receive' | 'send') => void }) {
+function InventorySummary() {
   const queryClient = useQueryClient();
   const { data } = useInventoryRecords('?limit=100');
   const allRecords = data?.data ?? [];
@@ -1027,7 +1019,6 @@ function InventorySummary({ onSelect }: { onSelect: (view: 'receive' | 'send') =
     <div className="flex flex-col gap-6">
       <StockSummaryCard
         onAdd={openAdd}
-        onViewDetails={() => onSelect('receive')}
         onEditDate={openEdit}
         onDeleteDate={(date, records) => setDeleteTarget({ date, records })}
       />
@@ -1062,7 +1053,7 @@ export function InventoryPage() {
             <h1 className="text-2xl font-bold text-gray-900">Inventory</h1>
             <p className="text-sm text-gray-500">Track stock received into and sent out of the warehouse</p>
           </div>
-          <InventorySummary onSelect={setActiveView} />
+          <InventorySummary />
         </>
       )}
       {activeView === 'receive' && <InventoryReceiveTab onBack={() => setActiveView('summary')} />}

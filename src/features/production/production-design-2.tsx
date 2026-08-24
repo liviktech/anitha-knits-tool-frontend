@@ -29,8 +29,6 @@ import {
   TableRow,
 } from '@/components/ui/table';
 
-import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
-import { Calendar as CalendarComponent } from '@/components/ui/calendar';
 import { useNavigate, useLocation } from 'react-router-dom';
 
 function formatNum(n: number): string {
@@ -83,11 +81,6 @@ const stageTheme = {
     pillBorder: 'border-gray-400',
   },
 } as const;
-
-interface StagePill {
-  label: string;
-  value: string;
-}
 
 const fabricDeliveredSizes = ['150mm', '160mm', '170mm', '180mm', '190mm'] as const;
 type FabricDeliveredSize = (typeof fabricDeliveredSizes)[number];
@@ -149,7 +142,7 @@ function getFabricDeliveredTableRows(rows: FabricDeliveredDetailRow[]): FabricDe
 
 interface StageBlockProps {
   number: number;
-  icon: React.ReactNode;
+  icon?: React.ReactNode;
   title: string;
   description: string;
   theme: (typeof stageTheme)[keyof typeof stageTheme];
@@ -159,7 +152,7 @@ interface StageBlockProps {
   wasteLabel: string;
   wasteValue: string;
   wasteUnit: string;
-  pills: StagePill[];
+  pills?: { label: string; value: string }[];
   expanded: boolean;
   onToggle: () => void;
   tableHeads: string[];
@@ -179,7 +172,6 @@ function StageBlock({
   wasteLabel,
   wasteValue,
   wasteUnit,
-  pills,
   expanded,
   onToggle,
   tableHeads,
@@ -193,9 +185,9 @@ function StageBlock({
         <div className={`w-10 h-10 rounded-full ${theme.circle} text-white font-bold text-[14px] flex items-center justify-center ring-4 ring-[#F3F5F4]`}>
           {number}
         </div>
-        {/* <div className="w-11 h-11 rounded-xl bg-white border border-gray-100 shadow-sm flex items-center justify-center">
+        <div className="w-11 h-11 rounded-xl bg-white border border-gray-100 shadow-sm flex items-center justify-center">
           {icon}
-        </div> */}
+        </div>
       </div>
 
       <div className="flex-1 flex flex-col gap-2 pb-5 min-w-0">
@@ -321,9 +313,6 @@ function DayDetailView({
     return () => setHeaderRight(null);
   }, [setHeaderRight, formattedDate, date, navigate, setConfirmDeleteOpen]);
 
-  // Deletes every Extruder/Looms/Fabric Checking record for this date — the
-  // three lists above are already loaded for exactly this date, so no extra
-  // fetch is needed before issuing the deletes.
   const handleDeleteDay = async () => {
     setDeletingDay(true);
     try {
@@ -376,42 +365,10 @@ function DayDetailView({
   );
   const fabricDeliveredTotal = fabricDeliveredRows.reduce((sum, record) => sum + record.delivered, 0);
 
-  const extruderPills = useMemo(() => {
-    const loose = extruderRows.reduce((sum, r) => sum + r.yarnWasteKg, 0);
-    const lumps = extruderRows.reduce((sum, r) => sum + r.lumpsKg, 0);
-    return [
-      { label: 'Loose waste', value: formatNum(loose) },
-      { label: 'Lumps', value: formatNum(lumps) },
-    ];
-  }, [extruderRows]);
-
-  const loomsPills = useMemo(() => {
-    const byColor = new Map<string, number>();
-    loomRows.forEach((r) => byColor.set(r.color, (byColor.get(r.color) ?? 0) + r.loomsWasteKg));
-    return Array.from(byColor.entries()).map(([color, kg]) => ({ label: color, value: formatNum(kg) }));
-  }, [loomRows]);
-
-  const fabricPills = useMemo(() => {
-    const fwByGroup = new Map<string, number>();
-    const bwByColor = new Map<string, number>();
-    fabricRows.forEach((r) => {
-      const key = `FW ${r.color} ${r.size}`.trim();
-      fwByGroup.set(key, (fwByGroup.get(key) ?? 0) + r.fwKg);
-      bwByColor.set(r.color, (bwByColor.get(r.color) ?? 0) + r.bwKg);
-    });
-    return [
-      ...Array.from(fwByGroup.entries()).map(([label, kg]) => ({ label, value: formatNum(kg) })),
-      ...Array.from(bwByColor.entries()).map(([color, kg]) => ({ label: color, value: formatNum(kg) })),
-    ];
-  }, [fabricRows]);
-
   return (
     <>
       <div className="flex-1 flex flex-col lg:flex-row gap-4 p-3">
-        {/* Left Column */}
         <div className="flex-1 flex flex-col gap-4">
-
-          {/* Stage Timeline */}
           <div className="flex flex-col">
             <StageBlock
               number={1}
@@ -425,7 +382,6 @@ function DayDetailView({
               wasteLabel="WASTE + LUMPS"
               wasteValue={formatNum(row.extruder.wastage)}
               wasteUnit="kg"
-              pills={extruderPills}
               expanded={expandedStages.extruder}
               onToggle={() => toggleStage('extruder')}
               tableHeads={['SIZE', 'COLOR', 'BRAND', 'HDPE MATERIALS (KG)', 'WASTE (KG)', 'LUMPS (KG)', 'ACTION']}
@@ -461,7 +417,6 @@ function DayDetailView({
               wasteLabel="LOOMS WASTE"
               wasteValue={formatNum(row.looms.wastage)}
               wasteUnit="kg"
-              pills={loomsPills}
               expanded={expandedStages.looms}
               onToggle={() => toggleStage('looms')}
               tableHeads={['SIZE', 'COLOR', 'INPUT WEIGHT (KG)', 'WASTE (KG)', 'FINAL WEIGHT (KG)', 'ACTION']}
@@ -496,7 +451,6 @@ function DayDetailView({
               wasteLabel="FW + BW WASTE"
               wasteValue={formatNum(row.fabric.wastage)}
               wasteUnit="kg"
-              pills={fabricPills}
               expanded={expandedStages.fabric}
               onToggle={() => toggleStage('fabric')}
               tableHeads={['SIZE', 'COLOR', 'CHECKED WEIGHT (KG)', 'FW WASTAGE (KG)', 'BW WASTAGE (KG)', 'FINAL WEIGHT (KG)', 'ACTION']}
@@ -522,7 +476,7 @@ function DayDetailView({
 
             <StageBlock
               number={4}
-              icon={<img src="/delivery.png" alt="Fabric Delivered" className="w-5 h-5 object-contain" />}
+              icon={<div className="text-[#61401E] text-xs font-bold">DEL</div>}
               title="Fabric Delivered"
               description=""
               theme={stageTheme.fabricDelivered}
@@ -532,7 +486,6 @@ function DayDetailView({
               wasteLabel="WASTAGE"
               wasteValue={formatNum(0)}
               wasteUnit="kg"
-              pills={[]}
               expanded={expandedStages.fabricDelivered}
               onToggle={() => toggleStage('fabricDelivered')}
               tableHeads={['SIZE', 'COLOR', 'DELIVERED (KG)', 'ACTION']}
@@ -743,13 +696,6 @@ export function ProductionDesign2() {
           dayWiseRows={dayWiseRows}
           fabricDeliveredRows={getFabricDeliveredRows(loadSentData?.data, selectedDate)}
           loadingLoadSent={loadingLoadSent}
-          setDate={(d) => {
-            setIsNavigating(true);
-            setTimeout(() => {
-              setSelectedDate(d);
-              setIsNavigating(false);
-            }, 300);
-          }}
         />
       ) : (
         <div className="p-2 flex flex-col gap-2 flex-1">
