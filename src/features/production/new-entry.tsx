@@ -78,7 +78,7 @@ export function NewEntry({ onClose, defaultDate, readOnly = false }: NewEntryPro
   const extruderRecords = allExtruderData?.data ?? [];
 
   const getRawMaterialBalance = (name: string) => {
-    const received = inventoryRecords.filter(r => r.type === 'RAW_MATERIAL' && r.name === name).reduce((sum, r) => sum + r.weightKg, 0);
+    const received = inventoryRecords.filter(r => r.type === 'HDPE' && r.name === name).reduce((sum, r) => sum + r.weightKg, 0);
     const consumed = extruderRecords.filter(r => r.extruder?.brand?.name === name).reduce((sum, r) => sum + (r.extruder?.rawMaterialKg ?? 0), 0);
     return (received - consumed).toFixed(2);
   };
