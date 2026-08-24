@@ -1,12 +1,14 @@
 import { useState, useMemo } from 'react';
-import { Plus, Edit2, Trash2, Search, Users, UserCheck, Banknote, User } from 'lucide-react';
+import { Plus, Edit2, Trash2, Search, Users, UserCheck, Banknote, User, CalendarClock } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { DeleteConfirmDialog } from '@/components/shared/delete-confirm-dialog';
+import { AttendanceTab } from './attendance-tab';
 
 export interface EmployeeRecord {
   id: string;
@@ -102,7 +104,7 @@ function todayIso() {
   return new Date().toISOString().slice(0, 10);
 }
 
-export function EmployeePage() {
+function EmployeeDirectoryTab() {
   const [employees, setEmployees] = useState<EmployeeRecord[]>(INITIAL_EMPLOYEES);
   const [searchQuery, setSearchQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState<string>('ALL');
@@ -242,7 +244,7 @@ export function EmployeePage() {
   };
 
   return (
-    <div className="p-4 md:p-6 space-y-5 max-w-[1400px] mx-auto font-['Hanken_Grotesk',sans-serif]">
+    <div className="flex flex-col gap-6">
       {/* Top Stat KPI Cards */}
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
         <div className="rounded-xl border border-emerald-100 bg-white p-4 shadow-sm flex items-center justify-between">
@@ -592,6 +594,30 @@ export function EmployeePage() {
             : 'This action cannot be undone.'
         }
       />
+    </div>
+  );
+}
+
+export function EmployeePage() {
+  return (
+    <div className="flex flex-col gap-6 p-4">
+      <div>
+        <h1 className="text-2xl font-bold text-gray-900">Employees</h1>
+        <p className="text-sm text-gray-500">Manage worker profiles, contact info, and daily attendance</p>
+      </div>
+
+      <Tabs defaultValue="directory">
+        <TabsList variant="underline">
+          <TabsTrigger value="directory">Directory</TabsTrigger>
+          <TabsTrigger value="attendance">Attendance</TabsTrigger>
+        </TabsList>
+        <TabsContent value="directory" className="mt-4">
+          <EmployeeDirectoryTab />
+        </TabsContent>
+        <TabsContent value="attendance" className="mt-4">
+          <AttendanceTab />
+        </TabsContent>
+      </Tabs>
     </div>
   );
 }

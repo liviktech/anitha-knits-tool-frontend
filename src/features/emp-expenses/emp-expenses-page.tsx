@@ -214,7 +214,7 @@ export function EmpExpensesPage() {
   };
 
   return (
-    <div className="p-4 md:p-6 space-y-5 max-w-[1400px] mx-auto font-['Hanken_Grotesk',sans-serif]">
+    <div className="flex flex-col gap-6 p-4">
       {/* Top Stat Summary Cards matching inventory & dashboard themes */}
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
         <div className="rounded-xl border border-emerald-100 bg-white p-4 shadow-sm flex items-center justify-between">
