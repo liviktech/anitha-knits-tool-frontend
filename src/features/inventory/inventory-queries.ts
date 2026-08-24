@@ -2,10 +2,10 @@ import { useQuery } from '@tanstack/react-query';
 import { fetchJson } from '@/lib/api-client';
 import type { MasterDataRef, PaginationMeta } from '@/lib/api-types';
 
-export type InventoryType = 'RAW_MATERIAL' | 'CHEMICAL' | 'COLOR';
+export type InventoryType = 'HDPE' | 'CHEMICAL' | 'COLOR';
 
 export const inventoryTypeLabels: Record<InventoryType, string> = {
-  RAW_MATERIAL: 'Raw Material',
+  HDPE: 'HDPE',
   CHEMICAL: 'Chemical',
   COLOR:'Color',
 };

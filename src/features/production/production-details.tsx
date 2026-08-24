@@ -1,5 +1,5 @@
-import { useState, type ReactNode, createContext, useContext } from 'react';
-import { useNavigate, useSearchParams, Routes, Route, Outlet } from 'react-router-dom';
+import { useState, useMemo, type ReactNode, createContext, useContext } from 'react';
+import { useNavigate, useSearchParams, useLocation, Routes, Route, Outlet } from 'react-router-dom';
 import { ExtruderEntry } from '@/features/extruder/extruder-entry';
 import { LoomEntry } from '@/features/looms/loom-entry';
 import { FabricEntry } from '@/features/fabric/fabric-entry';
@@ -13,6 +13,7 @@ interface ProductionHeaderContextType {
   setHeaderRight: (node: ReactNode) => void;
   setShowBackButton: (show: boolean) => void;
   setOnBackClick: (cb: (() => void) | undefined) => void;
+  setHeaderTitle: (title: string | null) => void;
 }
 
 const ProductionHeaderContext = createContext<ProductionHeaderContextType | null>(null);
@@ -28,9 +29,12 @@ function ProductionLayout() {
   const [headerRight, setHeaderRight] = useState<ReactNode>(null);
   const [showBackButton, setShowBackButton] = useState(false);
   const [onBackClick, setOnBackClick] = useState<(() => void) | undefined>(undefined);
+  const [headerTitle, setHeaderTitle] = useState<string | null>(null);
+  
+  const ctxValue = useMemo(() => ({ setHeaderRight, setShowBackButton, setOnBackClick, setHeaderTitle }), [setHeaderRight, setShowBackButton, setOnBackClick, setHeaderTitle]);
 
   return (
-    <ProductionHeaderContext.Provider value={{ setHeaderRight, setShowBackButton, setOnBackClick }}>
+    <ProductionHeaderContext.Provider value={ctxValue}>
       <div id="production-layout" className="flex flex-col h-full bg-[#004D40]/5 min-h-full flex-1">
         <style>{`
           #production-layout, #production-layout * { font-family: 'Hanken Grotesk Variable', 'Hanken Grotesk', sans-serif !important; }
@@ -51,7 +55,7 @@ function ProductionLayout() {
               </Button>
             )}
             <div>
-              <h1 className="text-[20px] font-bold text-black leading-tight px-2">Daily Production & Wastage</h1>
+              <h1 className="text-[20px] font-bold text-black leading-tight px-2">{headerTitle || 'Daily Production & Wastage'}</h1>
               <p className="text-[12.5px] text-gray-500 font-medium px-2">Track daily production and wastage across all conversion processes</p>
             </div>
           </div>
@@ -107,10 +111,23 @@ function DayDetailsRoute() {
 
 function NewEntryRoute() {
   const navigate = useNavigate();
+  const location = useLocation();
   const [searchParams] = useSearchParams();
+  const date = searchParams.get('date') || location.state?.editDate;
+  const from = searchParams.get('from') || (location.state?.editDate ? 'details' : null);
+  
   return (
     <div className="h-full overflow-y-auto">
-      <NewEntry onClose={() => navigate('/production')} defaultDate={searchParams.get('date')} />
+      <NewEntry 
+        onClose={() => {
+          if (date && from === 'details') {
+            navigate('/production', { state: { selectedDate: date } });
+          } else {
+            navigate('/production');
+          }
+        }} 
+        defaultDate={date} 
+      />
     </div>
   );
 }

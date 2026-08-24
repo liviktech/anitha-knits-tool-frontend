@@ -32,17 +32,17 @@ import {
 // Fixed categorical order (light-surface steps) — see the dataviz skill's
 // validated default palette. Identity stays consistent per stage everywhere.
 const STAGE_COLOR = {
-  extruder: '#2a78d6', // categorical slot 1 (blue)
-  looms: '#eb6834', // categorical slot 2 (orange)
-  fabric: '#1baf7a', // categorical slot 3 (aqua)
+  extruder: '#800000', // Extruder Red
+  looms: '#7A6A00', // Looms Yellow
+  fabric: '#2F6B2F', // Fabric Green
 };
 const STAGE_GRADIENT = {
   rawMaterial: 'from-slate-400 to-slate-600',
-  extruder: 'from-blue-500 to-indigo-600',
-  looms: 'from-orange-400 to-amber-600',
-  fabric: 'from-emerald-400 to-teal-600',
+  extruder: 'from-[#FF8080] to-[#800000]',
+  looms: 'from-[#FFD700] to-[#7A6A00]',
+  fabric: 'from-[#66B266] to-[#2F6B2F]',
 };
-const EXPENSE_COLORS = ['#2a78d6', '#eb6834', '#1baf7a', '#eda100'];
+const EXPENSE_COLORS = ['#800000', '#7A6A00', '#2F6B2F', '#004D40'];
 
 const CHART_ANIM = { animationDuration: 1100, animationEasing: 'ease-out' as const };
 
@@ -129,9 +129,9 @@ export function DashboardDesign2() {
       `}</style>
 
       {/* Decorative gradient blobs — slow drift, paused for reduced-motion users */}
-      <div className="pointer-events-none absolute -top-24 -right-24 w-80 h-80 rounded-full bg-indigo-200/40 blur-3xl motion-safe:[animation:dashFloatA_9s_ease-in-out_infinite]" />
-      <div className="pointer-events-none absolute top-1/3 -left-24 w-72 h-72 rounded-full bg-amber-200/30 blur-3xl motion-safe:[animation:dashFloatB_11s_ease-in-out_infinite]" />
-      <div className="pointer-events-none absolute bottom-0 right-1/4 w-96 h-64 rounded-full bg-emerald-200/30 blur-3xl motion-safe:[animation:dashFloatC_10s_ease-in-out_infinite]" />
+      <div className="pointer-events-none absolute -top-24 -right-24 w-80 h-80 rounded-full bg-red-200/30 blur-3xl motion-safe:[animation:dashFloatA_9s_ease-in-out_infinite]" />
+      <div className="pointer-events-none absolute top-1/3 -left-24 w-72 h-72 rounded-full bg-yellow-200/30 blur-3xl motion-safe:[animation:dashFloatB_11s_ease-in-out_infinite]" />
+      <div className="pointer-events-none absolute bottom-0 right-1/4 w-96 h-64 rounded-full bg-green-200/30 blur-3xl motion-safe:[animation:dashFloatC_10s_ease-in-out_infinite]" />
 
       <div className="relative z-10 p-4 md:p-6 flex flex-col gap-5 bg-[#F4F1E8]">
         {/* Header */}
@@ -145,9 +145,9 @@ export function DashboardDesign2() {
         {/* KPI hero strip */}
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
           <KpiCard index={0} gradient={STAGE_GRADIENT.rawMaterial} icon={<Package className="w-5 h-5 text-white" />} label="Raw Material In (KG)" value={mockRawMaterialIntake.receivedThisMonthKg} decimals={0} sub={`from ${mockRawMaterialIntake.source}`} valueColor="text-slate-900" />
-          <KpiCard index={1} gradient={STAGE_GRADIENT.extruder} icon={<img src={extruderIcon} alt="" className="w-4 h-4 object-contain" />} chip label="Extruder Output (KG)" value={extruder?.outputKg ?? 0} sub={`${(extruder?.efficiencyPct ?? 0).toFixed(1)}% efficiency`} valueColor="text-blue-600" />
-          <KpiCard index={2} gradient={STAGE_GRADIENT.looms} icon={<img src={loomsIcon} alt="" className="w-4 h-4 object-contain" />} chip label="Looms Output (MTRS)" value={looms?.outputKg ?? 0} sub={`${(looms?.efficiencyPct ?? 0).toFixed(1)}% efficiency`} valueColor="text-orange-600" />
-          <KpiCard index={3} gradient={STAGE_GRADIENT.fabric} icon={<Gauge className="w-5 h-5 text-white" />} label="Fabric Output (MTRS)" value={fabric?.outputKg ?? 0} sub={`${(fabric?.efficiencyPct ?? 0).toFixed(1)}% efficiency`} valueColor="text-emerald-600" />
+          <KpiCard index={1} gradient={STAGE_GRADIENT.extruder} icon={<img src={extruderIcon} alt="" className="w-4 h-4 object-contain" />} chip label="Extruder Output (KG)" value={extruder?.outputKg ?? 0} sub={`${(extruder?.efficiencyPct ?? 0).toFixed(1)}% efficiency`} valueColor="text-[#800000]" />
+          <KpiCard index={2} gradient={STAGE_GRADIENT.looms} icon={<img src={loomsIcon} alt="" className="w-4 h-4 object-contain" />} chip label="Looms Output (MTRS)" value={looms?.outputKg ?? 0} sub={`${(looms?.efficiencyPct ?? 0).toFixed(1)}% efficiency`} valueColor="text-[#7A6A00]" />
+          <KpiCard index={3} gradient={STAGE_GRADIENT.fabric} icon={<Gauge className="w-5 h-5 text-white" />} label="Fabric Output (MTRS)" value={fabric?.outputKg ?? 0} sub={`${(fabric?.efficiencyPct ?? 0).toFixed(1)}% efficiency`} valueColor="text-[#2F6B2F]" />
         </div>
 
         {/* Process funnel */}
@@ -229,7 +229,7 @@ export function DashboardDesign2() {
           <Card className="bg-white border border-slate-100 shadow-lg shadow-slate-200/50 rounded-3xl p-4 md:p-5 transition-shadow duration-300 hover:shadow-xl hover:shadow-slate-300/40 animate-in fade-in-0 slide-in-from-bottom-3 duration-700 delay-[350ms] fill-mode-both">
             <CardHeader className="p-0 mb-2 flex flex-row items-center justify-between">
               <CardTitle className="text-[13px] font-bold text-slate-900 flex items-center gap-2">
-                <span className="w-7 h-7 rounded-lg bg-gradient-to-br from-indigo-500 to-blue-600 flex items-center justify-center">
+                <span className="w-7 h-7 rounded-lg bg-gradient-to-br from-[#004D40] to-[#00897B] flex items-center justify-center">
                   <Users className="w-3.5 h-3.5 text-white" />
                 </span>
                 Employees <span className="text-[10px] font-medium text-slate-400 normal-case">(illustrative)</span>
@@ -246,7 +246,7 @@ export function DashboardDesign2() {
                   <XAxis dataKey="day" tick={{ fontSize: 10, fill: '#898781' }} axisLine={{ stroke: '#c3c2b7' }} tickLine={false} />
                   <YAxis tick={{ fontSize: 10, fill: '#898781' }} axisLine={false} tickLine={false} width={36} domain={[60, 90]} />
                   <Tooltip contentStyle={{ background: '#fff', border: '1px solid #e5e7eb', borderRadius: 12, fontSize: 12 }} animationDuration={150} />
-                  <Line type="monotone" dataKey="present" stroke="#4f46e5" strokeWidth={2} dot={{ r: 3, fill: '#4f46e5' }} {...CHART_ANIM} />
+                  <Line type="monotone" dataKey="present" stroke="#004D40" strokeWidth={2} dot={{ r: 3, fill: '#004D40' }} {...CHART_ANIM} />
                 </LineChart>
               </ResponsiveContainer>
             </CardContent>
@@ -255,7 +255,7 @@ export function DashboardDesign2() {
           <Card className="bg-white border border-slate-100 shadow-lg shadow-slate-200/50 rounded-3xl p-4 md:p-5 transition-shadow duration-300 hover:shadow-xl hover:shadow-slate-300/40 animate-in fade-in-0 slide-in-from-bottom-3 duration-700 delay-[400ms] fill-mode-both">
             <CardHeader className="p-0 mb-2">
               <CardTitle className="text-[13px] font-bold text-slate-900 flex items-center gap-2">
-                <span className="w-7 h-7 rounded-lg bg-gradient-to-br from-amber-400 to-orange-500 flex items-center justify-center">
+                <span className="w-7 h-7 rounded-lg bg-gradient-to-br from-[#7A6A00] to-[#B39B00] flex items-center justify-center">
                   <Wallet className="w-3.5 h-3.5 text-white" />
                 </span>
                 Expenses <span className="text-[10px] font-medium text-slate-400 normal-case">(illustrative)</span>

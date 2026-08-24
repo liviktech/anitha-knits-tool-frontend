@@ -6,10 +6,12 @@ import type { MasterDataRef, PaginationMeta } from '@/lib/api-types';
 export interface LoadSentRecord {
   id: string;
   date: string;
+  productionDate?: string;
   color: MasterDataRef;
   size: MasterDataRef;
   pieceCount: number;
   weightKg: number;
+  fabricWeight?: number;
   createdAt: string;
   createdBy: string;
   updatedAt: string;
@@ -39,9 +41,10 @@ export const loadSentKeys = {
   list: (query: string) => [...loadSentKeys.all, 'list', query] as const,
 };
 
-export function useLoadSentRecords(query: string = '') {
+export function useLoadSentRecords(query: string = '', enabled = true) {
   return useQuery({
     queryKey: loadSentKeys.list(query),
     queryFn: () => fetchJson<LoadSentListResponse>(`/load-sent${query}`),
+    enabled,
   });
 }

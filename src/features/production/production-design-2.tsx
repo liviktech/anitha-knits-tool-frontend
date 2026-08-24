@@ -3,7 +3,9 @@ import { useQueryClient } from '@tanstack/react-query';
 import '@fontsource-variable/hanken-grotesk';
 import '@fontsource-variable/inter';
 import { parseISO, format } from 'date-fns';
-import { Calendar, Plus, Edit, Trash2, Filter, Download, Layers, Search, ChevronRight, CheckCircle2, Gauge } from 'lucide-react';
+import { Trash2, Calendar, ChevronDown, Plus, Download, Edit2, Edit, Layers, ChevronRight, CheckCircle2 } from 'lucide-react';
+import { LoadSentFormDialog } from '../inventory/inventory-page';
+import { type LoadSentRecord } from '../inventory/load-sent-queries';
 import { Loader } from '@/components/shared/loader';
 import { DeleteConfirmDialog } from '@/components/shared/delete-confirm-dialog';
 import { apiFetch, fetchJson } from '@/lib/api-client';
@@ -12,11 +14,13 @@ import loomsIcon from '@/assets/looms-icon.png';
 import { useExtruderProductions, extruderKeys } from '@/features/extruder/extruder-queries';
 import { useLoomsProductions, loomsKeys } from '@/features/looms/loom-queries';
 import { useFabricCheckingRecords, fabricCheckingKeys } from '@/features/fabric/fabric-queries';
+import { useLoadSentRecords } from '@/features/inventory/load-sent-queries';
 import { useDayWiseProduction, dashboardProductionKey, type DayWiseRow } from './day-wise-queries';
 import { mapExtruderItem, mapLoomItem, mapFabricItem } from './day-entry-sections';
 import { DayWiseReportModal } from './day-wise-report-modal';
 import { useProductionHeader } from './production-details';
 import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import {
   Table,
@@ -26,8 +30,8 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { useNavigate } from 'react-router-dom';
+
+import { useNavigate, useLocation } from 'react-router-dom';
 
 function formatNum(n: number): string {
   return n.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
@@ -71,16 +75,67 @@ const stageTheme = {
     pillText: 'text-purple-700',
     pillBorder: 'border-purple-100',
   },
+  fabricDelivered: {
+    circle: 'bg-[#61401E]',
+    text: 'text-[#61401E]',
+    pillBg: 'bg-[#f2caa0]',
+    pillText: 'text-[#61401E]',
+    pillBorder: 'border-gray-400',
+  },
 } as const;
 
-interface StagePill {
-  label: string;
-  value: string;
+const fabricDeliveredSizes = ['150mm', '160mm', '170mm', '180mm', '190mm'] as const;
+type FabricDeliveredSize = (typeof fabricDeliveredSizes)[number];
+
+function deliveryColorClass(color: string): string {
+  const normalizedColor = color.toLowerCase();
+  if (normalizedColor === 'blue') return 'text-[#0088CC]';
+  if (normalizedColor === 'green') return 'text-[#5BA300]';
+  return 'text-gray-700';
+}
+
+interface FabricDeliveredDetailRow {
+  id: string;
+  size: string;
+  color: string;
+  delivered: number;
+  original: LoadSentRecord;
+}
+
+interface FabricDeliveredTableRow {
+  color: string;
+  colorClass: string;
+  deliveredBySize: Partial<Record<FabricDeliveredSize, number>>;
+}
+
+function getFabricDeliveredRows(data: unknown, date: string): FabricDeliveredDetailRow[] {
+  const records = (data ?? []) as LoadSentRecord[];
+  return records
+    .filter((record) => (record.productionDate ?? record.date ?? '').startsWith(date))
+    .map((record: any) => ({
+      id: record.id,
+      size: record.size?.name ?? '',
+      color: record.color?.name ?? '',
+      delivered: record.loadSent?.fabricWeight ?? record.fabricWeight ?? record.weightKg ?? 0,
+      original: record as LoadSentRecord,
+    }))
+    .filter((record) => record.delivered > 0);
+}
+
+function getFabricDeliveredTableRows(rows: FabricDeliveredDetailRow[]): FabricDeliveredTableRow[] {
+  const byColor = new Map<string, FabricDeliveredTableRow>();
+  rows.forEach((record) => {
+    const size = fabricDeliveredSizes.includes(record.size as FabricDeliveredSize) ? record.size as FabricDeliveredSize : null;
+    const existing = byColor.get(record.color) ?? { color: record.color, colorClass: deliveryColorClass(record.color), deliveredBySize: {} };
+    if (size) existing.deliveredBySize[size] = (existing.deliveredBySize[size] ?? 0) + record.delivered;
+    byColor.set(record.color, existing);
+  });
+  return Array.from(byColor.values());
 }
 
 interface StageBlockProps {
   number: number;
-  icon: React.ReactNode;
+  icon?: React.ReactNode;
   title: string;
   description: string;
   theme: (typeof stageTheme)[keyof typeof stageTheme];
@@ -90,7 +145,7 @@ interface StageBlockProps {
   wasteLabel: string;
   wasteValue: string;
   wasteUnit: string;
-  pills: StagePill[];
+  pills?: { label: string; value: string }[];
   expanded: boolean;
   onToggle: () => void;
   tableHeads: string[];
@@ -110,7 +165,6 @@ function StageBlock({
   wasteLabel,
   wasteValue,
   wasteUnit,
-  pills,
   expanded,
   onToggle,
   tableHeads,
@@ -130,47 +184,38 @@ function StageBlock({
       </div>
 
       <div className="flex-1 flex flex-col gap-2 pb-5 min-w-0">
-        <p className={`font-bold text-[14px] ${theme.text}`}>{title}</p>
+        <p className={`font-bold text-[22px] ${theme.text}`}>{title}</p>
 
         <Card className="rounded-2xl border border-gray-100 shadow-sm bg-white p-4 flex flex-col gap-4">
-          <div className="flex flex-wrap items-start justify-between gap-3">
-            <p className="text-[12px] text-gray-500 italic">{description}</p>
+          <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+            <div className="flex flex-wrap items-center gap-x-8 gap-y-3">
+              <div>
+                <p className={`text-[10px] font-extrabold uppercase tracking-wide ${theme.text} mb-1`}>{producedLabel}</p>
+                <p className={`text-[20px] font-extrabold ${theme.text} leading-none`}>
+                  {producedValue} <span className="text-[11px] font-medium text-gray-400">{producedUnit}</span>
+                </p>
+              </div>
+              <div>
+                <p className={`text-[10px] font-extrabold uppercase tracking-wide ${theme.text} mb-1`}>{wasteLabel}</p>
+                <p className="text-[20px] font-extrabold text-red-500 leading-none">
+                  {wasteValue} <span className="text-[11px] font-medium text-gray-400">{wasteUnit}</span>
+                </p>
+              </div>
+            </div>
+
             <Button
               variant="ghost"
               size="sm"
               onClick={onToggle}
-              className={`h-7 px-3 rounded-md ${theme.pillBg} ${theme.pillText} text-[11px] font-bold gap-1 hover:opacity-80`}
+              className={`h-7 px-3 rounded-md ${theme.pillBg} ${theme.pillText} text-[11px] font-bold gap-1 hover:opacity-80 shrink-0 self-start md:self-auto`}
             >
               View Details <ChevronRight className={`w-3.5 h-3.5 transition-transform ${expanded ? 'rotate-90' : ''}`} />
             </Button>
           </div>
 
-          <div className="flex flex-wrap items-center gap-x-8 gap-y-3">
-            <div>
-              <p className={`text-2xs font-extrabold uppercase tracking-wide ${theme.text} mb-1`}>{producedLabel}</p>
-              <p className={`text-[20px] font-extrabold ${theme.text} leading-none`}>
-                {producedValue} <span className="text-[11px] font-medium text-gray-400">{producedUnit}</span>
-              </p>
-            </div>
-            <div>
-              <p className={`text-2xs font-extrabold uppercase tracking-wide ${theme.text} mb-1`}>{wasteLabel}</p>
-              <p className="text-[20px] font-extrabold text-red-500 leading-none">
-                {wasteValue} <span className="text-[11px] font-medium text-gray-400">{wasteUnit}</span>
-              </p>
-            </div>
-            {pills.length > 0 && (
-              <div className="flex flex-wrap gap-2">
-                {pills.map((p, i) => (
-                  <span
-                    key={`${p.label}-${i}`}
-                    className={`inline-flex items-center gap-1.5 rounded-md border ${theme.pillBorder} ${theme.pillBg} ${theme.pillText} px-2.5 py-1 text-[11px] font-semibold whitespace-nowrap`}
-                  >
-                    {p.label} {p.value}
-                  </span>
-                ))}
-              </div>
-            )}
-          </div>
+          {description && (
+            <p className="text-[12px] text-gray-500 italic mt-[-8px]">{description}</p>
+          )}
 
           {expanded && (
             <div className="overflow-x-auto -mx-1 border-t border-gray-100 pt-3">
@@ -180,7 +225,7 @@ function StageBlock({
                     {tableHeads.map((h, i) => (
                       <TableHead
                         key={h}
-                        className={`text-[9.5px] font-extrabold uppercase tracking-wide text-gray-500 whitespace-nowrap ${i > 0 ? 'text-center' : ''}`}
+                        className={`text-[9.5px] font-extrabold uppercase tracking-wide text-gray-500 whitespace-nowrap ${i === 0 ? 'text-left' : i === tableHeads.length - 1 ? 'text-right' : 'text-center'}`}
                       >
                         {h}
                       </TableHead>
@@ -201,33 +246,68 @@ function DayDetailView({
   date,
   onClose,
   dayWiseRows,
-  setDate,
-  onEdit,
+  fabricDeliveredRows,
+  loadingLoadSent,
+  onEditFabricDelivered,
 }: {
   date: string;
   onClose: () => void;
   dayWiseRows: DayWiseRow[];
-  setDate: (d: string) => void;
-  onEdit: (d: string) => void;
+  fabricDeliveredRows: FabricDeliveredDetailRow[];
+  loadingLoadSent: boolean;
+  onEditFabricDelivered: (record: LoadSentRecord) => void;
 }) {
+  const navigate = useNavigate();
+  const queryClient = useQueryClient();
+  const { setHeaderTitle } = useProductionHeader();
   const row = dayWiseRows.find((r) => r.date === date) || dayWiseRows[0];
   const formattedDate = format(parseISO(date), 'dd MMM, yyyy');
 
-  const [expandedStages, setExpandedStages] = useState<Record<string, boolean>>({ extruder: true, looms: true, fabric: true });
+  const [expandedStages, setExpandedStages] = useState<Record<string, boolean>>({ extruder: true, looms: true, fabric: true, fabricDelivered: true });
   const toggleStage = (key: string) => setExpandedStages((s) => ({ ...s, [key]: !s[key] }));
+
+  useEffect(() => {
+    setHeaderTitle('View daily production details');
+    return () => setHeaderTitle(null);
+  }, [setHeaderTitle]);
 
   const dateQuery = `?date_from=${date}&date_to=${date}`;
   const { data: extruderData } = useExtruderProductions(dateQuery);
   const { data: loomsData } = useLoomsProductions(dateQuery);
   const { data: fabricData } = useFabricCheckingRecords(dateQuery);
 
-  const queryClient = useQueryClient();
+  const { setHeaderRight } = useProductionHeader();
   const [confirmDeleteOpen, setConfirmDeleteOpen] = useState(false);
   const [deletingDay, setDeletingDay] = useState(false);
 
-  // Deletes every Extruder/Looms/Fabric Checking record for this date — the
-  // three lists above are already loaded for exactly this date, so no extra
-  // fetch is needed before issuing the deletes.
+  useEffect(() => {
+    setHeaderRight(
+      <div className="flex items-center gap-3">
+        <div className="flex items-center gap-2 mr-4">
+          <Calendar className="w-[18px] h-[18px] text-[#004D40]" />
+          <span className="text-[15px] font-bold text-[#004D40]">{formattedDate}</span>
+        </div>
+        <Button
+          variant="outline"
+          size="sm"
+          className="h-[34px] px-4 text-[#00897B] border-[#00897B]/20 font-bold uppercase tracking-wider text-[11px] gap-2 hover:bg-[#00897B]/5 bg-white"
+          onClick={() => navigate(`/production/new-entry?date=${date}&from=details`)}
+        >
+          <Edit className="w-3.5 h-3.5" /> EDIT ENTRY
+        </Button>
+        <Button
+          variant="outline"
+          size="icon"
+          className="h-[34px] w-[34px] text-red-400 border-red-100 hover:bg-red-50 bg-white"
+          onClick={() => setConfirmDeleteOpen(true)}
+        >
+          <Trash2 className="w-4 h-4" />
+        </Button>
+      </div>
+    );
+    return () => setHeaderRight(null);
+  }, [setHeaderRight, formattedDate, date, navigate, setConfirmDeleteOpen]);
+
   const handleDeleteDay = async () => {
     setDeletingDay(true);
     try {
@@ -278,257 +358,202 @@ function DayDetailView({
         .filter((r) => r.input > 0 || r.output > 0 || r.fwKg > 0 || r.bwKg > 0),
     [fabricData, date],
   );
-
-  const extruderPills = useMemo(() => {
-    const loose = extruderRows.reduce((sum, r) => sum + r.yarnWasteKg, 0);
-    const lumps = extruderRows.reduce((sum, r) => sum + r.lumpsKg, 0);
-    return [
-      { label: 'Loose waste', value: formatNum(loose) },
-      { label: 'Lumps', value: formatNum(lumps) },
-    ];
-  }, [extruderRows]);
-
-  const loomsPills = useMemo(() => {
-    const byColor = new Map<string, number>();
-    loomRows.forEach((r) => byColor.set(r.color, (byColor.get(r.color) ?? 0) + r.loomsWasteKg));
-    return Array.from(byColor.entries()).map(([color, kg]) => ({ label: color, value: formatNum(kg) }));
-  }, [loomRows]);
-
-  const fabricPills = useMemo(() => {
-    const fwByGroup = new Map<string, number>();
-    const bwByColor = new Map<string, number>();
-    fabricRows.forEach((r) => {
-      const key = `FW ${r.color} ${r.size}`.trim();
-      fwByGroup.set(key, (fwByGroup.get(key) ?? 0) + r.fwKg);
-      bwByColor.set(r.color, (bwByColor.get(r.color) ?? 0) + r.bwKg);
-    });
-    return [
-      ...Array.from(fwByGroup.entries()).map(([label, kg]) => ({ label, value: formatNum(kg) })),
-      ...Array.from(bwByColor.entries()).map(([color, kg]) => ({ label: color, value: formatNum(kg) })),
-    ];
-  }, [fabricRows]);
+  const fabricDeliveredTotal = fabricDeliveredRows.reduce((sum, record) => sum + record.delivered, 0);
 
   return (
     <>
-    <div className="flex-1 flex flex-col lg:flex-row gap-4 p-4">
-      {/* Left Column */}
-      <div className="flex-1 flex flex-col gap-4">
-        {/* Detail Header */}
-        <div className="flex flex-wrap items-center justify-between gap-4">
-          <div>
-            <h2 className="text-[22px] font-bold text-[#004D40] flex items-center gap-2 leading-none">
-              <Calendar className="w-[22px] h-[22px]" />
-              {formattedDate}
-            </h2>
-            <p className="text-[12.5px] text-gray-500 font-medium mt-2">
-              Detailed production metrics for the selected date.
-            </p>
+      <div className="flex-1 flex flex-col lg:flex-row gap-4 p-3">
+        <div className="flex-1 flex flex-col gap-4">
+          <div className="flex flex-col">
+            <StageBlock
+              number={1}
+              icon={<img src={extruderIcon} alt="Extruder" className="w-6 h-6 object-contain" />}
+              title="Extruder Production"
+              description=""
+              theme={stageTheme.extruder}
+              producedLabel="Extruder PRODUCED"
+              producedValue={formatNum(row.extruder.output)}
+              producedUnit="kg"
+              wasteLabel="WASTE + LUMPS"
+              wasteValue={formatNum(row.extruder.wastage)}
+              wasteUnit="kg"
+              expanded={expandedStages.extruder}
+              onToggle={() => toggleStage('extruder')}
+              tableHeads={['SIZE', 'COLOR', 'BRAND', 'HDPE MATERIALS (KG)', 'WASTE (KG)', 'LUMPS (KG)', 'ACTION']}
+            >
+              {extruderRows.length === 0 ? (
+                <TableRow>
+                  <TableCell colSpan={7} className="h-16 text-center text-gray-400 text-xs">No entries for this date.</TableCell>
+                </TableRow>
+              ) : (
+                extruderRows.map((r) => (
+                  <TableRow key={r.id}>
+                    <TableCell className="text-[12px] text-gray-800 text-left">{r.size}</TableCell>
+                    <TableCell className="text-center text-[12px] text-gray-800">{r.color}</TableCell>
+                    <TableCell className="text-center text-[12px] text-gray-800">{r.brand}</TableCell>
+                    <TableCell className="text-center text-[12px] font-semibold text-gray-900">{formatNum(r.raw)}</TableCell>
+                    <TableCell className="text-center text-[12px] font-semibold text-red-500">{formatNum(r.yarnWasteKg)}</TableCell>
+                    <TableCell className="text-center text-[12px] font-semibold text-gray-700">{formatNum(r.lumpsKg)}</TableCell>
+                    <TableCell className="text-right"><CheckCircle2 className="w-4 h-4 text-emerald-500 inline-block" /></TableCell>
+                  </TableRow>
+                ))
+              )}
+            </StageBlock>
+
+            <StageBlock
+              number={2}
+              icon={<img src={loomsIcon} alt="Looms" className="w-6 h-6 object-contain" />}
+              title="Looms Production"
+              description=""
+              theme={stageTheme.looms}
+              producedLabel="FABRIC PRODUCED"
+              producedValue={formatNum(row.looms.output)}
+              producedUnit="kg"
+              wasteLabel="LOOMS WASTE"
+              wasteValue={formatNum(row.looms.wastage)}
+              wasteUnit="kg"
+              expanded={expandedStages.looms}
+              onToggle={() => toggleStage('looms')}
+              tableHeads={['SIZE', 'COLOR', 'INPUT WEIGHT (KG)', 'WASTE (KG)', 'FINAL WEIGHT (KG)', 'ACTION']}
+            >
+              {loomRows.length === 0 ? (
+                <TableRow>
+                  <TableCell colSpan={6} className="h-16 text-center text-gray-400 text-xs">No entries for this date.</TableCell>
+                </TableRow>
+              ) : (
+                loomRows.map((r) => (
+                  <TableRow key={r.id}>
+                    <TableCell className="text-[12px] text-gray-800 text-left">{r.size}</TableCell>
+                    <TableCell className="text-center text-[12px] text-gray-800">{r.color}</TableCell>
+                    <TableCell className="text-center text-[12px] font-semibold text-gray-900">{formatNum(r.input)}</TableCell>
+                    <TableCell className="text-center text-[12px] font-semibold text-red-500">{formatNum(r.loomsWasteKg)}</TableCell>
+                    <TableCell className="text-center text-[12px] font-semibold text-gray-900">{formatNum(r.output)}</TableCell>
+                    <TableCell className="text-right"><CheckCircle2 className="w-4 h-4 text-blue-500 inline-block" /></TableCell>
+                  </TableRow>
+                ))
+              )}
+            </StageBlock>
+
+            <StageBlock
+              number={3}
+              icon={<Layers className="w-5 h-5 text-[#6D3FA0]" />}
+              title="Fabric Checking"
+              description=""
+              theme={stageTheme.fabric}
+              producedLabel="FABRIC CHECKED"
+              producedValue={formatNum(row.fabric.output)}
+              producedUnit="kg"
+              wasteLabel="FW + BW WASTE"
+              wasteValue={formatNum(row.fabric.wastage)}
+              wasteUnit="kg"
+              expanded={expandedStages.fabric}
+              onToggle={() => toggleStage('fabric')}
+              tableHeads={['SIZE', 'COLOR', 'CHECKED WEIGHT (KG)', 'FW WASTAGE (KG)', 'BW WASTAGE (KG)', 'FINAL WEIGHT (KG)', 'ACTION']}
+            >
+              {fabricRows.length === 0 ? (
+                <TableRow>
+                  <TableCell colSpan={7} className="h-16 text-center text-gray-400 text-xs">No entries for this date.</TableCell>
+                </TableRow>
+              ) : (
+                fabricRows.map((r) => (
+                  <TableRow key={r.id}>
+                    <TableCell className="text-[12px] text-gray-800 text-left">{r.size}</TableCell>
+                    <TableCell className="text-center text-[12px] text-gray-800">{r.color}</TableCell>
+                    <TableCell className="text-center text-[12px] font-semibold text-gray-900">{formatNum(r.input)}</TableCell>
+                    <TableCell className="text-center text-[12px] font-semibold text-red-500">{formatNum(r.fwKg)}</TableCell>
+                    <TableCell className="text-center text-[12px] font-semibold text-red-500">{formatNum(r.bwKg)}</TableCell>
+                    <TableCell className="text-center text-[12px] font-semibold text-gray-900">{formatNum(r.output)}</TableCell>
+                    <TableCell className="text-right"><CheckCircle2 className="w-4 h-4 text-purple-500 inline-block" /></TableCell>
+                  </TableRow>
+                ))
+              )}
+            </StageBlock>
+
+            <StageBlock
+              number={4}
+              icon={<div className="text-[#61401E] text-xs font-bold">DEL</div>}
+              title="Fabric Delivered"
+              description=""
+              theme={stageTheme.fabricDelivered}
+              producedLabel="DELIVERED"
+              producedValue={formatNum(fabricDeliveredTotal)}
+              producedUnit="kg"
+              wasteLabel="WASTAGE"
+              wasteValue={formatNum(0)}
+              wasteUnit="kg"
+              expanded={expandedStages.fabricDelivered}
+              onToggle={() => toggleStage('fabricDelivered')}
+              tableHeads={['SIZE', 'COLOR', 'DELIVERED (KG)', 'ACTION']}
+              isLast
+            >
+              {loadingLoadSent ? (
+                <TableRow><TableCell colSpan={4} className="h-16 text-center text-gray-400 text-xs"><Loader size="sm" /></TableCell></TableRow>
+              ) : fabricDeliveredRows.length === 0 ? (
+                <TableRow><TableCell colSpan={4} className="h-16 text-center text-gray-400 text-xs">No entries for this date.</TableCell></TableRow>
+              ) : (
+                fabricDeliveredRows.map((deliveredRow) => (
+                  <TableRow key={deliveredRow.id}>
+                    <TableCell className="text-[12px] text-gray-800 text-left">{deliveredRow.size}</TableCell>
+                    <TableCell className="text-center text-[12px] text-gray-800">{deliveredRow.color}</TableCell>
+                    <TableCell className="text-center text-[12px] font-semibold text-gray-900">{formatNum(deliveredRow.delivered)}</TableCell>
+                    <TableCell className="text-right">
+                      <div className="flex items-center justify-end gap-2">
+                        <Button variant="ghost" size="icon-sm" className="h-6 w-6 hover:bg-gray-100" onClick={(e) => { e.stopPropagation(); onEditFabricDelivered(deliveredRow.original); }}>
+                          <Edit2 className="w-3.5 h-3.5 text-blue-600" />
+                        </Button>
+                        <CheckCircle2 className="w-4 h-4 text-[#61401E]" />
+                      </div>
+                    </TableCell>
+                  </TableRow>
+                ))
+              )}
+            </StageBlock>
           </div>
-          <div className="flex items-center gap-2">
-            <Button
-              variant="outline"
-              size="sm"
-              className="h-[34px] px-4 text-[#00897B] border-[#00897B]/20 font-bold uppercase tracking-wider text-[11px] gap-2 hover:bg-[#00897B]/5 bg-white"
-              onClick={() => onEdit(date)}
-            >
-              <Edit className="w-3.5 h-3.5" /> EDIT ENTRY
-            </Button>
-            <Button
-              variant="outline"
-              size="icon"
-              className="h-[34px] w-[34px] text-red-400 border-red-100 hover:bg-red-50 bg-white"
-              onClick={() => setConfirmDeleteOpen(true)}
-            >
-              <Trash2 className="w-4 h-4" />
-            </Button>
-            <Button
-              variant="outline"
-              size="sm"
-              className="h-[34px] ml-2 text-gray-500 bg-white"
-              onClick={onClose}
-            >
-              Close
-            </Button>
-          </div>
-        </div>
-
-        {/* Stage Timeline */}
-        <div className="flex flex-col">
-          <StageBlock
-            number={1}
-            icon={<img src={extruderIcon} alt="Extruder" className="w-6 h-6 object-contain" />}
-            title="Extruder Production"
-            description="Raw materials is converted into tape (DN+ / LUMPS)"
-            theme={stageTheme.extruder}
-            producedLabel="DN+ PRODUCED"
-            producedValue={formatNum(row.extruder.output)}
-            producedUnit="kg"
-            wasteLabel="WASTE + LUMPS"
-            wasteValue={formatNum(row.extruder.wastage)}
-            wasteUnit="kg"
-            pills={extruderPills}
-            expanded={expandedStages.extruder}
-            onToggle={() => toggleStage('extruder')}
-            tableHeads={['SIZE', 'COLOR', 'BRAND', 'RAW MATERIAL (KG)', 'WASTE (KG)', 'LUMPS (KG)', 'ACTION']}
-          >
-            {extruderRows.length === 0 ? (
-              <TableRow>
-                <TableCell colSpan={7} className="h-16 text-center text-gray-400 text-xs">No entries for this date.</TableCell>
-              </TableRow>
-            ) : (
-              extruderRows.map((r) => (
-                <TableRow key={r.id}>
-                  <TableCell className="text-[12px] text-gray-800">{r.size}</TableCell>
-                  <TableCell className="text-[12px] text-gray-800">{r.color}</TableCell>
-                  <TableCell className="text-[12px] text-gray-800">{r.brand}</TableCell>
-                  <TableCell className="text-center text-[12px] font-semibold text-gray-900">{formatNum(r.raw)}</TableCell>
-                  <TableCell className="text-center text-[12px] font-semibold text-red-500">{formatNum(r.yarnWasteKg)}</TableCell>
-                  <TableCell className="text-center text-[12px] font-semibold text-gray-700">{formatNum(r.lumpsKg)}</TableCell>
-                  <TableCell className="text-center"><CheckCircle2 className="w-4 h-4 text-emerald-500 inline-block" /></TableCell>
-                </TableRow>
-              ))
-            )}
-          </StageBlock>
-
-          <StageBlock
-            number={2}
-            icon={<img src={loomsIcon} alt="Looms" className="w-6 h-6 object-contain" />}
-            title="Looms Production"
-            description="Tapes are woven into fabric on looms"
-            theme={stageTheme.looms}
-            producedLabel="FABRIC PRODUCED"
-            producedValue={formatNum(row.looms.output)}
-            producedUnit="kg"
-            wasteLabel="LOOMS WASTE"
-            wasteValue={formatNum(row.looms.wastage)}
-            wasteUnit="kg"
-            pills={loomsPills}
-            expanded={expandedStages.looms}
-            onToggle={() => toggleStage('looms')}
-            tableHeads={['SIZE', 'COLOR', 'INPUT WEIGHT (KG)', 'WASTE (KG)', 'FINAL WEIGHT (KG)', 'ACTION']}
-          >
-            {loomRows.length === 0 ? (
-              <TableRow>
-                <TableCell colSpan={6} className="h-16 text-center text-gray-400 text-xs">No entries for this date.</TableCell>
-              </TableRow>
-            ) : (
-              loomRows.map((r) => (
-                <TableRow key={r.id}>
-                  <TableCell className="text-[12px] text-gray-800">{r.size}</TableCell>
-                  <TableCell className="text-[12px] text-gray-800">{r.color}</TableCell>
-                  <TableCell className="text-center text-[12px] font-semibold text-gray-900">{formatNum(r.input)}</TableCell>
-                  <TableCell className="text-center text-[12px] font-semibold text-red-500">{formatNum(r.loomsWasteKg)}</TableCell>
-                  <TableCell className="text-center text-[12px] font-semibold text-gray-900">{formatNum(r.output)}</TableCell>
-                  <TableCell className="text-center"><CheckCircle2 className="w-4 h-4 text-blue-500 inline-block" /></TableCell>
-                </TableRow>
-              ))
-            )}
-          </StageBlock>
-
-          <StageBlock
-            number={3}
-            icon={<Layers className="w-5 h-5 text-[#6D3FA0]" />}
-            title="Fabric Checking"
-            description="Final fabric is checked and wastage is recorded"
-            theme={stageTheme.fabric}
-            producedLabel="FABRIC CHECKED"
-            producedValue={formatNum(row.fabric.output)}
-            producedUnit="kg"
-            wasteLabel="FABRIC WASTE"
-            wasteValue={formatNum(row.fabric.wastage)}
-            wasteUnit="kg"
-            pills={fabricPills}
-            expanded={expandedStages.fabric}
-            onToggle={() => toggleStage('fabric')}
-            tableHeads={['SIZE', 'COLOR', 'CHECKED WEIGHT (KG)', 'WASTAGE (KG)', 'FINAL WEIGHT (KG)', 'ACTION']}
-            isLast
-          >
-            {fabricRows.length === 0 ? (
-              <TableRow>
-                <TableCell colSpan={6} className="h-16 text-center text-gray-400 text-xs">No entries for this date.</TableCell>
-              </TableRow>
-            ) : (
-              fabricRows.map((r) => (
-                <TableRow key={r.id}>
-                  <TableCell className="text-[12px] text-gray-800">{r.size}</TableCell>
-                  <TableCell className="text-[12px] text-gray-800">{r.color}</TableCell>
-                  <TableCell className="text-center text-[12px] font-semibold text-gray-900">{formatNum(r.input)}</TableCell>
-                  <TableCell className="text-center text-[12px] font-semibold text-red-500">{formatNum(r.fwKg + r.bwKg)}</TableCell>
-                  <TableCell className="text-center text-[12px] font-semibold text-gray-900">{formatNum(r.output)}</TableCell>
-                  <TableCell className="text-center"><CheckCircle2 className="w-4 h-4 text-purple-500 inline-block" /></TableCell>
-                </TableRow>
-              ))
-            )}
-          </StageBlock>
         </div>
       </div>
-
-      {/* Right Column (Sidebar) */}
-      <div className="w-[270px] lg:flex-shrink-0 flex flex-col border-l border-gray-100/50 bg-white shadow-[-4px_0_15px_-3px_rgba(0,0,0,0.02)]">
-        <div className="p-1 pb-1 bg-[#004D40]/5 border-b border-gray-200 flex flex-col gap-3">
-          <h3 className="font-semibold text-[#003140] text-[18px]">Production Dates</h3>
-          <div className="relative">
-            <Search className="w-4 h-4 text-gray-400 absolute left-3 top-1/2 -translate-y-1/2" />
-            <input
-              type="text"
-              placeholder="Search dates..."
-              className="w-full h-[38px] pl-9 pr-3 rounded-[6px] border border-gray-200 text-[13px] text-gray-600 bg-white focus:outline-none focus:border-[#00897B] focus:ring-1 focus:ring-[#00897B]/20"
-            />
-          </div>
-        </div>
-
-        <div className="flex flex-col gap-1 overflow-y-auto max-h-[600px] p-4">
-          {dayWiseRows.map((dr) => {
-            const isSelected = dr.date === date;
-            const dFormat = format(parseISO(dr.date), 'dd MMM, yyyy');
-            const stageOutputs = [dr.extruder.output, dr.looms.output, dr.fabric.output];
-            const stageCount = stageOutputs.filter((v) => v > 0).length;
-            const totalOutput = stageOutputs.reduce((sum, v) => sum + v, 0);
-            return (
-              <div
-                key={dr.date}
-                className={`p-3.5 rounded-[6px] cursor-pointer transition-colors border ${isSelected ? 'bg-[#EBF1F0] border-[#B5CBC8]' : 'hover:bg-gray-50 border-transparent'}`}
-                onClick={() => setDate(dr.date)}
-              >
-                <div className="flex justify-between items-start">
-                  <div className="font-semibold text-[#003140] text-[15px]">{dFormat}</div>
-                  {isSelected && (
-                    <span className="bg-[#BDE8DF] text-[#00796B] text-[11px] font-medium px-2 py-0.5 rounded-[4px]">Current</span>
-                  )}
-                </div>
-                <div className="flex items-center gap-1.5 mt-2.5 text-[12px] text-[#2F4A47] font-medium">
-                  <Layers className="w-3.5 h-3.5 text-[#5F7D7A]" />
-                  {stageCount} {stageCount === 1 ? 'Stage' : 'Stages'}
-                  <Gauge className="w-3.5 h-3.5 text-[#5F7D7A] ml-2" />
-                  {formatNum(totalOutput)} kg/m
-                </div>
-              </div>
-            );
-          })}
-        </div>
-      </div>
-    </div>
-    <DeleteConfirmDialog
-      open={confirmDeleteOpen}
-      onOpenChange={setConfirmDeleteOpen}
-      title="Delete this day's entries?"
-      description={`Removes every Extruder, Looms, and Fabric Checking record for ${formattedDate}. This action cannot be undone.`}
-      isPending={deletingDay}
-      onConfirm={handleDeleteDay}
-    />
+      <DeleteConfirmDialog
+        open={confirmDeleteOpen}
+        onOpenChange={setConfirmDeleteOpen}
+        title="Delete this day's entries?"
+        description={`Removes every Extruder, Looms, and Fabric Checking record for ${formattedDate}. This action cannot be undone.`}
+        isPending={deletingDay}
+        onConfirm={handleDeleteDay}
+      />
     </>
   );
 }
 
 export function ProductionDesign2() {
   const navigate = useNavigate();
+  const location = useLocation();
   const queryClient = useQueryClient();
-  const [selectedDate, setSelectedDate] = useState<string | null>(null);
+  const [selectedDate, setSelectedDate] = useState<string | null>(location.state?.selectedDate || null);
+
+  useEffect(() => {
+    if (location.state?.selectedDate) {
+      navigate(location.pathname, { replace: true, state: {} });
+    }
+  }, [location, navigate]);
+
   const [isNavigating, setIsNavigating] = useState(false);
   const [isReportOpen, setIsReportOpen] = useState(false);
   const [deleteTargetDate, setDeleteTargetDate] = useState<string | null>(null);
   const [deletingDate, setDeletingDate] = useState(false);
-  const { rows: dayWiseRows, totals: dayWiseTotals, isLoading: loadingDayWise, apiSummary } = useDayWiseProduction();
+  const [editingLoadSent, setEditingLoadSent] = useState<LoadSentRecord | null>(null);
+  const [isFabricDeliveredExpanded, setIsFabricDeliveredExpanded] = useState(false);
+  const [filterDate, setFilterDate] = useState<Date>(new Date());
+  const monthStr = format(filterDate, 'yyyy-MM');
+  const { rows: dayWiseRows, totals: dayWiseTotals, isLoading: loadingDayWise, apiSummary } = useDayWiseProduction(monthStr);
+  const { data: loadSentData, isLoading: loadingLoadSent } = useLoadSentRecords('?limit=100');
+  const selectedMonthDeliveryRows = useMemo(
+    () => getFabricDeliveredRows(loadSentData?.data, monthStr),
+    [loadSentData, monthStr],
+  );
+  const selectedMonthDeliveryTableRows = useMemo(
+    () => getFabricDeliveredTableRows(selectedMonthDeliveryRows),
+    [selectedMonthDeliveryRows],
+  );
+  const selectedMonthDeliveryTotal = selectedMonthDeliveryRows.reduce((sum, record) => sum + record.delivered, 0);
 
   // Deletes every Extruder/Looms/Fabric Checking record for one date — the
   // day-wise table only has aggregated totals for each row, not record ids,
@@ -567,8 +592,6 @@ export function ProductionDesign2() {
 
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(10);
-  const [selectedMonth, setSelectedMonth] = useState('Jul');
-  const [selectedYear, setSelectedYear] = useState('2026');
   const totalPages = Math.max(1, Math.ceil(dayWiseRows.length / pageSize));
   const currentPage = Math.min(page, totalPages);
 
@@ -577,48 +600,48 @@ export function ProductionDesign2() {
     [dayWiseRows, currentPage, pageSize],
   );
 
-  const { setHeaderRight, setShowBackButton } = useProductionHeader();
+  const { setHeaderRight, setShowBackButton, setOnBackClick } = useProductionHeader();
 
   useEffect(() => {
-    setShowBackButton(false);
-    setHeaderRight(
-      <>
-        <div className="flex items-center gap-2">
-          <Select value={selectedMonth} onValueChange={setSelectedMonth}>
-            <SelectTrigger className="w-fit min-w-[70px] bg-white border border-gray-400 text-sm font-semibold text-gray-700 h-[38px] shadow-[0_1px_2px_rgba(0,0,0,0.05)] focus:ring-0 focus:ring-offset-0">
-              <SelectValue placeholder="Month" />
-            </SelectTrigger>
-            <SelectContent position="popper" side="bottom" className="max-h-[160px] overflow-y-auto w-fit min-w-[70px]">
-              {['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'].map((m) => (
-                <SelectItem key={m} value={m} className="py-0.5 text-[13px]">{m}</SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
+    if (selectedDate) {
+      setShowBackButton(true);
+      setOnBackClick(() => () => setSelectedDate(null));
+      // Right header will be set by DayDetailView component
+    } else {
+      setShowBackButton(false);
+      setOnBackClick(undefined);
 
-          <Select value={selectedYear} onValueChange={setSelectedYear}>
-            <SelectTrigger className="w-fit min-w-[70px] bg-white border border-gray-400 text-sm font-semibold text-gray-700 h-[38px] shadow-[0_1px_2px_rgba(0,0,0,0.05)] focus:ring-0 focus:ring-offset-0">
-              <SelectValue placeholder="Year" />
-            </SelectTrigger>
-            <SelectContent position="popper" side="bottom" className="max-h-[160px] overflow-y-auto w-fit min-w-[70px]">
-              {['2024', '2025', '2026'].map((y) => (
-                <SelectItem key={y} value={y} className="py-0.5 text-[13px]">{y}</SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        </div>
-        <Button
-          className="flex items-center gap-2 bg-[#004D40] hover:bg-[#00382e] text-white rounded-md px-3 py-2 h-auto text-[12px] font-bold tracking-wide shadow-[0_1px_2px_rgba(0,45,35,0.2)]"
-          onClick={() => navigate('/production/new-entry')}
-        >
-          <Plus className="w-3 h-3" />
-          ADD NEW ENTRY
-        </Button>
-      </>
-    );
+      setHeaderRight(
+        <>
+          <div className="flex items-center gap-2">
+            <Input
+              type="month"
+              value={format(filterDate, 'yyyy-MM')}
+              onChange={(e) => {
+                if (e.target.value) {
+                  setFilterDate(parseISO(`${e.target.value}-01`));
+                }
+              }}
+              className="h-9 w-40 bg-white border border-gray-400 rounded-md px-3 py-2 text-sm font-semibold text-[#003140] shadow-[0_1px_2px_rgba(0,0,0,0.05)] hover:bg-gray-50 focus-visible:ring-1 focus-visible:ring-[#004D40]"
+            />
+          </div>
+          <Button
+            className="flex items-center gap-2 bg-[#004D40] hover:bg-[#00382e] text-white rounded-md px-3 py-2 h-auto text-[12px] font-bold tracking-wide shadow-[0_1px_2px_rgba(0,45,35,0.2)]"
+            onClick={() => navigate('/production/new-entry')}
+          >
+            <Plus className="w-3 h-3" />
+            ADD NEW ENTRY
+          </Button>
+        </>
+      );
+    }
+
     return () => {
       setHeaderRight(null);
+      setShowBackButton(false);
+      setOnBackClick(undefined);
     };
-  }, [setHeaderRight, setShowBackButton, navigate]);
+  }, [setHeaderRight, setShowBackButton, setOnBackClick, navigate, selectedDate, filterDate]);
 
   if (loadingDayWise) {
     return (
@@ -674,14 +697,9 @@ export function ProductionDesign2() {
           date={selectedDate}
           onClose={() => setSelectedDate(null)}
           dayWiseRows={dayWiseRows}
-          setDate={(d) => {
-            setIsNavigating(true);
-            setTimeout(() => {
-              setSelectedDate(d);
-              setIsNavigating(false);
-            }, 300);
-          }}
-          onEdit={(d) => navigate(`/production/new-entry?date=${d}`)}
+          fabricDeliveredRows={getFabricDeliveredRows(loadSentData?.data, selectedDate)}
+          loadingLoadSent={loadingLoadSent}
+          onEditFabricDelivered={setEditingLoadSent}
         />
       ) : (
         <div className="p-2 flex flex-col gap-2 flex-1">
@@ -808,6 +826,96 @@ export function ProductionDesign2() {
             </Card>
           </div>
 
+          {/* Delivered Stocks Horizontal Bar */}
+          <div className="bg-[#DAF1DE] border border-green-400 rounded-[10px] px-5 py-2.5 shadow-sm my-1 flex flex-col transition-all duration-300">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <div
+                  className="w-[28px] h-[28px] bg-[#235347]"
+                  style={{
+                    WebkitMaskImage: 'url(/delivery.png)',
+                    WebkitMaskSize: 'contain',
+                    WebkitMaskRepeat: 'no-repeat',
+                    WebkitMaskPosition: 'center',
+                    maskImage: 'url(/delivery.png)',
+                    maskSize: 'contain',
+                    maskRepeat: 'no-repeat',
+                    maskPosition: 'center'
+                  }}
+                />
+                <span className="font-extrabold text-[#235347] text-[22px]">Fabric Delivered</span>
+              </div>
+              <div className="flex items-center gap-4">
+                <div className={`flex items-center gap-12 transition-opacity duration-300 ${isFabricDeliveredExpanded ? 'opacity-0 pointer-events-none' : 'opacity-100'}`}>
+                  <div className="flex items-center gap-3">
+                    <span className="text-[15px] font-extrabold text-[#61401E] uppercase tracking-wide">White </span>
+                    <span className="font-extrabold text-[#61401E] text-[20px]">456.90</span>
+                  </div>
+                  <div className="flex items-center gap-3">
+                    <span className="text-[15px] font-extrabold text-[#0088CC] uppercase tracking-wide">Blue</span>
+                    <span className="font-bold text-[#0088CC] text-[20px]">457.67</span>
+                  </div>
+                  <div className="flex items-center gap-3">
+                    <span className="text-[15px] font-extrabold text-[#5BA300] uppercase tracking-wide">Green</span>
+                    <span className="font-bold text-[#5BA300] text-[20px]">345.234</span>
+                  </div>
+                </div>
+                <ChevronDown
+                  className={`w-5 h-5 text-[#61401E] cursor-pointer transition-transform duration-300 ${isFabricDeliveredExpanded ? 'rotate-180' : ''}`}
+                  onClick={() => setIsFabricDeliveredExpanded(!isFabricDeliveredExpanded)}
+                />
+              </div>
+            </div>
+
+            <div className={`grid transition-all duration-300 ease-in-out ${isFabricDeliveredExpanded ? 'grid-rows-[1fr] mt-3 opacity-100' : 'grid-rows-[0fr] opacity-0'}`}>
+              <div className="overflow-hidden">
+                <div className="border border-[#d9a976] rounded-md overflow-hidden bg-white/60 shadow-inner">
+                  <table className="w-full text-[13px] text-left">
+                    <thead className="bg-[#e6b885]/30 font-extrabold text-[#61401E]">
+                      <tr>
+                        <th className="px-3 py-2 border-r border-[#d9a976] w-24"></th>
+                        {fabricDeliveredSizes.map((size) => (
+                          <th key={size} className="px-3 py-2 border-r border-[#d9a976] text-center">{size}</th>
+                        ))}
+                        <th className="px-3 py-2 text-center bg-[#e6b885]/40">TOTAL</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {loadingLoadSent ? (
+                        <tr><td colSpan={7} className="px-3 py-5 text-center text-[#61401E]">Loading delivered records...</td></tr>
+                      ) : selectedMonthDeliveryTableRows.length === 0 ? (
+                        <tr><td colSpan={7} className="px-3 py-5 text-center text-[#61401E]">No delivered records for this month.</td></tr>
+                      ) : selectedMonthDeliveryTableRows.map((row) => (
+                        <tr key={row.color} className="border-t border-[#d9a976]">
+                          <td className={`px-3 py-2.5 border-r border-[#d9a976] font-bold ${row.colorClass}`}>{row.color}</td>
+                          {fabricDeliveredSizes.map((size) => (
+                            <td key={size} className="px-3 py-2.5 border-r border-[#d9a976] text-center text-gray-800 font-medium">
+                              {row.deliveredBySize[size] !== undefined ? row.deliveredBySize[size].toFixed(3) : '--'}
+                            </td>
+                          ))}
+                          <td className={`px-3 py-2.5 text-center font-bold bg-[#e6b885]/10 ${row.colorClass}`}>
+                            {Object.values(row.deliveredBySize).reduce((sum, value) => sum + value, 0).toFixed(3)}
+                          </td>
+                        </tr>
+                      ))}
+                      <tr className="border-t-2 border-[#d9a976] bg-[#e6b885]/30">
+                        <td className="px-3 py-2.5 border-r border-[#d9a976] font-extrabold text-[#61401E]">TOTAL</td>
+                        {fabricDeliveredSizes.map((size) => (
+                          <td key={size} className="px-3 py-2.5 border-r border-[#d9a976] text-center text-[#61401E] font-bold">
+                            {selectedMonthDeliveryTableRows.reduce((sum, row) => sum + (row.deliveredBySize[size] ?? 0), 0) > 0
+                              ? selectedMonthDeliveryTableRows.reduce((sum, row) => sum + (row.deliveredBySize[size] ?? 0), 0).toFixed(3)
+                              : '--'}
+                          </td>
+                        ))}
+                        <td className="px-3 py-2.5 text-center text-[#61401E] font-extrabold bg-[#e6b885]/50">{selectedMonthDeliveryTotal.toFixed(3)}</td>
+                      </tr>
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            </div>
+          </div>
+
           {/* Data Table Area */}
           <Card className="shadow-sm border-0 bg-white rounded-xl overflow-hidden gap-0 p-0 flex flex-col">
             <CardHeader className="flex flex-col gap-1 border-b border-gray-300 px-3 py-1.5 !pb-1.5 sm:flex-row sm:items-center sm:justify-between bg-white">
@@ -816,9 +924,6 @@ export function ProductionDesign2() {
                 Day Wise Production & Wastage Details
               </CardTitle>
               <div className="flex flex-wrap gap-2">
-                <Button variant="outline" size="sm" className="flex gap-2 font-bold uppercase tracking-wider text-[11px] h-8 px-3 text-gray-600 border-gray-400">
-                  <Filter className="w-[14px] h-[14px]" /> FILTERS
-                </Button>
                 <Button
                   variant="outline"
                   size="sm"
@@ -833,43 +938,50 @@ export function ProductionDesign2() {
               <Table className="w-full">
                 <TableHeader>
                   <TableRow className="hover:bg-transparent border-b border-gray-300">
-                    <TableHead rowSpan={2} className="text-center font-bold text-gray-800 align-middle border-r border-gray-300 min-w-[120px] bg-white text-xs uppercase tracking-wider">Date</TableHead>
-                    <TableHead colSpan={4} className="text-[#0B5566] font-bold bg-[#D6EEF7] border-r border-gray-300 py-2 text-xs uppercase tracking-wider">
+                    <TableHead rowSpan={2} className="!text-center font-bold text-gray-800 align-middle border-r border-gray-300 w-[95px] min-w-[95px] px-1.5 bg-white text-xs uppercase tracking-wider">Date</TableHead>
+                    <TableHead colSpan={3} className="w-[22%] text-[#0B5566] font-bold bg-[#D6EEF7] border-r border-gray-300 py-2 text-xs uppercase tracking-wider">
                       <span className="flex items-center justify-center gap-2 text-[13px] font-extrabold">
-                        <span className="bg-[#0B5566] text-white w-5 h-5 rounded-sm flex items-center justify-center text-[10px] font-bold">1</span>
+                        {/* <span className="bg-[#0B5566] text-white w-5 h-5 rounded-sm flex items-center justify-center text-[10px] font-bold">1</span> */}
                         EXTRUDER PRODUCTION (KG)
                       </span>
                     </TableHead>
-                    <TableHead colSpan={4} className="text-[#7A6A00] font-bold bg-[#FFF6BF] border-r border-gray-300 py-2 text-xs uppercase tracking-wider">
+                    <TableHead colSpan={3} className="w-[22%] text-[#7A6A00] font-bold bg-[#FFF6BF] border-r border-gray-300 py-2 text-xs uppercase tracking-wider">
                       <span className="flex items-center justify-center gap-2 text-[13px] font-extrabold">
-                        <span className="bg-[#7A6A00] text-white w-5 h-5 rounded-sm flex items-center justify-center text-[10px] font-bold">2</span>
+                        {/* <span className="bg-[#7A6A00] text-white w-5 h-5 rounded-sm flex items-center justify-center text-[10px] font-bold">2</span> */}
                         LOOMS PRODUCTION (KG)
                       </span>
                     </TableHead>
-                    <TableHead colSpan={4} className="text-[#2F6B2F] font-bold bg-[#DCEEDB] border-r border-gray-300 py-2 text-xs uppercase tracking-wider">
+                    <TableHead colSpan={3} className="w-[22%] text-[#2F6B2F] font-bold bg-[#DCEEDB] border-r border-gray-300 py-2 text-xs uppercase tracking-wider">
                       <span className="flex items-center justify-center gap-2 text-[13px] font-extrabold">
-                        <span className="bg-[#2F6B2F] text-white w-5 h-5 rounded-sm flex items-center justify-center text-[10px] font-bold">3</span>
+                        {/* <span className="bg-[#2F6B2F] text-white w-5 h-5 rounded-sm flex items-center justify-center text-[10px] font-bold">3</span> */}
                         FABRIC PRODUCTION (KG)
                       </span>
                     </TableHead>
-                    <TableHead rowSpan={2} className="text-center font-extrabold text-gray-800 align-middle border-gray-300 w-[120px] bg-white text-xs uppercase tracking-wider">Actions</TableHead>
+                    <TableHead colSpan={3} className="w-[22%] text-[#61401E] font-bold bg-[#f2caa0] border-r border-gray-300 py-2 text-xs uppercase tracking-wider">
+                      <span className="flex items-center justify-center gap-2 text-[13px] font-extrabold">
+                        {/* <span className="bg-[#61401E] text-white w-5 h-5 rounded-sm flex items-center justify-center text-[10px] font-bold">4</span> */}
+                        FABRIC DELIVERED (KG)
+                      </span>
+                    </TableHead>
+                    <TableHead rowSpan={2} className="!text-center font-extrabold text-gray-800 align-middle border-gray-300 w-[90px] min-w-[90px] px-1 bg-white text-xs uppercase tracking-wider">Actions</TableHead>
                   </TableRow>
                   <TableRow className="hover:bg-transparent bg-white border-b border-gray-300">
                     {/* Extruder */}
                     <TableHead className="text-center text-gray-800 font-extrabold text-[12px] uppercase tracking-wider h-8">Input</TableHead>
                     <TableHead className="text-center text-gray-800 font-extrabold text-[12px] uppercase tracking-wider h-8">Wastage</TableHead>
-                    <TableHead className="text-center text-gray-800 font-extrabold text-[12px] uppercase tracking-wider h-8">Waste %</TableHead>
                     <TableHead className="text-center text-gray-800 font-extrabold text-[12px] uppercase tracking-wider border-r border-gray-300 h-8">Output</TableHead>
                     {/* Looms */}
                     <TableHead className="text-center text-gray-800 font-extrabold text-[12px] uppercase tracking-wider h-8">Input</TableHead>
                     <TableHead className="text-center text-gray-800 font-extrabold text-[12px] uppercase tracking-wider h-8">Wastage</TableHead>
-                    <TableHead className="text-center text-gray-800 font-extrabold text-[12px] uppercase tracking-wider h-8">Waste %</TableHead>
                     <TableHead className="text-center text-gray-800 font-extrabold text-[12px] uppercase tracking-wider border-r border-gray-300 h-8">Output</TableHead>
                     {/* Fabric */}
                     <TableHead className="text-center text-gray-800 font-extrabold text-[12px] uppercase tracking-wider h-8">Input</TableHead>
                     <TableHead className="text-center text-gray-800 font-extrabold text-[12px] uppercase tracking-wider h-8">Wastage</TableHead>
-                    <TableHead className="text-center text-gray-800 font-extrabold text-[12px] uppercase tracking-wider h-8">Waste %</TableHead>
                     <TableHead className="text-center text-gray-800 font-extrabold text-[12px] uppercase tracking-wider border-r border-gray-300 h-8">Output</TableHead>
+                    {/* Fabric Delivered */}
+                    <TableHead className="text-center text-gray-800 font-extrabold text-[12px] uppercase tracking-wider h-8">size</TableHead>
+                    <TableHead className="text-center text-gray-800 font-extrabold text-[12px] uppercase tracking-wider h-8">color</TableHead>
+                    <TableHead className="!text-center text-gray-800 font-extrabold text-[12px] uppercase tracking-wider border-r border-gray-300 h-8">Output</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody className="bg-white">
@@ -886,82 +998,91 @@ export function ProductionDesign2() {
                       <TableCell colSpan={14} className="h-32 text-center text-gray-500 font-medium">No production records found.</TableCell>
                     </TableRow>
                   ) : (
-                    pagedRows.map((row) => (
-                      <TableRow key={row.date} className="border-b border-gray-300 hover:bg-gray-50 transition-colors group">
-                        <TableCell
-                          className="text-center font-bold text-[#004D40] border-r border-gray-300 text-[14px] py-1 cursor-pointer hover:underline"
-                          onClick={() => {
-                            setIsNavigating(true);
-                            setTimeout(() => {
-                              setSelectedDate(row.date);
-                              setIsNavigating(false);
-                            }, 500);
-                          }}
-                        >
-                          {format(parseISO(row.date), 'dd MMM, yyyy')}
-                        </TableCell>
+                    pagedRows.map((row) => {
+                      const rowDelivered = selectedMonthDeliveryRows.filter(r => (r.original.productionDate ?? r.original.date ?? '').startsWith(row.date));
+                      const rowDeliveredTotal = rowDelivered.reduce((sum, r) => sum + r.delivered, 0);
+                      const sizes = Array.from(new Set(rowDelivered.map(r => r.size).filter(Boolean)));
+                      const colors = Array.from(new Set(rowDelivered.map(r => r.color).filter(Boolean)));
+                      return (
+                        <TableRow key={row.date} className="border-b border-gray-300 hover:bg-gray-50 transition-colors group">
+                          <TableCell
+                            className="text-center font-bold text-[#004D40] border-r border-gray-300 text-[14px] py-1 cursor-pointer hover:underline px-4"
+                            onClick={() => {
+                              setIsNavigating(true);
+                              setTimeout(() => {
+                                setSelectedDate(row.date);
+                                setIsNavigating(false);
+                              }, 500);
+                            }}
+                          >
+                            {format(parseISO(row.date), 'dd MMM, yyyy')}
+                          </TableCell>
 
-                        {/* Extruder */}
-                        <TableCell className="text-center text-gray-800 font-medium text-[14px] py-1">{formatNum(row.extruder.input)}</TableCell>
-                        <TableCell className="text-center text-gray-800 font-medium text-[14px] py-1">{formatNum(row.extruder.wastage)}</TableCell>
-                        <TableCell className="text-center text-gray-800 font-medium text-[14px] py-1">{row.extruder.wastePct.toFixed(2)}%</TableCell>
-                        <TableCell className="text-center text-gray-800 font-medium text-[14px] py-1 border-r border-gray-300">{formatNum(row.extruder.output)}</TableCell>
+                          {/* Extruder */}
+                          <TableCell className="text-center text-gray-800 font-medium text-[14px] py-1">{formatNum(row.extruder.input)}</TableCell>
+                          <TableCell className="text-center text-gray-800 font-medium text-[14px] py-1">{formatNum(row.extruder.wastage)}</TableCell>
+                          <TableCell className="text-center text-gray-800 font-medium text-[14px] py-1 border-r border-gray-300">{formatNum(row.extruder.output)}</TableCell>
 
-                        {/* Looms */}
-                        <TableCell className="text-center text-gray-800 font-medium text-[14px] py-1">{formatNum(row.looms.input)}</TableCell>
-                        <TableCell className="text-center text-gray-800 font-medium text-[14px] py-1">{formatNum(row.looms.wastage)}</TableCell>
-                        <TableCell className="text-center text-gray-800 font-medium text-[14px] py-1">{row.looms.wastePct.toFixed(2)}%</TableCell>
-                        <TableCell className="text-center text-gray-800 font-medium text-[14px] py-1 border-r border-gray-300">{formatNum(row.looms.output)}</TableCell>
+                          {/* Looms */}
+                          <TableCell className="text-center text-gray-800 font-medium text-[14px] py-1">{formatNum(row.looms.input)}</TableCell>
+                          <TableCell className="text-center text-gray-800 font-medium text-[14px] py-1">{formatNum(row.looms.wastage)}</TableCell>
+                          <TableCell className="text-center text-gray-800 font-medium text-[14px] py-1 border-r border-gray-300">{formatNum(row.looms.output)}</TableCell>
 
-                        {/* Fabric */}
-                        <TableCell className="text-center text-gray-800 font-medium text-[14px] py-1">{formatNum(row.fabric.input)}</TableCell>
-                        <TableCell className="text-center text-gray-800 font-medium text-[14px] py-1">{formatNum(row.fabric.wastage)}</TableCell>
-                        <TableCell className="text-center text-gray-800 font-medium text-[14px] py-1">{row.fabric.wastePct.toFixed(2)}%</TableCell>
-                        <TableCell className="text-center text-gray-800 font-medium text-[14px] py-1 border-r border-gray-300">{formatNum(row.fabric.output)}</TableCell>
+                          {/* Fabric */}
+                          <TableCell className="text-center text-gray-800 font-medium text-[14px] py-1">{formatNum(row.fabric.input)}</TableCell>
+                          <TableCell className="text-center text-gray-800 font-medium text-[14px] py-1">{formatNum(row.fabric.wastage)}</TableCell>
+                          <TableCell className="text-center text-gray-800 font-medium text-[14px] py-1 border-r border-gray-300">{formatNum(row.fabric.output)}</TableCell>
 
-                        {/* Actions */}
-                        <TableCell className="py-1">
-                          <div className="flex items-center justify-center gap-2">
-                            <Button
-                              variant="outline"
-                              size="icon"
-                              className="h-6 w-6 rounded-md border-[#004D40]/30 text-[#004D40] hover:bg-[#004D40]/10"
-                              onClick={() => navigate(`/production/new-entry?date=${row.date}`)}
-                            >
-                              <Edit className="h-[14px] w-[14px]" />
-                            </Button>
-                            <Button
-                              variant="outline"
-                              size="icon"
-                              className="h-6 w-6 rounded-md border-red-200 text-red-600 hover:bg-red-50"
-                              onClick={() => setDeleteTargetDate(row.date)}
-                            >
-                              <Trash2 className="h-[14px] w-[14px]" />
-                            </Button>
-                          </div>
-                        </TableCell>
-                      </TableRow>
-                    ))
+                          {/* Fabric Delivered */}
+                          <TableCell className="text-center text-gray-800 font-medium text-[14px] py-1" title={sizes.join(', ') || '-'}>{sizes.length > 1 ? 'Mixed' : (sizes[0] || '-')}</TableCell>
+                          <TableCell className="text-center text-gray-800 font-medium text-[14px] py-1" title={colors.join(', ') || '-'}>{colors.length > 1 ? 'Mixed' : (colors[0] || '-')}</TableCell>
+                          <TableCell className="!text-center text-gray-800 font-medium text-[14px] py-1 border-r border-gray-300">{formatNum(rowDeliveredTotal)}</TableCell>
+
+                          {/* Actions */}
+                          <TableCell className="py-1">
+                            <div className="flex items-center justify-center gap-2">
+                              <Button
+                                variant="outline"
+                                size="icon"
+                                className="h-6 w-6 rounded-md border-[#004D40]/30 text-[#004D40] hover:bg-[#004D40]/10"
+                                onClick={() => navigate(`/production/new-entry?date=${row.date}`)}
+                              >
+                                <Edit className="h-[14px] w-[14px]" />
+                              </Button>
+                              <Button
+                                variant="outline"
+                                size="icon"
+                                className="h-6 w-6 rounded-md border-red-200 text-red-600 hover:bg-red-50"
+                                onClick={() => setDeleteTargetDate(row.date)}
+                              >
+                                <Trash2 className="h-[14px] w-[14px]" />
+                              </Button>
+                            </div>
+                          </TableCell>
+                        </TableRow>
+                      );
+                    })
                   )}
 
                   {!loadingDayWise && dayWiseRows.length > 0 && (
                     <TableRow className="bg-white font-bold hover:bg-white border-t-2 border-gray-400">
-                      <TableCell className="text-center border-r border-gray-400 text-gray-900 text-[14px] py-1">TOTAL</TableCell>
+                      <TableCell className="!text-center border-r border-gray-400 text-gray-900 text-[14px] py-1 px-1.5">TOTAL</TableCell>
                       {/* Extruder Total */}
                       <TableCell className="text-center text-[#00897B] text-[14px]">{formatNum(dayWiseTotals.extruder.input)}</TableCell>
                       <TableCell className="text-center text-[#00897B] text-[14px]">{formatNum(dayWiseTotals.extruder.wastage)}</TableCell>
-                      <TableCell className="text-center text-[#00897B] text-[14px]">{dayWiseTotals.extruder.wastePct.toFixed(2)}%</TableCell>
                       <TableCell className="text-center text-[#00897B] text-[14px] border-r border-gray-400">{formatNum(dayWiseTotals.extruder.output)}</TableCell>
                       {/* Looms Total */}
                       <TableCell className="text-center text-[#00897B] text-[14px]">{formatNum(dayWiseTotals.looms.input)}</TableCell>
                       <TableCell className="text-center text-[#00897B] text-[14px]">{formatNum(dayWiseTotals.looms.wastage)}</TableCell>
-                      <TableCell className="text-center text-[#00897B] text-[14px]">{dayWiseTotals.looms.wastePct.toFixed(2)}%</TableCell>
                       <TableCell className="text-center text-[#00897B] text-[14px] border-r border-gray-400">{formatNum(dayWiseTotals.looms.output)}</TableCell>
                       {/* Fabric Total */}
                       <TableCell className="text-center text-[#00897B] text-[14px]">{formatNum(dayWiseTotals.fabric.input)}</TableCell>
                       <TableCell className="text-center text-[#00897B] text-[14px]">{formatNum(dayWiseTotals.fabric.wastage)}</TableCell>
-                      <TableCell className="text-center text-[#00897B] text-[14px]">{dayWiseTotals.fabric.wastePct.toFixed(2)}%</TableCell>
                       <TableCell className="text-center text-[#00897B] text-[14px] border-r border-gray-400">{formatNum(dayWiseTotals.fabric.output)}</TableCell>
+                      {/* Fabric Delivered Total */}
+                      <TableCell className="text-center text-[#00897B] text-[14px]">-</TableCell>
+                      <TableCell className="text-center text-[#00897B] text-[14px]">-</TableCell>
+                      <TableCell className="!text-center text-[#00897B] text-[14px] border-r border-gray-400">{formatNum(selectedMonthDeliveryTotal)}</TableCell>
                       <TableCell></TableCell>
                     </TableRow>
                   )}
@@ -1027,6 +1148,12 @@ export function ProductionDesign2() {
         isPending={deletingDate}
         onConfirm={handleDeleteDate}
       />
+      {editingLoadSent && (
+        <LoadSentFormDialog
+          record={editingLoadSent}
+          onClose={() => setEditingLoadSent(null)}
+        />
+      )}
     </div>
   );
 }

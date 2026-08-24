@@ -11,6 +11,8 @@ import { DashboardModule } from './features/dashboard/dashboard-module';
 import { ProductionDetails } from './features/production/production-details';
 import { InventoryPage } from './features/inventory/inventory-page';
 import { LivikAdminShell } from './features/admin/livik-admin-shell';
+import { EmpExpensesPage } from './features/emp-expenses/emp-expenses-page';
+import { EmployeePage } from './features/employee/employee-page';
 import threadIcon from '@/assets/thread.png';
 
 const navItems = [
@@ -42,13 +44,6 @@ function RequireRole({ kind, children }: { kind: AuthUser['kind']; children: Rea
   return <>{children}</>;
 }
 
-function ComingSoon() {
-  return (
-    <div className="h-full flex items-center justify-center">
-      <h2 className="text-2xl font-semibold text-gray-400">upcoming message</h2>
-    </div>
-  );
-}
 
 function NavLinks({ onNavigate }: { onNavigate?: () => void }) {
   const { user } = useAuth();
@@ -121,10 +116,10 @@ function AppShell() {
   return (
     <div className="flex h-screen w-full flex-col bg-[#004D40] font-['Hanken_Grotesk',sans-serif] lg:flex-row lg:p-1 lg:gap-2">
       {/* Laptop: persistent sidebar */}
-      <aside className="hidden lg:flex w-58 shrink-0 flex-col overflow-y-auto">
+      <aside className="hidden lg:flex w-50 shrink-0 flex-col overflow-y-auto">
         <Link to="/dashboard" className="flex items-center justify-center gap-2 py-6 px-4 cursor-pointer">
           <img src={threadIcon} alt="" className="h-6 w-6 shrink-0 object-contain brightness-0 invert" />
-          <span className="text-[20px] font-serif font-bold text-white tracking-widest uppercase whitespace-nowrap">ANITHA KNITS</span>
+          <span className="text-[20px] font-serif font-bold text-white tracking-widest whitespace-nowrap">LK Knits</span>
         </Link>
         <NavLinks />
         <div className="p-2">
@@ -136,7 +131,7 @@ function AppShell() {
       <header className="flex items-center justify-between border-b bg-[#004D40] px-4 py-3 lg:hidden">
         <Link to="/dashboard" className="flex items-center gap-2 cursor-pointer">
           <img src={threadIcon} alt="" className="h-5 w-5 shrink-0 object-contain brightness-0 invert" />
-          <span className="text-[18px] font-serif font-bold text-white tracking-widest uppercase whitespace-nowrap">ANITHA KNITS</span>
+          <span className="text-[18px] font-serif font-bold text-white tracking-widest whitespace-nowrap">LK Knits</span>
         </Link>
         <Sheet open={mobileNavOpen} onOpenChange={setMobileNavOpen}>
           <Button variant="ghost" size="icon" className="text-white hover:bg-white/20 hover:text-white" onClick={() => setMobileNavOpen(true)}>
@@ -146,7 +141,7 @@ function AppShell() {
             <SheetHeader className="py-6 px-4">
               <SheetTitle className="flex items-center justify-center gap-2">
                 <img src={threadIcon} alt="" className="h-6 w-6 shrink-0 object-contain brightness-0 invert" />
-                <span className="text-[20px] font-serif font-bold text-white tracking-widest uppercase whitespace-nowrap">ANITHA KNITS</span>
+                <span className="text-[20px] font-serif font-bold text-white tracking-widest whitespace-nowrap">LK Knits</span>
               </SheetTitle>
             </SheetHeader>
             <NavLinks onNavigate={() => setMobileNavOpen(false)} />
@@ -171,8 +166,8 @@ function AppShell() {
           <Route path="/dashboard/*" element={<DashboardModule />} />
           <Route path="/production/*" element={<ProductionDetails />} />
           <Route path="/inventory" element={<InventoryPage />} />
-          <Route path="/employees" element={<ComingSoon />} />
-          <Route path="/expenses" element={<ComingSoon />} />
+          <Route path="/employees/*" element={<EmployeePage />} />
+          <Route path="/expenses/*" element={<EmpExpensesPage />} />
         </Routes>
       </main>
     </div>

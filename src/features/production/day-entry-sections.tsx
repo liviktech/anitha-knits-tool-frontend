@@ -30,6 +30,7 @@ import {
   type FabricCheckingRecord,
   type FabricCheckingCreatePayload,
 } from '@/features/fabric/fabric-queries';
+import { useLoadSentRecords, loadSentKeys, type LoadSentRecord } from '@/features/inventory/load-sent-queries';
 import { dashboardProductionKey } from './day-wise-queries';
 
 /**
@@ -107,6 +108,16 @@ const themes = {
     headerBg: 'bg-[#DCEEDB]',
     headerText: 'text-[#2F6B2F]',
     iconBg: 'bg-[#2F6B2F]',
+    iconColor: 'text-white',
+    buttonBorder: 'border-gray-300',
+    buttonText: 'text-gray-700',
+    buttonHover: 'hover:bg-gray-50 hover:text-gray-900',
+  },
+  fabricDelivered: {
+    border: 'border-gray-400',
+    headerBg: 'bg-[#f2caa0]',
+    headerText: 'text-[#61401E]',
+    iconBg: 'bg-[#61401E]',
     iconColor: 'text-white',
     buttonBorder: 'border-gray-300',
     buttonText: 'text-gray-700',
@@ -264,14 +275,11 @@ export const ExtruderSection = forwardRef<SectionRef, SectionProps>(({ productio
 
   useEffect(() => {
     if (readOnly || !autoAdd || isLoading || hasAutoAddedRef.current) return;
-    if (rows.length === 0 && newRows.length === 0) {
+    if (newRows.length === 0) {
       hasAutoAddedRef.current = true;
-      // One-shot: open a blank draft row the first time this date resolves
-      // with no existing records. The ref above guarantees this only ever
-      // fires once per mount, so it can't cascade into further renders.
       startAdd();
     }
-  }, [readOnly, autoAdd, isLoading, rows.length, newRows.length, startAdd]);
+  }, [readOnly, autoAdd, isLoading, newRows.length, startAdd]);
 
   // Single choke point for every field edit on a new row — recomputes the
   // suggested Yarn Output from the row's own values unless the user has
@@ -476,10 +484,10 @@ export const ExtruderSection = forwardRef<SectionRef, SectionProps>(({ productio
           <TableHeader>
             <TableRow className="hover:bg-transparent">
               <TableHead className="text-xs font-semibold uppercase tracking-wide text-gray-700">Size</TableHead>
-              <TableHead className="text-xs font-semibold uppercase tracking-wide text-gray-700">Color</TableHead>
-              <TableHead className="text-xs font-semibold uppercase tracking-wide text-gray-700">Brand</TableHead>
+              <TableHead className="w-37.5 min-w-37.5 text-center text-xs font-semibold uppercase tracking-wide text-gray-700">Color</TableHead>
+              <TableHead className="w-37.5 min-w-37.5 text-center text-xs font-semibold uppercase tracking-wide text-gray-700">Brand</TableHead>
               <TableHead className="text-xs font-semibold uppercase tracking-wide text-gray-700">Chemical</TableHead>
-              <TableHead className="text-center text-xs font-semibold uppercase tracking-wide text-gray-700">Raw Material (kg)</TableHead>
+              <TableHead className="text-center text-xs font-semibold uppercase tracking-wide text-gray-700">HDPE Material (kg)</TableHead>
               <TableHead className="text-center text-xs font-semibold uppercase tracking-wide text-gray-700">Chem. Wt (kg)</TableHead>
               <TableHead className="text-center text-xs font-semibold uppercase tracking-wide text-gray-700">Color Consumed (kg)</TableHead>
               <TableHead className="text-center text-xs font-semibold uppercase tracking-wide text-gray-700">Lumps</TableHead>
@@ -499,43 +507,6 @@ export const ExtruderSection = forwardRef<SectionRef, SectionProps>(({ productio
               </TableRow>
             ) : (
               <>
-                {rows.map((row) => (
-                  <TableRow key={row.id} className={editingId === row.id ? 'bg-blue-50/30' : ''}>
-                      <TableCell>{row.size}</TableCell>
-                      <TableCell>{row.color}</TableCell>
-                      <TableCell>{row.brand}</TableCell>
-                      <TableCell>{row.chemical}</TableCell>
-                      <TableCell className="text-center">{row.raw.toFixed(2)}</TableCell>
-                      <TableCell className="text-center">{row.chemicalKg.toFixed(2)}</TableCell>
-                      <TableCell className="text-center">{row.colorConsumedKg.toFixed(2)}</TableCell>
-                      <TableCell className="text-center">{row.lumpsKg.toFixed(2)}</TableCell>
-                      <TableCell className="text-center">{row.yarnWasteKg.toFixed(2)}</TableCell>
-                      <TableCell className="text-center">{row.output.toFixed(2)}</TableCell>
-                      {!readOnly && (
-                        <TableCell className="text-center">
-                          <Button
-                            variant="ghost"
-                            size="icon-sm"
-                            className="rounded-full bg-blue-50 text-blue-500 hover:bg-blue-100"
-                            aria-label="Edit row"
-                            onClick={() => startEdit(row)}
-                          >
-                            <Edit2 className="h-3.5 w-3.5" />
-                          </Button>
-                        </TableCell>
-                      )}
-                    </TableRow>
-                  )
-                )}
-                {!readOnly && editingId !== null && (
-                  <ExtruderEditableRow
-                    draft={editDraft}
-                    setDraft={setEditDraft}
-                    lookups={lookups}
-                    saving={saving}
-                    onCancel={cancelEdit}
-                  />
-                )}
                 {!readOnly &&
                   newRows.map((row) => (
                     <ExtruderEditableRow
@@ -548,6 +519,43 @@ export const ExtruderSection = forwardRef<SectionRef, SectionProps>(({ productio
                       onOutputManualEdit={() => markNewRowOutputManualEdit(row.key)}
                     />
                   ))}
+                {!readOnly && editingId !== null && (
+                  <ExtruderEditableRow
+                    draft={editDraft}
+                    setDraft={setEditDraft}
+                    lookups={lookups}
+                    saving={saving}
+                    onCancel={cancelEdit}
+                  />
+                )}
+                {rows.map((row) => (
+                  <TableRow key={row.id} className={editingId === row.id ? 'bg-blue-50/30' : ''}>
+                    <TableCell>{row.size}</TableCell>
+                    <TableCell className="w-37.5 min-w-37.5 text-center">{row.color}</TableCell>
+                    <TableCell className="w-37.5 min-w-37.5 text-center">{row.brand}</TableCell>
+                    <TableCell>{row.chemical}</TableCell>
+                    <TableCell className="text-center">{row.raw.toFixed(2)}</TableCell>
+                    <TableCell className="text-center">{row.chemicalKg.toFixed(2)}</TableCell>
+                    <TableCell className="text-center">{row.colorConsumedKg.toFixed(2)}</TableCell>
+                    <TableCell className="text-center">{row.lumpsKg.toFixed(2)}</TableCell>
+                    <TableCell className="text-center">{row.yarnWasteKg.toFixed(2)}</TableCell>
+                    <TableCell className="text-center">{row.output.toFixed(2)}</TableCell>
+                    {!readOnly && (
+                      <TableCell className="text-center">
+                        <Button
+                          variant="ghost"
+                          size="icon-sm"
+                          className="rounded-full bg-blue-50 text-blue-500 hover:bg-blue-100"
+                          aria-label="Edit row"
+                          onClick={() => startEdit(row)}
+                        >
+                          <Edit2 className="h-3.5 w-3.5" />
+                        </Button>
+                      </TableCell>
+                    )}
+                  </TableRow>
+                )
+                )}
                 {rows.length === 0 && newRows.length === 0 && editingId === null && (
                   <TableRow>
                     <TableCell colSpan={readOnly ? 10 : 11} className="h-20 text-center text-gray-500">No entries yet.</TableCell>
@@ -608,17 +616,17 @@ function ExtruderEditableRow({
           </SelectContent>
         </Select>
       </TableCell>
-      <TableCell>
+      <TableCell className="w-37.5 min-w-37.5 text-center">
         <Select value={draft.color} onValueChange={(value) => setDraft({ ...draft, color: value })}>
-          <SelectTrigger className="h-10"><SelectValue placeholder="Color" /></SelectTrigger>
+          <SelectTrigger className="h-10 w-full"><SelectValue placeholder="Color" /></SelectTrigger>
           <SelectContent>
             {lookups.colors.map((c) => <SelectItem key={c.id} value={c.name}>{c.name}</SelectItem>)}
           </SelectContent>
         </Select>
       </TableCell>
-      <TableCell>
+      <TableCell className="w-37.5 min-w-37.5 text-center">
         <Select value={draft.brand} onValueChange={(value) => setDraft({ ...draft, brand: value })}>
-          <SelectTrigger className="h-10"><SelectValue placeholder="Brand" /></SelectTrigger>
+          <SelectTrigger className="h-10 w-full"><SelectValue placeholder="Brand" /></SelectTrigger>
           <SelectContent>
             {lookups.brands.map((b) => <SelectItem key={b.id} value={b.name}>{b.name}</SelectItem>)}
           </SelectContent>
@@ -698,8 +706,8 @@ function suggestLoomOutput(draft: Pick<LoomDraft, 'input' | 'loomsWasteKg'>): st
 
 /**
  * Looms only has create/list/get endpoints — no edit, approve, or reject yet
- * — so unlike ExtruderSection, existing rows are read-only and there's no
- * per-row Action column; the only mutation is adding a brand-new row via
+ * — so unlike ExtruderSection, existing rows are read-only; the only mutation
+ * is adding a brand-new row via
  * POST /production/looms.
  */
 export const LoomSection = forwardRef<SectionRef, SectionProps>(({ productionDate, autoAdd, readOnly, hideExisting }, ref) => {
@@ -742,14 +750,11 @@ export const LoomSection = forwardRef<SectionRef, SectionProps>(({ productionDat
 
   useEffect(() => {
     if (readOnly || !autoAdd || isLoading || hasAutoAddedRef.current) return;
-    if (rows.length === 0 && newRows.length === 0) {
+    if (newRows.length === 0) {
       hasAutoAddedRef.current = true;
-      // One-shot: open a blank draft row the first time this date resolves
-      // with no existing records. The ref above guarantees this only ever
-      // fires once per mount, so it can't cascade into further renders.
       startAdd();
     }
-  }, [readOnly, autoAdd, isLoading, rows.length, newRows.length, startAdd]);
+  }, [readOnly, autoAdd, isLoading, newRows.length, startAdd]);
 
   // Single choke point for every field edit on a new row — recomputes the
   // suggested Fabric Output from the row's own values unless the user has
@@ -853,16 +858,17 @@ export const LoomSection = forwardRef<SectionRef, SectionProps>(({ productionDat
           <TableHeader>
             <TableRow className="hover:bg-transparent">
               <TableHead className="text-xs font-semibold uppercase tracking-wide text-gray-700">Size</TableHead>
-              <TableHead className="text-xs font-semibold uppercase tracking-wide text-gray-700">Color</TableHead>
+              <TableHead className="w-37.5 min-w-37.5 text-center text-xs font-semibold uppercase tracking-wide text-gray-700">Color</TableHead>
               <TableHead className="text-center text-xs font-semibold uppercase tracking-wide text-gray-700">Yarn Input (kg)</TableHead>
               <TableHead className="text-center text-xs font-semibold uppercase tracking-wide text-gray-700">Looms Waste</TableHead>
               <TableHead className="text-center text-xs font-semibold uppercase tracking-wide text-gray-700">Fabric Output (kg)</TableHead>
+              {!readOnly && <TableHead className="text-center text-xs font-semibold uppercase tracking-wide text-gray-700">Action</TableHead>}
             </TableRow>
           </TableHeader>
           <TableBody>
             {isLoading ? (
               <TableRow>
-                <TableCell colSpan={5} className="h-20 text-center">
+                <TableCell colSpan={readOnly ? 5 : 6} className="h-20 text-center">
                   <div className="flex items-center justify-center gap-2 text-gray-500">
                     <Loader size="sm" /> Loading entries...
                   </div>
@@ -870,15 +876,6 @@ export const LoomSection = forwardRef<SectionRef, SectionProps>(({ productionDat
               </TableRow>
             ) : (
               <>
-                {rows.map((row) => (
-                  <TableRow key={row.id}>
-                    <TableCell>{row.size}</TableCell>
-                    <TableCell>{row.color}</TableCell>
-                    <TableCell className="text-center">{row.input.toFixed(2)}</TableCell>
-                    <TableCell className="text-center">{row.loomsWasteKg.toFixed(2)}</TableCell>
-                    <TableCell className="text-center">{row.output.toFixed(2)}</TableCell>
-                  </TableRow>
-                ))}
                 {!readOnly &&
                   newRows.map((row) => (
                     <TableRow key={row.key}>
@@ -890,12 +887,12 @@ export const LoomSection = forwardRef<SectionRef, SectionProps>(({ productionDat
                           </SelectContent>
                         </Select>
                       </TableCell>
-                      <TableCell>
+                      <TableCell className="w-37.5 min-w-37.5 text-center">
                         <Select
                           value={row.draft.color}
                           onValueChange={(value) => updateNewRow(row.key, { ...row.draft, color: value })}
                         >
-                          <SelectTrigger className="h-10"><SelectValue placeholder="Color" /></SelectTrigger>
+                          <SelectTrigger className="h-10 w-full"><SelectValue placeholder="Color" /></SelectTrigger>
                           <SelectContent>
                             {lookups.colors.map((c) => <SelectItem key={c.id} value={c.name}>{c.name}</SelectItem>)}
                           </SelectContent>
@@ -926,16 +923,28 @@ export const LoomSection = forwardRef<SectionRef, SectionProps>(({ productionDat
                             placeholder="suggested"
                             onChange={(e) => { markNewRowOutputManualEdit(row.key); updateNewRow(row.key, { ...row.draft, output: e.target.value }); }}
                           />
-                          <Button variant="ghost" size="icon-sm" className="rounded-full bg-gray-100 text-gray-500 hover:bg-gray-200 shrink-0" aria-label="Cancel" onClick={() => removeNewRow(row.key)} disabled={saving}>
-                            <XIcon className="h-3.5 w-3.5" />
-                          </Button>
                         </div>
+                      </TableCell>
+                      <TableCell className="text-center">
+                        <Button variant="ghost" size="icon-sm" className="rounded-full bg-gray-100 text-gray-500 hover:bg-gray-200" aria-label="Cancel" onClick={() => removeNewRow(row.key)} disabled={saving}>
+                          <XIcon className="h-3.5 w-3.5" />
+                        </Button>
                       </TableCell>
                     </TableRow>
                   ))}
+                {rows.map((row) => (
+                  <TableRow key={row.id}>
+                    <TableCell>{row.size}</TableCell>
+                    <TableCell className="w-37.5 min-w-37.5 text-center">{row.color}</TableCell>
+                    <TableCell className="text-center">{row.input.toFixed(2)}</TableCell>
+                    <TableCell className="text-center">{row.loomsWasteKg.toFixed(2)}</TableCell>
+                    <TableCell className="text-center">{row.output.toFixed(2)}</TableCell>
+                    {!readOnly && <TableCell />}
+                  </TableRow>
+                ))}
                 {rows.length === 0 && newRows.length === 0 && (
                   <TableRow>
-                    <TableCell colSpan={5} className="h-20 text-center text-gray-500">No entries yet.</TableCell>
+                    <TableCell colSpan={readOnly ? 5 : 6} className="h-20 text-center text-gray-500">No entries yet.</TableCell>
                   </TableRow>
                 )}
               </>
@@ -982,15 +991,15 @@ export interface FabricRow {
 }
 
 export function mapFabricItem(item: FabricCheckingRecord): FabricRow {
-  const firstGrade = item.fabricCheck?.firstGradeKg ?? 0;
-  const secondGrade = item.fabricCheck?.secondGradeKg ?? 0;
+  const firstGrade = (item.fabricCheck as any)?.firstGradeKg ?? 0;
+  const secondGrade = (item.fabricCheck as any)?.secondGradeKg ?? 0;
   return {
     id: item.id,
     size: item.size?.name ?? '',
     color: item.color?.name ?? '',
     input: item.fabricCheck?.fabricInputKg ?? 0,
     output: item.fabricCheck?.outputKg ?? (firstGrade + secondGrade),
-    pieceCount: item.fabricCheck?.pieceCount ?? 0,
+    pieceCount: (item.fabricCheck as any)?.pieceCount ?? 0,
     firstGrade,
     secondGrade,
     fwKg: sumWastageByCode(item.wastages, 'FW'),
@@ -1073,14 +1082,11 @@ export const FabricSection = forwardRef<SectionRef, SectionProps>(({ productionD
 
   useEffect(() => {
     if (readOnly || !autoAdd || isLoading || hasAutoAddedRef.current) return;
-    if (rows.length === 0 && newRows.length === 0) {
+    if (newRows.length === 0) {
       hasAutoAddedRef.current = true;
-      // One-shot: open a blank draft row the first time this date resolves
-      // with no existing records. The ref above guarantees this only ever
-      // fires once per mount, so it can't cascade into further renders.
       startAdd();
     }
-  }, [readOnly, autoAdd, isLoading, rows.length, newRows.length, startAdd]);
+  }, [readOnly, autoAdd, isLoading, newRows.length, startAdd]);
 
   // Single choke point for every field edit on a new row — recomputes the
   // suggested Output from the row's own values unless the user has typed
@@ -1181,17 +1187,18 @@ export const FabricSection = forwardRef<SectionRef, SectionProps>(({ productionD
           <TableHeader>
             <TableRow className="hover:bg-transparent">
               <TableHead className="text-xs font-semibold uppercase tracking-wide text-gray-700">Size</TableHead>
-              <TableHead className="text-xs font-semibold uppercase tracking-wide text-gray-700">Color</TableHead>
+              <TableHead className="w-37.5 min-w-37.5 text-center text-xs font-semibold uppercase tracking-wide text-gray-700">Color</TableHead>
               <TableHead className="text-center text-xs font-semibold uppercase tracking-wide text-gray-700">Fabric Input (kg)</TableHead>
               <TableHead className="text-center text-xs font-semibold uppercase tracking-wide text-gray-700">FW</TableHead>
               <TableHead className="text-center text-xs font-semibold uppercase tracking-wide text-gray-700">BW</TableHead>
               <TableHead className="text-center text-xs font-semibold uppercase tracking-wide text-gray-700">Output (kg)</TableHead>
+              {!readOnly && <TableHead className="text-center text-xs font-semibold uppercase tracking-wide text-gray-700">Action</TableHead>}
             </TableRow>
           </TableHeader>
           <TableBody>
             {isLoading ? (
               <TableRow>
-                <TableCell colSpan={6} className="h-20 text-center">
+                <TableCell colSpan={readOnly ? 6 : 7} className="h-20 text-center">
                   <div className="flex items-center justify-center gap-2 text-gray-500">
                     <Loader size="sm" /> Loading entries...
                   </div>
@@ -1199,16 +1206,6 @@ export const FabricSection = forwardRef<SectionRef, SectionProps>(({ productionD
               </TableRow>
             ) : (
               <>
-                {rows.map((row) => (
-                  <TableRow key={row.id}>
-                    <TableCell>{row.size}</TableCell>
-                    <TableCell>{row.color}</TableCell>
-                    <TableCell className="text-center">{row.input.toFixed(2)}</TableCell>
-                    <TableCell className="text-center">{row.fwKg.toFixed(2)}</TableCell>
-                    <TableCell className="text-center">{row.bwKg.toFixed(2)}</TableCell>
-                    <TableCell className="text-center">{row.output.toFixed(2)}</TableCell>
-                  </TableRow>
-                ))}
                 {!readOnly &&
                   newRows.map((row) => (
                     <TableRow key={row.key}>
@@ -1220,12 +1217,12 @@ export const FabricSection = forwardRef<SectionRef, SectionProps>(({ productionD
                           </SelectContent>
                         </Select>
                       </TableCell>
-                      <TableCell>
+                      <TableCell className="w-37.5 min-w-37.5 text-center">
                         <Select
                           value={row.draft.color}
                           onValueChange={(value) => updateNewRow(row.key, { ...row.draft, color: value })}
                         >
-                          <SelectTrigger className="h-10"><SelectValue placeholder="Color" /></SelectTrigger>
+                          <SelectTrigger className="h-10 w-full"><SelectValue placeholder="Color" /></SelectTrigger>
                           <SelectContent>
                             {lookups.colors.map((c) => <SelectItem key={c.id} value={c.name}>{c.name}</SelectItem>)}
                           </SelectContent>
@@ -1250,16 +1247,29 @@ export const FabricSection = forwardRef<SectionRef, SectionProps>(({ productionD
                             placeholder="suggested"
                             onChange={(e) => { markNewRowOutputManualEdit(row.key); updateNewRow(row.key, { ...row.draft, output: e.target.value }); }}
                           />
-                          <Button variant="ghost" size="icon-sm" className="rounded-full bg-gray-100 text-gray-500 hover:bg-gray-200 shrink-0" aria-label="Cancel" onClick={() => removeNewRow(row.key)} disabled={saving}>
-                            <XIcon className="h-3.5 w-3.5" />
-                          </Button>
                         </div>
+                      </TableCell>
+                      <TableCell className="text-center">
+                        <Button variant="ghost" size="icon-sm" className="rounded-full bg-gray-100 text-gray-500 hover:bg-gray-200" aria-label="Cancel" onClick={() => removeNewRow(row.key)} disabled={saving}>
+                          <XIcon className="h-3.5 w-3.5" />
+                        </Button>
                       </TableCell>
                     </TableRow>
                   ))}
+                {rows.map((row) => (
+                  <TableRow key={row.id}>
+                    <TableCell>{row.size}</TableCell>
+                    <TableCell className="w-37.5 min-w-37.5 text-center">{row.color}</TableCell>
+                    <TableCell className="text-center">{row.input.toFixed(2)}</TableCell>
+                    <TableCell className="text-center">{row.fwKg.toFixed(2)}</TableCell>
+                    <TableCell className="text-center">{row.bwKg.toFixed(2)}</TableCell>
+                    <TableCell className="text-center">{row.output.toFixed(2)}</TableCell>
+                    {!readOnly && <TableCell />}
+                  </TableRow>
+                ))}
                 {rows.length === 0 && newRows.length === 0 && (
                   <TableRow>
-                    <TableCell colSpan={6} className="h-20 text-center text-gray-500">No entries yet.</TableCell>
+                    <TableCell colSpan={readOnly ? 6 : 7} className="h-20 text-center text-gray-500">No entries yet.</TableCell>
                   </TableRow>
                 )}
               </>
@@ -1289,3 +1299,311 @@ export const FabricSection = forwardRef<SectionRef, SectionProps>(({ productionD
 });
 
 export type { Theme };
+
+interface FabricDeliveredDraft {
+  size: string;
+  color: string;
+  delivered: string;
+}
+
+interface FabricDeliveredCreatePayload {
+  productionDate: string;
+  colorId: string;
+  sizeId: string;
+  fabricWeight: number;
+}
+
+interface FabricDeliveredRow {
+  id: string;
+  size: string;
+  color: string;
+  delivered: number;
+}
+
+type LoadSentProductionRecord = LoadSentRecord & {
+  productionDate?: string;
+  fabricWeight?: number;
+  loadSent?: {
+    fabricWeight?: number;
+  };
+};
+
+function mapLoadSentRecord(record: LoadSentProductionRecord): FabricDeliveredRow {
+  return {
+    id: record.id,
+    size: record.size?.name ?? '',
+    color: record.color?.name ?? '',
+    delivered: record.loadSent?.fabricWeight ?? record.fabricWeight ?? record.weightKg ?? 0,
+  };
+}
+
+export const FabricDeliveredSection = forwardRef<SectionRef, SectionProps>(({ productionDate, autoAdd, readOnly, hideExisting }, ref) => {
+  const queryClient = useQueryClient();
+  const { data: lookupsData } = useLookups();
+  const lookups: Lookups = lookupsData ?? { brands: [], colors: [], chemicals: [], sizes: [] };
+  const { data, isLoading } = useLoadSentRecords('?limit=100', !hideExisting);
+
+  const rows = useMemo(() => {
+    if (hideExisting) return [];
+    return (data?.data ?? [])
+      .filter((record) => !productionDate || (record as LoadSentProductionRecord).productionDate?.startsWith(productionDate) || record.date?.startsWith(productionDate))
+      .map((record) => mapLoadSentRecord(record as LoadSentProductionRecord));
+  }, [data, productionDate, hideExisting]);
+
+  const [newRows, setNewRows] = useState<{ key: string; draft: FabricDeliveredDraft }[]>([]);
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [editDraft, setEditDraft] = useState<FabricDeliveredDraft>({ size: '', color: '', delivered: '' });
+  const [saving, setSaving] = useState(false);
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const nextRowKeyRef = useRef(0);
+  const hasAutoAddedRef = useRef(false);
+
+  const startAdd = useCallback(() => {
+    setNewRows((current) => [
+      ...current,
+      { key: `new-${nextRowKeyRef.current++}`, draft: { size: '', color: '', delivered: '' } },
+    ]);
+  }, []);
+
+  useEffect(() => {
+    if (readOnly || !autoAdd || hasAutoAddedRef.current) return;
+    if (newRows.length === 0) {
+      hasAutoAddedRef.current = true;
+      startAdd();
+    }
+  }, [readOnly, autoAdd, newRows.length, startAdd]);
+
+  const updateNewRow = (key: string, draft: FabricDeliveredDraft) => {
+    setNewRows((current) => current.map((row) => (row.key === key ? { ...row, draft } : row)));
+  };
+
+  const removeNewRow = (key: string) => {
+    setNewRows((current) => current.filter((row) => row.key !== key));
+  };
+
+  const validateDraft = (draft: FabricDeliveredDraft) => {
+    const sizeId = findIdByName(lookups.sizes, draft.size);
+    const colorId = findIdByName(lookups.colors, draft.color);
+    const fabricWeight = parseFloat(draft.delivered) || 0;
+    if (!sizeId || !colorId) {
+      setErrorMessage('Select Size and Color before saving.');
+      return null;
+    }
+    if (fabricWeight <= 0) {
+      setErrorMessage('Enter Fabric Weight (kg) — it must be greater than 0.');
+      return null;
+    }
+    return { sizeId, colorId, fabricWeight };
+  };
+
+  const saveRow = async (draft: FabricDeliveredDraft, id?: string): Promise<boolean> => {
+    const values = validateDraft(draft);
+    if (!values) return false;
+
+    try {
+      const payload: FabricDeliveredCreatePayload = {
+        productionDate: productionDate ?? new Date().toISOString().slice(0, 10),
+        colorId: values.colorId,
+        sizeId: values.sizeId,
+        fabricWeight: values.fabricWeight,
+      };
+      const response = await apiFetch(id ? `/load-sent/${id}` : '/load-sent', {
+        method: id ? 'PATCH' : 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
+      });
+      if (!response.ok) {
+        setErrorMessage(await extractApiErrorMessage(response, 'Failed to save the Fabric Delivered entry.'));
+        return false;
+      }
+      return true;
+    } catch (error) {
+      console.error('Error saving Fabric Delivered entry:', error);
+      setErrorMessage('Failed to save the Fabric Delivered entry.');
+      return false;
+    }
+  };
+
+  const startEdit = (row: FabricDeliveredRow) => {
+    setEditDraft({ size: row.size, color: row.color, delivered: String(row.delivered) });
+    setEditingId(row.id);
+  };
+
+  const cancelEdit = () => {
+    setEditingId(null);
+    setEditDraft({ size: '', color: '', delivered: '' });
+  };
+
+  useImperativeHandle(ref, () => ({
+    saveDraft: async () => {
+      if (readOnly) return true;
+      setSaving(true);
+      setErrorMessage(null);
+      let allOk = true;
+      try {
+        if (editingId) {
+          const editOk = await saveRow(editDraft, editingId);
+          if (!editOk) allOk = false;
+        }
+
+        const rowsToSave = newRows.filter((row) => JSON.stringify(row.draft) !== JSON.stringify({ size: '', color: '', delivered: '' }));
+        if (rowsToSave.length > 0) {
+          const results = await Promise.all(rowsToSave.map((row) => saveRow(row.draft)));
+          const succeededKeys = new Set(rowsToSave.filter((_, index) => results[index]).map((row) => row.key));
+          if (succeededKeys.size > 0) {
+            setNewRows((current) => current.filter((row) => !succeededKeys.has(row.key)));
+            await queryClient.invalidateQueries({ queryKey: loadSentKeys.all });
+          }
+          if (succeededKeys.size < rowsToSave.length) allOk = false;
+        }
+
+        if (allOk && editingId) {
+          cancelEdit();
+          await queryClient.invalidateQueries({ queryKey: loadSentKeys.all });
+        }
+      } finally {
+        setSaving(false);
+      }
+      return allOk;
+    },
+  }));
+
+  const theme = themes.fabricDelivered;
+
+  return (
+    <div className={`rounded-xl border ${theme.border} bg-white shadow-sm overflow-hidden`}>
+      <div className={`p-3 ${theme.headerBg} flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between`}>
+        <div className={`flex items-center gap-3 text-[13px] font-extrabold ${theme.headerText} uppercase tracking-wider`}>
+          <div className={`${theme.iconBg} ${theme.iconColor} h-5 w-5 flex items-center justify-center rounded-sm text-[10px] font-bold`}>
+            4
+          </div>
+          FABRIC DELIVERED
+        </div>
+      </div>
+
+      <div className="overflow-x-auto">
+        <Table>
+          <TableHeader>
+            <TableRow className="hover:bg-transparent">
+              <TableHead className="text-xs font-semibold uppercase tracking-wide text-gray-700">Size</TableHead>
+              <TableHead className="w-37.5 min-w-37.5 text-center text-xs font-semibold uppercase tracking-wide text-gray-700">Color</TableHead>
+              <TableHead className="text-center text-xs font-semibold uppercase tracking-wide text-gray-700">Delivered (kg)</TableHead>
+              {!readOnly && <TableHead className="text-center text-xs font-semibold uppercase tracking-wide text-gray-700">Action</TableHead>}
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            {isLoading ? (
+              <TableRow>
+                <TableCell colSpan={readOnly ? 3 : 4} className="h-20 text-center">
+                  <div className="flex items-center justify-center gap-2 text-gray-500">
+                    <Loader size="sm" /> Loading entries...
+                  </div>
+                </TableCell>
+              </TableRow>
+            ) : (
+              <>
+                {!readOnly && newRows.map((row) => (
+                  <TableRow key={row.key}>
+                    <TableCell>
+                      <Select value={row.draft.size} onValueChange={(value) => updateNewRow(row.key, { ...row.draft, size: value })}>
+                        <SelectTrigger className="h-10"><SelectValue placeholder="Size" /></SelectTrigger>
+                        <SelectContent>
+                          {lookups.sizes.map((s) => <SelectItem key={s.id} value={s.name}>{s.name}</SelectItem>)}
+                        </SelectContent>
+                      </Select>
+                    </TableCell>
+                    <TableCell className="w-37.5 min-w-37.5 text-center">
+                      <Select value={row.draft.color} onValueChange={(value) => updateNewRow(row.key, { ...row.draft, color: value })}>
+                        <SelectTrigger className="h-10 w-full"><SelectValue placeholder="Color" /></SelectTrigger>
+                        <SelectContent>
+                          {lookups.colors.map((c) => <SelectItem key={c.id} value={c.name}>{c.name}</SelectItem>)}
+                        </SelectContent>
+                      </Select>
+                    </TableCell>
+                    <TableCell>
+                      <Input type="number" className="h-10 w-full text-center" value={row.draft.delivered} onChange={(e) => updateNewRow(row.key, { ...row.draft, delivered: e.target.value })} />
+                    </TableCell>
+                    <TableCell className="text-center">
+                      <Button variant="ghost" size="icon-sm" className="rounded-full bg-gray-100 text-gray-500 hover:bg-gray-200" aria-label="Cancel" onClick={() => removeNewRow(row.key)} disabled={saving}>
+                        <XIcon className="h-3.5 w-3.5" />
+                      </Button>
+                    </TableCell>
+                  </TableRow>
+                ))}
+                {!readOnly && rows.map((row) => editingId === row.id ? (
+                  <TableRow key={row.id}>
+                    <TableCell>
+                      <Select value={editDraft.size} onValueChange={(value) => setEditDraft({ ...editDraft, size: value })}>
+                        <SelectTrigger className="h-10"><SelectValue placeholder="Size" /></SelectTrigger>
+                        <SelectContent>
+                          {lookups.sizes.map((s) => <SelectItem key={s.id} value={s.name}>{s.name}</SelectItem>)}
+                        </SelectContent>
+                      </Select>
+                    </TableCell>
+                    <TableCell className="w-37.5 min-w-37.5 text-center">
+                      <Select value={editDraft.color} onValueChange={(value) => setEditDraft({ ...editDraft, color: value })}>
+                        <SelectTrigger className="h-10 w-full"><SelectValue placeholder="Color" /></SelectTrigger>
+                        <SelectContent>
+                          {lookups.colors.map((c) => <SelectItem key={c.id} value={c.name}>{c.name}</SelectItem>)}
+                        </SelectContent>
+                      </Select>
+                    </TableCell>
+                    <TableCell><Input type="number" className="h-10 w-full text-center" value={editDraft.delivered} onChange={(e) => setEditDraft({ ...editDraft, delivered: e.target.value })} /></TableCell>
+                    <TableCell className="text-center">
+                      <Button variant="ghost" size="icon-sm" className="rounded-full bg-gray-100 text-gray-500 hover:bg-gray-200" aria-label="Cancel" onClick={cancelEdit} disabled={saving}>
+                        <XIcon className="h-3.5 w-3.5" />
+                      </Button>
+                    </TableCell>
+                  </TableRow>
+                ) : (
+                  <TableRow key={row.id}>
+                    <TableCell>{row.size}</TableCell>
+                    <TableCell className="w-37.5 min-w-37.5 text-center">{row.color}</TableCell>
+                    <TableCell className="text-center">{row.delivered.toFixed(2)}</TableCell>
+                    <TableCell className="text-center">
+                      <Button variant="ghost" size="icon-sm" className="rounded-full bg-blue-50 text-blue-500 hover:bg-blue-100" aria-label="Edit row" onClick={() => startEdit(row)} disabled={saving}>
+                        <Edit2 className="h-3.5 w-3.5" />
+                      </Button>
+                    </TableCell>
+                  </TableRow>
+                ))}
+                {readOnly && rows.map((row) => (
+                  <TableRow key={row.id}>
+                    <TableCell>{row.size}</TableCell>
+                    <TableCell className="w-37.5 min-w-37.5 text-center">{row.color}</TableCell>
+                    <TableCell className="text-center">{row.delivered.toFixed(2)}</TableCell>
+                  </TableRow>
+                ))}
+                {rows.length === 0 && newRows.length === 0 && (
+                  <TableRow>
+                    <TableCell colSpan={readOnly ? 3 : 4} className="h-20 text-center text-gray-500">No entries yet.</TableCell>
+                  </TableRow>
+                )}
+              </>
+            )}
+          </TableBody>
+        </Table>
+      </div>
+
+      {!readOnly && (
+        <div className="flex flex-col border-t border-gray-100">
+          <div className="p-4 flex flex-col gap-2">
+            <div className="flex items-center gap-3">
+              <Button
+                variant="outline"
+                size="sm"
+                className={`h-8 gap-1 rounded-full ${theme.buttonBorder} ${theme.buttonText} ${theme.buttonHover}`}
+                onClick={startAdd}
+                disabled={saving}
+              >
+                <Plus className="h-3 w-3" /> Add row
+              </Button>
+            </div>
+            {errorMessage && <p className="text-xs font-medium text-red-600">{errorMessage}</p>}
+          </div>
+
+        </div>
+      )}
+    </div>
+  );
+});
