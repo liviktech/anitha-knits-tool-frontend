@@ -360,7 +360,7 @@ function DayDetailView({
               number={1}
               icon={<img src={extruderIcon} alt="Extruder" className="w-6 h-6 object-contain" />}
               title="Extruder Production"
-              description="Raw materials is converted into tape (DN+ / LUMPS)"
+              description="HDPE Materials is converted into tape (DN+ / LUMPS)"
               theme={stageTheme.extruder}
               producedLabel="DN+ PRODUCED"
               producedValue={formatNum(row.extruder.output)}
@@ -371,7 +371,7 @@ function DayDetailView({
               pills={extruderPills}
               expanded={expandedStages.extruder}
               onToggle={() => toggleStage('extruder')}
-              tableHeads={['SIZE', 'COLOR', 'BRAND', 'RAW MATERIAL (KG)', 'WASTE (KG)', 'LUMPS (KG)', 'ACTION']}
+              tableHeads={['SIZE', 'COLOR', 'BRAND', 'HDPE MATERIALS (KG)', 'WASTE (KG)', 'LUMPS (KG)', 'ACTION']}
             >
               {extruderRows.length === 0 ? (
                 <TableRow>
@@ -863,21 +863,33 @@ export function ProductionDesign2() {
           <div className="bg-[#DAF1DE] border border-green-400 rounded-[10px] px-5 py-2.5 shadow-sm my-1 flex flex-col transition-all duration-300">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-3">
-                <img src="/delivery.png" alt="Delivery" className="w-[28px] h-[28px] object-contain" />
+                <div
+                  className="w-[28px] h-[28px] bg-[#235347]"
+                  style={{
+                    WebkitMaskImage: 'url(/delivery.png)',
+                    WebkitMaskSize: 'contain',
+                    WebkitMaskRepeat: 'no-repeat',
+                    WebkitMaskPosition: 'center',
+                    maskImage: 'url(/delivery.png)',
+                    maskSize: 'contain',
+                    maskRepeat: 'no-repeat',
+                    maskPosition: 'center'
+                  }}
+                />
                 <span className="font-extrabold text-[#235347] text-[22px]">Fabric Delivered</span>
               </div>
               <div className="flex items-center gap-4">
                 <div className={`flex items-center gap-12 transition-opacity duration-300 ${isFabricDeliveredExpanded ? 'opacity-0 pointer-events-none' : 'opacity-100'}`}>
                   <div className="flex items-center gap-3">
-                    <span className="text-[15px] font-extrabold text-[#235347] uppercase tracking-wide">White -</span>
+                    <span className="text-[15px] font-extrabold text-[#61401E] uppercase tracking-wide">White -</span>
                     <span className="font-extrabold text-[#61401E] text-[20px]">456.90</span>
                   </div>
                   <div className="flex items-center gap-3">
-                    <span className="text-[15px] font-extrabold text-[#235347] uppercase tracking-wide">Blue - </span>
+                    <span className="text-[15px] font-extrabold text-[#0088CC] uppercase tracking-wide">Blue</span>
                     <span className="font-bold text-[#0088CC] text-[20px]">457.67</span>
                   </div>
                   <div className="flex items-center gap-3">
-                    <span className="text-[15px] font-extrabold text-[#235347] uppercase tracking-wide">Green -</span>
+                    <span className="text-[15px] font-extrabold text-[#5BA300] uppercase tracking-wide">Green</span>
                     <span className="font-bold text-[#5BA300] text-[20px]">345.234</span>
                   </div>
                 </div>
