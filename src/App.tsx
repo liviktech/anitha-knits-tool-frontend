@@ -10,7 +10,9 @@ import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sh
 import { DashboardModule } from './features/dashboard/dashboard-module';
 import { ProductionDetails } from './features/production/production-details';
 import { InventoryPage } from './features/inventory/inventory-page';
-import { LivikAdminShell } from './features/admin/livik-admin-shell';
+import { LivikAdminShell } from './features/livik-admin/livik-admin-shell';
+import { EmpExpensesPage } from './features/emp-expenses/emp-expenses-page';
+import { EmployeePage } from './features/employee/employee-page';
 import threadIcon from '@/assets/thread.png';
 
 const navItems = [
@@ -42,13 +44,6 @@ function RequireRole({ kind, children }: { kind: AuthUser['kind']; children: Rea
   return <>{children}</>;
 }
 
-function ComingSoon() {
-  return (
-    <div className="h-full flex items-center justify-center">
-      <h2 className="text-2xl font-semibold text-gray-400">upcoming message</h2>
-    </div>
-  );
-}
 
 function NavLinks({ onNavigate }: { onNavigate?: () => void }) {
   const { user } = useAuth();
@@ -171,8 +166,8 @@ function AppShell() {
           <Route path="/dashboard/*" element={<DashboardModule />} />
           <Route path="/production/*" element={<ProductionDetails />} />
           <Route path="/inventory" element={<InventoryPage />} />
-          <Route path="/employees" element={<ComingSoon />} />
-          <Route path="/expenses" element={<ComingSoon />} />
+          <Route path="/employees/*" element={<EmployeePage />} />
+          <Route path="/expenses/*" element={<EmpExpensesPage />} />
         </Routes>
       </main>
     </div>
