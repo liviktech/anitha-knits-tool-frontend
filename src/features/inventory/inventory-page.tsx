@@ -401,7 +401,7 @@ interface LoadSentFormDialogProps {
 
 /** Mounted only while the dialog is open (see call site), so state can
  * initialize once from `record` at mount instead of syncing via an effect. */
-function LoadSentFormDialog({ onClose, record }: LoadSentFormDialogProps) {
+export function LoadSentFormDialog({ onClose, record }: LoadSentFormDialogProps) {
   const queryClient = useQueryClient();
   const { data: lookupsData } = useLookups();
   const colors = lookupsData?.colors ?? [];

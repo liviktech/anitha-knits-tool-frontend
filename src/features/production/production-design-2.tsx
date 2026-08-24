@@ -3,7 +3,9 @@ import { useQueryClient } from '@tanstack/react-query';
 import '@fontsource-variable/hanken-grotesk';
 import '@fontsource-variable/inter';
 import { parseISO, format } from 'date-fns';
-import { Calendar, Plus, Edit, Trash2, Download, Layers, ChevronRight, CheckCircle2, ChevronDown } from 'lucide-react';
+import { Trash2, Calendar, ChevronDown, Plus, Download, Edit2, Edit, Layers, ChevronRight, CheckCircle2 } from 'lucide-react';
+import { LoadSentFormDialog } from '../inventory/inventory-page';
+import { type LoadSentRecord } from '../inventory/load-sent-queries';
 import { Loader } from '@/components/shared/loader';
 import { DeleteConfirmDialog } from '@/components/shared/delete-confirm-dialog';
 import { apiFetch, fetchJson } from '@/lib/api-client';
@@ -85,17 +87,6 @@ const stageTheme = {
 const fabricDeliveredSizes = ['150mm', '160mm', '170mm', '180mm', '190mm'] as const;
 type FabricDeliveredSize = (typeof fabricDeliveredSizes)[number];
 
-interface LoadSentDeliveryRecord {
-  id: string;
-  date?: string;
-  productionDate?: string;
-  color?: { name?: string };
-  size?: { name?: string };
-  loadSent?: { fabricWeight?: number };
-  fabricWeight?: number;
-  weightKg?: number;
-}
-
 function deliveryColorClass(color: string): string {
   const normalizedColor = color.toLowerCase();
   if (normalizedColor === 'blue') return 'text-[#0088CC]';
@@ -108,6 +99,7 @@ interface FabricDeliveredDetailRow {
   size: string;
   color: string;
   delivered: number;
+  original: LoadSentRecord;
 }
 
 interface FabricDeliveredTableRow {
@@ -117,14 +109,15 @@ interface FabricDeliveredTableRow {
 }
 
 function getFabricDeliveredRows(data: unknown, date: string): FabricDeliveredDetailRow[] {
-  const records = (data ?? []) as LoadSentDeliveryRecord[];
+  const records = (data ?? []) as LoadSentRecord[];
   return records
     .filter((record) => (record.productionDate ?? record.date ?? '').startsWith(date))
-    .map((record) => ({
+    .map((record: any) => ({
       id: record.id,
       size: record.size?.name ?? '',
       color: record.color?.name ?? '',
       delivered: record.loadSent?.fabricWeight ?? record.fabricWeight ?? record.weightKg ?? 0,
+      original: record as LoadSentRecord,
     }))
     .filter((record) => record.delivered > 0);
 }
@@ -255,12 +248,14 @@ function DayDetailView({
   dayWiseRows,
   fabricDeliveredRows,
   loadingLoadSent,
+  onEditFabricDelivered,
 }: {
   date: string;
   onClose: () => void;
   dayWiseRows: DayWiseRow[];
   fabricDeliveredRows: FabricDeliveredDetailRow[];
   loadingLoadSent: boolean;
+  onEditFabricDelivered: (record: LoadSentRecord) => void;
 }) {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
@@ -501,7 +496,14 @@ function DayDetailView({
                     <TableCell className="text-[12px] text-gray-800 text-left">{deliveredRow.size}</TableCell>
                     <TableCell className="text-center text-[12px] text-gray-800">{deliveredRow.color}</TableCell>
                     <TableCell className="text-center text-[12px] font-semibold text-gray-900">{formatNum(deliveredRow.delivered)}</TableCell>
-                    <TableCell className="text-right"><CheckCircle2 className="w-4 h-4 text-[#61401E] inline-block" /></TableCell>
+                    <TableCell className="text-right">
+                      <div className="flex items-center justify-end gap-2">
+                        <Button variant="ghost" size="icon-sm" className="h-6 w-6 hover:bg-gray-100" onClick={(e) => { e.stopPropagation(); onEditFabricDelivered(deliveredRow.original); }}>
+                          <Edit2 className="w-3.5 h-3.5 text-blue-600" />
+                        </Button>
+                        <CheckCircle2 className="w-4 h-4 text-[#61401E]" />
+                      </div>
+                    </TableCell>
                   </TableRow>
                 ))
               )}
@@ -537,6 +539,7 @@ export function ProductionDesign2() {
   const [isReportOpen, setIsReportOpen] = useState(false);
   const [deleteTargetDate, setDeleteTargetDate] = useState<string | null>(null);
   const [deletingDate, setDeletingDate] = useState(false);
+  const [editingLoadSent, setEditingLoadSent] = useState<LoadSentRecord | null>(null);
   const [isFabricDeliveredExpanded, setIsFabricDeliveredExpanded] = useState(false);
   const [filterDate, setFilterDate] = useState<Date>(new Date());
   const monthStr = format(filterDate, 'yyyy-MM');
@@ -696,6 +699,7 @@ export function ProductionDesign2() {
           dayWiseRows={dayWiseRows}
           fabricDeliveredRows={getFabricDeliveredRows(loadSentData?.data, selectedDate)}
           loadingLoadSent={loadingLoadSent}
+          onEditFabricDelivered={setEditingLoadSent}
         />
       ) : (
         <div className="p-2 flex flex-col gap-2 flex-1">
@@ -977,7 +981,7 @@ export function ProductionDesign2() {
                     {/* Fabric Delivered */}
                     <TableHead className="text-center text-gray-800 font-extrabold text-[12px] uppercase tracking-wider h-8">size</TableHead>
                     <TableHead className="text-center text-gray-800 font-extrabold text-[12px] uppercase tracking-wider h-8">color</TableHead>
-                    <TableHead className="text-center text-gray-800 font-extrabold text-[12px] uppercase tracking-wider border-r border-gray-300 h-8">Output</TableHead>
+                    <TableHead className="!text-center text-gray-800 font-extrabold text-[12px] uppercase tracking-wider border-r border-gray-300 h-8">Output</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody className="bg-white">
@@ -994,64 +998,70 @@ export function ProductionDesign2() {
                       <TableCell colSpan={14} className="h-32 text-center text-gray-500 font-medium">No production records found.</TableCell>
                     </TableRow>
                   ) : (
-                    pagedRows.map((row) => (
-                      <TableRow key={row.date} className="border-b border-gray-300 hover:bg-gray-50 transition-colors group">
-                        <TableCell
-                          className="text-center font-bold text-[#004D40] border-r border-gray-300 text-[14px] py-1 cursor-pointer hover:underline px-4"
-                          onClick={() => {
-                            setIsNavigating(true);
-                            setTimeout(() => {
-                              setSelectedDate(row.date);
-                              setIsNavigating(false);
-                            }, 500);
-                          }}
-                        >
-                          {format(parseISO(row.date), 'dd MMM, yyyy')}
-                        </TableCell>
+                    pagedRows.map((row) => {
+                      const rowDelivered = selectedMonthDeliveryRows.filter(r => (r.original.productionDate ?? r.original.date ?? '').startsWith(row.date));
+                      const rowDeliveredTotal = rowDelivered.reduce((sum, r) => sum + r.delivered, 0);
+                      const sizes = Array.from(new Set(rowDelivered.map(r => r.size).filter(Boolean)));
+                      const colors = Array.from(new Set(rowDelivered.map(r => r.color).filter(Boolean)));
+                      return (
+                        <TableRow key={row.date} className="border-b border-gray-300 hover:bg-gray-50 transition-colors group">
+                          <TableCell
+                            className="text-center font-bold text-[#004D40] border-r border-gray-300 text-[14px] py-1 cursor-pointer hover:underline px-4"
+                            onClick={() => {
+                              setIsNavigating(true);
+                              setTimeout(() => {
+                                setSelectedDate(row.date);
+                                setIsNavigating(false);
+                              }, 500);
+                            }}
+                          >
+                            {format(parseISO(row.date), 'dd MMM, yyyy')}
+                          </TableCell>
 
-                        {/* Extruder */}
-                        <TableCell className="text-center text-gray-800 font-medium text-[14px] py-1">{formatNum(row.extruder.input)}</TableCell>
-                        <TableCell className="text-center text-gray-800 font-medium text-[14px] py-1">{formatNum(row.extruder.wastage)}</TableCell>
-                        <TableCell className="text-center text-gray-800 font-medium text-[14px] py-1 border-r border-gray-300">{formatNum(row.extruder.output)}</TableCell>
+                          {/* Extruder */}
+                          <TableCell className="text-center text-gray-800 font-medium text-[14px] py-1">{formatNum(row.extruder.input)}</TableCell>
+                          <TableCell className="text-center text-gray-800 font-medium text-[14px] py-1">{formatNum(row.extruder.wastage)}</TableCell>
+                          <TableCell className="text-center text-gray-800 font-medium text-[14px] py-1 border-r border-gray-300">{formatNum(row.extruder.output)}</TableCell>
 
-                        {/* Looms */}
-                        <TableCell className="text-center text-gray-800 font-medium text-[14px] py-1">{formatNum(row.looms.input)}</TableCell>
-                        <TableCell className="text-center text-gray-800 font-medium text-[14px] py-1">{formatNum(row.looms.wastage)}</TableCell>
-                        <TableCell className="text-center text-gray-800 font-medium text-[14px] py-1 border-r border-gray-300">{formatNum(row.looms.output)}</TableCell>
+                          {/* Looms */}
+                          <TableCell className="text-center text-gray-800 font-medium text-[14px] py-1">{formatNum(row.looms.input)}</TableCell>
+                          <TableCell className="text-center text-gray-800 font-medium text-[14px] py-1">{formatNum(row.looms.wastage)}</TableCell>
+                          <TableCell className="text-center text-gray-800 font-medium text-[14px] py-1 border-r border-gray-300">{formatNum(row.looms.output)}</TableCell>
 
-                        {/* Fabric */}
-                        <TableCell className="text-center text-gray-800 font-medium text-[14px] py-1">{formatNum(row.fabric.input)}</TableCell>
-                        <TableCell className="text-center text-gray-800 font-medium text-[14px] py-1">{formatNum(row.fabric.wastage)}</TableCell>
-                        <TableCell className="text-center text-gray-800 font-medium text-[14px] py-1 border-r border-gray-300">{formatNum(row.fabric.output)}</TableCell>
+                          {/* Fabric */}
+                          <TableCell className="text-center text-gray-800 font-medium text-[14px] py-1">{formatNum(row.fabric.input)}</TableCell>
+                          <TableCell className="text-center text-gray-800 font-medium text-[14px] py-1">{formatNum(row.fabric.wastage)}</TableCell>
+                          <TableCell className="text-center text-gray-800 font-medium text-[14px] py-1 border-r border-gray-300">{formatNum(row.fabric.output)}</TableCell>
 
-                        {/* Fabric Delivered */}
-                        <TableCell className="text-center text-gray-800 font-medium text-[14px] py-1">0.00</TableCell>
-                        <TableCell className="text-center text-gray-800 font-medium text-[14px] py-1">0.00</TableCell>
-                        <TableCell className="text-center text-gray-800 font-medium text-[14px] py-1 border-r border-gray-300">0.00</TableCell>
+                          {/* Fabric Delivered */}
+                          <TableCell className="text-center text-gray-800 font-medium text-[14px] py-1" title={sizes.join(', ') || '-'}>{sizes.length > 1 ? 'Mixed' : (sizes[0] || '-')}</TableCell>
+                          <TableCell className="text-center text-gray-800 font-medium text-[14px] py-1" title={colors.join(', ') || '-'}>{colors.length > 1 ? 'Mixed' : (colors[0] || '-')}</TableCell>
+                          <TableCell className="!text-center text-gray-800 font-medium text-[14px] py-1 border-r border-gray-300">{formatNum(rowDeliveredTotal)}</TableCell>
 
-                        {/* Actions */}
-                        <TableCell className="py-1">
-                          <div className="flex items-center justify-center gap-2">
-                            <Button
-                              variant="outline"
-                              size="icon"
-                              className="h-6 w-6 rounded-md border-[#004D40]/30 text-[#004D40] hover:bg-[#004D40]/10"
-                              onClick={() => navigate(`/production/new-entry?date=${row.date}`)}
-                            >
-                              <Edit className="h-[14px] w-[14px]" />
-                            </Button>
-                            <Button
-                              variant="outline"
-                              size="icon"
-                              className="h-6 w-6 rounded-md border-red-200 text-red-600 hover:bg-red-50"
-                              onClick={() => setDeleteTargetDate(row.date)}
-                            >
-                              <Trash2 className="h-[14px] w-[14px]" />
-                            </Button>
-                          </div>
-                        </TableCell>
-                      </TableRow>
-                    ))
+                          {/* Actions */}
+                          <TableCell className="py-1">
+                            <div className="flex items-center justify-center gap-2">
+                              <Button
+                                variant="outline"
+                                size="icon"
+                                className="h-6 w-6 rounded-md border-[#004D40]/30 text-[#004D40] hover:bg-[#004D40]/10"
+                                onClick={() => navigate(`/production/new-entry?date=${row.date}`)}
+                              >
+                                <Edit className="h-[14px] w-[14px]" />
+                              </Button>
+                              <Button
+                                variant="outline"
+                                size="icon"
+                                className="h-6 w-6 rounded-md border-red-200 text-red-600 hover:bg-red-50"
+                                onClick={() => setDeleteTargetDate(row.date)}
+                              >
+                                <Trash2 className="h-[14px] w-[14px]" />
+                              </Button>
+                            </div>
+                          </TableCell>
+                        </TableRow>
+                      );
+                    })
                   )}
 
                   {!loadingDayWise && dayWiseRows.length > 0 && (
@@ -1070,9 +1080,9 @@ export function ProductionDesign2() {
                       <TableCell className="text-center text-[#00897B] text-[14px]">{formatNum(dayWiseTotals.fabric.wastage)}</TableCell>
                       <TableCell className="text-center text-[#00897B] text-[14px] border-r border-gray-400">{formatNum(dayWiseTotals.fabric.output)}</TableCell>
                       {/* Fabric Delivered Total */}
-                      <TableCell className="text-center text-[#00897B] text-[14px]">0.00</TableCell>
-                      <TableCell className="text-center text-[#00897B] text-[14px]">0.00</TableCell>
-                      <TableCell className="text-center text-[#00897B] text-[14px] border-r border-gray-400">0.00</TableCell>
+                      <TableCell className="text-center text-[#00897B] text-[14px]">-</TableCell>
+                      <TableCell className="text-center text-[#00897B] text-[14px]">-</TableCell>
+                      <TableCell className="!text-center text-[#00897B] text-[14px] border-r border-gray-400">{formatNum(selectedMonthDeliveryTotal)}</TableCell>
                       <TableCell></TableCell>
                     </TableRow>
                   )}
@@ -1138,6 +1148,12 @@ export function ProductionDesign2() {
         isPending={deletingDate}
         onConfirm={handleDeleteDate}
       />
+      {editingLoadSent && (
+        <LoadSentFormDialog
+          record={editingLoadSent}
+          onClose={() => setEditingLoadSent(null)}
+        />
+      )}
     </div>
   );
 }
