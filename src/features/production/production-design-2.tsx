@@ -987,7 +987,7 @@ export function ProductionDesign2() {
                 <TableBody className="bg-white">
                   {loadingDayWise ? (
                     <TableRow>
-                      <TableCell colSpan={14} className="h-32 text-center">
+                      <TableCell colSpan={14} className="h-32 !text-center">
                         <div className="flex items-center justify-center gap-2 text-gray-500 font-medium">
                           <Loader size="sm" /> Loading records...
                         </div>
@@ -995,7 +995,7 @@ export function ProductionDesign2() {
                     </TableRow>
                   ) : pagedRows.length === 0 ? (
                     <TableRow>
-                      <TableCell colSpan={14} className="h-32 text-center text-gray-500 font-medium">No production records found.</TableCell>
+                      <TableCell colSpan={14} className="h-32 !text-center text-gray-500 font-medium">No production records found.</TableCell>
                     </TableRow>
                   ) : (
                     pagedRows.map((row) => {
