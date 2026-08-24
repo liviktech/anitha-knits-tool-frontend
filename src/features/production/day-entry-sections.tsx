@@ -973,30 +973,18 @@ export interface FabricRow {
   size: string;
   color: string;
   input: number;
-  /** Final Stock/Output; falls back to firstGrade+secondGrade for records created before this field existed. */
   output: number;
-  /** @deprecated No longer collected via the entry UI; kept for older records and other consumers. */
-  pieceCount: number;
-  /** @deprecated No longer collected via the entry UI; kept for older records and other consumers. */
-  firstGrade: number;
-  /** @deprecated No longer collected via the entry UI; kept for older records and other consumers. */
-  secondGrade: number;
   fwKg: number;
   bwKg: number;
 }
 
 export function mapFabricItem(item: FabricCheckingRecord): FabricRow {
-  const firstGrade = item.fabricCheck?.firstGradeKg ?? 0;
-  const secondGrade = item.fabricCheck?.secondGradeKg ?? 0;
   return {
     id: item.id,
     size: item.size?.name ?? '',
     color: item.color?.name ?? '',
     input: item.fabricCheck?.fabricInputKg ?? 0,
-    output: item.fabricCheck?.outputKg ?? (firstGrade + secondGrade),
-    pieceCount: item.fabricCheck?.pieceCount ?? 0,
-    firstGrade,
-    secondGrade,
+    output: item.fabricCheck?.outputKg ?? 0,
     fwKg: sumWastageByCode(item.wastages, 'FW'),
     bwKg: sumWastageByCode(item.wastages, 'BW'),
   };
@@ -1054,7 +1042,7 @@ export const FabricSection = forwardRef<SectionRef, SectionProps>(({ productionD
     return items
       .filter((item) => !productionDate || item.productionDate.startsWith(productionDate))
       .map(mapFabricItem)
-      .filter((row) => row.input > 0 || row.firstGrade > 0 || row.secondGrade > 0 || row.fwKg > 0 || row.bwKg > 0);
+      .filter((row) => row.input > 0 || row.output > 0 || row.fwKg > 0 || row.bwKg > 0);
   }, [data, productionDate, hideExisting]);
 
   const [newRows, setNewRows] = useState<FabricNewRow[]>([]);
@@ -1291,12 +1279,12 @@ export const FabricSection = forwardRef<SectionRef, SectionProps>(({ productionD
 
 export type { Theme };
 
-export const FabricDeliveredSection = forwardRef<SectionRef, SectionProps>(({ productionDate, autoAdd, readOnly, hideExisting }, ref) => {
+export const FabricDeliveredSection = forwardRef<SectionRef, SectionProps>(({ autoAdd, readOnly }, ref) => {
   const { data: lookupsData } = useLookups();
   const lookups: Lookups = lookupsData ?? { brands: [], colors: [], chemicals: [], sizes: [] };
 
   const [newRows, setNewRows] = useState<{ key: string; draft: { size: string; color: string; wastage: string; delivered: string } }[]>([]);
-  const [saving, setSaving] = useState(false);
+  const [saving] = useState(false);
   const nextRowKeyRef = useRef(0);
   const hasAutoAddedRef = useRef(false);
 

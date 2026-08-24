@@ -153,7 +153,6 @@ export function DayWiseReportModal({ open, onOpenChange }: DayWiseReportModalPro
             </thead>
             <tbody>
               {rows.map((row) => {
-                const red = row.isHighlighted;
                 const values = [
                   row.extruder.dnPlus, row.extruder.waste, row.extruder.lums,
                   row.loomsProduction.c180A, row.loomsProduction.dnPlus180, row.loomsProduction.c180B, row.loomsProduction.total,

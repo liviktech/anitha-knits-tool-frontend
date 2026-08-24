@@ -8,12 +8,6 @@ export type FabricCheckingStatus = 'DRAFT' | 'SUBMITTED' | 'PENDING_APPROVAL' | 
 export interface FabricCheckDetail {
   fabricInputKg: number;
   outputKg: number | null;
-  /** @deprecated No longer collected via the entry UI; kept for records created before the change. */
-  pieceCount: number;
-  /** @deprecated No longer collected via the entry UI; kept for records created before the change. */
-  firstGradeKg: number;
-  /** @deprecated No longer collected via the entry UI; kept for records created before the change. */
-  secondGradeKg: number;
 }
 
 /**
@@ -93,9 +87,7 @@ export function useFabricCheckingSummary(query: string = '?limit=100') {
     return items.reduce(
       (acc, item) => {
         const input = item.fabricCheck?.fabricInputKg ?? 0;
-        const checked =
-          item.fabricCheck?.outputKg ??
-          (item.fabricCheck?.firstGradeKg ?? 0) + (item.fabricCheck?.secondGradeKg ?? 0);
+        const checked = item.fabricCheck?.outputKg ?? 0;
         acc.input += input;
         acc.checked += checked;
         acc.wastage += Math.max(input - checked, 0);

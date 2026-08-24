@@ -1,11 +1,10 @@
 import { useState } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
-import { Plus, Edit2, Trash2, PackagePlus, PackageMinus, ArrowLeft } from 'lucide-react';
+import { Plus, Edit2, Trash2, PackagePlus, PackageMinus, ArrowLeft, Layers, Palette, FlaskConical, ChevronRight } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Loader } from '@/components/shared/loader';
@@ -456,8 +455,8 @@ function LoadSentTab({ onBack }: { onBack: () => void }) {
     if (!selectedColorId) return null;
 
     const prodForSizeColor = prodRecords.filter(r => r.size.id === s.id && r.color.id === selectedColorId);
-    const prodKg = prodForSizeColor.reduce((sum, r) => sum + (r.fabricCheck?.firstGradeKg ?? 0) + (r.fabricCheck?.secondGradeKg ?? 0), 0);
-    const prodPcs = prodForSizeColor.reduce((sum, r) => sum + (r.fabricCheck?.pieceCount ?? 0), 0);
+    const prodKg = prodForSizeColor.reduce((sum, r) => sum + (r.fabricCheck?.outputKg ?? 0), 0);
+    const prodPcs = 0; // Piece count is no longer tracked in production
 
     const sentForSizeColor = records.filter(r => r.size?.id === s.id && r.color?.id === selectedColorId);
     const sentKg = sentForSizeColor.reduce((sum, r) => sum + r.weightKg, 0);
@@ -648,18 +647,20 @@ function StockSummaryCard({ onClick, onAdd }: { onClick: () => void, onAdd: (e: 
   const monthRecords = records.filter(r => r.date.startsWith(month));
   const totalStock = monthRecords.reduce((sum, r) => sum + r.weightKg, 0);
 
-  const uniqueDays = Array.from(new Set(monthRecords.map(r => r.date.slice(0, 10)))).sort().reverse().slice(0, 3);
+  const getCategoryData = (type: InventoryType) => {
+    const categoryRecords = monthRecords.filter(r => r.type === type);
+    const weight = categoryRecords.reduce((sum, r) => sum + r.weightKg, 0);
+    const itemsMap = new Map<string, number>();
+    categoryRecords.forEach(r => {
+      if (r.name) itemsMap.set(r.name, (itemsMap.get(r.name) || 0) + r.weightKg);
+    });
+    const items = Array.from(itemsMap.entries()).map(([name, w]) => ({ name, weight: w }));
+    return { weight, items };
+  };
 
-  const threeDaysData = uniqueDays.map(day => {
-    const dayRecords = monthRecords.filter(r => r.date.startsWith(day));
-    const totalWeight = dayRecords.reduce((sum, r) => sum + r.weightKg, 0);
-    const rawMaterialWeight = dayRecords.filter(r => r.type === 'RAW_MATERIAL').reduce((sum, r) => sum + r.weightKg, 0);
-    const colorWeight = dayRecords.filter(r => r.type === 'COLOR').reduce((sum, r) => sum + r.weightKg, 0);
-    const chemicalWeight = dayRecords.filter(r => r.type === 'CHEMICAL').reduce((sum, r) => sum + r.weightKg, 0);
-    const types = Array.from(new Set(dayRecords.map(r => inventoryTypeLabels[r.type]))).join(', ');
-    const names = Array.from(new Set(dayRecords.map(r => r.name).filter(Boolean))).join(', ');
-    return { day, totalWeight, rawMaterialWeight, colorWeight, chemicalWeight, types, names };
-  });
+  const rawMaterials = getCategoryData('RAW_MATERIAL');
+  const colors = getCategoryData('COLOR');
+  const chemicals = getCategoryData('CHEMICAL');
 
   return (
     <div className="rounded-xl border border-green-200 bg-white shadow-sm overflow-hidden cursor-pointer hover:shadow-lg transition-all duration-300 transform hover:-translate-y-1 relative group" onClick={onClick}>
@@ -679,52 +680,127 @@ function StockSummaryCard({ onClick, onAdd }: { onClick: () => void, onAdd: (e: 
             <span className="text-sm font-black text-green-950">{totalStock.toFixed(2)} kg</span>
           </div>
         </div>
-        
+
         <div className="flex items-center gap-3 relative z-10" onClick={e => e.stopPropagation()}>
+
           <Button size="sm" onClick={onAdd} className="bg-green-600 hover:bg-green-700 h-9 text-xs shadow-sm">
             <Plus className="w-4 h-4 mr-1.5" /> Add Stock
           </Button>
           <Input type="month" value={month} onChange={e => setMonth(e.target.value)} className="h-9 text-sm w-36 bg-white/60 shadow-sm font-medium" />
+          <Button variant="outline" size="sm" onClick={onClick} className="h-9 text-xs border-green-200 text-green-700 hover:bg-green-50 shadow-sm bg-white/80">
+            View Details <ChevronRight className="w-4 h-4 ml-1" />
+          </Button>
         </div>
       </div>
-      <div className="p-3 bg-gradient-to-br from-gray-50 to-green-50/20 flex-1 h-full min-h-[180px]">
-        <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">Last 3 Days</p>
-        {threeDaysData.length === 0 ? (
-          <p className="text-sm text-gray-400">No stock received this month.</p>
-        ) : (
-          <Table className="bg-white/80 backdrop-blur-sm rounded-xl overflow-hidden shadow-sm border border-gray-100/50">
-            <TableHeader>
-              <TableRow className="hover:bg-transparent border-b border-gray-100 bg-gray-50/50">
-                <TableHead className="text-2xs font-semibold uppercase tracking-wide text-gray-500">Date</TableHead>
-                <TableHead className="text-2xs font-semibold uppercase tracking-wide text-gray-500">Item Types</TableHead>
-                <TableHead className="text-2xs font-semibold uppercase tracking-wide text-gray-500">Names</TableHead>
-                <TableHead className="text-right text-2xs font-semibold uppercase tracking-wide text-gray-500">Raw Material</TableHead>
-                <TableHead className="text-right text-2xs font-semibold uppercase tracking-wide text-gray-500">Color</TableHead>
-                <TableHead className="text-right text-2xs font-semibold uppercase tracking-wide text-gray-500">Chemical</TableHead>
-                <TableHead className="text-right text-2xs font-semibold uppercase tracking-wide text-gray-500">Total Weight</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {threeDaysData.map(d => (
-                <TableRow key={d.day} className="hover:bg-green-50/60 border-b border-gray-100/50 transition-colors">
-                  <TableCell className="font-medium text-gray-900 text-sm">{formatDate(d.day)}</TableCell>
-                  <TableCell>
-                    {d.types ? (
-                      <span className="inline-flex items-center rounded-md bg-green-50 px-2 py-1 text-xs font-medium text-green-700 ring-1 ring-inset ring-green-600/20">{d.types}</span>
-                    ) : (
-                      <span className="text-gray-400 text-xs">N/A</span>
-                    )}
-                  </TableCell>
-                  <TableCell className="text-gray-600 text-xs font-medium max-w-[200px] truncate" title={d.names || '—'}>{d.names || '—'}</TableCell>
-                  <TableCell className="text-right text-gray-600 text-xs font-medium">{d.rawMaterialWeight.toFixed(2)}</TableCell>
-                  <TableCell className="text-right text-gray-600 text-xs font-medium">{d.colorWeight.toFixed(2)}</TableCell>
-                  <TableCell className="text-right text-gray-600 text-xs font-medium">{d.chemicalWeight.toFixed(2)}</TableCell>
-                  <TableCell className="text-right font-bold text-green-700">{d.totalWeight.toFixed(2)} kg</TableCell>
-                </TableRow>
-              ))}
-            </TableBody>
-          </Table>
-        )}
+      <div className="p-4 bg-gradient-to-br from-gray-50 to-green-50/20 flex-1 h-full min-h-[180px]">
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+
+          {/* Raw Materials (HDPE) Card */}
+          <div className="bg-white rounded-xl border border-gray-100 shadow-sm p-4 relative overflow-hidden group/card hover:border-blue-200 transition-colors flex flex-col">
+            <div className="absolute top-0 right-0 p-4 opacity-5 group-hover/card:opacity-10 transition-opacity">
+              <Layers className="w-16 h-16 text-blue-600" />
+            </div>
+
+            <div className="flex justify-between items-start mb-4 relative z-10">
+              <div className="flex items-center gap-2">
+                <div className="bg-blue-50 p-1.5 rounded-lg border border-blue-100 text-blue-600">
+                  <Layers className="w-4 h-4" />
+                </div>
+                <h3 className="font-semibold text-gray-800 text-sm">HDPE</h3>
+              </div>
+              <div className="text-right">
+                <div className="text-xl font-black text-gray-900 leading-none">{rawMaterials.weight.toFixed(2)} <span className="text-xs font-medium text-gray-500">kg</span></div>
+              </div>
+            </div>
+
+            <div className="mt-auto relative z-10 pt-2 border-t border-gray-50">
+              <p className="text-2xs font-semibold text-gray-400 uppercase tracking-wider mb-2">Items</p>
+              {rawMaterials.items.length > 0 ? (
+                <div className="flex flex-col gap-1.5">
+                  {rawMaterials.items.map(item => (
+                    <div key={item.name} className="flex justify-between items-center text-xs">
+                      <span className="font-medium text-gray-600 truncate mr-2">{item.name}</span>
+                      <span className="font-bold text-gray-900 shrink-0">{item.weight.toFixed(2)} <span className="text-gray-400 font-normal">kg</span></span>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <span className="text-xs text-gray-400 italic">No raw materials</span>
+              )}
+            </div>
+          </div>
+
+          {/* Chemicals Card (Moved to second) */}
+          <div className="bg-white rounded-xl border border-gray-100 shadow-sm p-4 relative overflow-hidden group/card hover:border-orange-200 transition-colors flex flex-col">
+            <div className="absolute top-0 right-0 p-4 opacity-5 group-hover/card:opacity-10 transition-opacity">
+              <FlaskConical className="w-16 h-16 text-orange-600" />
+            </div>
+
+            <div className="flex justify-between items-start mb-4 relative z-10">
+              <div className="flex items-center gap-2">
+                <div className="bg-orange-50 p-1.5 rounded-lg border border-orange-100 text-orange-600">
+                  <FlaskConical className="w-4 h-4" />
+                </div>
+                <h3 className="font-semibold text-gray-800 text-sm">Chemicals</h3>
+              </div>
+              <div className="text-right">
+                <div className="text-xl font-black text-gray-900 leading-none">{chemicals.weight.toFixed(2)} <span className="text-xs font-medium text-gray-500">kg</span></div>
+              </div>
+            </div>
+
+            <div className="mt-auto relative z-10 pt-2 border-t border-gray-50">
+              <p className="text-2xs font-semibold text-gray-400 uppercase tracking-wider mb-2">Items</p>
+              {chemicals.items.length > 0 ? (
+                <div className="flex flex-col gap-1.5">
+                  {chemicals.items.map(item => (
+                    <div key={item.name} className="flex justify-between items-center text-xs">
+                      <span className="font-medium text-gray-600 truncate mr-2">{item.name}</span>
+                      <span className="font-bold text-gray-900 shrink-0">{item.weight.toFixed(2)} <span className="text-gray-400 font-normal">kg</span></span>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <span className="text-xs text-gray-400 italic">No chemicals</span>
+              )}
+            </div>
+          </div>
+
+          {/* Colors Card (Moved to third) */}
+          <div className="bg-white rounded-xl border border-gray-100 shadow-sm p-4 relative overflow-hidden group/card hover:border-purple-200 transition-colors flex flex-col">
+            <div className="absolute top-0 right-0 p-4 opacity-5 group-hover/card:opacity-10 transition-opacity">
+              <Palette className="w-16 h-16 text-purple-600" />
+            </div>
+
+            <div className="flex justify-between items-start mb-4 relative z-10">
+              <div className="flex items-center gap-2">
+                <div className="bg-purple-50 p-1.5 rounded-lg border border-purple-100 text-purple-600">
+                  <Palette className="w-4 h-4" />
+                </div>
+                <h3 className="font-semibold text-gray-800 text-sm">Colors</h3>
+              </div>
+              <div className="text-right">
+                <div className="text-xl font-black text-gray-900 leading-none">{colors.weight.toFixed(2)} <span className="text-xs font-medium text-gray-500">kg</span></div>
+              </div>
+            </div>
+
+            <div className="mt-auto relative z-10 pt-2 border-t border-gray-50">
+              <p className="text-2xs font-semibold text-gray-400 uppercase tracking-wider mb-2">Items</p>
+              {colors.items.length > 0 ? (
+                <div className="flex flex-col gap-1.5">
+                  {colors.items.map(item => (
+                    <div key={item.name} className="flex justify-between items-center text-xs">
+                      <span className="font-medium text-gray-600 truncate mr-2">{item.name}</span>
+                      <span className="font-bold text-gray-900 shrink-0">{item.weight.toFixed(2)} <span className="text-gray-400 font-normal">kg</span></span>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <span className="text-xs text-gray-400 italic">No colors</span>
+              )}
+            </div>
+          </div>
+
+        </div>
       </div>
     </div>
   );
@@ -773,12 +849,16 @@ function LoadSentSummaryCard({ onClick, onAdd }: { onClick: () => void, onAdd: (
             </div>
           </div>
         </div>
-        
+
         <div className="flex items-center gap-3 relative z-10" onClick={e => e.stopPropagation()}>
+
           <Button size="sm" onClick={onAdd} className="bg-orange-600 hover:bg-orange-700 h-9 text-xs shadow-sm">
             <Plus className="w-4 h-4 mr-1.5" /> New Load
           </Button>
           <Input type="month" value={month} onChange={e => setMonth(e.target.value)} className="h-9 text-sm w-36 bg-white/60 shadow-sm font-medium" />
+          <Button variant="outline" size="sm" onClick={onClick} className="h-9 text-xs border-orange-200 text-orange-700 hover:bg-orange-50 shadow-sm bg-white/80">
+            View Details <ChevronRight className="w-4 h-4 ml-1" />
+          </Button>
         </div>
       </div>
       <div className="p-3 bg-gradient-to-br from-gray-50 to-orange-50/20 flex-1 h-full min-h-[180px]">
@@ -828,7 +908,7 @@ function InventorySummary({ onSelect }: { onSelect: (view: 'receive' | 'send') =
       <LoadSentSummaryCard onClick={() => onSelect('send')} onAdd={(e) => { e.stopPropagation(); setLoadFormOpen(true); }} />
 
       {stockFormOpen && <InventoryFormDialog onClose={() => setStockFormOpen(false)} record={null} />}
-      {loadFormOpen && <LoadSentFormDialog onClose={() => setLoadFormOpen(false)} record={undefined} />}
+      {loadFormOpen && <LoadSentFormDialog onClose={() => setLoadFormOpen(false)} record={null} />}
     </div>
   );
 }

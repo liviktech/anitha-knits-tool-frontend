@@ -20,8 +20,6 @@ interface NewEntryProps {
 
 export function NewEntry({ onClose, defaultDate, readOnly = false }: NewEntryProps) {
   const { setHeaderRight, setShowBackButton, setOnBackClick } = useProductionHeader();
-  const isCreateMode = !defaultDate && !readOnly;
-
   const extruderRef = useRef<SectionRef>(null);
   const loomRef = useRef<SectionRef>(null);
   const fabricRef = useRef<SectionRef>(null);
