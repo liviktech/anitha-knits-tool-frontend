@@ -1,11 +1,11 @@
 import { useEffect, useRef, useState } from 'react';
 import { format, parseISO } from 'date-fns';
-import { Calendar as CalendarIcon } from 'lucide-react';
+import { Calendar as CalendarIcon, ChevronUp, ChevronDown } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Calendar } from '@/components/ui/calendar';
 import { Loader } from '@/components/shared/loader';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
-import { ExtruderSection, LoomSection, FabricSection } from './day-entry-sections';
+import { ExtruderSection, LoomSection, FabricSection, FabricDeliveredSection } from './day-entry-sections';
 import type { SectionRef } from './day-entry-sections';
 import { useExtruderProductions, useLookups } from '@/features/extruder/extruder-queries';
 import { useInventoryRecords } from '@/features/inventory/inventory-queries';
@@ -25,10 +25,12 @@ export function NewEntry({ onClose, defaultDate, readOnly = false }: NewEntryPro
   const extruderRef = useRef<SectionRef>(null);
   const loomRef = useRef<SectionRef>(null);
   const fabricRef = useRef<SectionRef>(null);
+  const fabricDeliveredRef = useRef<SectionRef>(null);
 
   const [date, setDate] = useState<Date>(defaultDate ? parseISO(defaultDate) : new Date());
   const productionDate = format(date, 'yyyy-MM-dd');
   const [submitting, setSubmitting] = useState(false);
+  const [isInventoryMinimized, setIsInventoryMinimized] = useState(false);
 
   const { data: lookupsData } = useLookups();
   const lookups = lookupsData ?? { brands: [], colors: [], chemicals: [], sizes: [] };
@@ -71,8 +73,8 @@ export function NewEntry({ onClose, defaultDate, readOnly = false }: NewEntryPro
 
   // Most recent entry before the selected date — used to carry forward
   // Data for calculating live stock balances in create mode
-  const { data: allInvData } = useInventoryRecords('?limit=100', isCreateMode);
-  const { data: allExtruderData } = useExtruderProductions('?limit=100', isCreateMode);
+  const { data: allInvData } = useInventoryRecords('?limit=100', !readOnly);
+  const { data: allExtruderData } = useExtruderProductions('?limit=100', !readOnly);
   const inventoryRecords = allInvData?.data ?? [];
   const extruderRecords = allExtruderData?.data ?? [];
 
@@ -94,6 +96,9 @@ export function NewEntry({ onClose, defaultDate, readOnly = false }: NewEntryPro
     return (received - consumed).toFixed(2);
   };
 
+  const totalRawMaterial = lookups.brands.reduce((sum, b) => sum + parseFloat(getRawMaterialBalance(b.name) || '0'), 0).toFixed(2);
+  const totalChemical = lookups.chemicals.reduce((sum, c) => sum + parseFloat(getChemicalBalance(c.name) || '0'), 0).toFixed(2);
+  const totalColor = lookups.colors.reduce((sum, c) => sum + parseFloat(getColorBalance(c.name) || '0'), 0).toFixed(2);
 
   const handleSaveDayEntry = async () => {
     setSubmitting(true);
@@ -101,7 +106,8 @@ export function NewEntry({ onClose, defaultDate, readOnly = false }: NewEntryPro
       const results = await Promise.all([
         extruderRef.current?.saveDraft(),
         loomRef.current?.saveDraft(),
-        fabricRef.current?.saveDraft()
+        fabricRef.current?.saveDraft(),
+        fabricDeliveredRef.current?.saveDraft()
       ]);
 
       // If any returned false (i.e. validation failed or save failed), don't close.
@@ -121,45 +127,78 @@ export function NewEntry({ onClose, defaultDate, readOnly = false }: NewEntryPro
     <div className="flex flex-col h-full bg-[#004D40]/5">
       <div className="flex-1 p-2 md:p-2 overflow-y-auto ">
 
-        {isCreateMode && (
-          <div className="rounded-xl border border-gray-400 bg-white shadow-sm mb-3">
-            <div className="bg-gray-50 border-b border-gray-200 px-4 py-3 rounded-t-xl">
+        {!readOnly && (
+          <div className="rounded-xl border border-gray-400 bg-white shadow-sm mb-3 transition-all duration-500">
+            <div
+              className="bg-gray-50 border-b border-gray-200 px-4 py-3 rounded-t-xl flex justify-between items-center cursor-pointer select-none"
+              onClick={() => setIsInventoryMinimized(!isInventoryMinimized)}
+            >
               <h3 className="text-[13px] font-extrabold uppercase tracking-wider text-gray-700 flex items-center gap-2">
                 Inventory Balances
               </h3>
+              <Button variant="ghost" size="sm" className="h-6 w-6 p-0 hover:bg-gray-200 text-gray-500">
+                {isInventoryMinimized ? <ChevronDown className="h-4 w-4" /> : <ChevronUp className="h-4 w-4" />}
+              </Button>
             </div>
-            <div className="p-4 grid grid-cols-1 gap-4 sm:grid-cols-3 sm:divide-x divide-gray-200">
-              <div className="flex flex-col gap-2 sm:pr-4">
-                <label className="text-[11px] font-bold uppercase tracking-wide text-gray-500 border-b pb-2">Raw Material Balance</label>
-                <div className="flex flex-col gap-2 max-h-[120px] overflow-y-auto pr-1">
-                  {lookups.brands.map((b) => (
-                    <div key={b.id} className="flex justify-between items-center text-[12.5px]">
-                      <span className="text-gray-700">{b.name}</span>
-                      <span className="font-semibold text-gray-900">{getRawMaterialBalance(b.name)} kg</span>
+            <div className={`px-4 grid grid-cols-1 sm:grid-cols-3 sm:divide-x divide-gray-200 transition-all duration-500 ease-in-out ${isInventoryMinimized ? 'py-3 gap-2' : 'py-4 gap-4'}`}>
+              <div className="flex flex-col sm:pr-4">
+                <div className="flex justify-between items-center border-b border-gray-200 pb-2">
+                  <label className="text-[11px] font-bold uppercase tracking-wide text-gray-500">HDPE Balance</label>
+                  <span className={`text-[12px] font-bold text-gray-900 transition-opacity duration-300 ${isInventoryMinimized ? 'opacity-100' : 'opacity-0'}`}>
+                    {totalRawMaterial} kg
+                  </span>
+                </div>
+                <div className={`grid transition-[grid-template-rows] duration-500 ease-in-out ${isInventoryMinimized ? 'grid-rows-[0fr]' : 'grid-rows-[1fr]'}`}>
+                  <div className="overflow-hidden">
+                    <div className="flex flex-col gap-2 max-h-[120px] overflow-y-auto pr-1 pt-2">
+                      {lookups.brands.map((b) => (
+                        <div key={b.id} className="flex justify-between items-center text-[12.5px]">
+                          <span className="text-gray-700">{b.name}</span>
+                          <span className="font-semibold text-gray-900">{getRawMaterialBalance(b.name)} kg</span>
+                        </div>
+                      ))}
                     </div>
-                  ))}
+                  </div>
                 </div>
               </div>
-              <div className="flex flex-col gap-2 sm:px-4 pt-4 sm:pt-0 border-t sm:border-t-0 border-gray-200">
-                <label className="text-[11px] font-bold uppercase tracking-wide text-gray-500 border-b pb-2">Chemical Balance</label>
-                <div className="flex flex-col gap-2 max-h-[120px] overflow-y-auto pr-1">
-                  {lookups.chemicals.map((c) => (
-                    <div key={c.id} className="flex justify-between items-center text-[12.5px]">
-                      <span className="text-gray-700">{c.name}</span>
-                      <span className="font-semibold text-gray-900">{getChemicalBalance(c.name)} kg</span>
+              <div className="flex flex-col sm:px-4 pt-3 sm:pt-0 border-t sm:border-t-0 border-gray-200">
+                <div className="flex justify-between items-center border-b border-gray-200 pb-2">
+                  <label className="text-[11px] font-bold uppercase tracking-wide text-gray-500">Chemical Balance</label>
+                  <span className={`text-[12px] font-bold text-gray-900 transition-opacity duration-300 ${isInventoryMinimized ? 'opacity-100' : 'opacity-0'}`}>
+                    {totalChemical} kg
+                  </span>
+                </div>
+                <div className={`grid transition-[grid-template-rows] duration-500 ease-in-out ${isInventoryMinimized ? 'grid-rows-[0fr]' : 'grid-rows-[1fr]'}`}>
+                  <div className="overflow-hidden">
+                    <div className="flex flex-col gap-2 max-h-[120px] overflow-y-auto pr-1 pt-2">
+                      {lookups.chemicals.map((c) => (
+                        <div key={c.id} className="flex justify-between items-center text-[12.5px]">
+                          <span className="text-gray-700">{c.name}</span>
+                          <span className="font-semibold text-gray-900">{getChemicalBalance(c.name)} kg</span>
+                        </div>
+                      ))}
                     </div>
-                  ))}
+                  </div>
                 </div>
               </div>
-              <div className="flex flex-col gap-2 sm:pl-4 pt-4 sm:pt-0 border-t sm:border-t-0 border-gray-200">
-                <label className="text-[11px] font-bold uppercase tracking-wide text-gray-500 border-b pb-2">Color Balance</label>
-                <div className="flex flex-col gap-2 max-h-[120px] overflow-y-auto pr-1">
-                  {lookups.colors.map((c) => (
-                    <div key={c.id} className="flex justify-between items-center text-[12.5px]">
-                      <span className="text-gray-700">{c.name}</span>
-                      <span className="font-semibold text-gray-900">{getColorBalance(c.name)} kg</span>
+              <div className="flex flex-col sm:pl-4 pt-3 sm:pt-0 border-t sm:border-t-0 border-gray-200">
+                <div className="flex justify-between items-center border-b border-gray-200 pb-2">
+                  <label className="text-[11px] font-bold uppercase tracking-wide text-gray-500">Color Balance</label>
+                  <span className={`text-[12px] font-bold text-gray-900 transition-opacity duration-300 ${isInventoryMinimized ? 'opacity-100' : 'opacity-0'}`}>
+                    {totalColor} kg
+                  </span>
+                </div>
+                <div className={`grid transition-[grid-template-rows] duration-500 ease-in-out ${isInventoryMinimized ? 'grid-rows-[0fr]' : 'grid-rows-[1fr]'}`}>
+                  <div className="overflow-hidden">
+                    <div className="flex flex-col gap-2 max-h-[120px] overflow-y-auto pr-1 pt-2">
+                      {lookups.colors.map((c) => (
+                        <div key={c.id} className="flex justify-between items-center text-[12.5px]">
+                          <span className="text-gray-700">{c.name}</span>
+                          <span className="font-semibold text-gray-900">{getColorBalance(c.name)} kg</span>
+                        </div>
+                      ))}
                     </div>
-                  ))}
+                  </div>
                 </div>
               </div>
             </div>
@@ -177,6 +216,7 @@ export function NewEntry({ onClose, defaultDate, readOnly = false }: NewEntryPro
           />
           <LoomSection ref={loomRef} productionDate={productionDate} autoAdd={!readOnly} readOnly={readOnly} hideExisting={isCreateMode} />
           <FabricSection ref={fabricRef} productionDate={productionDate} autoAdd={!readOnly} readOnly={readOnly} hideExisting={isCreateMode} />
+          <FabricDeliveredSection ref={fabricDeliveredRef} productionDate={productionDate} autoAdd={!readOnly} readOnly={readOnly} hideExisting={isCreateMode} />
         </div>
 
         {/* Footer */}

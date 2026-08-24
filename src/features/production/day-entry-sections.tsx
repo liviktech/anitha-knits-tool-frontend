@@ -112,6 +112,16 @@ const themes = {
     buttonText: 'text-gray-700',
     buttonHover: 'hover:bg-gray-50 hover:text-gray-900',
   },
+  fabricDelivered: {
+    border: 'border-gray-400',
+    headerBg: 'bg-[#f2caa0]',
+    headerText: 'text-[#61401E]',
+    iconBg: 'bg-[#61401E]',
+    iconColor: 'text-white',
+    buttonBorder: 'border-gray-300',
+    buttonText: 'text-gray-700',
+    buttonHover: 'hover:bg-gray-50 hover:text-gray-900',
+  },
 } as const;
 
 type Theme = keyof typeof themes;
@@ -501,31 +511,31 @@ export const ExtruderSection = forwardRef<SectionRef, SectionProps>(({ productio
               <>
                 {rows.map((row) => (
                   <TableRow key={row.id} className={editingId === row.id ? 'bg-blue-50/30' : ''}>
-                      <TableCell>{row.size}</TableCell>
-                      <TableCell>{row.color}</TableCell>
-                      <TableCell>{row.brand}</TableCell>
-                      <TableCell>{row.chemical}</TableCell>
-                      <TableCell className="text-center">{row.raw.toFixed(2)}</TableCell>
-                      <TableCell className="text-center">{row.chemicalKg.toFixed(2)}</TableCell>
-                      <TableCell className="text-center">{row.colorConsumedKg.toFixed(2)}</TableCell>
-                      <TableCell className="text-center">{row.lumpsKg.toFixed(2)}</TableCell>
-                      <TableCell className="text-center">{row.yarnWasteKg.toFixed(2)}</TableCell>
-                      <TableCell className="text-center">{row.output.toFixed(2)}</TableCell>
-                      {!readOnly && (
-                        <TableCell className="text-center">
-                          <Button
-                            variant="ghost"
-                            size="icon-sm"
-                            className="rounded-full bg-blue-50 text-blue-500 hover:bg-blue-100"
-                            aria-label="Edit row"
-                            onClick={() => startEdit(row)}
-                          >
-                            <Edit2 className="h-3.5 w-3.5" />
-                          </Button>
-                        </TableCell>
-                      )}
-                    </TableRow>
-                  )
+                    <TableCell>{row.size}</TableCell>
+                    <TableCell>{row.color}</TableCell>
+                    <TableCell>{row.brand}</TableCell>
+                    <TableCell>{row.chemical}</TableCell>
+                    <TableCell className="text-center">{row.raw.toFixed(2)}</TableCell>
+                    <TableCell className="text-center">{row.chemicalKg.toFixed(2)}</TableCell>
+                    <TableCell className="text-center">{row.colorConsumedKg.toFixed(2)}</TableCell>
+                    <TableCell className="text-center">{row.lumpsKg.toFixed(2)}</TableCell>
+                    <TableCell className="text-center">{row.yarnWasteKg.toFixed(2)}</TableCell>
+                    <TableCell className="text-center">{row.output.toFixed(2)}</TableCell>
+                    {!readOnly && (
+                      <TableCell className="text-center">
+                        <Button
+                          variant="ghost"
+                          size="icon-sm"
+                          className="rounded-full bg-blue-50 text-blue-500 hover:bg-blue-100"
+                          aria-label="Edit row"
+                          onClick={() => startEdit(row)}
+                        >
+                          <Edit2 className="h-3.5 w-3.5" />
+                        </Button>
+                      </TableCell>
+                    )}
+                  </TableRow>
+                )
                 )}
                 {!readOnly && editingId !== null && (
                   <ExtruderEditableRow
@@ -1289,3 +1299,137 @@ export const FabricSection = forwardRef<SectionRef, SectionProps>(({ productionD
 });
 
 export type { Theme };
+
+export const FabricDeliveredSection = forwardRef<SectionRef, SectionProps>(({ productionDate, autoAdd, readOnly, hideExisting }, ref) => {
+  const { data: lookupsData } = useLookups();
+  const lookups: Lookups = lookupsData ?? { brands: [], colors: [], chemicals: [], sizes: [] };
+
+  const [newRows, setNewRows] = useState<{ key: string; draft: { size: string; color: string; wastage: string; delivered: string } }[]>([]);
+  const [saving, setSaving] = useState(false);
+  const nextRowKeyRef = useRef(0);
+  const hasAutoAddedRef = useRef(false);
+
+  const startAdd = useCallback(() => {
+    setNewRows((current) => [
+      ...current,
+      { key: `new-${nextRowKeyRef.current++}`, draft: { size: '', color: '', wastage: '', delivered: '' } },
+    ]);
+  }, []);
+
+  useEffect(() => {
+    if (readOnly || !autoAdd || hasAutoAddedRef.current) return;
+    if (newRows.length === 0) {
+      hasAutoAddedRef.current = true;
+      startAdd();
+    }
+  }, [readOnly, autoAdd, newRows.length, startAdd]);
+
+  const updateNewRow = (key: string, draft: { size: string; color: string; wastage: string; delivered: string }) => {
+    setNewRows((current) => current.map((row) => (row.key === key ? { ...row, draft } : row)));
+  };
+
+  const removeNewRow = (key: string) => {
+    setNewRows((current) => current.filter((row) => row.key !== key));
+  };
+
+  useImperativeHandle(ref, () => ({
+    saveDraft: async () => {
+      if (readOnly) return true;
+      // No API integration yet, just return true
+      return true;
+    },
+  }));
+
+  const theme = themes.fabricDelivered;
+
+  return (
+    <div className={`rounded-xl border ${theme.border} bg-white shadow-sm overflow-hidden`}>
+      <div className={`p-3 ${theme.headerBg} flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between`}>
+        <div className={`flex items-center gap-3 text-[13px] font-extrabold ${theme.headerText} uppercase tracking-wider`}>
+          <div className={`${theme.iconBg} ${theme.iconColor} h-5 w-5 flex items-center justify-center rounded-sm text-[10px] font-bold`}>
+            4
+          </div>
+          FABRIC DELIVERED
+        </div>
+      </div>
+
+      <div className="overflow-x-auto">
+        <Table>
+          <TableHeader>
+            <TableRow className="hover:bg-transparent">
+              <TableHead className="text-xs font-semibold uppercase tracking-wide text-gray-700">Size</TableHead>
+              <TableHead className="text-xs font-semibold uppercase tracking-wide text-gray-700">Color</TableHead>
+              <TableHead className="text-center text-xs font-semibold uppercase tracking-wide text-gray-700">Wastage (kg)</TableHead>
+              <TableHead className="text-center text-xs font-semibold uppercase tracking-wide text-gray-700">Delivered (kg)</TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            {!readOnly &&
+              newRows.map((row) => (
+                <TableRow key={row.key}>
+                  <TableCell>
+                    <Select value={row.draft.size} onValueChange={(value) => updateNewRow(row.key, { ...row.draft, size: value })}>
+                      <SelectTrigger className="h-10"><SelectValue placeholder="Size" /></SelectTrigger>
+                      <SelectContent>
+                        {lookups.sizes.map((s) => <SelectItem key={s.id} value={s.name}>{s.name}</SelectItem>)}
+                      </SelectContent>
+                    </Select>
+                  </TableCell>
+                  <TableCell>
+                    <Select value={row.draft.color} onValueChange={(value) => updateNewRow(row.key, { ...row.draft, color: value })}>
+                      <SelectTrigger className="h-10"><SelectValue placeholder="Color" /></SelectTrigger>
+                      <SelectContent>
+                        {lookups.colors.map((c) => <SelectItem key={c.id} value={c.name}>{c.name}</SelectItem>)}
+                      </SelectContent>
+                    </Select>
+                  </TableCell>
+                  <TableCell>
+                    <Input
+                      type="number"
+                      className="h-10 w-full text-center"
+                      value={row.draft.wastage}
+                      onChange={(e) => updateNewRow(row.key, { ...row.draft, wastage: e.target.value })}
+                    />
+                  </TableCell>
+                  <TableCell>
+                    <div className="flex items-center gap-2">
+                      <Input
+                        type="number"
+                        className="h-10 w-full text-center"
+                        value={row.draft.delivered}
+                        onChange={(e) => updateNewRow(row.key, { ...row.draft, delivered: e.target.value })}
+                      />
+                      <Button variant="ghost" size="icon-sm" className="rounded-full bg-gray-100 text-gray-500 hover:bg-gray-200 shrink-0" aria-label="Cancel" onClick={() => removeNewRow(row.key)} disabled={saving}>
+                        <XIcon className="h-3.5 w-3.5" />
+                      </Button>
+                    </div>
+                  </TableCell>
+                </TableRow>
+              ))}
+            {newRows.length === 0 && (
+              <TableRow>
+                <TableCell colSpan={4} className="h-20 text-center text-gray-500">No entries yet.</TableCell>
+              </TableRow>
+            )}
+          </TableBody>
+        </Table>
+      </div>
+
+      {!readOnly && (
+        <div className="p-4 border-t border-gray-50 flex flex-col gap-2">
+          <div className="flex items-center gap-3">
+            <Button
+              variant="outline"
+              size="sm"
+              className={`h-8 gap-1 rounded-full ${theme.buttonBorder} ${theme.buttonText} ${theme.buttonHover}`}
+              onClick={startAdd}
+              disabled={saving}
+            >
+              <Plus className="h-3 w-3" /> Add row
+            </Button>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+});
