@@ -285,7 +285,7 @@ export function ExtruderEntry({ onClose }: ExtruderEntryProps) {
             {/* Row 2 */}
             <div className="flex flex-wrap gap-4 items-end mt-2">
               <div className="space-y-1 flex-1 min-w-[100px]">
-                <label className="text-xs font-semibold text-gray-500">Raw Material (kg) *</label>
+                <label className="text-xs font-semibold text-gray-500">HDPE (kg) *</label>
                 <Input type="text" value={raw} onChange={(e) => setRaw(e.target.value)} className="w-full" />
               </div>
 

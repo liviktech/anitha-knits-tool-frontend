@@ -22,7 +22,7 @@ const CATEGORIES = [
   'Maintenance',
   'Supplies',
   'Logistics',
-  'Raw Materials',
+  'HDPE',
   'Miscellaneous',
 ] as const;
 
