@@ -69,11 +69,11 @@ function InventoryFormDialog({ onClose, record }: InventoryFormDialogProps) {
   const [error, setError] = useState<string | null>(null);
 
   const nameOptions =
-    type === 'RAW_MATERIAL' ? lookupsData?.brands
+    type === 'HDPE' ? lookupsData?.brands
       : type === 'CHEMICAL' ? lookupsData?.chemicals
         : type === 'COLOR' ? lookupsData?.colors
           : undefined;
-  const nameLabel = type === 'RAW_MATERIAL' ? 'brand' : type === 'CHEMICAL' ? 'chemical' : 'color';
+  const nameLabel = type === 'HDPE' ? 'brand' : type === 'CHEMICAL' ? 'chemical' : 'color';
 
   const handleTypeChange = (value: InventoryType) => {
     setType(value);
@@ -104,7 +104,7 @@ function InventoryFormDialog({ onClose, record }: InventoryFormDialogProps) {
         date,
         type,
         quantityKg: parseFloat(quantityKg) || 0,
-        ...(type === 'RAW_MATERIAL' && { brandId: itemId }),
+        ...(type === 'HDPE' && { brandId: itemId }),
         ...(type === 'CHEMICAL' && { chemicalId: itemId }),
         ...(type === 'COLOR' && { colorId: itemId }),
       };
@@ -658,7 +658,7 @@ function StockSummaryCard({ onClick, onAdd }: { onClick: () => void, onAdd: (e: 
     return { weight, items };
   };
 
-  const rawMaterials = getCategoryData('RAW_MATERIAL');
+  const rawMaterials = getCategoryData('HDPE');
   const colors = getCategoryData('COLOR');
   const chemicals = getCategoryData('CHEMICAL');
 
