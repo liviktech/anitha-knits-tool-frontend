@@ -116,7 +116,7 @@ function AppShell() {
   return (
     <div className="flex h-screen w-full flex-col bg-[#004D40] font-['Hanken_Grotesk',sans-serif] lg:flex-row lg:p-1 lg:gap-2">
       {/* Laptop: persistent sidebar */}
-      <aside className="hidden lg:flex w-58 shrink-0 flex-col overflow-y-auto">
+      <aside className="hidden lg:flex w-50 shrink-0 flex-col overflow-y-auto">
         <Link to="/dashboard" className="flex items-center justify-center gap-2 py-6 px-4 cursor-pointer">
           <img src={threadIcon} alt="" className="h-6 w-6 shrink-0 object-contain brightness-0 invert" />
           <span className="text-[20px] font-serif font-bold text-white tracking-widest whitespace-nowrap">LK KnitOps</span>

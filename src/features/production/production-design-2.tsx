@@ -3,7 +3,7 @@ import { useQueryClient } from '@tanstack/react-query';
 import '@fontsource-variable/hanken-grotesk';
 import '@fontsource-variable/inter';
 import { parseISO, format } from 'date-fns';
-import { Calendar, Plus, Edit, Trash2, Download, Layers, Search, ChevronRight, CheckCircle2, Gauge } from 'lucide-react';
+import { Calendar, Plus, Edit, Trash2, Filter, Download, Layers, Search, ChevronRight, CheckCircle2, Gauge, Truck, ChevronDown } from 'lucide-react';
 import { Loader } from '@/components/shared/loader';
 import { DeleteConfirmDialog } from '@/components/shared/delete-confirm-dialog';
 import { apiFetch, fetchJson } from '@/lib/api-client';
@@ -360,7 +360,7 @@ function DayDetailView({
               number={1}
               icon={<img src={extruderIcon} alt="Extruder" className="w-6 h-6 object-contain" />}
               title="Extruder Production"
-              description="Raw materials is converted into tape (DN+ / LUMPS)"
+              description="HDPE Materials is converted into tape (DN+ / LUMPS)"
               theme={stageTheme.extruder}
               producedLabel="DN+ PRODUCED"
               producedValue={formatNum(row.extruder.output)}
@@ -371,7 +371,7 @@ function DayDetailView({
               pills={extruderPills}
               expanded={expandedStages.extruder}
               onToggle={() => toggleStage('extruder')}
-              tableHeads={['SIZE', 'COLOR', 'BRAND', 'RAW MATERIAL (KG)', 'WASTE (KG)', 'LUMPS (KG)', 'ACTION']}
+              tableHeads={['SIZE', 'COLOR', 'BRAND', 'HDPE MATERIALS (KG)', 'WASTE (KG)', 'LUMPS (KG)', 'ACTION']}
             >
               {extruderRows.length === 0 ? (
                 <TableRow>
@@ -466,7 +466,7 @@ function DayDetailView({
         </div>
 
         {/* Right Column (Sidebar) */}
-        <div className="w-[270px] lg:flex-shrink-0 flex flex-col border-l border-gray-100/50 bg-white shadow-[-4px_0_15px_-3px_rgba(0,0,0,0.02)]">
+        <div className="w-[220px] lg:flex-shrink-0 flex flex-col border-l border-gray-100/50 bg-white shadow-[-4px_0_15px_-3px_rgba(0,0,0,0.02)]">
           <div className="p-1 pb-1 bg-[#004D40]/5 border-b border-gray-200 flex flex-col gap-3">
             <h3 className="font-semibold text-[#003140] text-[18px]">Production Dates</h3>
             <div className="relative">
@@ -538,6 +538,7 @@ export function ProductionDesign2() {
   const [isReportOpen, setIsReportOpen] = useState(false);
   const [deleteTargetDate, setDeleteTargetDate] = useState<string | null>(null);
   const [deletingDate, setDeletingDate] = useState(false);
+  const [isFabricDeliveredExpanded, setIsFabricDeliveredExpanded] = useState(false);
   const [filterDate, setFilterDate] = useState<Date>(new Date());
   const monthStr = format(filterDate, 'yyyy-MM');
   const { rows: dayWiseRows, totals: dayWiseTotals, isLoading: loadingDayWise, apiSummary } = useDayWiseProduction(monthStr);
@@ -602,7 +603,7 @@ export function ProductionDesign2() {
                 variant="outline"
                 className="flex items-center bg-white border border-gray-400 rounded-md px-4 py-2 h-auto shadow-[0_1px_2px_rgba(0,0,0,0.05)] hover:bg-gray-50"
               >
-                <span className="text-sm font-semibold text-gray-700 mr-3">{format(parseISO(selectedDate), 'dd MMM, yyyy')}</span>
+                <span className="text-sm font-semibold text-gray-700 mr-3">{format(parseISO(selectedDate), 'MMMM yyyy')}</span>
                 <Calendar className="w-4 h-4 text-gray-400" />
               </Button>
             </PopoverTrigger>
@@ -856,6 +857,106 @@ export function ProductionDesign2() {
                 </CardContent>
               </div>
             </Card>
+          </div>
+
+          {/* Delivered Stocks Horizontal Bar */}
+          <div className="bg-[#DAF1DE] border border-green-400 rounded-[10px] px-5 py-2.5 shadow-sm my-1 flex flex-col transition-all duration-300">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <div
+                  className="w-[28px] h-[28px] bg-[#235347]"
+                  style={{
+                    WebkitMaskImage: 'url(/delivery.png)',
+                    WebkitMaskSize: 'contain',
+                    WebkitMaskRepeat: 'no-repeat',
+                    WebkitMaskPosition: 'center',
+                    maskImage: 'url(/delivery.png)',
+                    maskSize: 'contain',
+                    maskRepeat: 'no-repeat',
+                    maskPosition: 'center'
+                  }}
+                />
+                <span className="font-extrabold text-[#235347] text-[22px]">Fabric Delivered</span>
+              </div>
+              <div className="flex items-center gap-4">
+                <div className={`flex items-center gap-12 transition-opacity duration-300 ${isFabricDeliveredExpanded ? 'opacity-0 pointer-events-none' : 'opacity-100'}`}>
+                  <div className="flex items-center gap-3">
+                    <span className="text-[15px] font-extrabold text-[#61401E] uppercase tracking-wide">White -</span>
+                    <span className="font-extrabold text-[#61401E] text-[20px]">456.90</span>
+                  </div>
+                  <div className="flex items-center gap-3">
+                    <span className="text-[15px] font-extrabold text-[#0088CC] uppercase tracking-wide">Blue</span>
+                    <span className="font-bold text-[#0088CC] text-[20px]">457.67</span>
+                  </div>
+                  <div className="flex items-center gap-3">
+                    <span className="text-[15px] font-extrabold text-[#5BA300] uppercase tracking-wide">Green</span>
+                    <span className="font-bold text-[#5BA300] text-[20px]">345.234</span>
+                  </div>
+                </div>
+                <ChevronDown
+                  className={`w-5 h-5 text-[#61401E] cursor-pointer transition-transform duration-300 ${isFabricDeliveredExpanded ? 'rotate-180' : ''}`}
+                  onClick={() => setIsFabricDeliveredExpanded(!isFabricDeliveredExpanded)}
+                />
+              </div>
+            </div>
+
+            <div className={`grid transition-all duration-300 ease-in-out ${isFabricDeliveredExpanded ? 'grid-rows-[1fr] mt-3 opacity-100' : 'grid-rows-[0fr] opacity-0'}`}>
+              <div className="overflow-hidden">
+                <div className="border border-[#d9a976] rounded-md overflow-hidden bg-white/60 shadow-inner">
+                  <table className="w-full text-[13px] text-left">
+                    <thead className="bg-[#e6b885]/30 font-extrabold text-[#61401E]">
+                      <tr>
+                        <th className="px-3 py-2 border-r border-[#d9a976] w-24"></th>
+                        <th className="px-3 py-2 border-r border-[#d9a976] text-center">150mm</th>
+                        <th className="px-3 py-2 border-r border-[#d9a976] text-center">160mm</th>
+                        <th className="px-3 py-2 border-r border-[#d9a976] text-center">170mm</th>
+                        <th className="px-3 py-2 border-r border-[#d9a976] text-center">180mm</th>
+                        <th className="px-3 py-2 border-r border-[#d9a976] text-center">190mm</th>
+                        <th className="px-3 py-2 text-center bg-[#e6b885]/40">TOTAL</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      <tr className="border-t border-[#d9a976]">
+                        <td className="px-3 py-2.5 border-r border-[#d9a976] font-bold text-[#0088CC]">BLUE</td>
+                        <td className="px-3 py-2.5 border-r border-[#d9a976] text-center text-gray-800 font-medium">--</td>
+                        <td className="px-3 py-2.5 border-r border-[#d9a976] text-center text-gray-800 font-medium">--</td>
+                        <td className="px-3 py-2.5 border-r border-[#d9a976] text-center text-gray-800 font-medium">--</td>
+                        <td className="px-3 py-2.5 border-r border-[#d9a976] text-center text-gray-800 font-medium">--</td>
+                        <td className="px-3 py-2.5 border-r border-[#d9a976] text-center text-gray-800 font-medium">--</td>
+                        <td className="px-3 py-2.5 text-center text-[#0088CC] font-bold bg-[#e6b885]/10">457.67</td>
+                      </tr>
+                      <tr className="border-t border-[#d9a976]">
+                        <td className="px-3 py-2.5 border-r border-[#d9a976] font-bold text-gray-700">WHITE</td>
+                        <td className="px-3 py-2.5 border-r border-[#d9a976] text-center text-gray-800 font-medium">--</td>
+                        <td className="px-3 py-2.5 border-r border-[#d9a976] text-center text-gray-800 font-medium">--</td>
+                        <td className="px-3 py-2.5 border-r border-[#d9a976] text-center text-gray-800 font-medium">--</td>
+                        <td className="px-3 py-2.5 border-r border-[#d9a976] text-center text-gray-800 font-medium">--</td>
+                        <td className="px-3 py-2.5 border-r border-[#d9a976] text-center text-gray-800 font-medium">--</td>
+                        <td className="px-3 py-2.5 text-center text-gray-800 font-bold bg-[#e6b885]/10">456.90</td>
+                      </tr>
+                      <tr className="border-t border-[#d9a976]">
+                        <td className="px-3 py-2.5 border-r border-[#d9a976] font-bold text-[#5BA300]">GREEN</td>
+                        <td className="px-3 py-2.5 border-r border-[#d9a976] text-center text-gray-800 font-medium">--</td>
+                        <td className="px-3 py-2.5 border-r border-[#d9a976] text-center text-gray-800 font-medium">--</td>
+                        <td className="px-3 py-2.5 border-r border-[#d9a976] text-center text-gray-800 font-medium">--</td>
+                        <td className="px-3 py-2.5 border-r border-[#d9a976] text-center text-gray-800 font-medium">--</td>
+                        <td className="px-3 py-2.5 border-r border-[#d9a976] text-center text-gray-800 font-medium">--</td>
+                        <td className="px-3 py-2.5 text-center text-[#5BA300] font-bold bg-[#e6b885]/10">345.234</td>
+                      </tr>
+                      <tr className="border-t-2 border-[#d9a976] bg-[#e6b885]/30">
+                        <td className="px-3 py-2.5 border-r border-[#d9a976] font-extrabold text-[#61401E]">TOTAL</td>
+                        <td className="px-3 py-2.5 border-r border-[#d9a976] text-center text-[#61401E] font-bold">--</td>
+                        <td className="px-3 py-2.5 border-r border-[#d9a976] text-center text-[#61401E] font-bold">--</td>
+                        <td className="px-3 py-2.5 border-r border-[#d9a976] text-center text-[#61401E] font-bold">--</td>
+                        <td className="px-3 py-2.5 border-r border-[#d9a976] text-center text-[#61401E] font-bold">--</td>
+                        <td className="px-3 py-2.5 border-r border-[#d9a976] text-center text-[#61401E] font-bold">--</td>
+                        <td className="px-3 py-2.5 text-center text-[#61401E] font-extrabold bg-[#e6b885]/50">1259.804</td>
+                      </tr>
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            </div>
           </div>
 
           {/* Data Table Area */}
