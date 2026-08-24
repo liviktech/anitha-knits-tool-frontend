@@ -3,7 +3,7 @@ import { useQueryClient } from '@tanstack/react-query';
 import '@fontsource-variable/hanken-grotesk';
 import '@fontsource-variable/inter';
 import { parseISO, format } from 'date-fns';
-import { Calendar, Plus, Edit, Trash2, Filter, Download, Layers, Search, ChevronRight, CheckCircle2, Gauge, Truck, ChevronDown } from 'lucide-react';
+import { Calendar, Plus, Edit, Trash2, Download, Layers, Search, ChevronRight, CheckCircle2, Gauge,  ChevronDown } from 'lucide-react';
 import { Loader } from '@/components/shared/loader';
 import { DeleteConfirmDialog } from '@/components/shared/delete-confirm-dialog';
 import { apiFetch, fetchJson } from '@/lib/api-client';
