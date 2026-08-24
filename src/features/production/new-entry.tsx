@@ -36,33 +36,40 @@ export function NewEntry({ onClose, defaultDate, readOnly = false }: NewEntryPro
   const lookups = lookupsData ?? { brands: [], colors: [], chemicals: [], sizes: [] };
 
   useEffect(() => {
-    setHeaderTitle('Add new Daily production details');
+    setHeaderTitle(isCreateMode ? 'Add new Daily production details' : 'Edit daily production details');
     setShowBackButton(true);
     setOnBackClick(() => onClose);
 
     setHeaderRight(
       <div className="flex flex-wrap items-center gap-3">
-        <Popover>
-          <PopoverTrigger asChild>
-            <Button
-              variant="outline"
-              disabled={readOnly || submitting}
-              className="flex items-center bg-white border border-gray-400 rounded-md px-4 py-2 h-auto shadow-[0_1px_2px_rgba(0,0,0,0.05)] hover:bg-gray-50 disabled:opacity-100"
-            >
-              <span className="text-sm font-semibold text-gray-700 mr-3">{format(date, 'dd MMM, yyyy')}</span>
-              <CalendarIcon className="w-4 h-4 text-gray-400" />
-            </Button>
-          </PopoverTrigger>
-          <PopoverContent className="w-auto p-0" align="end">
-            <Calendar
-              mode="single"
-              selected={date}
-              onSelect={(value) => value && setDate(value)}
-              disabled={(d) => d < new Date(new Date().setHours(0, 0, 0, 0))}
-              autoFocus
-            />
-          </PopoverContent>
-        </Popover>
+        {!isCreateMode ? (
+          <div className="flex items-center gap-2 mr-4">
+            <CalendarIcon className="w-[18px] h-[18px] text-[#004D40]" />
+            <span className="text-[15px] font-bold text-[#004D40]">{format(date, 'dd MMM, yyyy')}</span>
+          </div>
+        ) : (
+          <Popover>
+            <PopoverTrigger asChild>
+              <Button
+                variant="outline"
+                disabled={readOnly || submitting}
+                className="flex items-center bg-white border border-gray-400 rounded-md px-4 py-2 h-auto shadow-[0_1px_2px_rgba(0,0,0,0.05)] hover:bg-gray-50 disabled:opacity-100"
+              >
+                <span className="text-sm font-semibold text-gray-700 mr-3">{format(date, 'dd MMM, yyyy')}</span>
+                <CalendarIcon className="w-4 h-4 text-gray-400" />
+              </Button>
+            </PopoverTrigger>
+            <PopoverContent className="w-auto p-0" align="end">
+              <Calendar
+                mode="single"
+                selected={date}
+                onSelect={(value) => value && setDate(value)}
+                disabled={(d) => d < new Date(new Date().setHours(0, 0, 0, 0))}
+                autoFocus
+              />
+            </PopoverContent>
+          </Popover>
+        )}
       </div>
     );
 

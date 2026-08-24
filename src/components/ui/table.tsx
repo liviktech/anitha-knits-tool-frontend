@@ -8,6 +8,15 @@ function Table({ className, ...props }: React.ComponentProps<"table">) {
       data-slot="table-container"
       className="relative w-full overflow-x-auto"
     >
+      {/* Table alignment styles */}
+      <style>{`
+        th[data-slot="table-head"]:first-child {text-align:left;}
+        th[data-slot="table-head"]:last-child {text-align:right;}
+        th[data-slot="table-head"]:not(:first-child):not(:last-child) {text-align:center;}
+        td[data-slot="table-cell"]:first-child {text-align:left;}
+        td[data-slot="table-cell"]:last-child {text-align:right;}
+        td[data-slot="table-cell"]:not(:first-child):not(:last-child) {text-align:center;}
+      `}</style>
       <table
         data-slot="table"
         className={cn("w-full caption-bottom text-sm", className)}
@@ -68,7 +77,7 @@ function TableHead({ className, ...props }: React.ComponentProps<"th">) {
     <th
       data-slot="table-head"
       className={cn(
-        "h-10 px-2 text-left align-middle font-medium whitespace-nowrap text-foreground [&:has([role=checkbox])]:pr-0",
+        "h-10 px-2 align-middle font-medium whitespace-nowrap text-foreground [&:has([role=checkbox])]:pr-0",
         className
       )}
       {...props}
@@ -81,7 +90,7 @@ function TableCell({ className, ...props }: React.ComponentProps<"td">) {
     <td
       data-slot="table-cell"
       className={cn(
-        "p-1 align-middle whitespace-nowrap [&:has([role=checkbox])]:pr-0",
+        "p-2 align-middle whitespace-nowrap [&:has([role=checkbox])]:pr-0",
         className
       )}
       {...props}

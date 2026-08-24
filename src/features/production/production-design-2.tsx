@@ -12,11 +12,13 @@ import loomsIcon from '@/assets/looms-icon.png';
 import { useExtruderProductions, extruderKeys } from '@/features/extruder/extruder-queries';
 import { useLoomsProductions, loomsKeys } from '@/features/looms/loom-queries';
 import { useFabricCheckingRecords, fabricCheckingKeys } from '@/features/fabric/fabric-queries';
+import { useLoadSentRecords } from '@/features/inventory/load-sent-queries';
 import { useDayWiseProduction, dashboardProductionKey, type DayWiseRow } from './day-wise-queries';
 import { mapExtruderItem, mapLoomItem, mapFabricItem } from './day-entry-sections';
 import { DayWiseReportModal } from './day-wise-report-modal';
 import { useProductionHeader } from './production-details';
 import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import {
   Table,
@@ -87,6 +89,64 @@ interface StagePill {
   value: string;
 }
 
+const fabricDeliveredSizes = ['150mm', '160mm', '170mm', '180mm', '190mm'] as const;
+type FabricDeliveredSize = (typeof fabricDeliveredSizes)[number];
+
+interface LoadSentDeliveryRecord {
+  id: string;
+  date?: string;
+  productionDate?: string;
+  color?: { name?: string };
+  size?: { name?: string };
+  loadSent?: { fabricWeight?: number };
+  fabricWeight?: number;
+  weightKg?: number;
+}
+
+function deliveryColorClass(color: string): string {
+  const normalizedColor = color.toLowerCase();
+  if (normalizedColor === 'blue') return 'text-[#0088CC]';
+  if (normalizedColor === 'green') return 'text-[#5BA300]';
+  return 'text-gray-700';
+}
+
+interface FabricDeliveredDetailRow {
+  id: string;
+  size: string;
+  color: string;
+  delivered: number;
+}
+
+interface FabricDeliveredTableRow {
+  color: string;
+  colorClass: string;
+  deliveredBySize: Partial<Record<FabricDeliveredSize, number>>;
+}
+
+function getFabricDeliveredRows(data: unknown, date: string): FabricDeliveredDetailRow[] {
+  const records = (data ?? []) as LoadSentDeliveryRecord[];
+  return records
+    .filter((record) => (record.productionDate ?? record.date ?? '').startsWith(date))
+    .map((record) => ({
+      id: record.id,
+      size: record.size?.name ?? '',
+      color: record.color?.name ?? '',
+      delivered: record.loadSent?.fabricWeight ?? record.fabricWeight ?? record.weightKg ?? 0,
+    }))
+    .filter((record) => record.delivered > 0);
+}
+
+function getFabricDeliveredTableRows(rows: FabricDeliveredDetailRow[]): FabricDeliveredTableRow[] {
+  const byColor = new Map<string, FabricDeliveredTableRow>();
+  rows.forEach((record) => {
+    const size = fabricDeliveredSizes.includes(record.size as FabricDeliveredSize) ? record.size as FabricDeliveredSize : null;
+    const existing = byColor.get(record.color) ?? { color: record.color, colorClass: deliveryColorClass(record.color), deliveredBySize: {} };
+    if (size) existing.deliveredBySize[size] = (existing.deliveredBySize[size] ?? 0) + record.delivered;
+    byColor.set(record.color, existing);
+  });
+  return Array.from(byColor.values());
+}
+
 interface StageBlockProps {
   number: number;
   icon: React.ReactNode;
@@ -133,13 +193,13 @@ function StageBlock({
         <div className={`w-10 h-10 rounded-full ${theme.circle} text-white font-bold text-[14px] flex items-center justify-center ring-4 ring-[#F3F5F4]`}>
           {number}
         </div>
-        <div className="w-11 h-11 rounded-xl bg-white border border-gray-100 shadow-sm flex items-center justify-center">
+        {/* <div className="w-11 h-11 rounded-xl bg-white border border-gray-100 shadow-sm flex items-center justify-center">
           {icon}
-        </div>
+        </div> */}
       </div>
 
       <div className="flex-1 flex flex-col gap-2 pb-5 min-w-0">
-        <p className={`font-bold text-[14px] ${theme.text}`}>{title}</p>
+        <p className={`font-bold text-[22px] ${theme.text}`}>{title}</p>
 
         <Card className="rounded-2xl border border-gray-100 shadow-sm bg-white p-4 flex flex-col gap-4">
           <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
@@ -156,18 +216,6 @@ function StageBlock({
                   {wasteValue} <span className="text-[11px] font-medium text-gray-400">{wasteUnit}</span>
                 </p>
               </div>
-              {pills.length > 0 && (
-                <div className="flex flex-wrap gap-2">
-                  {pills.map((p, i) => (
-                    <span
-                      key={`${p.label}-${i}`}
-                      className={`inline-flex items-center gap-1.5 rounded-md border ${theme.pillBorder} ${theme.pillBg} ${theme.pillText} px-2.5 py-1 text-[11px] font-semibold whitespace-nowrap`}
-                    >
-                      {p.label} {p.value}
-                    </span>
-                  ))}
-                </div>
-              )}
             </div>
 
             <Button
@@ -192,7 +240,7 @@ function StageBlock({
                     {tableHeads.map((h, i) => (
                       <TableHead
                         key={h}
-                        className={`text-[9.5px] font-extrabold uppercase tracking-wide text-gray-500 whitespace-nowrap ${i > 0 ? 'text-center' : ''}`}
+                        className={`text-[9.5px] font-extrabold uppercase tracking-wide text-gray-500 whitespace-nowrap ${i === 0 ? 'text-left' : i === tableHeads.length - 1 ? 'text-right' : 'text-center'}`}
                       >
                         {h}
                       </TableHead>
@@ -213,10 +261,14 @@ function DayDetailView({
   date,
   onClose,
   dayWiseRows,
+  fabricDeliveredRows,
+  loadingLoadSent,
 }: {
   date: string;
   onClose: () => void;
   dayWiseRows: DayWiseRow[];
+  fabricDeliveredRows: FabricDeliveredDetailRow[];
+  loadingLoadSent: boolean;
 }) {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
@@ -322,6 +374,7 @@ function DayDetailView({
         .filter((r) => r.input > 0 || r.output > 0 || r.fwKg > 0 || r.bwKg > 0),
     [fabricData, date],
   );
+  const fabricDeliveredTotal = fabricDeliveredRows.reduce((sum, record) => sum + record.delivered, 0);
 
   const extruderPills = useMemo(() => {
     const loose = extruderRows.reduce((sum, r) => sum + r.yarnWasteKg, 0);
@@ -366,7 +419,7 @@ function DayDetailView({
               title="Extruder Production"
               description=""
               theme={stageTheme.extruder}
-              producedLabel="DN+ PRODUCED"
+              producedLabel="Extruder PRODUCED"
               producedValue={formatNum(row.extruder.output)}
               producedUnit="kg"
               wasteLabel="WASTE + LUMPS"
@@ -384,13 +437,13 @@ function DayDetailView({
               ) : (
                 extruderRows.map((r) => (
                   <TableRow key={r.id}>
-                    <TableCell className="text-[12px] text-gray-800">{r.size}</TableCell>
-                    <TableCell className="text-[12px] text-gray-800">{r.color}</TableCell>
-                    <TableCell className="text-[12px] text-gray-800">{r.brand}</TableCell>
+                    <TableCell className="text-[12px] text-gray-800 text-left">{r.size}</TableCell>
+                    <TableCell className="text-center text-[12px] text-gray-800">{r.color}</TableCell>
+                    <TableCell className="text-center text-[12px] text-gray-800">{r.brand}</TableCell>
                     <TableCell className="text-center text-[12px] font-semibold text-gray-900">{formatNum(r.raw)}</TableCell>
                     <TableCell className="text-center text-[12px] font-semibold text-red-500">{formatNum(r.yarnWasteKg)}</TableCell>
                     <TableCell className="text-center text-[12px] font-semibold text-gray-700">{formatNum(r.lumpsKg)}</TableCell>
-                    <TableCell className="text-center"><CheckCircle2 className="w-4 h-4 text-emerald-500 inline-block" /></TableCell>
+                    <TableCell className="text-right"><CheckCircle2 className="w-4 h-4 text-emerald-500 inline-block" /></TableCell>
                   </TableRow>
                 ))
               )}
@@ -420,12 +473,12 @@ function DayDetailView({
               ) : (
                 loomRows.map((r) => (
                   <TableRow key={r.id}>
-                    <TableCell className="text-[12px] text-gray-800">{r.size}</TableCell>
-                    <TableCell className="text-[12px] text-gray-800">{r.color}</TableCell>
+                    <TableCell className="text-[12px] text-gray-800 text-left">{r.size}</TableCell>
+                    <TableCell className="text-center text-[12px] text-gray-800">{r.color}</TableCell>
                     <TableCell className="text-center text-[12px] font-semibold text-gray-900">{formatNum(r.input)}</TableCell>
                     <TableCell className="text-center text-[12px] font-semibold text-red-500">{formatNum(r.loomsWasteKg)}</TableCell>
                     <TableCell className="text-center text-[12px] font-semibold text-gray-900">{formatNum(r.output)}</TableCell>
-                    <TableCell className="text-center"><CheckCircle2 className="w-4 h-4 text-blue-500 inline-block" /></TableCell>
+                    <TableCell className="text-right"><CheckCircle2 className="w-4 h-4 text-blue-500 inline-block" /></TableCell>
                   </TableRow>
                 ))
               )}
@@ -440,27 +493,28 @@ function DayDetailView({
               producedLabel="FABRIC CHECKED"
               producedValue={formatNum(row.fabric.output)}
               producedUnit="kg"
-              wasteLabel="FABRIC WASTE"
+              wasteLabel="FW + BW WASTE"
               wasteValue={formatNum(row.fabric.wastage)}
               wasteUnit="kg"
               pills={fabricPills}
               expanded={expandedStages.fabric}
               onToggle={() => toggleStage('fabric')}
-              tableHeads={['SIZE', 'COLOR', 'CHECKED WEIGHT (KG)', 'WASTAGE (KG)', 'FINAL WEIGHT (KG)', 'ACTION']}
+              tableHeads={['SIZE', 'COLOR', 'CHECKED WEIGHT (KG)', 'FW WASTAGE (KG)', 'BW WASTAGE (KG)', 'FINAL WEIGHT (KG)', 'ACTION']}
             >
               {fabricRows.length === 0 ? (
                 <TableRow>
-                  <TableCell colSpan={6} className="h-16 text-center text-gray-400 text-xs">No entries for this date.</TableCell>
+                  <TableCell colSpan={7} className="h-16 text-center text-gray-400 text-xs">No entries for this date.</TableCell>
                 </TableRow>
               ) : (
                 fabricRows.map((r) => (
                   <TableRow key={r.id}>
-                    <TableCell className="text-[12px] text-gray-800">{r.size}</TableCell>
-                    <TableCell className="text-[12px] text-gray-800">{r.color}</TableCell>
+                    <TableCell className="text-[12px] text-gray-800 text-left">{r.size}</TableCell>
+                    <TableCell className="text-center text-[12px] text-gray-800">{r.color}</TableCell>
                     <TableCell className="text-center text-[12px] font-semibold text-gray-900">{formatNum(r.input)}</TableCell>
-                    <TableCell className="text-center text-[12px] font-semibold text-red-500">{formatNum(r.fwKg + r.bwKg)}</TableCell>
+                    <TableCell className="text-center text-[12px] font-semibold text-red-500">{formatNum(r.fwKg)}</TableCell>
+                    <TableCell className="text-center text-[12px] font-semibold text-red-500">{formatNum(r.bwKg)}</TableCell>
                     <TableCell className="text-center text-[12px] font-semibold text-gray-900">{formatNum(r.output)}</TableCell>
-                    <TableCell className="text-center"><CheckCircle2 className="w-4 h-4 text-purple-500 inline-block" /></TableCell>
+                    <TableCell className="text-right"><CheckCircle2 className="w-4 h-4 text-purple-500 inline-block" /></TableCell>
                   </TableRow>
                 ))
               )}
@@ -473,7 +527,7 @@ function DayDetailView({
               description=""
               theme={stageTheme.fabricDelivered}
               producedLabel="DELIVERED"
-              producedValue={formatNum(0)}
+              producedValue={formatNum(fabricDeliveredTotal)}
               producedUnit="kg"
               wasteLabel="WASTAGE"
               wasteValue={formatNum(0)}
@@ -484,9 +538,20 @@ function DayDetailView({
               tableHeads={['SIZE', 'COLOR', 'DELIVERED (KG)', 'ACTION']}
               isLast
             >
-              <TableRow>
-                <TableCell colSpan={4} className="h-16 text-center text-gray-400 text-xs">No entries for this date.</TableCell>
-              </TableRow>
+              {loadingLoadSent ? (
+                <TableRow><TableCell colSpan={4} className="h-16 text-center text-gray-400 text-xs"><Loader size="sm" /></TableCell></TableRow>
+              ) : fabricDeliveredRows.length === 0 ? (
+                <TableRow><TableCell colSpan={4} className="h-16 text-center text-gray-400 text-xs">No entries for this date.</TableCell></TableRow>
+              ) : (
+                fabricDeliveredRows.map((deliveredRow) => (
+                  <TableRow key={deliveredRow.id}>
+                    <TableCell className="text-[12px] text-gray-800 text-left">{deliveredRow.size}</TableCell>
+                    <TableCell className="text-center text-[12px] text-gray-800">{deliveredRow.color}</TableCell>
+                    <TableCell className="text-center text-[12px] font-semibold text-gray-900">{formatNum(deliveredRow.delivered)}</TableCell>
+                    <TableCell className="text-right"><CheckCircle2 className="w-4 h-4 text-[#61401E] inline-block" /></TableCell>
+                  </TableRow>
+                ))
+              )}
             </StageBlock>
           </div>
         </div>
@@ -523,6 +588,16 @@ export function ProductionDesign2() {
   const [filterDate, setFilterDate] = useState<Date>(new Date());
   const monthStr = format(filterDate, 'yyyy-MM');
   const { rows: dayWiseRows, totals: dayWiseTotals, isLoading: loadingDayWise, apiSummary } = useDayWiseProduction(monthStr);
+  const { data: loadSentData, isLoading: loadingLoadSent } = useLoadSentRecords('?limit=100');
+  const selectedMonthDeliveryRows = useMemo(
+    () => getFabricDeliveredRows(loadSentData?.data, monthStr),
+    [loadSentData, monthStr],
+  );
+  const selectedMonthDeliveryTableRows = useMemo(
+    () => getFabricDeliveredTableRows(selectedMonthDeliveryRows),
+    [selectedMonthDeliveryRows],
+  );
+  const selectedMonthDeliveryTotal = selectedMonthDeliveryRows.reduce((sum, record) => sum + record.delivered, 0);
 
   // Deletes every Extruder/Looms/Fabric Checking record for one date — the
   // day-wise table only has aggregated totals for each row, not record ids,
@@ -583,26 +658,16 @@ export function ProductionDesign2() {
       setHeaderRight(
         <>
           <div className="flex items-center gap-2">
-            <Popover>
-              <PopoverTrigger asChild>
-                <Button
-                  variant="outline"
-                  className="flex items-center bg-white border border-gray-400 rounded-md px-3 py-2 h-auto shadow-[0_1px_2px_rgba(0,0,0,0.05)] hover:bg-gray-50"
-                >
-                  <span className="text-sm font-semibold text-[#003140] mr-1.5">{format(filterDate, 'MMMM yyyy')}</span>
-                  <Calendar className="w-4 h-4 text-gray-700" />
-                </Button>
-              </PopoverTrigger>
-              <PopoverContent className="w-auto p-0" align="end">
-                <CalendarComponent
-                  mode="single"
-                  selected={filterDate}
-                  onSelect={(value) => value && setFilterDate(value)}
-                  onMonthChange={(month) => setFilterDate(month)}
-                  autoFocus
-                />
-              </PopoverContent>
-            </Popover>
+            <Input
+              type="month"
+              value={format(filterDate, 'yyyy-MM')}
+              onChange={(e) => {
+                if (e.target.value) {
+                  setFilterDate(parseISO(`${e.target.value}-01`));
+                }
+              }}
+              className="h-9 w-40 bg-white border border-gray-400 rounded-md px-3 py-2 text-sm font-semibold text-[#003140] shadow-[0_1px_2px_rgba(0,0,0,0.05)] hover:bg-gray-50 focus-visible:ring-1 focus-visible:ring-[#004D40]"
+            />
           </div>
           <Button
             className="flex items-center gap-2 bg-[#004D40] hover:bg-[#00382e] text-white rounded-md px-3 py-2 h-auto text-[12px] font-bold tracking-wide shadow-[0_1px_2px_rgba(0,45,35,0.2)]"
@@ -676,6 +741,8 @@ export function ProductionDesign2() {
           date={selectedDate}
           onClose={() => setSelectedDate(null)}
           dayWiseRows={dayWiseRows}
+          fabricDeliveredRows={getFabricDeliveredRows(loadSentData?.data, selectedDate)}
+          loadingLoadSent={loadingLoadSent}
           setDate={(d) => {
             setIsNavigating(true);
             setTimeout(() => {
@@ -831,7 +898,7 @@ export function ProductionDesign2() {
               <div className="flex items-center gap-4">
                 <div className={`flex items-center gap-12 transition-opacity duration-300 ${isFabricDeliveredExpanded ? 'opacity-0 pointer-events-none' : 'opacity-100'}`}>
                   <div className="flex items-center gap-3">
-                    <span className="text-[15px] font-extrabold text-[#61401E] uppercase tracking-wide">White -</span>
+                    <span className="text-[15px] font-extrabold text-[#61401E] uppercase tracking-wide">White </span>
                     <span className="font-extrabold text-[#61401E] text-[20px]">456.90</span>
                   </div>
                   <div className="flex items-center gap-3">
@@ -857,50 +924,40 @@ export function ProductionDesign2() {
                     <thead className="bg-[#e6b885]/30 font-extrabold text-[#61401E]">
                       <tr>
                         <th className="px-3 py-2 border-r border-[#d9a976] w-24"></th>
-                        <th className="px-3 py-2 border-r border-[#d9a976] text-center">150mm</th>
-                        <th className="px-3 py-2 border-r border-[#d9a976] text-center">160mm</th>
-                        <th className="px-3 py-2 border-r border-[#d9a976] text-center">170mm</th>
-                        <th className="px-3 py-2 border-r border-[#d9a976] text-center">180mm</th>
-                        <th className="px-3 py-2 border-r border-[#d9a976] text-center">190mm</th>
+                        {fabricDeliveredSizes.map((size) => (
+                          <th key={size} className="px-3 py-2 border-r border-[#d9a976] text-center">{size}</th>
+                        ))}
                         <th className="px-3 py-2 text-center bg-[#e6b885]/40">TOTAL</th>
                       </tr>
                     </thead>
                     <tbody>
-                      <tr className="border-t border-[#d9a976]">
-                        <td className="px-3 py-2.5 border-r border-[#d9a976] font-bold text-[#0088CC]">BLUE</td>
-                        <td className="px-3 py-2.5 border-r border-[#d9a976] text-center text-gray-800 font-medium">--</td>
-                        <td className="px-3 py-2.5 border-r border-[#d9a976] text-center text-gray-800 font-medium">--</td>
-                        <td className="px-3 py-2.5 border-r border-[#d9a976] text-center text-gray-800 font-medium">--</td>
-                        <td className="px-3 py-2.5 border-r border-[#d9a976] text-center text-gray-800 font-medium">--</td>
-                        <td className="px-3 py-2.5 border-r border-[#d9a976] text-center text-gray-800 font-medium">--</td>
-                        <td className="px-3 py-2.5 text-center text-[#0088CC] font-bold bg-[#e6b885]/10">457.67</td>
-                      </tr>
-                      <tr className="border-t border-[#d9a976]">
-                        <td className="px-3 py-2.5 border-r border-[#d9a976] font-bold text-gray-700">WHITE</td>
-                        <td className="px-3 py-2.5 border-r border-[#d9a976] text-center text-gray-800 font-medium">--</td>
-                        <td className="px-3 py-2.5 border-r border-[#d9a976] text-center text-gray-800 font-medium">--</td>
-                        <td className="px-3 py-2.5 border-r border-[#d9a976] text-center text-gray-800 font-medium">--</td>
-                        <td className="px-3 py-2.5 border-r border-[#d9a976] text-center text-gray-800 font-medium">--</td>
-                        <td className="px-3 py-2.5 border-r border-[#d9a976] text-center text-gray-800 font-medium">--</td>
-                        <td className="px-3 py-2.5 text-center text-gray-800 font-bold bg-[#e6b885]/10">456.90</td>
-                      </tr>
-                      <tr className="border-t border-[#d9a976]">
-                        <td className="px-3 py-2.5 border-r border-[#d9a976] font-bold text-[#5BA300]">GREEN</td>
-                        <td className="px-3 py-2.5 border-r border-[#d9a976] text-center text-gray-800 font-medium">--</td>
-                        <td className="px-3 py-2.5 border-r border-[#d9a976] text-center text-gray-800 font-medium">--</td>
-                        <td className="px-3 py-2.5 border-r border-[#d9a976] text-center text-gray-800 font-medium">--</td>
-                        <td className="px-3 py-2.5 border-r border-[#d9a976] text-center text-gray-800 font-medium">--</td>
-                        <td className="px-3 py-2.5 border-r border-[#d9a976] text-center text-gray-800 font-medium">--</td>
-                        <td className="px-3 py-2.5 text-center text-[#5BA300] font-bold bg-[#e6b885]/10">345.234</td>
-                      </tr>
+                      {loadingLoadSent ? (
+                        <tr><td colSpan={7} className="px-3 py-5 text-center text-[#61401E]">Loading delivered records...</td></tr>
+                      ) : selectedMonthDeliveryTableRows.length === 0 ? (
+                        <tr><td colSpan={7} className="px-3 py-5 text-center text-[#61401E]">No delivered records for this month.</td></tr>
+                      ) : selectedMonthDeliveryTableRows.map((row) => (
+                        <tr key={row.color} className="border-t border-[#d9a976]">
+                          <td className={`px-3 py-2.5 border-r border-[#d9a976] font-bold ${row.colorClass}`}>{row.color}</td>
+                          {fabricDeliveredSizes.map((size) => (
+                            <td key={size} className="px-3 py-2.5 border-r border-[#d9a976] text-center text-gray-800 font-medium">
+                              {row.deliveredBySize[size] !== undefined ? row.deliveredBySize[size].toFixed(3) : '--'}
+                            </td>
+                          ))}
+                          <td className={`px-3 py-2.5 text-center font-bold bg-[#e6b885]/10 ${row.colorClass}`}>
+                            {Object.values(row.deliveredBySize).reduce((sum, value) => sum + value, 0).toFixed(3)}
+                          </td>
+                        </tr>
+                      ))}
                       <tr className="border-t-2 border-[#d9a976] bg-[#e6b885]/30">
                         <td className="px-3 py-2.5 border-r border-[#d9a976] font-extrabold text-[#61401E]">TOTAL</td>
-                        <td className="px-3 py-2.5 border-r border-[#d9a976] text-center text-[#61401E] font-bold">--</td>
-                        <td className="px-3 py-2.5 border-r border-[#d9a976] text-center text-[#61401E] font-bold">--</td>
-                        <td className="px-3 py-2.5 border-r border-[#d9a976] text-center text-[#61401E] font-bold">--</td>
-                        <td className="px-3 py-2.5 border-r border-[#d9a976] text-center text-[#61401E] font-bold">--</td>
-                        <td className="px-3 py-2.5 border-r border-[#d9a976] text-center text-[#61401E] font-bold">--</td>
-                        <td className="px-3 py-2.5 text-center text-[#61401E] font-extrabold bg-[#e6b885]/50">1259.804</td>
+                        {fabricDeliveredSizes.map((size) => (
+                          <td key={size} className="px-3 py-2.5 border-r border-[#d9a976] text-center text-[#61401E] font-bold">
+                            {selectedMonthDeliveryTableRows.reduce((sum, row) => sum + (row.deliveredBySize[size] ?? 0), 0) > 0
+                              ? selectedMonthDeliveryTableRows.reduce((sum, row) => sum + (row.deliveredBySize[size] ?? 0), 0).toFixed(3)
+                              : '--'}
+                          </td>
+                        ))}
+                        <td className="px-3 py-2.5 text-center text-[#61401E] font-extrabold bg-[#e6b885]/50">{selectedMonthDeliveryTotal.toFixed(3)}</td>
                       </tr>
                     </tbody>
                   </table>
@@ -931,7 +988,7 @@ export function ProductionDesign2() {
               <Table className="w-full">
                 <TableHeader>
                   <TableRow className="hover:bg-transparent border-b border-gray-300">
-                    <TableHead rowSpan={2} className="text-center font-bold text-gray-800 align-middle border-r border-gray-300 w-[95px] min-w-[95px] px-1.5 bg-white text-xs uppercase tracking-wider">Date</TableHead>
+                    <TableHead rowSpan={2} className="!text-center font-bold text-gray-800 align-middle border-r border-gray-300 w-[95px] min-w-[95px] px-1.5 bg-white text-xs uppercase tracking-wider">Date</TableHead>
                     <TableHead colSpan={3} className="w-[22%] text-[#0B5566] font-bold bg-[#D6EEF7] border-r border-gray-300 py-2 text-xs uppercase tracking-wider">
                       <span className="flex items-center justify-center gap-2 text-[13px] font-extrabold">
                         {/* <span className="bg-[#0B5566] text-white w-5 h-5 rounded-sm flex items-center justify-center text-[10px] font-bold">1</span> */}
@@ -956,7 +1013,7 @@ export function ProductionDesign2() {
                         FABRIC DELIVERED (KG)
                       </span>
                     </TableHead>
-                    <TableHead rowSpan={2} className="text-center font-extrabold text-gray-800 align-middle border-gray-300 w-[90px] min-w-[90px] px-1 bg-white text-xs uppercase tracking-wider">Actions</TableHead>
+                    <TableHead rowSpan={2} className="!text-center font-extrabold text-gray-800 align-middle border-gray-300 w-[90px] min-w-[90px] px-1 bg-white text-xs uppercase tracking-wider">Actions</TableHead>
                   </TableRow>
                   <TableRow className="hover:bg-transparent bg-white border-b border-gray-300">
                     {/* Extruder */}
@@ -1053,7 +1110,7 @@ export function ProductionDesign2() {
 
                   {!loadingDayWise && dayWiseRows.length > 0 && (
                     <TableRow className="bg-white font-bold hover:bg-white border-t-2 border-gray-400">
-                      <TableCell className="text-center border-r border-gray-400 text-gray-900 text-[14px] py-1 px-1.5">TOTAL</TableCell>
+                      <TableCell className="!text-center border-r border-gray-400 text-gray-900 text-[14px] py-1 px-1.5">TOTAL</TableCell>
                       {/* Extruder Total */}
                       <TableCell className="text-center text-[#00897B] text-[14px]">{formatNum(dayWiseTotals.extruder.input)}</TableCell>
                       <TableCell className="text-center text-[#00897B] text-[14px]">{formatNum(dayWiseTotals.extruder.wastage)}</TableCell>
