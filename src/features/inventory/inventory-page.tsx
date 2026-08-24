@@ -639,7 +639,7 @@ function LoadSentTab({ onBack }: { onBack: () => void }) {
 
 /* ---------------------------------------------------------------------- */
 
-function StockSummaryCard({ onClick }: { onClick: () => void }) {
+function StockSummaryCard({ onClick, onAdd }: { onClick: () => void, onAdd: (e: React.MouseEvent) => void }) {
   const { data } = useInventoryRecords('?limit=100');
   const records = data?.data ?? [];
 
@@ -670,18 +670,21 @@ function StockSummaryCard({ onClick }: { onClick: () => void }) {
           <div className="flex h-10 w-10 items-center justify-center rounded-lg border border-green-200 bg-green-50 text-green-700 shadow-sm shrink-0">
             <PackagePlus className="h-5 w-5" />
           </div>
-          <div className="flex flex-col">
+          <div className="flex flex-col mr-2">
             <h2 className="font-bold text-gray-900 text-lg leading-tight">Stock Received</h2>
             <p className="text-xs text-gray-500">Warehouse In-flow</p>
           </div>
+          <div className="hidden sm:flex items-center gap-2 bg-gradient-to-br from-green-100 to-emerald-200/50 border border-green-300/40 rounded-lg px-3 py-1.5 shadow-sm">
+            <span className="text-[10px] font-bold text-green-800 uppercase tracking-wide">Total Stock:</span>
+            <span className="text-sm font-black text-green-950">{totalStock.toFixed(2)} kg</span>
+          </div>
         </div>
         
-        <div className="flex items-center gap-4 relative z-10" onClick={e => e.stopPropagation()}>
-          <div className="text-right hidden sm:block">
-            <p className="text-[10px] font-semibold text-gray-500 uppercase tracking-wide">Total Stock</p>
-            <p className="text-xl font-bold text-gray-900 leading-none">{totalStock.toFixed(2)} <span className="text-xs font-normal text-gray-500">kg</span></p>
-          </div>
-          <Input type="month" value={month} onChange={e => setMonth(e.target.value)} className="h-9 text-sm w-36 bg-white/60" />
+        <div className="flex items-center gap-3 relative z-10" onClick={e => e.stopPropagation()}>
+          <Button size="sm" onClick={onAdd} className="bg-green-600 hover:bg-green-700 h-9 text-xs shadow-sm">
+            <Plus className="w-4 h-4 mr-1.5" /> Add Stock
+          </Button>
+          <Input type="month" value={month} onChange={e => setMonth(e.target.value)} className="h-9 text-sm w-36 bg-white/60 shadow-sm font-medium" />
         </div>
       </div>
       <div className="p-3 bg-gradient-to-br from-gray-50 to-green-50/20 flex-1 h-full min-h-[180px]">
@@ -727,7 +730,7 @@ function StockSummaryCard({ onClick }: { onClick: () => void }) {
   );
 }
 
-function LoadSentSummaryCard({ onClick }: { onClick: () => void }) {
+function LoadSentSummaryCard({ onClick, onAdd }: { onClick: () => void, onAdd: (e: React.MouseEvent) => void }) {
   const { data } = useLoadSentRecords('?limit=100');
   const records = data?.data ?? [];
 
@@ -756,23 +759,26 @@ function LoadSentSummaryCard({ onClick }: { onClick: () => void }) {
           <div className="flex h-10 w-10 items-center justify-center rounded-lg border border-orange-200 bg-orange-50 text-orange-700 shadow-sm shrink-0">
             <PackageMinus className="h-5 w-5" />
           </div>
-          <div className="flex flex-col">
+          <div className="flex flex-col mr-2">
             <h2 className="font-bold text-gray-900 text-lg leading-tight">Load Sent</h2>
             <p className="text-xs text-gray-500">Warehouse Out-flow</p>
           </div>
-        </div>
-        
-        <div className="flex items-center gap-4 relative z-10" onClick={e => e.stopPropagation()}>
-          <div className="text-right hidden sm:flex sm:items-end sm:gap-3">
-            <div>
-              <p className="text-[10px] font-semibold text-gray-500 uppercase tracking-wide">Total Weight</p>
-              <p className="text-xl font-bold text-gray-900 leading-none">{totalWeight.toFixed(2)} <span className="text-xs font-normal text-gray-500">kg</span></p>
+          <div className="hidden sm:flex items-center gap-3 bg-gradient-to-br from-orange-100 to-rose-200/50 border border-orange-300/40 rounded-lg px-3 py-1.5 shadow-sm">
+            <div className="flex items-center gap-2 border-r border-orange-300/50 pr-3">
+              <span className="text-[10px] font-bold text-orange-800 uppercase tracking-wide">Total Weight:</span>
+              <span className="text-sm font-black text-orange-950">{totalWeight.toFixed(2)} kg</span>
             </div>
-            <div className="pb-0.5">
-              <span className="text-xs font-semibold text-gray-500">{totalPieces} pcs</span>
+            <div className="flex items-center">
+              <span className="text-sm font-black text-orange-950">{totalPieces} <span className="text-xs font-semibold text-orange-800">pcs</span></span>
             </div>
           </div>
-          <Input type="month" value={month} onChange={e => setMonth(e.target.value)} className="h-9 text-sm w-36 bg-white/60" />
+        </div>
+        
+        <div className="flex items-center gap-3 relative z-10" onClick={e => e.stopPropagation()}>
+          <Button size="sm" onClick={onAdd} className="bg-orange-600 hover:bg-orange-700 h-9 text-xs shadow-sm">
+            <Plus className="w-4 h-4 mr-1.5" /> New Load
+          </Button>
+          <Input type="month" value={month} onChange={e => setMonth(e.target.value)} className="h-9 text-sm w-36 bg-white/60 shadow-sm font-medium" />
         </div>
       </div>
       <div className="p-3 bg-gradient-to-br from-gray-50 to-orange-50/20 flex-1 h-full min-h-[180px]">
@@ -813,10 +819,16 @@ function LoadSentSummaryCard({ onClick }: { onClick: () => void }) {
 }
 
 function InventorySummary({ onSelect }: { onSelect: (view: 'receive' | 'send') => void }) {
+  const [stockFormOpen, setStockFormOpen] = useState(false);
+  const [loadFormOpen, setLoadFormOpen] = useState(false);
+
   return (
     <div className="flex flex-col gap-6">
-      <StockSummaryCard onClick={() => onSelect('receive')} />
-      <LoadSentSummaryCard onClick={() => onSelect('send')} />
+      <StockSummaryCard onClick={() => onSelect('receive')} onAdd={(e) => { e.stopPropagation(); setStockFormOpen(true); }} />
+      <LoadSentSummaryCard onClick={() => onSelect('send')} onAdd={(e) => { e.stopPropagation(); setLoadFormOpen(true); }} />
+
+      {stockFormOpen && <InventoryFormDialog onClose={() => setStockFormOpen(false)} record={null} />}
+      {loadFormOpen && <LoadSentFormDialog onClose={() => setLoadFormOpen(false)} record={undefined} />}
     </div>
   );
 }
