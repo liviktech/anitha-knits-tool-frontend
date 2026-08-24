@@ -108,9 +108,21 @@ function DayDetailsRoute() {
 function NewEntryRoute() {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
+  const date = searchParams.get('date');
+  const from = searchParams.get('from');
+  
   return (
     <div className="h-full overflow-y-auto">
-      <NewEntry onClose={() => navigate('/production')} defaultDate={searchParams.get('date')} />
+      <NewEntry 
+        onClose={() => {
+          if (date && from === 'details') {
+            navigate('/production', { state: { selectedDate: date } });
+          } else {
+            navigate('/production');
+          }
+        }} 
+        defaultDate={date} 
+      />
     </div>
   );
 }

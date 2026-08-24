@@ -27,7 +27,9 @@ import {
   TableRow,
 } from '@/components/ui/table';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { useNavigate } from 'react-router-dom';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { Calendar as CalendarComponent } from '@/components/ui/calendar';
+import { useNavigate, useLocation } from 'react-router-dom';
 
 function formatNum(n: number): string {
   return n.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
@@ -522,13 +524,23 @@ function DayDetailView({
 
 export function ProductionDesign2() {
   const navigate = useNavigate();
+  const location = useLocation();
   const queryClient = useQueryClient();
-  const [selectedDate, setSelectedDate] = useState<string | null>(null);
+  const [selectedDate, setSelectedDate] = useState<string | null>(location.state?.selectedDate || null);
+
+  useEffect(() => {
+    if (location.state?.selectedDate) {
+      navigate(location.pathname, { replace: true, state: {} });
+    }
+  }, [location, navigate]);
+
   const [isNavigating, setIsNavigating] = useState(false);
   const [isReportOpen, setIsReportOpen] = useState(false);
   const [deleteTargetDate, setDeleteTargetDate] = useState<string | null>(null);
   const [deletingDate, setDeletingDate] = useState(false);
-  const { rows: dayWiseRows, totals: dayWiseTotals, isLoading: loadingDayWise, apiSummary } = useDayWiseProduction();
+  const [filterDate, setFilterDate] = useState<Date>(new Date());
+  const monthStr = format(filterDate, 'yyyy-MM');
+  const { rows: dayWiseRows, totals: dayWiseTotals, isLoading: loadingDayWise, apiSummary } = useDayWiseProduction(monthStr);
 
   // Deletes every Extruder/Looms/Fabric Checking record for one date — the
   // day-wise table only has aggregated totals for each row, not record ids,
@@ -567,8 +579,6 @@ export function ProductionDesign2() {
 
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(10);
-  const [selectedMonth, setSelectedMonth] = useState('Jul');
-  const [selectedYear, setSelectedYear] = useState('2026');
   const totalPages = Math.max(1, Math.ceil(dayWiseRows.length / pageSize));
   const currentPage = Math.min(page, totalPages);
 
@@ -577,48 +587,88 @@ export function ProductionDesign2() {
     [dayWiseRows, currentPage, pageSize],
   );
 
-  const { setHeaderRight, setShowBackButton } = useProductionHeader();
+  const { setHeaderRight, setShowBackButton, setOnBackClick } = useProductionHeader();
 
   useEffect(() => {
-    setShowBackButton(false);
-    setHeaderRight(
-      <>
-        <div className="flex items-center gap-2">
-          <Select value={selectedMonth} onValueChange={setSelectedMonth}>
-            <SelectTrigger className="w-fit min-w-[70px] bg-white border border-gray-400 text-sm font-semibold text-gray-700 h-[38px] shadow-[0_1px_2px_rgba(0,0,0,0.05)] focus:ring-0 focus:ring-offset-0">
-              <SelectValue placeholder="Month" />
-            </SelectTrigger>
-            <SelectContent position="popper" side="bottom" className="max-h-[160px] overflow-y-auto w-fit min-w-[70px]">
-              {['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'].map((m) => (
-                <SelectItem key={m} value={m} className="py-0.5 text-[13px]">{m}</SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
+    if (selectedDate) {
+      setShowBackButton(true);
+      setOnBackClick(() => () => setSelectedDate(null));
 
-          <Select value={selectedYear} onValueChange={setSelectedYear}>
-            <SelectTrigger className="w-fit min-w-[70px] bg-white border border-gray-400 text-sm font-semibold text-gray-700 h-[38px] shadow-[0_1px_2px_rgba(0,0,0,0.05)] focus:ring-0 focus:ring-offset-0">
-              <SelectValue placeholder="Year" />
-            </SelectTrigger>
-            <SelectContent position="popper" side="bottom" className="max-h-[160px] overflow-y-auto w-fit min-w-[70px]">
-              {['2024', '2025', '2026'].map((y) => (
-                <SelectItem key={y} value={y} className="py-0.5 text-[13px]">{y}</SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
+      setHeaderRight(
+        <div className="flex flex-wrap items-center gap-3">
+          <Popover>
+            <PopoverTrigger asChild>
+              <Button
+                variant="outline"
+                className="flex items-center bg-white border border-gray-400 rounded-md px-4 py-2 h-auto shadow-[0_1px_2px_rgba(0,0,0,0.05)] hover:bg-gray-50"
+              >
+                <span className="text-sm font-semibold text-gray-700 mr-3">{format(parseISO(selectedDate), 'dd MMM, yyyy')}</span>
+                <Calendar className="w-4 h-4 text-gray-400" />
+              </Button>
+            </PopoverTrigger>
+            <PopoverContent className="w-auto p-0" align="end">
+              <CalendarComponent
+                mode="single"
+                selected={parseISO(selectedDate)}
+                onSelect={(value) => {
+                  if (value) {
+                    setIsNavigating(true);
+                    setTimeout(() => {
+                      setSelectedDate(format(value, 'yyyy-MM-dd'));
+                      setIsNavigating(false);
+                    }, 300);
+                  }
+                }}
+                autoFocus
+              />
+            </PopoverContent>
+          </Popover>
         </div>
-        <Button
-          className="flex items-center gap-2 bg-[#004D40] hover:bg-[#00382e] text-white rounded-md px-3 py-2 h-auto text-[12px] font-bold tracking-wide shadow-[0_1px_2px_rgba(0,45,35,0.2)]"
-          onClick={() => navigate('/production/new-entry')}
-        >
-          <Plus className="w-3 h-3" />
-          ADD NEW ENTRY
-        </Button>
-      </>
-    );
+      );
+    } else {
+      setShowBackButton(false);
+      setOnBackClick(undefined);
+
+      setHeaderRight(
+        <>
+          <div className="flex items-center gap-2">
+            <Popover>
+              <PopoverTrigger asChild>
+                <Button
+                  variant="outline"
+                  className="flex items-center bg-white border border-gray-400 rounded-md px-3 py-2 h-auto shadow-[0_1px_2px_rgba(0,0,0,0.05)] hover:bg-gray-50"
+                >
+                  <span className="text-sm font-semibold text-[#003140] mr-1.5">{format(filterDate, 'dd MMM, yyyy')}</span>
+                  <Calendar className="w-4 h-4 text-gray-700" />
+                </Button>
+              </PopoverTrigger>
+              <PopoverContent className="w-auto p-0" align="end">
+                <CalendarComponent
+                  mode="single"
+                  selected={filterDate}
+                  onSelect={(value) => value && setFilterDate(value)}
+                  autoFocus
+                />
+              </PopoverContent>
+            </Popover>
+          </div>
+          <Button
+            className="flex items-center gap-2 bg-[#004D40] hover:bg-[#00382e] text-white rounded-md px-3 py-2 h-auto text-[12px] font-bold tracking-wide shadow-[0_1px_2px_rgba(0,45,35,0.2)]"
+            onClick={() => navigate('/production/new-entry')}
+          >
+            <Plus className="w-3 h-3" />
+            ADD NEW ENTRY
+          </Button>
+        </>
+      );
+    }
+
     return () => {
       setHeaderRight(null);
+      setShowBackButton(false);
+      setOnBackClick(undefined);
     };
-  }, [setHeaderRight, setShowBackButton, navigate]);
+  }, [setHeaderRight, setShowBackButton, setOnBackClick, navigate, selectedDate, filterDate]);
 
   if (loadingDayWise) {
     return (
@@ -681,7 +731,7 @@ export function ProductionDesign2() {
               setIsNavigating(false);
             }, 300);
           }}
-          onEdit={(d) => navigate(`/production/new-entry?date=${d}`)}
+          onEdit={(d) => navigate(`/production/new-entry?date=${d}&from=details`)}
         />
       ) : (
         <div className="p-2 flex flex-col gap-2 flex-1">
@@ -830,42 +880,49 @@ export function ProductionDesign2() {
               <Table className="w-full">
                 <TableHeader>
                   <TableRow className="hover:bg-transparent border-b border-gray-300">
-                    <TableHead rowSpan={2} className="text-center font-bold text-gray-800 align-middle border-r border-gray-300 min-w-[120px] bg-white text-xs uppercase tracking-wider">Date</TableHead>
-                    <TableHead colSpan={4} className="text-[#0B5566] font-bold bg-[#D6EEF7] border-r border-gray-300 py-2 text-xs uppercase tracking-wider">
+                    <TableHead rowSpan={2} className="text-center font-bold text-gray-800 align-middle border-r border-gray-300 w-[95px] min-w-[95px] px-1.5 bg-white text-xs uppercase tracking-wider">Date</TableHead>
+                    <TableHead colSpan={3} className="w-[22%] text-[#0B5566] font-bold bg-[#D6EEF7] border-r border-gray-300 py-2 text-xs uppercase tracking-wider">
                       <span className="flex items-center justify-center gap-2 text-[13px] font-extrabold">
-                        <span className="bg-[#0B5566] text-white w-5 h-5 rounded-sm flex items-center justify-center text-[10px] font-bold">1</span>
+                        {/* <span className="bg-[#0B5566] text-white w-5 h-5 rounded-sm flex items-center justify-center text-[10px] font-bold">1</span> */}
                         EXTRUDER PRODUCTION (KG)
                       </span>
                     </TableHead>
-                    <TableHead colSpan={4} className="text-[#7A6A00] font-bold bg-[#FFF6BF] border-r border-gray-300 py-2 text-xs uppercase tracking-wider">
+                    <TableHead colSpan={3} className="w-[22%] text-[#7A6A00] font-bold bg-[#FFF6BF] border-r border-gray-300 py-2 text-xs uppercase tracking-wider">
                       <span className="flex items-center justify-center gap-2 text-[13px] font-extrabold">
-                        <span className="bg-[#7A6A00] text-white w-5 h-5 rounded-sm flex items-center justify-center text-[10px] font-bold">2</span>
+                        {/* <span className="bg-[#7A6A00] text-white w-5 h-5 rounded-sm flex items-center justify-center text-[10px] font-bold">2</span> */}
                         LOOMS PRODUCTION (KG)
                       </span>
                     </TableHead>
-                    <TableHead colSpan={4} className="text-[#2F6B2F] font-bold bg-[#DCEEDB] border-r border-gray-300 py-2 text-xs uppercase tracking-wider">
+                    <TableHead colSpan={3} className="w-[22%] text-[#2F6B2F] font-bold bg-[#DCEEDB] border-r border-gray-300 py-2 text-xs uppercase tracking-wider">
                       <span className="flex items-center justify-center gap-2 text-[13px] font-extrabold">
-                        <span className="bg-[#2F6B2F] text-white w-5 h-5 rounded-sm flex items-center justify-center text-[10px] font-bold">3</span>
+                        {/* <span className="bg-[#2F6B2F] text-white w-5 h-5 rounded-sm flex items-center justify-center text-[10px] font-bold">3</span> */}
                         FABRIC PRODUCTION (KG)
                       </span>
                     </TableHead>
-                    <TableHead rowSpan={2} className="text-center font-extrabold text-gray-800 align-middle border-gray-300 w-[120px] bg-white text-xs uppercase tracking-wider">Actions</TableHead>
+                    <TableHead colSpan={3} className="w-[22%] text-[#61401E] font-bold bg-[#f2caa0] border-r border-gray-300 py-2 text-xs uppercase tracking-wider">
+                      <span className="flex items-center justify-center gap-2 text-[13px] font-extrabold">
+                        {/* <span className="bg-[#61401E] text-white w-5 h-5 rounded-sm flex items-center justify-center text-[10px] font-bold">4</span> */}
+                        FABRIC DELIVERED (KG)
+                      </span>
+                    </TableHead>
+                    <TableHead rowSpan={2} className="text-center font-extrabold text-gray-800 align-middle border-gray-300 w-[90px] min-w-[90px] px-1 bg-white text-xs uppercase tracking-wider">Actions</TableHead>
                   </TableRow>
                   <TableRow className="hover:bg-transparent bg-white border-b border-gray-300">
                     {/* Extruder */}
                     <TableHead className="text-center text-gray-800 font-extrabold text-[12px] uppercase tracking-wider h-8">Input</TableHead>
                     <TableHead className="text-center text-gray-800 font-extrabold text-[12px] uppercase tracking-wider h-8">Wastage</TableHead>
-                    <TableHead className="text-center text-gray-800 font-extrabold text-[12px] uppercase tracking-wider h-8">Waste %</TableHead>
                     <TableHead className="text-center text-gray-800 font-extrabold text-[12px] uppercase tracking-wider border-r border-gray-300 h-8">Output</TableHead>
                     {/* Looms */}
                     <TableHead className="text-center text-gray-800 font-extrabold text-[12px] uppercase tracking-wider h-8">Input</TableHead>
                     <TableHead className="text-center text-gray-800 font-extrabold text-[12px] uppercase tracking-wider h-8">Wastage</TableHead>
-                    <TableHead className="text-center text-gray-800 font-extrabold text-[12px] uppercase tracking-wider h-8">Waste %</TableHead>
                     <TableHead className="text-center text-gray-800 font-extrabold text-[12px] uppercase tracking-wider border-r border-gray-300 h-8">Output</TableHead>
                     {/* Fabric */}
                     <TableHead className="text-center text-gray-800 font-extrabold text-[12px] uppercase tracking-wider h-8">Input</TableHead>
                     <TableHead className="text-center text-gray-800 font-extrabold text-[12px] uppercase tracking-wider h-8">Wastage</TableHead>
-                    <TableHead className="text-center text-gray-800 font-extrabold text-[12px] uppercase tracking-wider h-8">Waste %</TableHead>
+                    <TableHead className="text-center text-gray-800 font-extrabold text-[12px] uppercase tracking-wider border-r border-gray-300 h-8">Output</TableHead>
+                    {/* Fabric Delivered */}
+                    <TableHead className="text-center text-gray-800 font-extrabold text-[12px] uppercase tracking-wider h-8">size</TableHead>
+                    <TableHead className="text-center text-gray-800 font-extrabold text-[12px] uppercase tracking-wider h-8">color</TableHead>
                     <TableHead className="text-center text-gray-800 font-extrabold text-[12px] uppercase tracking-wider border-r border-gray-300 h-8">Output</TableHead>
                   </TableRow>
                 </TableHeader>
@@ -886,7 +943,7 @@ export function ProductionDesign2() {
                     pagedRows.map((row) => (
                       <TableRow key={row.date} className="border-b border-gray-300 hover:bg-gray-50 transition-colors group">
                         <TableCell
-                          className="text-center font-bold text-[#004D40] border-r border-gray-300 text-[14px] py-1 cursor-pointer hover:underline"
+                          className="text-center font-bold text-[#004D40] border-r border-gray-300 text-[14px] py-1 cursor-pointer hover:underline px-4"
                           onClick={() => {
                             setIsNavigating(true);
                             setTimeout(() => {
@@ -901,20 +958,22 @@ export function ProductionDesign2() {
                         {/* Extruder */}
                         <TableCell className="text-center text-gray-800 font-medium text-[14px] py-1">{formatNum(row.extruder.input)}</TableCell>
                         <TableCell className="text-center text-gray-800 font-medium text-[14px] py-1">{formatNum(row.extruder.wastage)}</TableCell>
-                        <TableCell className="text-center text-gray-800 font-medium text-[14px] py-1">{row.extruder.wastePct.toFixed(2)}%</TableCell>
                         <TableCell className="text-center text-gray-800 font-medium text-[14px] py-1 border-r border-gray-300">{formatNum(row.extruder.output)}</TableCell>
 
                         {/* Looms */}
                         <TableCell className="text-center text-gray-800 font-medium text-[14px] py-1">{formatNum(row.looms.input)}</TableCell>
                         <TableCell className="text-center text-gray-800 font-medium text-[14px] py-1">{formatNum(row.looms.wastage)}</TableCell>
-                        <TableCell className="text-center text-gray-800 font-medium text-[14px] py-1">{row.looms.wastePct.toFixed(2)}%</TableCell>
                         <TableCell className="text-center text-gray-800 font-medium text-[14px] py-1 border-r border-gray-300">{formatNum(row.looms.output)}</TableCell>
 
                         {/* Fabric */}
                         <TableCell className="text-center text-gray-800 font-medium text-[14px] py-1">{formatNum(row.fabric.input)}</TableCell>
                         <TableCell className="text-center text-gray-800 font-medium text-[14px] py-1">{formatNum(row.fabric.wastage)}</TableCell>
-                        <TableCell className="text-center text-gray-800 font-medium text-[14px] py-1">{row.fabric.wastePct.toFixed(2)}%</TableCell>
                         <TableCell className="text-center text-gray-800 font-medium text-[14px] py-1 border-r border-gray-300">{formatNum(row.fabric.output)}</TableCell>
+
+                        {/* Fabric Delivered */}
+                        <TableCell className="text-center text-gray-800 font-medium text-[14px] py-1">0.00</TableCell>
+                        <TableCell className="text-center text-gray-800 font-medium text-[14px] py-1">0.00</TableCell>
+                        <TableCell className="text-center text-gray-800 font-medium text-[14px] py-1 border-r border-gray-300">0.00</TableCell>
 
                         {/* Actions */}
                         <TableCell className="py-1">
@@ -943,22 +1002,23 @@ export function ProductionDesign2() {
 
                   {!loadingDayWise && dayWiseRows.length > 0 && (
                     <TableRow className="bg-white font-bold hover:bg-white border-t-2 border-gray-400">
-                      <TableCell className="text-center border-r border-gray-400 text-gray-900 text-[14px] py-1">TOTAL</TableCell>
+                      <TableCell className="text-center border-r border-gray-400 text-gray-900 text-[14px] py-1 px-1.5">TOTAL</TableCell>
                       {/* Extruder Total */}
                       <TableCell className="text-center text-[#00897B] text-[14px]">{formatNum(dayWiseTotals.extruder.input)}</TableCell>
                       <TableCell className="text-center text-[#00897B] text-[14px]">{formatNum(dayWiseTotals.extruder.wastage)}</TableCell>
-                      <TableCell className="text-center text-[#00897B] text-[14px]">{dayWiseTotals.extruder.wastePct.toFixed(2)}%</TableCell>
                       <TableCell className="text-center text-[#00897B] text-[14px] border-r border-gray-400">{formatNum(dayWiseTotals.extruder.output)}</TableCell>
                       {/* Looms Total */}
                       <TableCell className="text-center text-[#00897B] text-[14px]">{formatNum(dayWiseTotals.looms.input)}</TableCell>
                       <TableCell className="text-center text-[#00897B] text-[14px]">{formatNum(dayWiseTotals.looms.wastage)}</TableCell>
-                      <TableCell className="text-center text-[#00897B] text-[14px]">{dayWiseTotals.looms.wastePct.toFixed(2)}%</TableCell>
                       <TableCell className="text-center text-[#00897B] text-[14px] border-r border-gray-400">{formatNum(dayWiseTotals.looms.output)}</TableCell>
                       {/* Fabric Total */}
                       <TableCell className="text-center text-[#00897B] text-[14px]">{formatNum(dayWiseTotals.fabric.input)}</TableCell>
                       <TableCell className="text-center text-[#00897B] text-[14px]">{formatNum(dayWiseTotals.fabric.wastage)}</TableCell>
-                      <TableCell className="text-center text-[#00897B] text-[14px]">{dayWiseTotals.fabric.wastePct.toFixed(2)}%</TableCell>
                       <TableCell className="text-center text-[#00897B] text-[14px] border-r border-gray-400">{formatNum(dayWiseTotals.fabric.output)}</TableCell>
+                      {/* Fabric Delivered Total */}
+                      <TableCell className="text-center text-[#00897B] text-[14px]">0.00</TableCell>
+                      <TableCell className="text-center text-[#00897B] text-[14px]">0.00</TableCell>
+                      <TableCell className="text-center text-[#00897B] text-[14px] border-r border-gray-400">0.00</TableCell>
                       <TableCell></TableCell>
                     </TableRow>
                   )}
