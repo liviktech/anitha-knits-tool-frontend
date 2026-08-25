@@ -1,12 +1,13 @@
 import { useEffect, useRef, useState } from 'react';
 import { format, parseISO } from 'date-fns';
-import { Calendar as CalendarIcon, ChevronUp, ChevronDown } from 'lucide-react';
+import { Calendar as CalendarIcon, ChevronUp, ChevronDown, Plus } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Calendar } from '@/components/ui/calendar';
 import { Loader } from '@/components/shared/loader';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { ExtruderSection, LoomSection, FabricSection, FabricDeliveredSection } from './day-entry-sections';
+import { ExtruderSection, LoomSection, FabricSection, FabricDeliveredSection, themes, type Theme } from './day-entry-sections';
+import { TabAddModal } from './tab-add-modal';
 import type { SectionRef } from './day-entry-sections';
 import { useExtruderProductions, useLookups } from '@/features/extruder/extruder-queries';
 import { useInventoryRecords } from '@/features/inventory/inventory-queries';
@@ -32,6 +33,9 @@ export function NewEntry({ onClose, defaultDate, readOnly = false }: NewEntryPro
   const productionDate = format(date, 'yyyy-MM-dd');
   const [submitting, setSubmitting] = useState(false);
   const [isInventoryMinimized, setIsInventoryMinimized] = useState(false);
+  
+  const [activeTab, setActiveTab] = useState<string>('extruder');
+  const [isAddModalOpen, setIsAddModalOpen] = useState(false);
 
   const { data: lookupsData } = useLookups();
   const lookups = lookupsData ?? { brands: [], colors: [], chemicals: [], sizes: [] };
@@ -211,13 +215,28 @@ export function NewEntry({ onClose, defaultDate, readOnly = false }: NewEntryPro
 
         {/* Forms Container */}
         <div className="flex flex-col gap-2.5">
-          <Tabs defaultValue="extruder" className="w-full flex-col gap-0">
-            <TabsList variant="folder" className="flex w-full overflow-x-auto sm:overflow-visible">
-              <TabsTrigger value="extruder" className="data-[state=active]:!bg-[#D6EEF7] data-[state=active]:!text-[#0B5566] data-[state=active]:!border-b-[#D6EEF7]">EXTRUDER PRODUCTION</TabsTrigger>
-              <TabsTrigger value="looms" className="data-[state=active]:!bg-[#FFF6BF] data-[state=active]:!text-[#7A6A00] data-[state=active]:!border-b-[#FFF6BF]">LOOMS PRODUCTION</TabsTrigger>
-              <TabsTrigger value="fabric" className="data-[state=active]:!bg-[#DCEEDB] data-[state=active]:!text-[#2F6B2F] data-[state=active]:!border-b-[#DCEEDB]">FABRIC CHECKING</TabsTrigger>
-              <TabsTrigger value="delivered" className="data-[state=active]:!bg-[#f2caa0] data-[state=active]:!text-[#61401E] data-[state=active]:!border-b-[#f2caa0]">FABRIC DELIVERED</TabsTrigger>
-            </TabsList>
+          <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full flex-col gap-0">
+            <div className="flex justify-between items-end border-b border-gray-200">
+              <TabsList variant="folder" className="flex overflow-x-auto sm:overflow-visible">
+                <TabsTrigger value="extruder" className="data-[state=active]:!bg-[#D6EEF7] data-[state=active]:!text-[#0B5566] data-[state=active]:!border-b-[#D6EEF7]">EXTRUDER PRODUCTION</TabsTrigger>
+                <TabsTrigger value="looms" className="data-[state=active]:!bg-[#FFF6BF] data-[state=active]:!text-[#7A6A00] data-[state=active]:!border-b-[#FFF6BF]">LOOMS PRODUCTION</TabsTrigger>
+                <TabsTrigger value="fabric" className="data-[state=active]:!bg-[#DCEEDB] data-[state=active]:!text-[#2F6B2F] data-[state=active]:!border-b-[#DCEEDB]">FABRIC CHECKING</TabsTrigger>
+                <TabsTrigger value="delivered" className="data-[state=active]:!bg-[#f2caa0] data-[state=active]:!text-[#61401E] data-[state=active]:!border-b-[#f2caa0]">FABRIC DELIVERED</TabsTrigger>
+              </TabsList>
+              
+              {!readOnly && activeTab === 'extruder' && (
+                <div className="mb-2 mr-2 z-10">
+                  <Button 
+                    size="sm" 
+                    className={`h-8 gap-1.5 shadow-sm hover:opacity-90 ${themes.extruder.iconBg} ${themes.extruder.iconColor}`}
+                    onClick={() => setIsAddModalOpen(true)}
+                  >
+                    <Plus className="h-4 w-4" /> 
+                    Add Entry
+                  </Button>
+                </div>
+              )}
+            </div>
 
             <TabsContent value="extruder" className="flex flex-col gap-4 mt-0 pt-0">
               <ExtruderSection
@@ -244,25 +263,25 @@ export function NewEntry({ onClose, defaultDate, readOnly = false }: NewEntryPro
           </Tabs>
         </div>
 
-        {/* Footer */}
         <div className="mt-4 mb-8 flex justify-end">
           <div className="flex items-center gap-3">
             <Button variant="outline" onClick={onClose} className="border-gray-300 text-gray-700 bg-white" disabled={submitting}>
               Close
             </Button>
             {!readOnly && (
-              <Button
-                className="bg-[#004D40] text-white hover:bg-[#00382e] font-semibold shadow-sm px-6"
-                onClick={handleSaveAll}
-                disabled={submitting}
-              >
-                {submitting && <Loader size="sm" className="mr-2" />}
-                Save
+              <Button onClick={handleSaveAll} className="bg-[#004D40] hover:bg-[#00332A] text-white" disabled={submitting}>
+                {submitting ? 'Saving All...' : 'Save Drafts'}
               </Button>
             )}
           </div>
         </div>
       </div>
+
+      <TabAddModal 
+        isOpen={isAddModalOpen} 
+        onClose={() => setIsAddModalOpen(false)} 
+        activeTab={activeTab} 
+      />
     </div>
   );
 }

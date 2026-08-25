@@ -27,12 +27,8 @@ export interface ExtruderBrandDraft {
   brand: string;
   bags: string;
   weightPerBag: string;
+  looseWeight: string;
   raw: string;
-  chemical: string;
-  chemicalKg: string;
-  colorConsumedKg: string;
-  lumpsKg: string;
-  yarnWasteKg: string;
 }
 
 export interface ExtruderGroupDraft {
@@ -40,6 +36,10 @@ export interface ExtruderGroupDraft {
   size: string;
   color: string;
   output: string;
+  chemical: string;
+  chemicalKg: string;
+  lumpsKg: string;
+  yarnWasteKg: string;
   brands: ExtruderBrandDraft[];
 }
 
@@ -48,12 +48,8 @@ const emptyBrandDraft = (): ExtruderBrandDraft => ({
   brand: '',
   bags: '',
   weightPerBag: '',
+  looseWeight: '',
   raw: '',
-  chemical: '',
-  chemicalKg: '',
-  colorConsumedKg: '',
-  lumpsKg: '',
-  yarnWasteKg: '',
 });
 
 const emptyGroupDraft = (): ExtruderGroupDraft => ({
@@ -61,6 +57,10 @@ const emptyGroupDraft = (): ExtruderGroupDraft => ({
   size: '',
   color: '',
   output: '',
+  chemical: '',
+  chemicalKg: '',
+  lumpsKg: '',
+  yarnWasteKg: '',
   brands: [emptyBrandDraft()],
 });
 
@@ -107,6 +107,10 @@ export const ExtruderSection = forwardRef<SectionRef, SectionProps>(({ productio
           size: sizeName,
           color: colorName,
           output: '0',
+          chemical: '',
+          chemicalKg: '0',
+          lumpsKg: '0',
+          yarnWasteKg: '0',
           brands: []
         });
       }
@@ -116,6 +120,13 @@ export const ExtruderSection = forwardRef<SectionRef, SectionProps>(({ productio
       const currentOutput = parseFloat(group.output) || 0;
       group.output = (currentOutput + item.extruder.yarnOutputKg).toString();
 
+      if (!group.chemical && item.extruder?.chemical?.name) {
+        group.chemical = item.extruder.chemical.name;
+      }
+      group.chemicalKg = ((parseFloat(group.chemicalKg) || 0) + (item.extruder?.chemicalKg || 0)).toString();
+      group.lumpsKg = ((parseFloat(group.lumpsKg) || 0) + sumWastageByCode(item.wastages, 'LUMPS')).toString();
+      group.yarnWasteKg = ((parseFloat(group.yarnWasteKg) || 0) + sumWastageByCode(item.wastages, 'YARN_WASTE')).toString();
+
       group.brands.push({
         key: item.id,
         id: item.id,
@@ -123,11 +134,6 @@ export const ExtruderSection = forwardRef<SectionRef, SectionProps>(({ productio
         bags: '', // Not tracked by API yet
         weightPerBag: '', // Not tracked by API yet
         raw: item.extruder?.rawMaterialKg?.toString() ?? '0',
-        chemical: item.extruder?.chemical?.name ?? '',
-        chemicalKg: item.extruder?.chemicalKg?.toString() ?? '0',
-        colorConsumedKg: item.extruder?.colorConsumedKg?.toString() ?? '0',
-        lumpsKg: sumWastageByCode(item.wastages, 'LUMPS').toString(),
-        yarnWasteKg: sumWastageByCode(item.wastages, 'YARN_WASTE').toString(),
       });
     });
 
@@ -152,11 +158,16 @@ export const ExtruderSection = forwardRef<SectionRef, SectionProps>(({ productio
         brands: g.brands.map((b) => {
           if (b.key !== brandKey) return b;
           const updated = { ...b, [field]: value };
-          if (field === 'bags' || field === 'weightPerBag') {
+          if (field === 'bags' || field === 'weightPerBag' || field === 'looseWeight') {
             const bags = parseFloat(updated.bags) || 0;
             const wpb = parseFloat(updated.weightPerBag) || 0;
+            const lw = parseFloat(updated.looseWeight) || 0;
             if (bags > 0 && wpb > 0) {
-              updated.raw = (bags * wpb).toFixed(2);
+              updated.raw = (bags * wpb + lw).toFixed(2);
+            } else if (lw > 0) {
+              updated.raw = lw.toFixed(2);
+            } else {
+              updated.raw = '';
             }
           }
           return updated;
@@ -179,6 +190,10 @@ export const ExtruderSection = forwardRef<SectionRef, SectionProps>(({ productio
       if (g.brands.length === 1) return g;
       return { ...g, brands: g.brands.filter((b) => b.key !== brandKey) };
     }));
+  };
+
+  const removeGroup = (groupKey: string) => {
+    setNewGroups((groups) => groups.filter((g) => g.key !== groupKey));
   };
 
   const startEditGroup = (group: ExtruderGroupDraft) => {
@@ -245,17 +260,15 @@ export const ExtruderSection = forwardRef<SectionRef, SectionProps>(({ productio
                 )}
               </TableCell>
             )}
-            {idx === 0 && (
-              <TableCell rowSpan={group.brands.length} className={`align-top border-r border-gray-200 ${isEditable ? 'bg-green-50/30' : ''}`}>
-                {isEditable && stateSetter ? (
-                  <Input type="number" className="h-9 text-center bg-transparent border-green-200 font-semibold text-green-700" placeholder="Yarn Prod." value={group.output} onChange={(e) => updateGroupField(stateSetter, group.key, 'output', e.target.value)} />
-                ) : (
-                  <span className="font-semibold text-green-700 block text-center">{parseFloat(group.output) > 0 ? parseFloat(group.output).toFixed(2) : '-'}</span>
-                )}
-              </TableCell>
-            )}
-
             {/* Brand Row Inputs */}
+            <TableCell>
+              {isEditable && stateSetter ? (
+                <Input type="number" className="h-9 text-center w-16" value={brandRow.bags} onChange={(e) => updateBrandField(stateSetter, group.key, brandRow.key, 'bags', e.target.value)} />
+              ) : (
+                <span className="block text-center">{brandRow.bags || '-'}</span>
+              )}
+            </TableCell>
+
             <TableCell className="w-32">
               {isEditable && stateSetter ? (
                 <Select value={brandRow.brand} onValueChange={(v) => updateBrandField(stateSetter, group.key, brandRow.key, 'brand', v)}>
@@ -269,17 +282,17 @@ export const ExtruderSection = forwardRef<SectionRef, SectionProps>(({ productio
 
             <TableCell>
               {isEditable && stateSetter ? (
-                <Input type="number" className="h-9 text-center w-16" value={brandRow.bags} onChange={(e) => updateBrandField(stateSetter, group.key, brandRow.key, 'bags', e.target.value)} />
+                <Input type="number" className="h-9 text-center w-16" value={brandRow.weightPerBag} onChange={(e) => updateBrandField(stateSetter, group.key, brandRow.key, 'weightPerBag', e.target.value)} />
               ) : (
-                <span className="block text-center">{brandRow.bags || '-'}</span>
+                <span className="block text-center">{brandRow.weightPerBag || '-'}</span>
               )}
             </TableCell>
 
             <TableCell>
               {isEditable && stateSetter ? (
-                <Input type="number" className="h-9 text-center w-16" value={brandRow.weightPerBag} onChange={(e) => updateBrandField(stateSetter, group.key, brandRow.key, 'weightPerBag', e.target.value)} />
+                <Input type="number" className="h-9 text-center w-16" value={brandRow.looseWeight} onChange={(e) => updateBrandField(stateSetter, group.key, brandRow.key, 'looseWeight', e.target.value)} />
               ) : (
-                <span className="block text-center">{brandRow.weightPerBag || '-'}</span>
+                <span className="block text-center">{brandRow.looseWeight || '-'}</span>
               )}
             </TableCell>
 
@@ -291,50 +304,62 @@ export const ExtruderSection = forwardRef<SectionRef, SectionProps>(({ productio
               )}
             </TableCell>
 
-            <TableCell>
-              {isEditable && stateSetter ? (
-                <Select value={brandRow.chemical} onValueChange={(v) => updateBrandField(stateSetter, group.key, brandRow.key, 'chemical', v)}>
-                  <SelectTrigger className="h-9"><SelectValue placeholder="Chem" /></SelectTrigger>
-                  <SelectContent>{lookups.chemicals.map((c) => <SelectItem key={c.id} value={c.name}>{c.name}</SelectItem>)}</SelectContent>
-                </Select>
-              ) : (
-                <span>{brandRow.chemical}</span>
-              )}
-            </TableCell>
+            {/* Chemicals */}
+            {idx === 0 && (
+              <TableCell rowSpan={group.brands.length} className="align-top border-r border-gray-200">
+                {isEditable && stateSetter ? (
+                  <Select value={group.chemical} onValueChange={(v) => updateGroupField(stateSetter, group.key, 'chemical', v)}>
+                    <SelectTrigger className="h-9"><SelectValue placeholder="Chem" /></SelectTrigger>
+                    <SelectContent>{lookups.chemicals.map((c) => <SelectItem key={c.id} value={c.name}>{c.name}</SelectItem>)}</SelectContent>
+                  </Select>
+                ) : (
+                  <span>{group.chemical}</span>
+                )}
+              </TableCell>
+            )}
+            {idx === 0 && (
+              <TableCell rowSpan={group.brands.length} className="align-top border-r border-gray-200">
+                {isEditable && stateSetter ? (
+                  <Input type="number" className="h-9 text-center w-16" value={group.chemicalKg} onChange={(e) => updateGroupField(stateSetter, group.key, 'chemicalKg', e.target.value)} />
+                ) : (
+                  <span className="block text-center">{parseFloat(group.chemicalKg) > 0 ? parseFloat(group.chemicalKg).toFixed(2) : '-'}</span>
+                )}
+              </TableCell>
+            )}
 
-            <TableCell>
-              {isEditable && stateSetter ? (
-                <Input type="number" className="h-9 text-center w-16" value={brandRow.chemicalKg} onChange={(e) => updateBrandField(stateSetter, group.key, brandRow.key, 'chemicalKg', e.target.value)} />
-              ) : (
-                <span className="block text-center">{parseFloat(brandRow.chemicalKg) > 0 ? parseFloat(brandRow.chemicalKg).toFixed(2) : '-'}</span>
-              )}
-            </TableCell>
+            {/* Waste */}
+            {idx === 0 && (
+              <TableCell rowSpan={group.brands.length} className={`align-top border-r border-gray-200 ${isEditable ? "bg-yellow-50/30" : ""}`}>
+                {isEditable && stateSetter ? (
+                  <Input type="number" className="h-9 text-center w-16 bg-transparent border-yellow-200" value={group.lumpsKg} onChange={(e) => updateGroupField(stateSetter, group.key, 'lumpsKg', e.target.value)} />
+                ) : (
+                  <span className="block text-center text-yellow-700">{parseFloat(group.lumpsKg) > 0 ? parseFloat(group.lumpsKg).toFixed(2) : '-'}</span>
+                )}
+              </TableCell>
+            )}
+            {idx === 0 && (
+              <TableCell rowSpan={group.brands.length} className={`align-top border-r border-gray-200 ${isEditable ? "bg-yellow-50/30" : ""}`}>
+                {isEditable && stateSetter ? (
+                  <Input type="number" className="h-9 text-center w-16 bg-transparent border-yellow-200" value={group.yarnWasteKg} onChange={(e) => updateGroupField(stateSetter, group.key, 'yarnWasteKg', e.target.value)} />
+                ) : (
+                  <span className="block text-center text-yellow-700">{parseFloat(group.yarnWasteKg) > 0 ? parseFloat(group.yarnWasteKg).toFixed(2) : '-'}</span>
+                )}
+              </TableCell>
+            )}
 
-            <TableCell className="border-r border-gray-200">
-              {isEditable && stateSetter ? (
-                <Input type="number" className="h-9 text-center w-16" value={brandRow.colorConsumedKg} onChange={(e) => updateBrandField(stateSetter, group.key, brandRow.key, 'colorConsumedKg', e.target.value)} />
-              ) : (
-                <span className="block text-center">{parseFloat(brandRow.colorConsumedKg) > 0 ? parseFloat(brandRow.colorConsumedKg).toFixed(2) : '-'}</span>
-              )}
-            </TableCell>
+            {/* Yarn Output */}
+            {idx === 0 && (
+              <TableCell rowSpan={group.brands.length} className={`align-top border-r border-gray-200 ${isEditable ? 'bg-green-50/30' : ''}`}>
+                {isEditable && stateSetter ? (
+                  <Input type="number" className="h-9 text-center w-16 bg-transparent border-green-200 font-semibold text-green-700" placeholder="Yarn Prod." value={group.output} onChange={(e) => updateGroupField(stateSetter, group.key, 'output', e.target.value)} />
+                ) : (
+                  <span className="font-semibold text-green-700 block text-center">{parseFloat(group.output) > 0 ? parseFloat(group.output).toFixed(2) : '-'}</span>
+                )}
+              </TableCell>
+            )}
 
-            <TableCell className={isEditable ? "bg-yellow-50/30" : ""}>
-              {isEditable && stateSetter ? (
-                <Input type="number" className="h-9 text-center w-16 bg-transparent border-yellow-200" value={brandRow.lumpsKg} onChange={(e) => updateBrandField(stateSetter, group.key, brandRow.key, 'lumpsKg', e.target.value)} />
-              ) : (
-                <span className="block text-center text-yellow-700">{parseFloat(brandRow.lumpsKg) > 0 ? parseFloat(brandRow.lumpsKg).toFixed(2) : '-'}</span>
-              )}
-            </TableCell>
-
-            <TableCell className={`border-r border-gray-200 ${isEditable ? "bg-yellow-50/30" : ""}`}>
-              {isEditable && stateSetter ? (
-                <Input type="number" className="h-9 text-center w-16 bg-transparent border-yellow-200" value={brandRow.yarnWasteKg} onChange={(e) => updateBrandField(stateSetter, group.key, brandRow.key, 'yarnWasteKg', e.target.value)} />
-              ) : (
-                <span className="block text-center text-yellow-700">{parseFloat(brandRow.yarnWasteKg) > 0 ? parseFloat(brandRow.yarnWasteKg).toFixed(2) : '-'}</span>
-              )}
-            </TableCell>
-
-            <TableCell className="text-center align-top">
+            {/* Action */}
+            <TableCell className="text-center align-top border-l border-gray-200">
               {isEditable && stateSetter ? (
                 <div className="flex items-center justify-center gap-1">
                   {idx === group.brands.length - 1 && (
@@ -396,8 +421,8 @@ export const ExtruderSection = forwardRef<SectionRef, SectionProps>(({ productio
               <TableHead rowSpan={2} className={`align-middle text-xs font-semibold uppercase tracking-wide ${theme.headerText} border-r border-black/10`}>Size</TableHead>
               <TableHead rowSpan={2} className={`align-middle w-32 min-w-32 text-center text-xs font-semibold uppercase tracking-wide ${theme.headerText} border-r border-black/10`}>Color</TableHead>
 
-              <TableHead colSpan={4} className={`text-center text-xs font-semibold uppercase tracking-wide ${theme.headerText} border-b border-r border-black/10`}>HDPE Material</TableHead>
-              <TableHead colSpan={3} className={`text-center text-xs font-semibold uppercase tracking-wide ${theme.headerText} border-b border-r border-black/10`}>Chemicals</TableHead>
+              <TableHead colSpan={5} className={`text-center text-xs font-semibold uppercase tracking-wide ${theme.headerText} border-b border-r border-black/10`}>HDPE Material</TableHead>
+              <TableHead colSpan={2} className={`text-center text-xs font-semibold uppercase tracking-wide ${theme.headerText} border-b border-r border-black/10`}>Chemicals</TableHead>
               <TableHead colSpan={2} className={`text-center text-xs font-semibold uppercase tracking-wide ${theme.headerText} border-b border-black/10`}>Waste (kg)</TableHead>
               <TableHead rowSpan={2} className={`align-middle text-center text-xs font-semibold uppercase tracking-wide ${theme.headerText} border-r border-black/10`}>Yarn Output (kg)</TableHead>
               {!readOnly && <TableHead rowSpan={2} className={`align-middle text-center text-xs font-semibold uppercase tracking-wide ${theme.headerText}`}>Action</TableHead>}
@@ -405,11 +430,11 @@ export const ExtruderSection = forwardRef<SectionRef, SectionProps>(({ productio
             <TableRow className="hover:!bg-transparent border-b-0">
               <TableHead className={`text-center text-xs font-semibold uppercase tracking-wide ${theme.headerText}`}>Bag</TableHead>
               <TableHead className={`w-32 min-w-32 text-center text-xs font-semibold uppercase tracking-wide ${theme.headerText}`}>Brand</TableHead>
-              <TableHead className={`text-center text-xs font-semibold uppercase tracking-wide ${theme.headerText}`}>Wt / Bag</TableHead>
+              <TableHead className={`text-center text-xs font-semibold uppercase tracking-wide ${theme.headerText}`}>Bag Weight</TableHead>
+              <TableHead className={`text-center text-xs font-semibold uppercase tracking-wide ${theme.headerText}`}>Loose Wt</TableHead>
               <TableHead className={`text-center text-xs font-semibold uppercase tracking-wide ${theme.headerText} border-r border-black/10`}>Total (kg)</TableHead>
               <TableHead className={`text-xs font-semibold uppercase tracking-wide ${theme.headerText}`}>Chemical</TableHead>
-              <TableHead className={`text-center text-xs font-semibold uppercase tracking-wide ${theme.headerText}`}>Chem Wt</TableHead>
-              <TableHead className={`text-center text-xs font-semibold uppercase tracking-wide ${theme.headerText} border-r border-black/10`}>Col Cons</TableHead>
+              <TableHead className={`text-center text-xs font-semibold uppercase tracking-wide ${theme.headerText} border-r border-black/10`}>Chem Wt</TableHead>
               <TableHead className={`text-center text-xs font-semibold uppercase tracking-wide ${theme.headerText}`}>Lumps</TableHead>
               <TableHead className={`text-center text-xs font-semibold uppercase tracking-wide ${theme.headerText} border-r border-black/10`}>Looms Waste</TableHead>
             </TableRow>
@@ -437,6 +462,7 @@ export const ExtruderSection = forwardRef<SectionRef, SectionProps>(({ productio
                 {newGroups.length === 0 && existingGroups.length === 0 && (
                   <TableRow>
                     <TableCell colSpan={14} className="h-20 text-center text-gray-500">No entries yet.</TableCell>
+
                   </TableRow>
                 )}
               </>
