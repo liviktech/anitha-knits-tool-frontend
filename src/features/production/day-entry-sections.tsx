@@ -238,7 +238,6 @@ export interface LoomRow {
   id: string;
   size: string;
   color: string;
-  kora: string;
   input: number;
   output: number;
   loomsWasteKg: number;
@@ -258,7 +257,6 @@ export function mapLoomItem(item: LoomsProductionItem): LoomRow {
 interface LoomDraft {
   size: string;
   color: string;
-  kora: string;
   input: string;
   output: string;
   loomsWasteKg: string;
@@ -364,7 +362,6 @@ export const LoomSection = forwardRef<SectionRef, SectionProps>(({ productionDat
     setEditDraft({
       size: row.size,
       color: row.color,
-      kora: row.kora,
       input: String(row.input),
       output: String(row.output),
       loomsWasteKg: String(row.loomsWasteKg),
@@ -535,7 +532,6 @@ export const LoomSection = forwardRef<SectionRef, SectionProps>(({ productionDat
             <TableRow className="hover:!bg-transparent border-b-0">
               <TableHead className={`text-xs font-semibold uppercase tracking-wide ${theme.headerText}`}>Size</TableHead>
               <TableHead className={`w-37.5 min-w-37.5 text-center text-xs font-semibold uppercase tracking-wide ${theme.headerText}`}>Color</TableHead>
-              <TableHead className={	ext-center text-xs font-semibold uppercase tracking-wide ${theme.headerText}}>Kora</TableHead>
               <TableHead className={`text-center text-xs font-semibold uppercase tracking-wide ${theme.headerText}`}>Loom Production (kg)</TableHead>
               <TableHead className={`text-center text-xs font-semibold uppercase tracking-wide ${theme.headerText}`}>Looms/Yarn Waste</TableHead>
               <TableHead className={`text-center text-xs font-semibold uppercase tracking-wide ${theme.headerText}`}>Fabric production (kg)</TableHead>
@@ -575,8 +571,7 @@ export const LoomSection = forwardRef<SectionRef, SectionProps>(({ productionDat
                           </SelectContent>
                         </Select>
                       </TableCell>
-                      <TableCell><Input type="text" className="h-10 w-full text-center" value={row.draft.kora} onChange={(e) => updateNewRow(row.key, { ...row.draft, kora: e.target.value })} /></TableCell>
-                      <TableCell>
+                                            <TableCell>
                         <Input
                           type="number"
                           className="h-10 w-full text-center"
@@ -628,8 +623,7 @@ export const LoomSection = forwardRef<SectionRef, SectionProps>(({ productionDat
                         </SelectContent>
                       </Select>
                     </TableCell>
-                    <TableCell><Input type="text" className="h-10 w-full text-center" value={editDraft.kora} onChange={(e) => setEditDraft({ ...editDraft, kora: e.target.value })} /></TableCell>
-                    <TableCell><Input type="number" className="h-10 w-full text-center" value={editDraft.input} onChange={(e) => setEditDraft({ ...editDraft, input: e.target.value })} /></TableCell>
+                                        <TableCell><Input type="number" className="h-10 w-full text-center" value={editDraft.input} onChange={(e) => setEditDraft({ ...editDraft, input: e.target.value })} /></TableCell>
                     <TableCell><Input type="number" className="h-10 w-full text-center" value={editDraft.loomsWasteKg} onChange={(e) => setEditDraft({ ...editDraft, loomsWasteKg: e.target.value })} /></TableCell>
                     <TableCell><Input type="number" className="h-10 w-full text-center" value={editDraft.output} onChange={(e) => setEditDraft({ ...editDraft, output: e.target.value })} /></TableCell>
                     <TableCell className="text-center">
@@ -856,7 +850,6 @@ export const FabricSection = forwardRef<SectionRef, SectionProps>(({ productionD
     setEditDraft({
       size: row.size,
       color: row.color,
-      kora: row.kora,
       input: String(row.input),
       output: String(row.output),
       fwKg: String(row.fwKg),
@@ -1022,7 +1015,7 @@ export const FabricSection = forwardRef<SectionRef, SectionProps>(({ productionD
             <TableRow className="hover:!bg-transparent border-b-0">
               <TableHead className={`text-xs font-semibold uppercase tracking-wide ${theme.headerText}`}>Size</TableHead>
               <TableHead className={`w-37.5 min-w-37.5 text-center text-xs font-semibold uppercase tracking-wide ${theme.headerText}`}>Color</TableHead>
-              <TableHead className={	ext-center text-xs font-semibold uppercase tracking-wide ${theme.headerText}}>Kora</TableHead>
+              <TableHead className={`text-center text-xs font-semibold uppercase tracking-wide ${theme.headerText}`}>Kora</TableHead>
               <TableHead className={`text-center text-xs font-semibold uppercase tracking-wide ${theme.headerText}`}>Fabric Production (kg)</TableHead>
               <TableHead className={`text-center text-xs font-semibold uppercase tracking-wide ${theme.headerText}`}>Fabric Waste</TableHead>
               <TableHead className={`text-center text-xs font-semibold uppercase tracking-wide ${theme.headerText}`}>Bit Waste</TableHead>
@@ -1063,8 +1056,7 @@ export const FabricSection = forwardRef<SectionRef, SectionProps>(({ productionD
                           </SelectContent>
                         </Select>
                       </TableCell>
-                      <TableCell><Input type="text" className="h-10 w-full text-center" value={row.draft.kora} onChange={(e) => updateNewRow(row.key, { ...row.draft, kora: e.target.value })} /></TableCell>
-                      <TableCell>
+                                            <TableCell>
                         <Input
                           type="number"
                           className="h-10 w-full text-center"
@@ -1110,8 +1102,7 @@ export const FabricSection = forwardRef<SectionRef, SectionProps>(({ productionD
                         </SelectContent>
                       </Select>
                     </TableCell>
-                    <TableCell><Input type="text" className="h-10 w-full text-center" value={editDraft.kora} onChange={(e) => setEditDraft({ ...editDraft, kora: e.target.value })} /></TableCell>
-                    <TableCell><Input type="number" className="h-10 w-full text-center" value={editDraft.input} onChange={(e) => setEditDraft({ ...editDraft, input: e.target.value })} /></TableCell>
+                                        <TableCell><Input type="number" className="h-10 w-full text-center" value={editDraft.input} onChange={(e) => setEditDraft({ ...editDraft, input: e.target.value })} /></TableCell>
                     <TableCell><Input type="number" className="h-10 w-full text-center" value={editDraft.fwKg} onChange={(e) => setEditDraft({ ...editDraft, fwKg: e.target.value })} /></TableCell>
                     <TableCell><Input type="number" className="h-10 w-full text-center" value={editDraft.bwKg} onChange={(e) => setEditDraft({ ...editDraft, bwKg: e.target.value })} /></TableCell>
                     <TableCell><Input type="number" className="h-10 w-full text-center" value={editDraft.output} onChange={(e) => setEditDraft({ ...editDraft, output: e.target.value })} /></TableCell>
@@ -1406,7 +1397,7 @@ export const FabricDeliveredSection = forwardRef<SectionRef, SectionProps>(({ pr
             <TableRow className="hover:!bg-transparent border-b-0">
               <TableHead className={`text-xs font-semibold uppercase tracking-wide ${theme.headerText}`}>Size</TableHead>
               <TableHead className={`w-37.5 min-w-37.5 text-center text-xs font-semibold uppercase tracking-wide ${theme.headerText}`}>Color</TableHead>
-              <TableHead className={	ext-center text-xs font-semibold uppercase tracking-wide ${theme.headerText}}>Kora</TableHead>
+              <TableHead className={`text-center text-xs font-semibold uppercase tracking-wide ${theme.headerText}`}>Kora</TableHead>
               <TableHead className={`text-center text-xs font-semibold uppercase tracking-wide ${theme.headerText}`}>Delivered (kg)</TableHead>
               {!readOnly && <TableHead className={`text-center text-xs font-semibold uppercase tracking-wide ${theme.headerText}`}>Action</TableHead>}
             </TableRow>
@@ -1540,6 +1531,7 @@ export const FabricDeliveredSection = forwardRef<SectionRef, SectionProps>(({ pr
     </div>
   );
 });
+
 
 
 
