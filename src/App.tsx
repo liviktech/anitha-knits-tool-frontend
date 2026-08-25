@@ -4,10 +4,10 @@ import { BrowserRouter, Routes, Route, Navigate, NavLink, Link, useLocation, use
 import { LoginPage } from './features/auth/login-page';
 import { useAuth, defaultRouteFor } from './features/auth/auth-context';
 import type { AuthUser, CompanyUserRole } from './features/auth/auth-service';
-import { Settings, User, Wallet, Menu, Package, LineChart, LayoutDashboard, LogOut } from 'lucide-react';
+import { Settings, User, Wallet, Menu, Package, LineChart, LogOut } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet';
-import { DashboardModule } from './features/dashboard/dashboard-module';
+// import { DashboardModule } from './features/dashboard/dashboard-module';
 import { ProductionDetails } from './features/production/production-details';
 import { InventoryPage } from './features/inventory/inventory-page';
 import { LivikAdminShell } from './features/admin/livik-admin-shell';
