@@ -249,8 +249,8 @@ export const ExtruderSection = forwardRef<SectionRef, SectionProps>(({ productio
             )}
 
             {idx === 0 && !readOnly && (
-              <TableCell rowSpan={group.brands.length} className="text-center align-middle border-l border-gray-200">
-                <div className="flex flex-row items-center justify-center gap-1.5 mt-1">
+              <TableCell rowSpan={group.brands.length} className="text-right align-middle border-l border-gray-200">
+                <div className="flex flex-row items-center justify-end gap-1.5 mt-1">
                   <Button variant="ghost" size="icon-sm" className="h-6 w-6 p-0 rounded bg-blue-50 text-blue-500 hover:bg-blue-100" onClick={() => onEditExtruderGroup?.(group)}>
                     <Edit2 className="h-3 w-3" />
                   </Button>
@@ -298,7 +298,7 @@ export const ExtruderSection = forwardRef<SectionRef, SectionProps>(({ productio
               <TableHead colSpan={2} className={`text-center text-xs font-semibold uppercase tracking-wide ${theme.headerText} border-b border-r border-black/10 py-1 px-2`}>Chemicals</TableHead>
               <TableHead colSpan={2} className={`text-center text-xs font-semibold uppercase tracking-wide ${theme.headerText} border-b border-black/10 py-1 px-2`}>Waste (kg)</TableHead>
               <TableHead rowSpan={2} className={`align-middle text-center text-xs font-semibold uppercase tracking-wide ${theme.headerText} border-r border-black/10 py-1 px-2`}>Loom Production (kg)</TableHead>
-              {!readOnly && <TableHead rowSpan={2} className={`align-middle text-center text-xs font-semibold uppercase tracking-wide ${theme.headerText} py-1 px-2`}>Action</TableHead>}
+              {!readOnly && <TableHead rowSpan={2} className={`align-middle text-right text-xs font-semibold uppercase tracking-wide ${theme.headerText} py-1 px-2`}>Action</TableHead>}
             </TableRow>
             <TableRow className="hover:!bg-transparent border-b-0">
               <TableHead className={`text-center text-xs font-semibold uppercase tracking-wide ${theme.headerText} py-1 px-2`}>Bag</TableHead>

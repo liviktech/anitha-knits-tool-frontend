@@ -22,9 +22,11 @@ export interface FabricDeliveredDraft {
   size: string;
   color: string;
   delivered: string;
+  vehicleNo: string;
+  driverName: string;
 }
 
-export const emptyFabricDeliveredDraft: FabricDeliveredDraft = { size: '', color: '', delivered: '' };
+export const emptyFabricDeliveredDraft: FabricDeliveredDraft = { size: '', color: '', delivered: '', vehicleNo: '', driverName: '' };
 
 interface FabricDeliveredCreatePayload {
   productionDate: string;
@@ -38,6 +40,8 @@ interface FabricDeliveredRow {
   size: string;
   color: string;
   delivered: number;
+  vehicleNo: string;
+  driverName: string;
 }
 
 type LoadSentProductionRecord = LoadSentRecord & {
@@ -54,6 +58,8 @@ function mapLoadSentRecord(record: LoadSentProductionRecord): FabricDeliveredRow
     size: record.size?.name ?? '',
     color: record.color?.name ?? '',
     delivered: record.loadSent?.fabricWeight ?? record.fabricWeight ?? record.weightKg ?? 0,
+    vehicleNo: record.vehicleNo ?? '',
+    driverName: record.driverName ?? '',
   };
 }
 
@@ -150,13 +156,15 @@ export const FabricDeliveredSection = forwardRef<SectionRef, SectionProps & { on
               <TableHead className={`text-xs font-semibold uppercase tracking-wide ${theme.headerText}`}>Size</TableHead>
               <TableHead className={`w-37.5 min-w-37.5 text-center text-xs font-semibold uppercase tracking-wide ${theme.headerText}`}>Color</TableHead>
               <TableHead className={`text-center text-xs font-semibold uppercase tracking-wide ${theme.headerText}`}>Delivered (kg)</TableHead>
-              {!readOnly && <TableHead className={`text-center text-xs font-semibold uppercase tracking-wide ${theme.headerText}`}>Action</TableHead>}
+              <TableHead className={`text-center text-xs font-semibold uppercase tracking-wide ${theme.headerText}`}>Vehicle No</TableHead>
+              <TableHead className={`text-center text-xs font-semibold uppercase tracking-wide ${theme.headerText}`}>Driver Name</TableHead>
+              {!readOnly && <TableHead className={`text-right text-xs font-semibold uppercase tracking-wide ${theme.headerText}`}>Action</TableHead>}
             </TableRow>
           </TableHeader>
           <TableBody>
             {isLoading ? (
               <TableRow>
-                <TableCell colSpan={readOnly ? 3 : 4} className="h-20 text-center">
+                <TableCell colSpan={readOnly ? 5 : 6} className="h-20 text-center">
                   <div className="flex items-center justify-center gap-2 text-gray-500">
                     <Loader size="sm" /> Loading entries...
                   </div>
@@ -169,8 +177,10 @@ export const FabricDeliveredSection = forwardRef<SectionRef, SectionProps & { on
                     <TableCell><span className="font-medium text-gray-700">{row.size || '-'}</span></TableCell>
                     <TableCell className="text-center"><span className="font-medium text-gray-700">{row.color || '-'}</span></TableCell>
                     <TableCell className="text-center">{parseFloat(row.delivered) > 0 ? parseFloat(row.delivered).toFixed(2) : '-'}</TableCell>
-                    <TableCell className="text-center">
-                      <div className="flex items-center justify-center gap-1.5">
+                    <TableCell className="text-center">{row.vehicleNo || '-'}</TableCell>
+                    <TableCell className="text-center">{row.driverName || '-'}</TableCell>
+                    <TableCell className="text-right">
+                      <div className="flex items-center justify-end gap-1.5">
                         <Button variant="ghost" size="icon-sm" className="rounded-full bg-blue-50 text-blue-500 hover:bg-blue-100" onClick={() => onEditDeliveredGroup && onEditDeliveredGroup(row)}>
                           <Edit2 className="h-3.5 w-3.5" />
                         </Button>
@@ -186,14 +196,18 @@ export const FabricDeliveredSection = forwardRef<SectionRef, SectionProps & { on
                     <TableCell>{row.size}</TableCell>
                     <TableCell className="w-37.5 min-w-37.5 text-center">{row.color}</TableCell>
                     <TableCell className="text-center">{row.delivered.toFixed(2)}</TableCell>
+                    <TableCell className="text-center">{row.vehicleNo || '-'}</TableCell>
+                    <TableCell className="text-center">{row.driverName || '-'}</TableCell>
                     {!readOnly && (
-                      <TableCell className="text-center">
-                        <div className="flex items-center justify-center gap-1.5">
+                      <TableCell className="text-right">
+                        <div className="flex items-center justify-end gap-1.5">
                           <Button variant="ghost" size="icon-sm" className="rounded-full bg-blue-50 text-blue-500 hover:bg-blue-100" aria-label="Edit row" onClick={() => onEditDeliveredGroup && onEditDeliveredGroup({
                               id: row.id,
                               size: row.size,
                               color: row.color,
                               delivered: String(row.delivered),
+                              vehicleNo: row.vehicleNo,
+                              driverName: row.driverName,
                             })}>
                             <Edit2 className="h-3.5 w-3.5" />
                           </Button>
@@ -207,7 +221,7 @@ export const FabricDeliveredSection = forwardRef<SectionRef, SectionProps & { on
                 ))}
                 {rows.length === 0 && newRows.length === 0 && (
                   <TableRow>
-                    <TableCell colSpan={readOnly ? 3 : 4} className="h-20 !text-center text-gray-500">No entries yet.</TableCell>
+                    <TableCell colSpan={readOnly ? 5 : 6} className="h-20 !text-center text-gray-500">No entries yet.</TableCell>
                   </TableRow>
                 )}
               </>

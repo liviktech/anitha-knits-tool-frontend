@@ -12,6 +12,8 @@ export interface LoadSentRecord {
   pieceCount: number;
   weightKg: number;
   fabricWeight?: number;
+  vehicleNo?: string;
+  driverName?: string;
   createdAt: string;
   createdBy: string;
   updatedAt: string;
@@ -31,6 +33,8 @@ export interface LoadSentCreatePayload {
   sizeId: string;
   pieceCount: number;
   weightKg: number;
+  vehicleNo?: string;
+  driverName?: string;
 }
 
 /** Matches LoadSentUpdateRequest — every field optional, at least one required. */

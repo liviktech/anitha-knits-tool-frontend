@@ -162,7 +162,7 @@ export const LoomSection = forwardRef<SectionRef, SectionProps>(({ productionDat
               <TableHead className={`text-center text-xs font-semibold uppercase tracking-wide ${theme.headerText}`}>Loom Production (kg)</TableHead>
               <TableHead className={`text-center text-xs font-semibold uppercase tracking-wide ${theme.headerText}`}>Looms/Yarn Waste</TableHead>
               <TableHead className={`text-center text-xs font-semibold uppercase tracking-wide ${theme.headerText}`}>Fabric production (kg)</TableHead>
-              {!readOnly && <TableHead className={`text-center text-xs font-semibold uppercase tracking-wide ${theme.headerText}`}>Action</TableHead>}
+              {!readOnly && <TableHead className={`text-right text-xs font-semibold uppercase tracking-wide ${theme.headerText}`}>Action</TableHead>}
             </TableRow>
           </TableHeader>
           <TableBody>
@@ -184,8 +184,8 @@ export const LoomSection = forwardRef<SectionRef, SectionProps>(({ productionDat
                       <TableCell className="text-center">{parseFloat(row.input) > 0 ? parseFloat(row.input).toFixed(2) : '-'}</TableCell>
                       <TableCell className="text-center">{parseFloat(row.loomsWasteKg) > 0 ? parseFloat(row.loomsWasteKg).toFixed(2) : '-'}</TableCell>
                       <TableCell className="text-center">{parseFloat(row.output) > 0 ? parseFloat(row.output).toFixed(2) : '-'}</TableCell>
-                      <TableCell className="text-center">
-                        <div className="flex items-center justify-center gap-1.5">
+                      <TableCell className="text-right">
+                        <div className="flex items-center justify-end gap-1.5">
                           <Button variant="ghost" size="icon-sm" className="rounded-full bg-blue-50 text-blue-500 hover:bg-blue-100" onClick={() => onEditLoomGroup && onEditLoomGroup(row)}>
                             <Edit2 className="h-3.5 w-3.5" />
                           </Button>
@@ -204,8 +204,8 @@ export const LoomSection = forwardRef<SectionRef, SectionProps>(({ productionDat
                     <TableCell className="text-center">{row.loomsWasteKg.toFixed(2)}</TableCell>
                     <TableCell className="text-center">{row.output.toFixed(2)}</TableCell>
                     {!readOnly && (
-                      <TableCell className="text-center">
-                        <div className="flex items-center justify-center gap-1.5">
+                      <TableCell className="text-right">
+                        <div className="flex items-center justify-end gap-1.5">
                           <Button
                             variant="ghost"
                             size="icon-sm"

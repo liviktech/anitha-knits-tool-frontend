@@ -31,7 +31,7 @@ export function FabricDeliveredModalForm({ initialData, isEditMode, onCancel, on
 
   return (
     <div className="flex flex-col h-full space-y-6">
-      <div className="grid grid-cols-3 gap-4">
+      <div className="grid grid-cols-5 gap-4">
         <div className="space-y-2">
           <Label className="text-gray-600 text-xs font-semibold uppercase tracking-wider">Size</Label>
           <Select value={draft.size} onValueChange={(v) => updateField('size', v)} disabled={isEditMode}>
@@ -53,6 +53,24 @@ export function FabricDeliveredModalForm({ initialData, isEditMode, onCancel, on
             placeholder="0.00" 
             value={draft.delivered} 
             onChange={(e) => updateField('delivered', e.target.value)} 
+          />
+        </div>
+        <div className="space-y-2">
+          <Label className="text-gray-600 text-xs font-semibold uppercase tracking-wider">Vehicle No</Label>
+          <Input 
+            type="text" 
+            placeholder="TN 00 XX 0000" 
+            value={draft.vehicleNo} 
+            onChange={(e) => updateField('vehicleNo', e.target.value)} 
+          />
+        </div>
+        <div className="space-y-2">
+          <Label className="text-gray-600 text-xs font-semibold uppercase tracking-wider">Driver Name</Label>
+          <Input 
+            type="text" 
+            placeholder="Driver Name" 
+            value={draft.driverName} 
+            onChange={(e) => updateField('driverName', e.target.value)} 
           />
         </div>
       </div>

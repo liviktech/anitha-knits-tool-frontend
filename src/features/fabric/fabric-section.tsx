@@ -180,7 +180,7 @@ export const FabricSection = forwardRef<SectionRef, SectionProps>(({ productionD
               <TableHead className={`text-center text-xs font-semibold uppercase tracking-wide ${theme.headerText}`}>Fabric Waste</TableHead>
               <TableHead className={`text-center text-xs font-semibold uppercase tracking-wide ${theme.headerText}`}>Bit Waste</TableHead>
               <TableHead className={`text-center text-xs font-semibold uppercase tracking-wide ${theme.headerText}`}>Fabric Stock (kg)</TableHead>
-              {!readOnly && <TableHead className={`text-center text-xs font-semibold uppercase tracking-wide ${theme.headerText}`}>Action</TableHead>}
+              {!readOnly && <TableHead className={`text-right text-xs font-semibold uppercase tracking-wide ${theme.headerText}`}>Action</TableHead>}
             </TableRow>
           </TableHeader>
           <TableBody>
@@ -204,8 +204,8 @@ export const FabricSection = forwardRef<SectionRef, SectionProps>(({ productionD
                       <TableCell className="text-center">{parseFloat(row.fwKg) > 0 ? parseFloat(row.fwKg).toFixed(2) : '-'}</TableCell>
                       <TableCell className="text-center">{parseFloat(row.bwKg) > 0 ? parseFloat(row.bwKg).toFixed(2) : '-'}</TableCell>
                       <TableCell className="text-center">{parseFloat(row.output) > 0 ? parseFloat(row.output).toFixed(2) : '-'}</TableCell>
-                      <TableCell className="text-center">
-                        <div className="flex items-center justify-center gap-1.5">
+                      <TableCell className="text-right">
+                        <div className="flex items-center justify-end gap-1.5">
                           <Button variant="ghost" size="icon-sm" className="rounded-full bg-blue-50 text-blue-500 hover:bg-blue-100" onClick={() => onEditFabricGroup && onEditFabricGroup(row)}>
                             <Edit2 className="h-3.5 w-3.5" />
                           </Button>
@@ -226,8 +226,8 @@ export const FabricSection = forwardRef<SectionRef, SectionProps>(({ productionD
                     <TableCell className="text-center">{row.bwKg.toFixed(2)}</TableCell>
                     <TableCell className="text-center">{row.output.toFixed(2)}</TableCell>
                     {!readOnly && (
-                      <TableCell className="text-center">
-                        <div className="flex items-center justify-center gap-1.5">
+                      <TableCell className="text-right">
+                        <div className="flex items-center justify-end gap-1.5">
                           <Button
                             variant="ghost"
                             size="icon-sm"
