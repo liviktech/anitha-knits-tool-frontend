@@ -33,7 +33,7 @@ export function NewEntry({ onClose, defaultDate, readOnly = false }: NewEntryPro
   const productionDate = format(date, 'yyyy-MM-dd');
   const [submitting, setSubmitting] = useState(false);
   const [isInventoryMinimized, setIsInventoryMinimized] = useState(false);
-  
+
   const [activeTab, setActiveTab] = useState<string>('extruder');
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
   const [editingExtruderGroup, setEditingExtruderGroup] = useState<any>(null);
@@ -227,20 +227,19 @@ export function NewEntry({ onClose, defaultDate, readOnly = false }: NewEntryPro
                 <TabsTrigger value="fabric" className="data-[state=active]:!bg-[#DCEEDB] data-[state=active]:!text-[#2F6B2F] data-[state=active]:!border-b-[#DCEEDB]">FABRIC CHECKING</TabsTrigger>
                 <TabsTrigger value="delivered" className="data-[state=active]:!bg-[#f2caa0] data-[state=active]:!text-[#61401E] data-[state=active]:!border-b-[#f2caa0]">FABRIC DELIVERED</TabsTrigger>
               </TabsList>
-              
+
               {!readOnly && (
                 <div className="mb-2 mr-2 z-10">
-                  <Button 
-                    size="sm" 
-                    className={`h-8 gap-1.5 shadow-sm hover:opacity-90 ${
-                      activeTab === 'extruder' ? `${themes.extruder.iconBg} ${themes.extruder.iconColor}` :
-                      activeTab === 'looms' ? `${themes.looms.iconBg} ${themes.looms.iconColor}` :
-                      activeTab === 'fabric' ? `${themes.fabric.iconBg} ${themes.fabric.iconColor}` :
-                      `${themes.fabricDelivered.iconBg} ${themes.fabricDelivered.iconColor}`
-                    }`}
+                  <Button
+                    size="sm"
+                    className={`h-8 gap-1.5 shadow-sm hover:opacity-90 ${activeTab === 'extruder' ? `${themes.extruder.iconBg} ${themes.extruder.iconColor}` :
+                        activeTab === 'looms' ? `${themes.looms.iconBg} ${themes.looms.iconColor}` :
+                          activeTab === 'fabric' ? `${themes.fabric.iconBg} ${themes.fabric.iconColor}` :
+                            `${themes.fabricDelivered.iconBg} ${themes.fabricDelivered.iconColor}`
+                      }`}
                     onClick={() => setIsAddModalOpen(true)}
                   >
-                    <Plus className="h-4 w-4" /> 
+                    <Plus className="h-4 w-4" />
                     Add Entry
                   </Button>
                 </div>
@@ -283,15 +282,15 @@ export function NewEntry({ onClose, defaultDate, readOnly = false }: NewEntryPro
             </Button>
             {!readOnly && (
               <Button onClick={handleSaveAll} className="bg-[#004D40] hover:bg-[#00332A] text-white" disabled={submitting}>
-                {submitting ? 'Saving All...' : 'Save Drafts'}
+                {submitting ? 'Saving All...' : 'Save'}
               </Button>
             )}
           </div>
         </div>
       </div>
 
-      <TabAddModal 
-        isOpen={isAddModalOpen} 
+      <TabAddModal
+        isOpen={isAddModalOpen}
         onClose={() => {
           setIsAddModalOpen(false);
           setTimeout(() => {
@@ -300,7 +299,7 @@ export function NewEntry({ onClose, defaultDate, readOnly = false }: NewEntryPro
             setEditingFabricGroup(null);
             setEditingDeliveredGroup(null);
           }, 300); // clear after animation
-        }} 
+        }}
         activeTab={activeTab}
         initialExtruderData={editingExtruderGroup}
         initialLoomData={editingLoomGroup}

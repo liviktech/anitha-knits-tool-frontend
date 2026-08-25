@@ -192,9 +192,9 @@ export function ExtruderModalForm({ initialData, isEditMode, onCancel, onSave }:
 
       {/* Yarn Production */}
       <div className="space-y-3 bg-green-50/30 p-4 rounded-lg border border-green-100">
-        <h3 className="text-sm font-semibold uppercase tracking-wider text-green-800 border-b border-green-200 pb-2">Yarn Production</h3>
+        <h3 className="text-sm font-semibold uppercase tracking-wider text-green-800 border-b border-green-200 pb-2">Loom Production</h3>
         <div className="w-1/2 space-y-2 pt-1">
-          <Label className="text-green-800 text-xs font-semibold">Total Yarn Production (kg)</Label>
+          <Label className="text-green-800 text-xs font-semibold">Total Loom Production (kg)</Label>
           <Input type="number" className="border-green-200 focus-visible:ring-green-400 font-bold text-green-700 bg-white" placeholder="0.00" value={group.output} onChange={(e) => updateGroupField('output', e.target.value)} />
         </div>
       </div>
