@@ -16,7 +16,7 @@ import { EmployeePage } from './features/employee/employee-page';
 import threadIcon from '@/assets/thread.png';
 
 const navItems = [
-  { to: '/dashboard', label: 'Dashboard', icon: LayoutDashboard },
+  // { to: '/dashboard', label: 'Dashboard', icon: LayoutDashboard },
   { to: '/production', label: 'Production details', icon: LineChart },
   { to: '/inventory', label: 'Inventory', icon: Package },
   { to: '/employees', label: 'Employees', icon: User },
@@ -162,8 +162,8 @@ function AppShell() {
       {/* Main Content Area */}
       <main className="flex-1 overflow-auto bg-white rounded-t-[24px] lg:rounded-[32px] shadow-xl relative z-10">
         <Routes>
-          <Route path="/" element={<Navigate to="/dashboard" replace />} />
-          <Route path="/dashboard/*" element={<DashboardModule />} />
+          <Route path="/" element={<Navigate to="/production" replace />} />
+          {/* <Route path="/dashboard/*" element={<DashboardModule />} /> */}
           <Route path="/production/*" element={<ProductionDetails />} />
           <Route path="/inventory" element={<InventoryPage />} />
           <Route path="/employees/*" element={<EmployeePage />} />
