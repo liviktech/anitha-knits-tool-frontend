@@ -111,10 +111,15 @@ export function NewEntry({ onClose, defaultDate, readOnly = false }: NewEntryPro
   const totalChemical = lookups.chemicals.reduce((sum, c) => sum + parseFloat(getChemicalBalance(c.name) || '0'), 0).toFixed(2);
   const totalColor = lookups.colors.reduce((sum, c) => sum + parseFloat(getColorBalance(c.name) || '0'), 0).toFixed(2);
 
-  const handleSaveTab = async (ref: React.RefObject<SectionRef>) => {
+  const handleSaveAll = async () => {
     setSubmitting(true);
     try {
-      await ref.current?.saveDraft();
+      await Promise.all([
+        extruderRef.current?.saveDraft(),
+        loomRef.current?.saveDraft(),
+        fabricRef.current?.saveDraft(),
+        fabricDeliveredRef.current?.saveDraft(),
+      ]);
     } catch (e) {
       console.error(e);
     } finally {
@@ -223,66 +228,18 @@ export function NewEntry({ onClose, defaultDate, readOnly = false }: NewEntryPro
                 hideExisting={false}
                 hideBanner={true}
               />
-              {!readOnly && (
-                <div className="flex justify-end">
-                  <Button
-                    className="bg-[#004D40] text-white hover:bg-[#00382e] font-semibold shadow-sm px-6"
-                    onClick={() => handleSaveTab(extruderRef)}
-                    disabled={submitting}
-                  >
-                    {submitting && <Loader size="sm" className="mr-2" />}
-                    Save Extruder
-                  </Button>
-                </div>
-              )}
             </TabsContent>
 
             <TabsContent value="looms" className="flex flex-col gap-4 mt-0 pt-0">
               <LoomSection ref={loomRef} productionDate={productionDate} autoAdd={!readOnly} readOnly={readOnly} hideExisting={false} hideBanner={true} />
-              {!readOnly && (
-                <div className="flex justify-end">
-                  <Button
-                    className="bg-[#004D40] text-white hover:bg-[#00382e] font-semibold shadow-sm px-6"
-                    onClick={() => handleSaveTab(loomRef)}
-                    disabled={submitting}
-                  >
-                    {submitting && <Loader size="sm" className="mr-2" />}
-                    Save Looms
-                  </Button>
-                </div>
-              )}
             </TabsContent>
 
             <TabsContent value="fabric" className="flex flex-col gap-4 mt-0 pt-0">
               <FabricSection ref={fabricRef} productionDate={productionDate} autoAdd={!readOnly} readOnly={readOnly} hideExisting={false} hideBanner={true} />
-              {!readOnly && (
-                <div className="flex justify-end">
-                  <Button
-                    className="bg-[#004D40] text-white hover:bg-[#00382e] font-semibold shadow-sm px-6"
-                    onClick={() => handleSaveTab(fabricRef)}
-                    disabled={submitting}
-                  >
-                    {submitting && <Loader size="sm" className="mr-2" />}
-                    Save Fabric Checking
-                  </Button>
-                </div>
-              )}
             </TabsContent>
 
             <TabsContent value="delivered" className="flex flex-col gap-4 mt-0 pt-0">
               <FabricDeliveredSection ref={fabricDeliveredRef} productionDate={productionDate} autoAdd={!readOnly} readOnly={readOnly} hideExisting={false} hideBanner={true} />
-              {!readOnly && (
-                <div className="flex justify-end">
-                  <Button
-                    className="bg-[#004D40] text-white hover:bg-[#00382e] font-semibold shadow-sm px-6"
-                    onClick={() => handleSaveTab(fabricDeliveredRef)}
-                    disabled={submitting}
-                  >
-                    {submitting && <Loader size="sm" className="mr-2" />}
-                    Save Fabric Delivered
-                  </Button>
-                </div>
-              )}
             </TabsContent>
           </Tabs>
         </div>
@@ -293,6 +250,16 @@ export function NewEntry({ onClose, defaultDate, readOnly = false }: NewEntryPro
             <Button variant="outline" onClick={onClose} className="border-gray-300 text-gray-700 bg-white" disabled={submitting}>
               Close
             </Button>
+            {!readOnly && (
+              <Button
+                className="bg-[#004D40] text-white hover:bg-[#00382e] font-semibold shadow-sm px-6"
+                onClick={handleSaveAll}
+                disabled={submitting}
+              >
+                {submitting && <Loader size="sm" className="mr-2" />}
+                Save
+              </Button>
+            )}
           </div>
         </div>
       </div>
