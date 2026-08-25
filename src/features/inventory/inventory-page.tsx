@@ -57,6 +57,9 @@ function InventoryFormDialog({ onClose, editDate, editRecords }: InventoryFormDi
   const isEdit = !!editDate;
 
   const [date, setDate] = useState(editDate || todayIso());
+  const [dcHdpe, setDcHdpe] = useState(() => editRecords?.find(r => r.type === 'HDPE')?.dcNumber || '');
+  const [dcChemical, setDcChemical] = useState(() => editRecords?.find(r => r.type === 'CHEMICAL')?.dcNumber || '');
+  const [dcColor, setDcColor] = useState(() => editRecords?.find(r => r.type === 'COLOR')?.dcNumber || '');
 
   const [weights, setWeights] = useState<Record<string, string>>(() => {
     const init: Record<string, string> = {};
@@ -104,11 +107,12 @@ function InventoryFormDialog({ onClose, editDate, editRecords }: InventoryFormDi
 
           if (!isNaN(val) && val > 0) {
             if (existing) {
-              if (existing.weightKg !== val) {
+              const currentDc = t.type === 'HDPE' ? dcHdpe : t.type === 'CHEMICAL' ? dcChemical : dcColor;
+              if (existing.weightKg !== val || existing.dcNumber !== currentDc) {
                 promises.push(apiFetch(`/inventory/${existing.id}`, {
                   method: 'PATCH',
                   headers: { 'Content-Type': 'application/json' },
-                  body: JSON.stringify({ weightKg: val, date }),
+                  body: JSON.stringify({ weightKg: val, date, dcNumber: currentDc }),
                 }));
               }
             } else {
@@ -122,6 +126,7 @@ function InventoryFormDialog({ onClose, editDate, editRecords }: InventoryFormDi
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
                   date, type: t.type, quantityKg: val,
+                  dcNumber: t.type === 'HDPE' ? dcHdpe : t.type === 'CHEMICAL' ? dcChemical : dcColor,
                   ...(t.type === 'HDPE' && { brandId: lookupId }),
                   ...(t.type === 'CHEMICAL' && { chemicalId: lookupId }),
                   ...(t.type === 'COLOR' && { colorId: lookupId }),
@@ -162,28 +167,31 @@ function InventoryFormDialog({ onClose, editDate, editRecords }: InventoryFormDi
               <thead>
                 <tr className="bg-gray-50 border-b border-gray-200">
                   {hdpeNames.length > 0 && (
-                    <th colSpan={hdpeNames.length} className="border-r border-gray-200 px-3 py-2 text-center font-bold text-blue-700 uppercase tracking-wide bg-blue-50/50">
+                    <th colSpan={hdpeNames.length + 1} className="border-r border-gray-200 px-3 py-2 text-center font-bold text-blue-700 uppercase tracking-wide bg-blue-50/50">
                       HDPE (KG)
                     </th>
                   )}
                   {chemicalNames.length > 0 && (
-                    <th colSpan={chemicalNames.length} className="border-r border-gray-200 px-3 py-2 text-center font-bold text-yellow-700 uppercase tracking-wide bg-yellow-50/50">
+                    <th colSpan={chemicalNames.length + 1} className="border-r border-gray-200 px-3 py-2 text-center font-bold text-yellow-700 uppercase tracking-wide bg-yellow-50/50">
                       CHEMICALS (KG)
                     </th>
                   )}
                   {colorNames.length > 0 && (
-                    <th colSpan={colorNames.length} className="px-3 py-2 text-center font-bold text-purple-700 uppercase tracking-wide bg-purple-50/50">
+                    <th colSpan={colorNames.length + 1} className="px-3 py-2 text-center font-bold text-purple-700 uppercase tracking-wide bg-purple-50/50">
                       COLORS (KG)
                     </th>
                   )}
                 </tr>
                 <tr className="bg-gray-50/80 border-b border-gray-200">
+                  {hdpeNames.length > 0 && <th className="border-r border-gray-200 px-3 py-2 text-center font-semibold text-blue-800 text-[10px] uppercase whitespace-nowrap">DC</th>}
                   {hdpeNames.map(name => (
                     <th key={name} className="border-r border-gray-200 px-3 py-2 text-center font-semibold text-blue-600 text-[10px] uppercase whitespace-nowrap">{name}</th>
                   ))}
+                  {chemicalNames.length > 0 && <th className="border-r border-gray-200 px-3 py-2 text-center font-semibold text-yellow-800 text-[10px] uppercase whitespace-nowrap">DC</th>}
                   {chemicalNames.map(name => (
                     <th key={name} className="border-r border-gray-200 px-3 py-2 text-center font-semibold text-yellow-600 text-[10px] uppercase whitespace-nowrap">{name}</th>
                   ))}
+                  {colorNames.length > 0 && <th className="border-r border-gray-200 px-3 py-2 text-center font-semibold text-purple-800 text-[10px] uppercase whitespace-nowrap">DC</th>}
                   {colorNames.map(name => (
                     <th key={name} className="border-r border-gray-200 px-3 py-2 text-center font-semibold text-purple-600 text-[10px] uppercase whitespace-nowrap">{name}</th>
                   ))}
@@ -191,16 +199,31 @@ function InventoryFormDialog({ onClose, editDate, editRecords }: InventoryFormDi
               </thead>
               <tbody>
                 <tr>
+                  {hdpeNames.length > 0 && (
+                    <td className="border-r border-gray-200 p-2">
+                      <Input type="text" maxLength={7} placeholder="DC No" className="w-20 text-center h-8 text-xs font-bold bg-blue-50 border-blue-200 mx-auto" value={dcHdpe} onChange={(e) => setDcHdpe(e.target.value.replace(/\D/g, '').slice(0, 7))} />
+                    </td>
+                  )}
                   {hdpeNames.map(name => (
                     <td key={name} className="border-r border-gray-200 p-2">
                       <Input type="number" placeholder="0" className="w-20 text-center h-8 text-xs font-medium bg-blue-50/10 border-blue-100 mx-auto" value={weights[`HDPE-${name}`] || ''} onChange={(e) => handleWeightChange('HDPE', name, e.target.value)} />
                     </td>
                   ))}
+                  {chemicalNames.length > 0 && (
+                    <td className="border-r border-gray-200 p-2">
+                      <Input type="text" maxLength={7} placeholder="DC No" className="w-20 text-center h-8 text-xs font-bold bg-yellow-50 border-yellow-200 mx-auto" value={dcChemical} onChange={(e) => setDcChemical(e.target.value.replace(/\D/g, '').slice(0, 7))} />
+                    </td>
+                  )}
                   {chemicalNames.map(name => (
                     <td key={name} className="border-r border-gray-200 p-2">
                       <Input type="number" placeholder="0" className="w-20 text-center h-8 text-xs font-medium bg-yellow-50/10 border-yellow-100 mx-auto" value={weights[`CHEMICAL-${name}`] || ''} onChange={(e) => handleWeightChange('CHEMICAL', name, e.target.value)} />
                     </td>
                   ))}
+                  {colorNames.length > 0 && (
+                    <td className="border-r border-gray-200 p-2">
+                      <Input type="text" maxLength={7} placeholder="DC No" className="w-20 text-center h-8 text-xs font-bold bg-purple-50 border-purple-200 mx-auto" value={dcColor} onChange={(e) => setDcColor(e.target.value.replace(/\D/g, '').slice(0, 7))} />
+                    </td>
+                  )}
                   {colorNames.map(name => (
                     <td key={name} className="border-r border-gray-200 p-2">
                       <Input type="number" placeholder="0" className="w-20 text-center h-8 text-xs font-medium bg-purple-50/10 border-purple-100 mx-auto" value={weights[`COLOR-${name}`] || ''} onChange={(e) => handleWeightChange('COLOR', name, e.target.value)} />
@@ -878,17 +901,17 @@ function StockSummaryCard({ onAdd, onEditDate, onDeleteDate }: { onAdd: (e: Reac
               <tr className="bg-gray-50 border-b border-gray-200">
                 <th rowSpan={2} className="border border-gray-200 px-3 py-2 text-left font-semibold text-gray-500 uppercase tracking-wide text-[11px] whitespace-nowrap w-28">DATE</th>
                 {hdpeNames.length > 0 && (
-                  <th colSpan={hdpeNames.length} className="border border-gray-200 px-3 py-2 text-center font-bold text-teal-800 uppercase tracking-wide text-[11px] bg-blue-100">
+                  <th colSpan={hdpeNames.length + 1} className="border border-gray-200 px-3 py-2 text-center font-bold text-teal-800 uppercase tracking-wide text-[11px] bg-blue-100">
                     HDPE (KG)
                   </th>
                 )}
                 {chemicalNames.length > 0 && (
-                  <th colSpan={chemicalNames.length} className="border border-gray-200 px-3 py-2 text-center font-bold text-yellow-800 uppercase tracking-wide text-[11px] bg-yellow-100">
+                  <th colSpan={chemicalNames.length + 1} className="border border-gray-200 px-3 py-2 text-center font-bold text-yellow-800 uppercase tracking-wide text-[11px] bg-yellow-100">
                     CHEMICALS (KG)
                   </th>
                 )}
                 {colorNames.length > 0 && (
-                  <th colSpan={colorNames.length} className="border border-gray-200 px-3 py-2 text-center font-bold text-green-800 uppercase tracking-wide text-[11px] bg-green-100">
+                  <th colSpan={colorNames.length + 1} className="border border-gray-200 px-3 py-2 text-center font-bold text-green-800 uppercase tracking-wide text-[11px] bg-green-100">
                     COLORS (KG)
                   </th>
                 )}
@@ -896,12 +919,15 @@ function StockSummaryCard({ onAdd, onEditDate, onDeleteDate }: { onAdd: (e: Reac
                 <th rowSpan={2} className="border border-gray-200 px-3 py-2 text-center font-semibold text-gray-500 uppercase tracking-wide text-[11px] whitespace-nowrap w-20">ACTIONS</th>
               </tr>
               <tr className="bg-white border-b border-gray-200">
+                {hdpeNames.length > 0 && <th className="border border-gray-200 px-3 py-1.5 text-center font-bold text-gray-800 text-[11px] uppercase whitespace-nowrap bg-gray-50/50">DC NO</th>}
                 {hdpeNames.map(name => (
                   <th key={name} className="border border-gray-200 px-3 py-1.5 text-center font-bold text-gray-800 text-[11px] uppercase whitespace-nowrap">{name}</th>
                 ))}
+                {chemicalNames.length > 0 && <th className="border border-gray-200 px-3 py-1.5 text-center font-bold text-gray-800 text-[11px] uppercase whitespace-nowrap bg-gray-50/50">DC NO</th>}
                 {chemicalNames.map(name => (
                   <th key={name} className="border border-gray-200 px-3 py-1.5 text-center font-bold text-gray-800 text-[11px] uppercase whitespace-nowrap">{name}</th>
                 ))}
+                {colorNames.length > 0 && <th className="border border-gray-200 px-3 py-1.5 text-center font-bold text-gray-800 text-[11px] uppercase whitespace-nowrap bg-gray-50/50">DC NO</th>}
                 {colorNames.map(name => (
                   <th key={name} className="border border-gray-200 px-3 py-1.5 text-center font-bold text-gray-800 text-[11px] uppercase whitespace-nowrap">{name}</th>
                 ))}
@@ -917,6 +943,11 @@ function StockSummaryCard({ onAdd, onEditDate, onDeleteDate }: { onAdd: (e: Reac
                 groupedByDate.map(([date, dayRecords]) => (
                   <tr key={date} className="hover:bg-green-50/40 transition-colors group">
                     <td className="border border-gray-200 px-3 py-1 font-bold text-teal-900 whitespace-nowrap text-sm">{formatDateDisplay(date)}</td>
+                    {hdpeNames.length > 0 && (
+                      <td className="border border-gray-200 px-3 py-1 text-center font-bold text-blue-900 text-[10px] bg-blue-50/30">
+                        {dayRecords.find(r => r.type === 'HDPE' && r.dcNumber)?.dcNumber || '-'}
+                      </td>
+                    )}
                     {hdpeNames.map(name => {
                       const val = getWeight(dayRecords, 'HDPE', name);
                       return (
@@ -925,6 +956,11 @@ function StockSummaryCard({ onAdd, onEditDate, onDeleteDate }: { onAdd: (e: Reac
                         </td>
                       );
                     })}
+                    {chemicalNames.length > 0 && (
+                      <td className="border border-gray-200 px-3 py-1 text-center font-bold text-yellow-900 text-[10px] bg-yellow-50/30">
+                        {dayRecords.find(r => r.type === 'CHEMICAL' && r.dcNumber)?.dcNumber || '-'}
+                      </td>
+                    )}
                     {chemicalNames.map(name => {
                       const val = getWeight(dayRecords, 'CHEMICAL', name);
                       return (
@@ -933,6 +969,11 @@ function StockSummaryCard({ onAdd, onEditDate, onDeleteDate }: { onAdd: (e: Reac
                         </td>
                       );
                     })}
+                    {colorNames.length > 0 && (
+                      <td className="border border-gray-200 px-3 py-1 text-center font-bold text-green-900 text-[10px] bg-green-50/30">
+                        {dayRecords.find(r => r.type === 'COLOR' && r.dcNumber)?.dcNumber || '-'}
+                      </td>
+                    )}
                     {colorNames.map(name => {
                       const val = getWeight(dayRecords, 'COLOR', name);
                       return (
@@ -958,12 +999,15 @@ function StockSummaryCard({ onAdd, onEditDate, onDeleteDate }: { onAdd: (e: Reac
               {groupedByDate.length > 0 && (
                 <tr className="bg-white border-t-2 border-gray-300 font-bold">
                   <td className="border border-gray-200 px-3 py-1.5 text-gray-800 uppercase text-[11px] tracking-wide font-bold">TOTAL</td>
+                  {hdpeNames.length > 0 && <td className="border border-gray-200 px-3 py-1 bg-gray-50"></td>}
                   {hdpeTotals.map((val, i) => (
                     <td key={i} className="border border-gray-200 px-3 py-1 text-center text-teal-600 text-xs font-bold">{val > 0 ? val.toFixed(2) : <span className="text-gray-500">0.00</span>}</td>
                   ))}
+                  {chemicalNames.length > 0 && <td className="border border-gray-200 px-3 py-1 bg-gray-50"></td>}
                   {chemTotals.map((val, i) => (
                     <td key={i} className="border border-gray-200 px-3 py-1 text-center text-teal-600 text-xs font-bold">{val > 0 ? val.toFixed(2) : <span className="text-gray-500">0.00</span>}</td>
                   ))}
+                  {colorNames.length > 0 && <td className="border border-gray-200 px-3 py-1 bg-gray-50"></td>}
                   {colorTotals.map((val, i) => (
                     <td key={i} className="border border-gray-200 px-3 py-1 text-center text-teal-600 text-xs font-bold">{val > 0 ? val.toFixed(2) : <span className="text-gray-500">0.00</span>}</td>
                   ))}

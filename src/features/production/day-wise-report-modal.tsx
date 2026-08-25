@@ -4,6 +4,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/u
 import { Input } from '@/components/ui/input';
 import { Loader } from '@/components/shared/loader';
 import { useDayWiseProduction } from './day-wise-queries';
+import { useLoadSentRecords } from '@/features/inventory/load-sent-queries';
 
 interface DayWiseReportModalProps {
   open: boolean;
@@ -60,28 +61,94 @@ export function DayWiseReportModal({ open, onOpenChange }: DayWiseReportModalPro
     return { year: y, monthIndex: m - 1 };
   }, [selectedMonth]);
 
-  const { rows: apiRows, totals: apiTotals, isLoading } = useDayWiseProduction(selectedMonth);
+  const { rows: apiRows, totals: apiTotals, isLoading: isProdLoading } = useDayWiseProduction(selectedMonth);
+  
+  const firstDay = useMemo(() => format(new Date(year, monthIndex, 1), 'yyyy-MM-dd'), [year, monthIndex]);
+  const lastDay = useMemo(() => format(new Date(year, monthIndex + 1, 0), 'yyyy-MM-dd'), [year, monthIndex]);
+  const { data: loadSentData, isLoading: isLoadSentLoading } = useLoadSentRecords(`?date_from=${firstDay}&date_to=${lastDay}&limit=1000`);
+  const loadSentRecords = loadSentData?.data || [];
 
   const rows = useMemo(() => {
     const daysInMonth = new Date(year, monthIndex + 1, 0).getDate();
-    return Array.from({ length: daysInMonth }, (_, i) => {
+    
+    // Aggregate loadSentRecords by date
+    const deliveryByDate: Record<string, any> = {};
+    loadSentRecords.forEach((record) => {
+      // Use record.productionDate if available, else record.date
+      const d = (record as any).productionDate || record.date;
+      if (!d) return;
+      
+      if (!deliveryByDate[d]) {
+        deliveryByDate[d] = {
+          colors: { Blue: 0, White: 0, Green: 0 },
+          sizes: { '150mm': 0, '160mm': 0, '170mm': 0, '180mm': 0, '190mm': 0 },
+          total: 0
+        };
+      }
+      const w = record.fabricWeight ?? record.weightKg ?? 0;
+      const c = record.color?.name || '';
+      const s = record.size?.name || '';
+      
+      if (c === 'Blue') deliveryByDate[d].colors.Blue += w;
+      else if (c === 'White') deliveryByDate[d].colors.White += w;
+      else if (c === 'Green') deliveryByDate[d].colors.Green += w;
+      
+      if (s === '150mm') deliveryByDate[d].sizes['150mm'] += w;
+      else if (s === '160mm') deliveryByDate[d].sizes['160mm'] += w;
+      else if (s === '170mm') deliveryByDate[d].sizes['170mm'] += w;
+      else if (s === '180mm') deliveryByDate[d].sizes['180mm'] += w;
+      else if (s === '190mm') deliveryByDate[d].sizes['190mm'] += w;
+      
+      deliveryByDate[d].total += w;
+    });
+
+    const allRows = Array.from({ length: daysInMonth }, (_, i) => {
       const d = new Date(year, monthIndex, i + 1);
       const dateStr = format(d, 'yyyy-MM-dd');
       const isHighlighted = d.getDay() === 0;
       const apiRow = apiRows.find(r => r.date === dateStr);
+      const del = deliveryByDate[dateStr] || {
+          colors: { Blue: 0, White: 0, Green: 0 },
+          sizes: { '150mm': 0, '160mm': 0, '170mm': 0, '180mm': 0, '190mm': 0 },
+          total: 0
+      };
 
       return {
         date: dateStr,
         isHighlighted,
+        hasData: !!apiRow || deliveryByDate[dateStr],
         extruder: { dnPlus: apiRow?.extruder.output || 0, waste: apiRow?.extruder.wastage || 0, lums: 0 },
         loomsProduction: { c180A: 0, dnPlus180: 0, c180B: 0, total: apiRow?.looms.output || 0 },
         loomsWaste: { white: 0, blue: 0, total: apiRow?.looms.wastage || 0 },
         fabricChecking: { white: 0, blue: 0, total: apiRow?.fabric.output || 0 },
         fabricWaste: { fwWhite180: 0, fwBlue180: 0, white: 0, blue: 0, total: apiRow?.fabric.wastage || 0 },
-        delivery: { color: 0, size: 0, output: 0 }
+        delivery: {
+          blue: del.colors.Blue, white: del.colors.White, green: del.colors.Green,
+          s150: del.sizes['150mm'], s160: del.sizes['160mm'], s170: del.sizes['170mm'], s180: del.sizes['180mm'], s190: del.sizes['190mm'],
+          output: del.total
+        }
       };
     });
-  }, [year, monthIndex, apiRows]);
+    
+    return allRows.filter(r => r.hasData);
+  }, [year, monthIndex, apiRows, loadSentRecords]);
+
+  // Calculate delivery totals
+  const deliveryTotals = useMemo(() => {
+    const t = {
+      blue: 0, white: 0, green: 0,
+      s150: 0, s160: 0, s170: 0, s180: 0, s190: 0,
+      output: 0
+    };
+    rows.forEach(r => {
+      t.blue += r.delivery.blue; t.white += r.delivery.white; t.green += r.delivery.green;
+      t.s150 += r.delivery.s150; t.s160 += r.delivery.s160; t.s170 += r.delivery.s170; t.s180 += r.delivery.s180; t.s190 += r.delivery.s190;
+      t.output += r.delivery.output;
+    });
+    return t;
+  }, [rows]);
+
+  const isLoading = isProdLoading || isLoadSentLoading;
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -152,16 +219,16 @@ export function DayWiseReportModal({ open, onOpenChange }: DayWiseReportModalPro
               </tr>
             </thead>
             <tbody>
-              {rows.map((row) => {
+              {rows.length > 0 ? rows.map((row) => {
                 const values = [
                   row.extruder.dnPlus, row.extruder.waste, row.extruder.lums,
                   row.loomsProduction.c180A, row.loomsProduction.dnPlus180, row.loomsProduction.c180B, row.loomsProduction.total,
                   row.loomsWaste.white, row.loomsWaste.blue, row.loomsWaste.total,
                   row.fabricChecking.white, row.fabricChecking.blue, row.fabricChecking.total,
                   row.fabricWaste.fwWhite180, row.fabricWaste.fwBlue180, row.fabricWaste.white, row.fabricWaste.blue, row.fabricWaste.total,
-                  0, 0, 0, // Colors
-                  0, 0, 0, 0, 0, // Sizes
-                  0 // Output
+                  row.delivery.blue, row.delivery.white, row.delivery.green,
+                  row.delivery.s150, row.delivery.s160, row.delivery.s170, row.delivery.s180, row.delivery.s190,
+                  row.delivery.output
                 ];
                 return (
                   <tr key={row.date} className="hover:bg-gray-50">
@@ -175,7 +242,13 @@ export function DayWiseReportModal({ open, onOpenChange }: DayWiseReportModalPro
                     ))}
                   </tr>
                 );
-              })}
+              }) : (
+                <tr>
+                  <td colSpan={28} className="border border-gray-200 px-3 py-6 text-center text-gray-500">
+                    No production or delivery records found for this month.
+                  </td>
+                </tr>
+              )}
             </tbody>
             <tfoot>
               <tr className="bg-gray-100 font-bold">
@@ -186,9 +259,9 @@ export function DayWiseReportModal({ open, onOpenChange }: DayWiseReportModalPro
                   0, 0, apiTotals.looms.wastage,
                   0, 0, apiTotals.fabric.output,
                   0, 0, 0, 0, apiTotals.fabric.wastage,
-                  0, 0, 0,
-                  0, 0, 0, 0, 0,
-                  0
+                  deliveryTotals.blue, deliveryTotals.white, deliveryTotals.green,
+                  deliveryTotals.s150, deliveryTotals.s160, deliveryTotals.s170, deliveryTotals.s180, deliveryTotals.s190,
+                  deliveryTotals.output
                 ].map((v, i) => (
                   <td
                     key={i}

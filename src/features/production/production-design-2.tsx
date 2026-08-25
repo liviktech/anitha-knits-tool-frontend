@@ -554,6 +554,15 @@ export function ProductionDesign2() {
     [selectedMonthDeliveryRows],
   );
   const selectedMonthDeliveryTotal = selectedMonthDeliveryRows.reduce((sum, record) => sum + record.delivered, 0);
+  const deliveredColorTotals = useMemo(() => {
+    let white = 0, blue = 0, green = 0;
+    selectedMonthDeliveryRows.forEach(r => {
+      if (r.color === 'White') white += r.delivered;
+      else if (r.color === 'Blue') blue += r.delivered;
+      else if (r.color === 'Green') green += r.delivered;
+    });
+    return { white, blue, green };
+  }, [selectedMonthDeliveryRows]);
 
   // Deletes every Extruder/Looms/Fabric Checking record for one date — the
   // day-wise table only has aggregated totals for each row, not record ids,
@@ -849,15 +858,15 @@ export function ProductionDesign2() {
                 <div className={`flex items-center gap-12 transition-opacity duration-300 ${isFabricDeliveredExpanded ? 'opacity-0 pointer-events-none' : 'opacity-100'}`}>
                   <div className="flex items-center gap-3">
                     <span className="text-[15px] font-extrabold text-[#61401E] uppercase tracking-wide">White </span>
-                    <span className="font-extrabold text-[#61401E] text-[20px]">456.90</span>
+                    <span className="font-extrabold text-[#61401E] text-[20px]">{formatNum(deliveredColorTotals.white)}</span>
                   </div>
                   <div className="flex items-center gap-3">
                     <span className="text-[15px] font-extrabold text-[#0088CC] uppercase tracking-wide">Blue</span>
-                    <span className="font-bold text-[#0088CC] text-[20px]">457.67</span>
+                    <span className="font-bold text-[#0088CC] text-[20px]">{formatNum(deliveredColorTotals.blue)}</span>
                   </div>
                   <div className="flex items-center gap-3">
                     <span className="text-[15px] font-extrabold text-[#5BA300] uppercase tracking-wide">Green</span>
-                    <span className="font-bold text-[#5BA300] text-[20px]">345.234</span>
+                    <span className="font-bold text-[#5BA300] text-[20px]">{formatNum(deliveredColorTotals.green)}</span>
                   </div>
                 </div>
                 <ChevronDown
