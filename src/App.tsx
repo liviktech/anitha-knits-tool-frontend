@@ -193,7 +193,7 @@ function App() {
           path="/*"
           element={
             // <RequireRole kind="company-user">
-              <AppShell />
+            <AppShell />
             // </RequireRole>
           }
         />
