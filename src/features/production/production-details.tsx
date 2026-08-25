@@ -6,6 +6,7 @@ import { FabricEntry } from '@/features/fabric/fabric-entry';
 import { DayDetails } from './day-details';
 import { ProductionDesign2 } from './production-design-2';
 import { NewEntry } from './new-entry';
+import { ProductionEntryTabs } from './production-entry-tabs';
 import { ArrowLeft } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 
@@ -132,6 +133,15 @@ function NewEntryRoute() {
   );
 }
 
+function EntryDesignRoute() {
+  const navigate = useNavigate();
+  return (
+    <div className="h-full overflow-y-auto">
+      <ProductionEntryTabs onClose={() => navigate('/production')} />
+    </div>
+  );
+}
+
 export function ProductionDetails() {
   return (
     <Routes>
@@ -142,6 +152,7 @@ export function ProductionDetails() {
         <Route path="fabric" element={<FabricRoute />} />
         <Route path="day-details" element={<DayDetailsRoute />} />
         <Route path="new-entry" element={<NewEntryRoute />} />
+        <Route path="entry-design" element={<EntryDesignRoute />} />
       </Route>
     </Routes>
   );
