@@ -85,7 +85,7 @@ export function DaySummaryCards({ dnPlusKg, wasteKg, efficiencyPct, checkedKg }:
   );
 }
 
-const themes = {
+export const themes = {
   extruder: {
     border: 'border-gray-400',
     headerBg: 'bg-[#D6EEF7]',
@@ -128,7 +128,7 @@ const themes = {
   },
 } as const;
 
-type Theme = keyof typeof themes;
+export type Theme = keyof typeof themes;
 
 export interface ExtruderRow {
   id: string;
@@ -160,7 +160,7 @@ export function mapExtruderItem(item: ExtruderProductionItem): ExtruderRow {
   };
 }
 
-interface ExtruderDraft {
+export interface ExtruderDraft {
   size: string;
   color: string;
   brand: string;
@@ -173,10 +173,10 @@ interface ExtruderDraft {
   yarnWasteKg: string;
 }
 
-const emptyExtruderDraft: ExtruderDraft = { size: '', color: '', brand: '', chemical: '', raw: '', chemicalKg: '', output: '', colorConsumedKg: '', lumpsKg: '', yarnWasteKg: '' };
+export const emptyExtruderDraft: ExtruderDraft = { size: '', color: '', brand: '', chemical: '', raw: '', chemicalKg: '', output: '', colorConsumedKg: '', lumpsKg: '', yarnWasteKg: '' };
 
 /** One pending (unsaved) new-entry row — several of these can be open at once. */
-interface ExtruderNewRow {
+export interface ExtruderNewRow {
   key: string;
   draft: ExtruderDraft;
   outputManuallyEdited: boolean;
@@ -190,7 +190,7 @@ interface ExtruderNewRow {
  * simple input-minus-waste subtraction. Never negative; blank until there's
  * something to suggest.
  */
-function suggestExtruderOutput(draft: Pick<ExtruderDraft, 'raw' | 'chemicalKg' | 'colorConsumedKg' | 'lumpsKg' | 'yarnWasteKg'>): string {
+export function suggestExtruderOutput(draft: Pick<ExtruderDraft, 'raw' | 'chemicalKg' | 'colorConsumedKg' | 'lumpsKg' | 'yarnWasteKg'>): string {
   const inputMassKg = (parseFloat(draft.raw) || 0) + (parseFloat(draft.chemicalKg) || 0) + (parseFloat(draft.colorConsumedKg) || 0);
   const wasteKg = (parseFloat(draft.lumpsKg) || 0) + (parseFloat(draft.yarnWasteKg) || 0);
   const suggested = Math.max(0, inputMassKg - wasteKg);
@@ -211,7 +211,7 @@ function suggestExtruderOutput(draft: Pick<ExtruderDraft, 'raw' | 'chemicalKg' |
  * shows rawMaterialKg and yarnOutputKg (both real), not a derived waste
  * column, to avoid implying a value the backend doesn't track per-record.
  */
-interface SectionProps {
+export interface SectionProps {
   /** ISO date (yyyy-MM-dd) new rows are recorded against; defaults to today. */
   productionDate?: string;
   autoAdd?: boolean;
@@ -224,483 +224,21 @@ interface SectionProps {
    * be confused with the Edit flow.
    */
   hideExisting?: boolean;
+  /** Hides the colored title banner when rendered inside a tab. */
+  hideBanner?: boolean;
 }
 
 export interface SectionRef {
   saveDraft: () => Promise<boolean>;
 }
 
-export const ExtruderSection = forwardRef<SectionRef, SectionProps>(({ productionDate, autoAdd, readOnly, hideExisting }, ref) => {
-  const queryClient = useQueryClient();
-  const { data, isLoading } = useExtruderProductions(
-    productionDate ? `?date_from=${productionDate}&date_to=${productionDate}` : '',
-    !hideExisting,
-  );
-  const { data: lookupsData } = useLookups();
-  const lookups: Lookups = lookupsData ?? { brands: [], colors: [], chemicals: [], sizes: [] };
-
-  const rows = useMemo(() => {
-    // hideExisting means this instance never fetched — but `enabled: false`
-    // only skips the network call, it doesn't hide data already cached
-    // under this exact query key from another (e.g. Edit/View) instance. So
-    // explicitly ignore `data` here rather than trusting it to be empty.
-    if (hideExisting) return [];
-    const items = data?.data ?? [];
-    return items
-      .filter((item) => !productionDate || item.productionDate.startsWith(productionDate))
-      .map(mapExtruderItem)
-      .filter((row) => row.raw > 0 || row.output > 0 || row.chemicalKg > 0);
-  }, [data, productionDate, hideExisting]);
-
-  // Editing an EXISTING saved record — a single slot, since editing more
-  // than one saved row at a time isn't a supported flow. Adding brand-new
-  // rows is a separate, array-backed flow below so multiple can be open at
-  // once (see ExtruderNewRow/newRows).
-  const [editingId, setEditingId] = useState<string | null>(null);
-  const [editDraft, setEditDraft] = useState<ExtruderDraft>(emptyExtruderDraft);
-  const [newRows, setNewRows] = useState<ExtruderNewRow[]>([]);
-  const [saving, setSaving] = useState(false);
-  const [errorMessage, setErrorMessage] = useState<string | null>(null);
-  const [deleteTarget, setDeleteTarget] = useState<ExtruderRow | null>(null);
-  const [deleting, setDeleting] = useState(false);
-  const hasAutoAddedRef = useRef(false);
-  const nextRowKeyRef = useRef(0);
-
-  // Appends a fresh blank draft row — never blocked by other rows already
-  // being open, so multiple new entries can be filled in before Save. Every
-  // field starts empty; nothing is auto-filled from Inventory or anywhere
-  // else — the user selects/types every value, and only Output reacts once
-  // real values have been entered (see suggestExtruderOutput / updateNewRow).
-  const startAdd = useCallback(() => {
-    setNewRows((current) => [
-      ...current,
-      { key: `new-${nextRowKeyRef.current++}`, draft: { ...emptyExtruderDraft }, outputManuallyEdited: false },
-    ]);
-  }, []);
-
-  useEffect(() => {
-    if (readOnly || !autoAdd || isLoading || hasAutoAddedRef.current) return;
-    if (newRows.length === 0) {
-      hasAutoAddedRef.current = true;
-      startAdd();
-    }
-  }, [readOnly, autoAdd, isLoading, newRows.length, startAdd]);
-
-  // Single choke point for every field edit on a new row — recomputes the
-  // suggested Yarn Output from the row's own values unless the user has
-  // typed into Output directly (see outputManuallyEdited / onOutputManualEdit).
-  const updateNewRow = (key: string, draft: ExtruderDraft) => {
-    setNewRows((current) =>
-      current.map((row) => {
-        if (row.key !== key) return row;
-        const nextDraft = row.outputManuallyEdited ? draft : { ...draft, output: suggestExtruderOutput(draft) };
-        return { ...row, draft: nextDraft };
-      }),
-    );
-  };
-  const markNewRowOutputManualEdit = (key: string) => {
-    setNewRows((current) => current.map((row) => (row.key === key ? { ...row, outputManuallyEdited: true } : row)));
-  };
-  const removeNewRow = (key: string) => {
-    setNewRows((current) => current.filter((row) => row.key !== key));
-  };
-
-  const startEdit = (row: ExtruderRow) => {
-    setEditDraft({
-      size: row.size,
-      color: row.color,
-      brand: row.brand,
-      chemical: row.chemical,
-      raw: String(row.raw),
-      chemicalKg: String(row.chemicalKg),
-      output: String(row.output),
-      colorConsumedKg: row.colorConsumedKg ? String(row.colorConsumedKg) : '',
-      lumpsKg: String(row.lumpsKg),
-      yarnWasteKg: String(row.yarnWasteKg),
-    });
-    setEditingId(row.id);
-  };
-
-  const cancelEdit = () => {
-    setEditingId(null);
-    setEditDraft(emptyExtruderDraft);
-  };
-
-  const handleSaveExisting = async (): Promise<boolean> => {
-    const sizeId = findIdByName(lookups.sizes, editDraft.size);
-    const colorId = findIdByName(lookups.colors, editDraft.color);
-    const brandId = findIdByName(lookups.brands, editDraft.brand);
-    const chemicalId = findIdByName(lookups.chemicals, editDraft.chemical);
-    if (!sizeId || !colorId || !brandId || !chemicalId) {
-      setErrorMessage('Select Size, Color, Brand and Chemical before saving.');
-      return false;
-    }
-    if (!((parseFloat(editDraft.raw) || 0) > 0)) {
-      setErrorMessage('Enter Raw Material (kg) — it must be greater than 0.');
-      return false;
-    }
-    if (!((parseFloat(editDraft.chemicalKg) || 0) > 0)) {
-      setErrorMessage('Enter Chem. Wt (kg) — it must be greater than 0.');
-      return false;
-    }
-    if (!((parseFloat(editDraft.output) || 0) > 0)) {
-      setErrorMessage('Enter Yarn Output (kg) — it must be greater than 0.');
-      return false;
-    }
-
-    try {
-      const payload: ExtruderUpdatePayload = {
-        productionDate: productionDate ?? new Date().toISOString().slice(0, 10),
-        sizeId,
-        colorId,
-        brandId,
-        chemicalId,
-        rawMaterialKg: parseFloat(editDraft.raw) || 0,
-        chemicalKg: parseFloat(editDraft.chemicalKg) || 0,
-        yarnOutputKg: parseFloat(editDraft.output) || 0,
-        // 0 explicitly clears that wastage on the backend rather than leaving it untouched.
-        lumpsKg: parseFloat(editDraft.lumpsKg) || 0,
-        yarnWasteKg: parseFloat(editDraft.yarnWasteKg) || 0,
-        // Omitted (not just 0) when left blank, so the backend falls back to
-        // its own standard-based auto-computation.
-        ...(editDraft.colorConsumedKg ? { colorConsumedKg: parseFloat(editDraft.colorConsumedKg) || 0 } : {}),
-      };
-
-      const response = await apiFetch(`/production/extruder/${editingId}`, {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(payload),
-      });
-      if (!response.ok) {
-        setErrorMessage(await extractApiErrorMessage(response, 'Failed to save the entry. Please try again.'));
-        return false;
-      }
-
-      await queryClient.invalidateQueries({ queryKey: extruderKeys.all });
-      await queryClient.invalidateQueries({ queryKey: dashboardProductionKey });
-      cancelEdit();
-      return true;
-    } catch (error) {
-      console.error('Error saving extruder entry:', error);
-      setErrorMessage('Failed to save the entry. Please try again.');
-      return false;
-    }
-  };
-
-  const handleSaveNewRow = async (row: ExtruderNewRow): Promise<boolean> => {
-    const sizeId = findIdByName(lookups.sizes, row.draft.size);
-    const colorId = findIdByName(lookups.colors, row.draft.color);
-    const brandId = findIdByName(lookups.brands, row.draft.brand);
-    const chemicalId = findIdByName(lookups.chemicals, row.draft.chemical);
-    if (!sizeId || !colorId || !brandId || !chemicalId) {
-      setErrorMessage('Select Size, Color, Brand and Chemical before saving.');
-      return false;
-    }
-    if (!((parseFloat(row.draft.raw) || 0) > 0)) {
-      setErrorMessage('Enter Raw Material (kg) — it must be greater than 0.');
-      return false;
-    }
-    if (!((parseFloat(row.draft.chemicalKg) || 0) > 0)) {
-      setErrorMessage('Enter Chem. Wt (kg) — it must be greater than 0.');
-      return false;
-    }
-    if (!((parseFloat(row.draft.output) || 0) > 0)) {
-      setErrorMessage('Enter Yarn Output (kg) — it must be greater than 0.');
-      return false;
-    }
-
-    try {
-      const payload: ExtruderCreatePayload = {
-        productionDate: productionDate ?? new Date().toISOString().slice(0, 10),
-        sizeId,
-        colorId,
-        brandId,
-        chemicalId,
-        rawMaterialKg: parseFloat(row.draft.raw) || 0,
-        chemicalKg: parseFloat(row.draft.chemicalKg) || 0,
-        yarnOutputKg: parseFloat(row.draft.output) || 0,
-        lumpsKg: parseFloat(row.draft.lumpsKg) || 0,
-        yarnWasteKg: parseFloat(row.draft.yarnWasteKg) || 0,
-        ...(row.draft.colorConsumedKg ? { colorConsumedKg: parseFloat(row.draft.colorConsumedKg) || 0 } : {}),
-      };
-      const response = await apiFetch('/production/extruder', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(payload),
-      });
-      if (!response.ok) {
-        setErrorMessage(await extractApiErrorMessage(response, 'Failed to save one or more entries. Please try again.'));
-      }
-      return response.ok;
-    } catch (error) {
-      console.error('Error saving extruder entry:', error);
-      setErrorMessage('Failed to save one or more entries. Please try again.');
-      return false;
-    }
-  };
-
-  useImperativeHandle(ref, () => ({
-    saveDraft: async () => {
-      if (readOnly) return true;
-      let allOk = true;
-      setSaving(true);
-      setErrorMessage(null);
-      try {
-        if (editingId && JSON.stringify(editDraft) !== JSON.stringify(emptyExtruderDraft)) {
-          const ok = await handleSaveExisting();
-          if (!ok) allOk = false;
-        }
-
-        // Blank/untouched rows are silently skipped rather than treated as
-        // failures — they simply stay open for the user to fill in later.
-        const rowsToSave = newRows.filter((row) => JSON.stringify(row.draft) !== JSON.stringify(emptyExtruderDraft));
-        if (rowsToSave.length > 0) {
-          const results = await Promise.all(rowsToSave.map((row) => handleSaveNewRow(row)));
-          const succeededKeys = new Set(rowsToSave.filter((_, i) => results[i]).map((row) => row.key));
-          if (succeededKeys.size > 0) {
-            setNewRows((current) => current.filter((row) => !succeededKeys.has(row.key)));
-            await queryClient.invalidateQueries({ queryKey: extruderKeys.all });
-            await queryClient.invalidateQueries({ queryKey: dashboardProductionKey });
-          }
-          if (succeededKeys.size < rowsToSave.length) allOk = false;
-        }
-      } finally {
-        setSaving(false);
-      }
-      return allOk;
-    },
-  }));
-
-  const handleDeleteRow = async () => {
-    if (!deleteTarget) return;
-    setDeleting(true);
-    try {
-      const response = await apiFetch(`/production/extruder/${deleteTarget.id}`, { method: 'DELETE' });
-      if (!response.ok) throw new Error('Failed to delete extruder entry');
-      await queryClient.invalidateQueries({ queryKey: extruderKeys.all });
-      await queryClient.invalidateQueries({ queryKey: dashboardProductionKey });
-      setDeleteTarget(null);
-    } catch (error) {
-      console.error('Error deleting extruder entry:', error);
-    } finally {
-      setDeleting(false);
-    }
-  };
-
-  const theme = themes.extruder;
-
-  return (
-    <div className={`rounded-xl border ${theme.border} bg-white shadow-sm overflow-hidden`}>
-      <div className={`p-3 ${theme.headerBg} flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between`}>
-        <div className={`flex items-center gap-3 text-[13px] font-extrabold ${theme.headerText} uppercase tracking-wider`}>
-          <div className={`${theme.iconBg} ${theme.iconColor} h-5 w-5 flex items-center justify-center rounded-sm text-[10px] font-bold`}>
-            1
-          </div>
-          EXTRUDER PRODUCTION (KG)
-        </div>
-      </div>
-
-      <div className="overflow-x-auto">
-        <Table>
-          <TableHeader>
-            <TableRow className="hover:bg-transparent">
-              <TableHead className="text-xs font-semibold uppercase tracking-wide text-gray-700">Size</TableHead>
-              <TableHead className="w-37.5 min-w-37.5 text-center text-xs font-semibold uppercase tracking-wide text-gray-700">Color</TableHead>
-              <TableHead className="w-37.5 min-w-37.5 text-center text-xs font-semibold uppercase tracking-wide text-gray-700">Brand</TableHead>
-              <TableHead className="text-xs font-semibold uppercase tracking-wide text-gray-700">Chemical</TableHead>
-              <TableHead className="text-center text-xs font-semibold uppercase tracking-wide text-gray-700">HDPE Material (kg)</TableHead>
-              <TableHead className="text-center text-xs font-semibold uppercase tracking-wide text-gray-700">Chem. Wt (kg)</TableHead>
-              <TableHead className="text-center text-xs font-semibold uppercase tracking-wide text-gray-700">Color Consumed (kg)</TableHead>
-              <TableHead className="text-center text-xs font-semibold uppercase tracking-wide text-gray-700">Lumps</TableHead>
-              <TableHead className="text-center text-xs font-semibold uppercase tracking-wide text-gray-700">Yarn Waste</TableHead>
-              <TableHead className="text-center text-xs font-semibold uppercase tracking-wide text-gray-700">Yarn Output (kg)</TableHead>
-              {!readOnly && <TableHead className="text-center text-xs font-semibold uppercase tracking-wide text-gray-700">Action</TableHead>}
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {isLoading ? (
-              <TableRow>
-                <TableCell colSpan={readOnly ? 10 : 11} className="h-20 text-center">
-                  <div className="flex items-center justify-center gap-2 text-gray-500">
-                    <Loader size="sm" /> Loading entries...
-                  </div>
-                </TableCell>
-              </TableRow>
-            ) : (
-              <>
-                {!readOnly &&
-                  newRows.map((row) => (
-                    <ExtruderEditableRow
-                      key={row.key}
-                      draft={row.draft}
-                      setDraft={(draft) => updateNewRow(row.key, draft)}
-                      lookups={lookups}
-                      saving={saving}
-                      onCancel={() => removeNewRow(row.key)}
-                      onOutputManualEdit={() => markNewRowOutputManualEdit(row.key)}
-                    />
-                  ))}
-                {!readOnly && editingId !== null && (
-                  <ExtruderEditableRow
-                    draft={editDraft}
-                    setDraft={setEditDraft}
-                    lookups={lookups}
-                    saving={saving}
-                    onCancel={cancelEdit}
-                  />
-                )}
-                {rows.map((row) => (
-                  <TableRow key={row.id} className={editingId === row.id ? 'bg-blue-50/30' : ''}>
-                    <TableCell>{row.size}</TableCell>
-                    <TableCell className="w-37.5 min-w-37.5 text-center">{row.color}</TableCell>
-                    <TableCell className="w-37.5 min-w-37.5 text-center">{row.brand}</TableCell>
-                    <TableCell>{row.chemical}</TableCell>
-                    <TableCell className="text-center">{row.raw.toFixed(2)}</TableCell>
-                    <TableCell className="text-center">{row.chemicalKg.toFixed(2)}</TableCell>
-                    <TableCell className="text-center">{row.colorConsumedKg.toFixed(2)}</TableCell>
-                    <TableCell className="text-center">{row.lumpsKg.toFixed(2)}</TableCell>
-                    <TableCell className="text-center">{row.yarnWasteKg.toFixed(2)}</TableCell>
-                    <TableCell className="text-center">{row.output.toFixed(2)}</TableCell>
-                    {!readOnly && (
-                      <TableCell className="text-center">
-                        <div className="flex items-center justify-center gap-1.5">
-                          <Button
-                            variant="ghost"
-                            size="icon-sm"
-                            className="rounded-full bg-blue-50 text-blue-500 hover:bg-blue-100"
-                            aria-label="Edit row"
-                            onClick={() => startEdit(row)}
-                          >
-                            <Edit2 className="h-3.5 w-3.5" />
-                          </Button>
-                          <Button
-                            variant="ghost"
-                            size="icon-sm"
-                            className="rounded-full bg-red-50 text-red-500 hover:bg-red-100"
-                            aria-label="Delete row"
-                            onClick={() => setDeleteTarget(row)}
-                          >
-                            <Trash2 className="h-3.5 w-3.5" />
-                          </Button>
-                        </div>
-                      </TableCell>
-                    )}
-                  </TableRow>
-                )
-                )}
-                {rows.length === 0 && newRows.length === 0 && editingId === null && (
-                  <TableRow>
-                    <TableCell colSpan={readOnly ? 10 : 11} className="h-20 text-center text-gray-500">No entries yet.</TableCell>
-                  </TableRow>
-                )}
-              </>
-            )}
-          </TableBody>
-        </Table>
-      </div>
-
-      {!readOnly && (
-        <div className="p-4 border-t border-gray-50 flex flex-col gap-2">
-          <div className="flex items-center gap-3">
-            <Button
-              variant="outline"
-              size="sm"
-              className={`h-8 gap-1 rounded-full ${theme.buttonBorder} ${theme.buttonText} ${theme.buttonHover}`}
-              onClick={startAdd}
-              disabled={saving}
-            >
-              <Plus className="h-3 w-3" /> Add row
-            </Button>
-          </div>
-          {errorMessage && <p className="text-xs font-medium text-red-600">{errorMessage}</p>}
-        </div>
-      )}
-      <DeleteConfirmDialog
-        open={!!deleteTarget}
-        onOpenChange={(open) => !open && setDeleteTarget(null)}
-        title="Delete this extruder entry?"
-        description={deleteTarget ? `${deleteTarget.size} / ${deleteTarget.color} — ${deleteTarget.raw.toFixed(2)} kg raw material. This action cannot be undone.` : undefined}
-        isPending={deleting}
-        onConfirm={handleDeleteRow}
-      />
-    </div>
-  );
-});
-
-interface ExtruderEditableRowProps {
-  draft: ExtruderDraft;
-  setDraft: (draft: ExtruderDraft) => void;
-  lookups: Lookups;
-  saving: boolean;
-  onCancel: () => void;
-  /** Called the moment the user types directly into Output, so the parent
-   * stops overwriting it with the suggested mass-balance value. */
-  onOutputManualEdit?: () => void;
-}
-
-function ExtruderEditableRow({
-  draft,
-  setDraft,
-  lookups,
-  saving,
-  onCancel,
-  onOutputManualEdit,
-}: ExtruderEditableRowProps) {
-  return (
-    <TableRow>
-      <TableCell>
-        <Select value={draft.size} onValueChange={(value) => setDraft({ ...draft, size: value })}>
-          <SelectTrigger className="h-10"><SelectValue placeholder="Size" /></SelectTrigger>
-          <SelectContent>
-            {lookups.sizes.map((s) => <SelectItem key={s.id} value={s.name}>{s.name}</SelectItem>)}
-          </SelectContent>
-        </Select>
-      </TableCell>
-      <TableCell className="w-37.5 min-w-37.5 text-center">
-        <Select value={draft.color} onValueChange={(value) => setDraft({ ...draft, color: value })}>
-          <SelectTrigger className="h-10 w-full"><SelectValue placeholder="Color" /></SelectTrigger>
-          <SelectContent>
-            {lookups.colors.map((c) => <SelectItem key={c.id} value={c.name}>{c.name}</SelectItem>)}
-          </SelectContent>
-        </Select>
-      </TableCell>
-      <TableCell className="w-37.5 min-w-37.5 text-center">
-        <Select value={draft.brand} onValueChange={(value) => setDraft({ ...draft, brand: value })}>
-          <SelectTrigger className="h-10 w-full"><SelectValue placeholder="Brand" /></SelectTrigger>
-          <SelectContent>
-            {lookups.brands.map((b) => <SelectItem key={b.id} value={b.name}>{b.name}</SelectItem>)}
-          </SelectContent>
-        </Select>
-      </TableCell>
-      <TableCell>
-        <Select value={draft.chemical} onValueChange={(value) => setDraft({ ...draft, chemical: value })}>
-          <SelectTrigger className="h-10"><SelectValue placeholder="Chemical" /></SelectTrigger>
-          <SelectContent>
-            {lookups.chemicals.map((c) => <SelectItem key={c.id} value={c.name}>{c.name}</SelectItem>)}
-          </SelectContent>
-        </Select>
-      </TableCell>
-      <TableCell><Input type="number" className="h-10 w-full text-center" value={draft.raw} onChange={(e) => setDraft({ ...draft, raw: e.target.value })} /></TableCell>
-      <TableCell><Input type="number" className="h-10 w-full text-center" value={draft.chemicalKg} onChange={(e) => setDraft({ ...draft, chemicalKg: e.target.value })} /></TableCell>
-      <TableCell><Input type="number" className="h-10 w-full text-center" value={draft.colorConsumedKg} placeholder="auto" onChange={(e) => setDraft({ ...draft, colorConsumedKg: e.target.value })} /></TableCell>
-      <TableCell><Input type="number" className="h-10 w-full text-center" value={draft.lumpsKg} onChange={(e) => setDraft({ ...draft, lumpsKg: e.target.value })} /></TableCell>
-      <TableCell><Input type="number" className="h-10 w-full text-center" value={draft.yarnWasteKg} onChange={(e) => setDraft({ ...draft, yarnWasteKg: e.target.value })} /></TableCell>
-      <TableCell><Input type="number" className="h-10 w-full text-center" value={draft.output} placeholder="suggested" onChange={(e) => { onOutputManualEdit?.(); setDraft({ ...draft, output: e.target.value }); }} /></TableCell>
-      <TableCell className="text-center">
-        <div className="flex items-center justify-center gap-2">
-          <Button variant="ghost" size="icon-sm" className="rounded-full bg-gray-100 text-gray-500 hover:bg-gray-200" aria-label="Cancel" onClick={onCancel} disabled={saving}>
-            <XIcon className="h-3.5 w-3.5" />
-          </Button>
-        </div>
-      </TableCell>
-    </TableRow>
-  );
-}
+export { ExtruderSection } from '@/features/extruder/extruder-section-new';
 
 export interface LoomRow {
   id: string;
   size: string;
   color: string;
+  kora: string;
   input: number;
   output: number;
   loomsWasteKg: number;
@@ -720,6 +258,7 @@ export function mapLoomItem(item: LoomsProductionItem): LoomRow {
 interface LoomDraft {
   size: string;
   color: string;
+  kora: string;
   input: string;
   output: string;
   loomsWasteKg: string;
@@ -750,7 +289,10 @@ function suggestLoomOutput(draft: Pick<LoomDraft, 'input' | 'loomsWasteKg'>): st
  * is adding a brand-new row via
  * POST /production/looms.
  */
-export const LoomSection = forwardRef<SectionRef, SectionProps>(({ productionDate, autoAdd, readOnly, hideExisting }, ref) => {
+
+
+
+export const LoomSection = forwardRef<SectionRef, SectionProps>(({ productionDate, autoAdd, readOnly, hideExisting, hideBanner }, ref) => {
   const queryClient = useQueryClient();
   const { data, isLoading } = useLoomsProductions(
     productionDate ? `?date_from=${productionDate}&date_to=${productionDate}` : '',
@@ -822,6 +364,7 @@ export const LoomSection = forwardRef<SectionRef, SectionProps>(({ productionDat
     setEditDraft({
       size: row.size,
       color: row.color,
+      kora: row.kora,
       input: String(row.input),
       output: String(row.output),
       loomsWasteKg: String(row.loomsWasteKg),
@@ -971,28 +514,32 @@ export const LoomSection = forwardRef<SectionRef, SectionProps>(({ productionDat
   };
 
   const theme = themes.looms;
+  const roundedClass = hideBanner ? 'rounded-b-xl rounded-tr-xl rounded-tl-none' : 'rounded-xl';
 
   return (
-    <div className={`rounded-xl border ${theme.border} bg-white shadow-sm overflow-hidden`}>
-      <div className={`p-3 ${theme.headerBg} flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between`}>
-        <div className={`flex items-center gap-3 text-[13px] font-extrabold ${theme.headerText} uppercase tracking-wider`}>
-          <div className={`${theme.iconBg} ${theme.iconColor} h-5 w-5 flex items-center justify-center rounded-sm text-[10px] font-bold`}>
-            2
+    <div className={`${roundedClass} border ${theme.border} bg-white shadow-sm overflow-hidden`}>
+      {!hideBanner && (
+        <div className={`p-3 ${theme.headerBg} flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between`}>
+          <div className={`flex items-center gap-3 text-[13px] font-extrabold ${theme.headerText} uppercase tracking-wider`}>
+            <div className={`${theme.iconBg} ${theme.iconColor} h-5 w-5 flex items-center justify-center rounded-sm text-[10px] font-bold`}>
+              2
+            </div>
+            LOOMS PRODUCTION (KG)
           </div>
-          LOOMS PRODUCTION (KG)
         </div>
-      </div>
+      )}
 
       <div className="overflow-x-auto">
         <Table>
-          <TableHeader>
-            <TableRow className="hover:bg-transparent">
-              <TableHead className="text-xs font-semibold uppercase tracking-wide text-gray-700">Size</TableHead>
-              <TableHead className="w-37.5 min-w-37.5 text-center text-xs font-semibold uppercase tracking-wide text-gray-700">Color</TableHead>
-              <TableHead className="text-center text-xs font-semibold uppercase tracking-wide text-gray-700">Yarn Input (kg)</TableHead>
-              <TableHead className="text-center text-xs font-semibold uppercase tracking-wide text-gray-700">Looms Waste</TableHead>
-              <TableHead className="text-center text-xs font-semibold uppercase tracking-wide text-gray-700">Fabric Output (kg)</TableHead>
-              {!readOnly && <TableHead className="text-center text-xs font-semibold uppercase tracking-wide text-gray-700">Action</TableHead>}
+          <TableHeader className={`${theme.headerBg}`}>
+            <TableRow className="hover:!bg-transparent border-b-0">
+              <TableHead className={`text-xs font-semibold uppercase tracking-wide ${theme.headerText}`}>Size</TableHead>
+              <TableHead className={`w-37.5 min-w-37.5 text-center text-xs font-semibold uppercase tracking-wide ${theme.headerText}`}>Color</TableHead>
+              <TableHead className={	ext-center text-xs font-semibold uppercase tracking-wide ${theme.headerText}}>Kora</TableHead>
+              <TableHead className={`text-center text-xs font-semibold uppercase tracking-wide ${theme.headerText}`}>Loom Production (kg)</TableHead>
+              <TableHead className={`text-center text-xs font-semibold uppercase tracking-wide ${theme.headerText}`}>Looms/Yarn Waste</TableHead>
+              <TableHead className={`text-center text-xs font-semibold uppercase tracking-wide ${theme.headerText}`}>Fabric production (kg)</TableHead>
+              {!readOnly && <TableHead className={`text-center text-xs font-semibold uppercase tracking-wide ${theme.headerText}`}>Action</TableHead>}
             </TableRow>
           </TableHeader>
           <TableBody>
@@ -1028,6 +575,7 @@ export const LoomSection = forwardRef<SectionRef, SectionProps>(({ productionDat
                           </SelectContent>
                         </Select>
                       </TableCell>
+                      <TableCell><Input type="text" className="h-10 w-full text-center" value={row.draft.kora} onChange={(e) => updateNewRow(row.key, { ...row.draft, kora: e.target.value })} /></TableCell>
                       <TableCell>
                         <Input
                           type="number"
@@ -1080,6 +628,7 @@ export const LoomSection = forwardRef<SectionRef, SectionProps>(({ productionDat
                         </SelectContent>
                       </Select>
                     </TableCell>
+                    <TableCell><Input type="text" className="h-10 w-full text-center" value={editDraft.kora} onChange={(e) => setEditDraft({ ...editDraft, kora: e.target.value })} /></TableCell>
                     <TableCell><Input type="number" className="h-10 w-full text-center" value={editDraft.input} onChange={(e) => setEditDraft({ ...editDraft, input: e.target.value })} /></TableCell>
                     <TableCell><Input type="number" className="h-10 w-full text-center" value={editDraft.loomsWasteKg} onChange={(e) => setEditDraft({ ...editDraft, loomsWasteKg: e.target.value })} /></TableCell>
                     <TableCell><Input type="number" className="h-10 w-full text-center" value={editDraft.output} onChange={(e) => setEditDraft({ ...editDraft, output: e.target.value })} /></TableCell>
@@ -1094,6 +643,7 @@ export const LoomSection = forwardRef<SectionRef, SectionProps>(({ productionDat
                   <TableRow key={row.id} className={editingId === row.id ? 'bg-blue-50/30' : ''}>
                     <TableCell>{row.size}</TableCell>
                     <TableCell className="w-37.5 min-w-37.5 text-center">{row.color}</TableCell>
+                    <TableCell className="text-center">{row.kora}</TableCell>
                     <TableCell className="text-center">{row.input.toFixed(2)}</TableCell>
                     <TableCell className="text-center">{row.loomsWasteKg.toFixed(2)}</TableCell>
                     <TableCell className="text-center">{row.output.toFixed(2)}</TableCell>
@@ -1166,6 +716,7 @@ export interface FabricRow {
   id: string;
   size: string;
   color: string;
+  kora: string;
   input: number;
   /** Final Stock/Output; falls back to firstGrade+secondGrade for records created before this field existed. */
   output: number;
@@ -1186,6 +737,7 @@ export function mapFabricItem(item: FabricCheckingRecord): FabricRow {
     id: item.id,
     size: item.size?.name ?? '',
     color: item.color?.name ?? '',
+    kora: (item.fabricCheck as any)?.kora ?? '',
     input: item.fabricCheck?.fabricInputKg ?? 0,
     output: item.fabricCheck?.outputKg ?? (firstGrade + secondGrade),
     pieceCount: (item.fabricCheck as any)?.pieceCount ?? 0,
@@ -1199,13 +751,14 @@ export function mapFabricItem(item: FabricCheckingRecord): FabricRow {
 interface FabricDraft {
   size: string;
   color: string;
+  kora: string;
   input: string;
   output: string;
   fwKg: string;
   bwKg: string;
 }
 
-const emptyFabricDraft: FabricDraft = { size: '', color: '', input: '', output: '', fwKg: '', bwKg: '' };
+const emptyFabricDraft: FabricDraft = { size: '', color: '', kora: '', input: '', output: '', fwKg: '', bwKg: '' };
 
 /** One pending (unsaved) new-entry row — several of these can be open at once. */
 interface FabricNewRow {
@@ -1231,7 +784,7 @@ function suggestFabricOutput(draft: Pick<FabricDraft, 'input' | 'fwKg' | 'bwKg'>
  * and — like Looms — only has create/list/get, no edit yet, so existing
  * rows are read-only and the only mutation is adding a new row via POST.
  */
-export const FabricSection = forwardRef<SectionRef, SectionProps>(({ productionDate, autoAdd, readOnly, hideExisting }, ref) => {
+export const FabricSection = forwardRef<SectionRef, SectionProps>(({ productionDate, autoAdd, readOnly, hideExisting, hideBanner }, ref) => {
   const queryClient = useQueryClient();
   const { data, isLoading } = useFabricCheckingRecords(
     productionDate ? `?date_from=${productionDate}&date_to=${productionDate}` : '',
@@ -1303,6 +856,7 @@ export const FabricSection = forwardRef<SectionRef, SectionProps>(({ productionD
     setEditDraft({
       size: row.size,
       color: row.color,
+      kora: row.kora,
       input: String(row.input),
       output: String(row.output),
       fwKg: String(row.fwKg),
@@ -1447,35 +1001,39 @@ export const FabricSection = forwardRef<SectionRef, SectionProps>(({ productionD
   };
 
   const theme = themes.fabric;
+  const roundedClass = hideBanner ? 'rounded-b-xl rounded-tr-xl rounded-tl-none' : 'rounded-xl';
 
   return (
-    <div className={`rounded-xl border ${theme.border} bg-white shadow-sm overflow-hidden`}>
-      <div className={`p-3 ${theme.headerBg} flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between`}>
-        <div className={`flex items-center gap-3 text-[13px] font-extrabold ${theme.headerText} uppercase tracking-wider`}>
-          <div className={`${theme.iconBg} ${theme.iconColor} h-5 w-5 flex items-center justify-center rounded-sm text-[10px] font-bold`}>
-            3
+    <div className={`${roundedClass} border ${theme.border} bg-white shadow-sm overflow-hidden`}>
+      {!hideBanner && (
+        <div className={`p-3 ${theme.headerBg} flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between`}>
+          <div className={`flex items-center gap-3 text-[13px] font-extrabold ${theme.headerText} uppercase tracking-wider`}>
+            <div className={`${theme.iconBg} ${theme.iconColor} h-5 w-5 flex items-center justify-center rounded-sm text-[10px] font-bold`}>
+              3
+            </div>
+            FABRIC PRODUCTION (KG)
           </div>
-          FABRIC PRODUCTION (KG)
         </div>
-      </div>
+      )}
 
       <div className="overflow-x-auto">
         <Table>
-          <TableHeader>
-            <TableRow className="hover:bg-transparent">
-              <TableHead className="text-xs font-semibold uppercase tracking-wide text-gray-700">Size</TableHead>
-              <TableHead className="w-37.5 min-w-37.5 text-center text-xs font-semibold uppercase tracking-wide text-gray-700">Color</TableHead>
-              <TableHead className="text-center text-xs font-semibold uppercase tracking-wide text-gray-700">Fabric Input (kg)</TableHead>
-              <TableHead className="text-center text-xs font-semibold uppercase tracking-wide text-gray-700">FW</TableHead>
-              <TableHead className="text-center text-xs font-semibold uppercase tracking-wide text-gray-700">BW</TableHead>
-              <TableHead className="text-center text-xs font-semibold uppercase tracking-wide text-gray-700">Output (kg)</TableHead>
-              {!readOnly && <TableHead className="text-center text-xs font-semibold uppercase tracking-wide text-gray-700">Action</TableHead>}
+          <TableHeader className={`${theme.headerBg}`}>
+            <TableRow className="hover:!bg-transparent border-b-0">
+              <TableHead className={`text-xs font-semibold uppercase tracking-wide ${theme.headerText}`}>Size</TableHead>
+              <TableHead className={`w-37.5 min-w-37.5 text-center text-xs font-semibold uppercase tracking-wide ${theme.headerText}`}>Color</TableHead>
+              <TableHead className={	ext-center text-xs font-semibold uppercase tracking-wide ${theme.headerText}}>Kora</TableHead>
+              <TableHead className={`text-center text-xs font-semibold uppercase tracking-wide ${theme.headerText}`}>Fabric Production (kg)</TableHead>
+              <TableHead className={`text-center text-xs font-semibold uppercase tracking-wide ${theme.headerText}`}>Fabric Waste</TableHead>
+              <TableHead className={`text-center text-xs font-semibold uppercase tracking-wide ${theme.headerText}`}>Bit Waste</TableHead>
+              <TableHead className={`text-center text-xs font-semibold uppercase tracking-wide ${theme.headerText}`}>Fabric Output (kg)</TableHead>
+              {!readOnly && <TableHead className={`text-center text-xs font-semibold uppercase tracking-wide ${theme.headerText}`}>Action</TableHead>}
             </TableRow>
           </TableHeader>
           <TableBody>
             {isLoading ? (
               <TableRow>
-                <TableCell colSpan={readOnly ? 6 : 7} className="h-20 text-center">
+                <TableCell colSpan={readOnly ? 7 : 8} className="h-20 text-center">
                   <div className="flex items-center justify-center gap-2 text-gray-500">
                     <Loader size="sm" /> Loading entries...
                   </div>
@@ -1505,6 +1063,7 @@ export const FabricSection = forwardRef<SectionRef, SectionProps>(({ productionD
                           </SelectContent>
                         </Select>
                       </TableCell>
+                      <TableCell><Input type="text" className="h-10 w-full text-center" value={row.draft.kora} onChange={(e) => updateNewRow(row.key, { ...row.draft, kora: e.target.value })} /></TableCell>
                       <TableCell>
                         <Input
                           type="number"
@@ -1551,6 +1110,7 @@ export const FabricSection = forwardRef<SectionRef, SectionProps>(({ productionD
                         </SelectContent>
                       </Select>
                     </TableCell>
+                    <TableCell><Input type="text" className="h-10 w-full text-center" value={editDraft.kora} onChange={(e) => setEditDraft({ ...editDraft, kora: e.target.value })} /></TableCell>
                     <TableCell><Input type="number" className="h-10 w-full text-center" value={editDraft.input} onChange={(e) => setEditDraft({ ...editDraft, input: e.target.value })} /></TableCell>
                     <TableCell><Input type="number" className="h-10 w-full text-center" value={editDraft.fwKg} onChange={(e) => setEditDraft({ ...editDraft, fwKg: e.target.value })} /></TableCell>
                     <TableCell><Input type="number" className="h-10 w-full text-center" value={editDraft.bwKg} onChange={(e) => setEditDraft({ ...editDraft, bwKg: e.target.value })} /></TableCell>
@@ -1566,6 +1126,7 @@ export const FabricSection = forwardRef<SectionRef, SectionProps>(({ productionD
                   <TableRow key={row.id} className={editingId === row.id ? 'bg-blue-50/30' : ''}>
                     <TableCell>{row.size}</TableCell>
                     <TableCell className="w-37.5 min-w-37.5 text-center">{row.color}</TableCell>
+                    <TableCell className="text-center">{row.kora}</TableCell>
                     <TableCell className="text-center">{row.input.toFixed(2)}</TableCell>
                     <TableCell className="text-center">{row.fwKg.toFixed(2)}</TableCell>
                     <TableCell className="text-center">{row.bwKg.toFixed(2)}</TableCell>
@@ -1598,7 +1159,7 @@ export const FabricSection = forwardRef<SectionRef, SectionProps>(({ productionD
                 ))}
                 {rows.length === 0 && newRows.length === 0 && editingId === null && (
                   <TableRow>
-                    <TableCell colSpan={readOnly ? 6 : 7} className="h-20 text-center text-gray-500">No entries yet.</TableCell>
+                    <TableCell colSpan={readOnly ? 7 : 8} className="h-20 text-center text-gray-500">No entries yet.</TableCell>
                   </TableRow>
                 )}
               </>
@@ -1674,7 +1235,7 @@ function mapLoadSentRecord(record: LoadSentProductionRecord): FabricDeliveredRow
   };
 }
 
-export const FabricDeliveredSection = forwardRef<SectionRef, SectionProps>(({ productionDate, autoAdd, readOnly, hideExisting }, ref) => {
+export const FabricDeliveredSection = forwardRef<SectionRef, SectionProps>(({ productionDate, autoAdd, readOnly, hideExisting, hideBanner }, ref) => {
   const queryClient = useQueryClient();
   const { data: lookupsData } = useLookups();
   const lookups: Lookups = lookupsData ?? { brands: [], colors: [], chemicals: [], sizes: [] };
@@ -1824,26 +1385,30 @@ export const FabricDeliveredSection = forwardRef<SectionRef, SectionProps>(({ pr
   };
 
   const theme = themes.fabricDelivered;
+  const roundedClass = hideBanner ? 'rounded-b-xl rounded-tr-xl rounded-tl-none' : 'rounded-xl';
 
   return (
-    <div className={`rounded-xl border ${theme.border} bg-white shadow-sm overflow-hidden`}>
-      <div className={`p-3 ${theme.headerBg} flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between`}>
-        <div className={`flex items-center gap-3 text-[13px] font-extrabold ${theme.headerText} uppercase tracking-wider`}>
-          <div className={`${theme.iconBg} ${theme.iconColor} h-5 w-5 flex items-center justify-center rounded-sm text-[10px] font-bold`}>
-            4
+    <div className={`${roundedClass} border ${theme.border} bg-white shadow-sm overflow-hidden`}>
+      {!hideBanner && (
+        <div className={`p-3 ${theme.headerBg} flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between`}>
+          <div className={`flex items-center gap-3 text-[13px] font-extrabold ${theme.headerText} uppercase tracking-wider`}>
+            <div className={`${theme.iconBg} ${theme.iconColor} h-5 w-5 flex items-center justify-center rounded-sm text-[10px] font-bold`}>
+              4
+            </div>
+            FABRIC DELIVERED
           </div>
-          FABRIC DELIVERED
         </div>
-      </div>
+      )}
 
       <div className="overflow-x-auto">
         <Table>
-          <TableHeader>
-            <TableRow className="hover:bg-transparent">
-              <TableHead className="text-xs font-semibold uppercase tracking-wide text-gray-700">Size</TableHead>
-              <TableHead className="w-37.5 min-w-37.5 text-center text-xs font-semibold uppercase tracking-wide text-gray-700">Color</TableHead>
-              <TableHead className="text-center text-xs font-semibold uppercase tracking-wide text-gray-700">Delivered (kg)</TableHead>
-              {!readOnly && <TableHead className="text-center text-xs font-semibold uppercase tracking-wide text-gray-700">Action</TableHead>}
+          <TableHeader className={`${theme.headerBg}`}>
+            <TableRow className="hover:!bg-transparent border-b-0">
+              <TableHead className={`text-xs font-semibold uppercase tracking-wide ${theme.headerText}`}>Size</TableHead>
+              <TableHead className={`w-37.5 min-w-37.5 text-center text-xs font-semibold uppercase tracking-wide ${theme.headerText}`}>Color</TableHead>
+              <TableHead className={	ext-center text-xs font-semibold uppercase tracking-wide ${theme.headerText}}>Kora</TableHead>
+              <TableHead className={`text-center text-xs font-semibold uppercase tracking-wide ${theme.headerText}`}>Delivered (kg)</TableHead>
+              {!readOnly && <TableHead className={`text-center text-xs font-semibold uppercase tracking-wide ${theme.headerText}`}>Action</TableHead>}
             </TableRow>
           </TableHeader>
           <TableBody>
@@ -1975,3 +1540,6 @@ export const FabricDeliveredSection = forwardRef<SectionRef, SectionProps>(({ pr
     </div>
   );
 });
+
+
+

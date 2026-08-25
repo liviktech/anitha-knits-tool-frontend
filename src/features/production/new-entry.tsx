@@ -5,6 +5,7 @@ import { Button } from '@/components/ui/button';
 import { Calendar } from '@/components/ui/calendar';
 import { Loader } from '@/components/shared/loader';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { ExtruderSection, LoomSection, FabricSection, FabricDeliveredSection } from './day-entry-sections';
 import type { SectionRef } from './day-entry-sections';
 import { useExtruderProductions, useLookups } from '@/features/extruder/extruder-queries';
@@ -110,22 +111,10 @@ export function NewEntry({ onClose, defaultDate, readOnly = false }: NewEntryPro
   const totalChemical = lookups.chemicals.reduce((sum, c) => sum + parseFloat(getChemicalBalance(c.name) || '0'), 0).toFixed(2);
   const totalColor = lookups.colors.reduce((sum, c) => sum + parseFloat(getColorBalance(c.name) || '0'), 0).toFixed(2);
 
-  const handleSaveDayEntry = async () => {
+  const handleSaveTab = async (ref: React.RefObject<SectionRef>) => {
     setSubmitting(true);
     try {
-      const results = await Promise.all([
-        extruderRef.current?.saveDraft(),
-        loomRef.current?.saveDraft(),
-        fabricRef.current?.saveDraft(),
-        fabricDeliveredRef.current?.saveDraft()
-      ]);
-
-      // If any returned false (i.e. validation failed or save failed), don't close.
-      if (results.some(success => success === false)) {
-        return;
-      }
-
-      onClose();
+      await ref.current?.saveDraft();
     } catch (e) {
       console.error(e);
     } finally {
@@ -217,40 +206,93 @@ export function NewEntry({ onClose, defaultDate, readOnly = false }: NewEntryPro
 
         {/* Forms Container */}
         <div className="flex flex-col gap-2.5">
-          <ExtruderSection
-            ref={extruderRef}
-            productionDate={productionDate}
-            autoAdd={!readOnly}
-            readOnly={readOnly}
-            hideExisting={false}
-          />
-          <LoomSection ref={loomRef} productionDate={productionDate} autoAdd={!readOnly} readOnly={readOnly} hideExisting={false} />
-          <FabricSection ref={fabricRef} productionDate={productionDate} autoAdd={!readOnly} readOnly={readOnly} hideExisting={false} />
-          <FabricDeliveredSection ref={fabricDeliveredRef} productionDate={productionDate} autoAdd={!readOnly} readOnly={readOnly} hideExisting={false} />
+          <Tabs defaultValue="extruder" className="w-full flex-col gap-0">
+            <TabsList variant="folder" className="flex w-full overflow-x-auto sm:overflow-visible">
+              <TabsTrigger value="extruder" className="data-[state=active]:!bg-[#D6EEF7] data-[state=active]:!text-[#0B5566] data-[state=active]:!border-b-[#D6EEF7]">EXTRUDER PRODUCTION</TabsTrigger>
+              <TabsTrigger value="looms" className="data-[state=active]:!bg-[#FFF6BF] data-[state=active]:!text-[#7A6A00] data-[state=active]:!border-b-[#FFF6BF]">LOOMS PRODUCTION</TabsTrigger>
+              <TabsTrigger value="fabric" className="data-[state=active]:!bg-[#DCEEDB] data-[state=active]:!text-[#2F6B2F] data-[state=active]:!border-b-[#DCEEDB]">FABRIC CHECKING</TabsTrigger>
+              <TabsTrigger value="delivered" className="data-[state=active]:!bg-[#f2caa0] data-[state=active]:!text-[#61401E] data-[state=active]:!border-b-[#f2caa0]">FABRIC DELIVERED</TabsTrigger>
+            </TabsList>
+
+            <TabsContent value="extruder" className="flex flex-col gap-4 mt-0 pt-0">
+              <ExtruderSection
+                ref={extruderRef}
+                productionDate={productionDate}
+                autoAdd={!readOnly}
+                readOnly={readOnly}
+                hideExisting={false}
+                hideBanner={true}
+              />
+              {!readOnly && (
+                <div className="flex justify-end">
+                  <Button
+                    className="bg-[#004D40] text-white hover:bg-[#00382e] font-semibold shadow-sm px-6"
+                    onClick={() => handleSaveTab(extruderRef)}
+                    disabled={submitting}
+                  >
+                    {submitting && <Loader size="sm" className="mr-2" />}
+                    Save Extruder
+                  </Button>
+                </div>
+              )}
+            </TabsContent>
+
+            <TabsContent value="looms" className="flex flex-col gap-4 mt-0 pt-0">
+              <LoomSection ref={loomRef} productionDate={productionDate} autoAdd={!readOnly} readOnly={readOnly} hideExisting={false} hideBanner={true} />
+              {!readOnly && (
+                <div className="flex justify-end">
+                  <Button
+                    className="bg-[#004D40] text-white hover:bg-[#00382e] font-semibold shadow-sm px-6"
+                    onClick={() => handleSaveTab(loomRef)}
+                    disabled={submitting}
+                  >
+                    {submitting && <Loader size="sm" className="mr-2" />}
+                    Save Looms
+                  </Button>
+                </div>
+              )}
+            </TabsContent>
+
+            <TabsContent value="fabric" className="flex flex-col gap-4 mt-0 pt-0">
+              <FabricSection ref={fabricRef} productionDate={productionDate} autoAdd={!readOnly} readOnly={readOnly} hideExisting={false} hideBanner={true} />
+              {!readOnly && (
+                <div className="flex justify-end">
+                  <Button
+                    className="bg-[#004D40] text-white hover:bg-[#00382e] font-semibold shadow-sm px-6"
+                    onClick={() => handleSaveTab(fabricRef)}
+                    disabled={submitting}
+                  >
+                    {submitting && <Loader size="sm" className="mr-2" />}
+                    Save Fabric Checking
+                  </Button>
+                </div>
+              )}
+            </TabsContent>
+
+            <TabsContent value="delivered" className="flex flex-col gap-4 mt-0 pt-0">
+              <FabricDeliveredSection ref={fabricDeliveredRef} productionDate={productionDate} autoAdd={!readOnly} readOnly={readOnly} hideExisting={false} hideBanner={true} />
+              {!readOnly && (
+                <div className="flex justify-end">
+                  <Button
+                    className="bg-[#004D40] text-white hover:bg-[#00382e] font-semibold shadow-sm px-6"
+                    onClick={() => handleSaveTab(fabricDeliveredRef)}
+                    disabled={submitting}
+                  >
+                    {submitting && <Loader size="sm" className="mr-2" />}
+                    Save Fabric Delivered
+                  </Button>
+                </div>
+              )}
+            </TabsContent>
+          </Tabs>
         </div>
 
         {/* Footer */}
         <div className="mt-4 mb-8 flex justify-end">
           <div className="flex items-center gap-3">
-            {readOnly ? (
-              <Button variant="outline" onClick={onClose} className="border-gray-300 text-gray-700 bg-white">
-                Close
-              </Button>
-            ) : (
-              <>
-                <Button variant="outline" onClick={onClose} className="border-gray-300 text-gray-700 bg-white font-semibold shadow-sm" disabled={submitting}>
-                  Cancel
-                </Button>
-                <Button
-                  className="bg-[#004D40] text-white hover:bg-[#00382e] font-semibold shadow-sm px-6"
-                  onClick={handleSaveDayEntry}
-                  disabled={submitting}
-                >
-                  {submitting && <Loader size="sm" className="mr-2" />}
-                  Save
-                </Button>
-              </>
-            )}
+            <Button variant="outline" onClick={onClose} className="border-gray-300 text-gray-700 bg-white" disabled={submitting}>
+              Close
+            </Button>
           </div>
         </div>
       </div>
