@@ -18,7 +18,7 @@ import {
   BarChart,
   Bar,
 } from 'recharts';
-import { ChevronDown, ChevronRight, Package, Users, Wallet, Gauge } from 'lucide-react';
+import { ChevronDown, ChevronRight, Package, Users, Wallet, Gauge, Calendar, TrendingUp, IndianRupee } from 'lucide-react';
 import { useLoadSentRecords, type LoadSentRecord } from '@/features/inventory/load-sent-queries';
 import extruderIcon from '@/assets/extruder-icon.png';
 import loomsIcon from '@/assets/looms-icon.png';
@@ -428,7 +428,7 @@ export function DashboardDesign2() {
 
 
         {/* Trend + efficiency */}
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-2.5">
           <Card className="bg-white border border-slate-100 shadow-lg shadow-slate-200/50 rounded-3xl p-4 md:p-5 transition-shadow duration-300 hover:shadow-xl hover:shadow-slate-300/40 animate-in fade-in-0 slide-in-from-bottom-3 duration-700 delay-200 fill-mode-both">
             <CardHeader className="p-0 mb-2">
               <CardTitle className="text-[13px] font-bold text-slate-900">30-Day Output Trend</CardTitle>
@@ -457,7 +457,7 @@ export function DashboardDesign2() {
 
           <Card className="bg-white border border-slate-100 shadow-lg shadow-slate-200/50 rounded-3xl p-4 md:p-5 transition-shadow duration-300 hover:shadow-xl hover:shadow-slate-300/40 animate-in fade-in-0 slide-in-from-bottom-3 duration-700 delay-300 fill-mode-both">
             <CardHeader className="p-0 mb-2">
-              <CardTitle className="text-[13px] font-bold text-slate-900">Process Details</CardTitle>
+              <CardTitle className="text-[13px] font-bold text-slate-900">Weekly Process Details</CardTitle>
             </CardHeader>
             <CardContent className="p-0 h-64 flex items-center">
               <ResponsiveContainer width="100%" height="100%">
@@ -477,63 +477,175 @@ export function DashboardDesign2() {
         </div>
 
         {/* Employees + Expenses (mock) */}
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-2.5">
           <Card className="bg-white border border-slate-100 shadow-lg shadow-slate-200/50 rounded-3xl p-4 md:p-5 transition-shadow duration-300 hover:shadow-xl hover:shadow-slate-300/40 animate-in fade-in-0 slide-in-from-bottom-3 duration-700 delay-[350ms] fill-mode-both">
             <CardHeader className="p-0 mb-2 flex flex-row items-center justify-between">
               <CardTitle className="text-[13px] font-bold text-slate-900 flex items-center gap-2">
-                <span className="w-7 h-7 rounded-lg bg-gradient-to-br from-[#004D40] to-[#00897B] flex items-center justify-center">
-                  <Users className="w-3.5 h-3.5 text-white" />
+                <span className="w-8 h-8 rounded-lg bg-[#00897B] flex items-center justify-center shadow-sm">
+                  <Users className="w-4 h-4 text-white" />
                 </span>
                 Employees <span className="text-[10px] font-medium text-slate-400 normal-case">(illustrative)</span>
               </CardTitle>
               <div className="text-right">
-                <p className="text-[18px] font-extrabold text-slate-900 leading-none">{mockEmployeeSnapshot.presentToday}/{mockEmployeeSnapshot.totalEmployees}</p>
-                <p className="text-[10px] text-slate-400">present today</p>
+                <p className="text-[20px] font-extrabold text-slate-900 leading-none">
+                  78<span className="text-slate-400 font-medium text-lg">/84</span>
+                </p>
+                <p className="text-[10px] text-slate-400 font-medium mt-1 tracking-wide">Present Today</p>
               </div>
             </CardHeader>
-            <CardContent className="p-0 h-48">
-              <ResponsiveContainer width="100%" height="100%">
-                <LineChart data={mockAttendanceTrend} margin={{ top: 8, right: 8, left: 0, bottom: 0 }}>
-                  <CartesianGrid stroke="#e1e0d9" vertical={false} />
-                  <XAxis dataKey="day" tick={{ fontSize: 10, fill: '#898781' }} axisLine={{ stroke: '#c3c2b7' }} tickLine={false} />
-                  <YAxis tick={{ fontSize: 10, fill: '#898781' }} axisLine={false} tickLine={false} width={36} domain={[60, 90]} />
-                  <Tooltip contentStyle={{ background: '#fff', border: '1px solid #e5e7eb', borderRadius: 12, fontSize: 12 }} animationDuration={150} />
-                  <Line type="monotone" dataKey="present" stroke="#004D40" strokeWidth={2} dot={{ r: 3, fill: '#004D40' }} {...CHART_ANIM} />
-                </LineChart>
-              </ResponsiveContainer>
+            <CardContent className="p-0 flex-1 flex flex-col justify-between">
+              <div className="h-44 w-full mt-3">
+                <ResponsiveContainer width="100%" height="100%">
+                  <AreaChart data={mockAttendanceTrend} margin={{ top: 15, right: 10, left: -25, bottom: 0 }}>
+                    <defs>
+                      <linearGradient id="fillAttendance" x1="0" y1="0" x2="0" y2="1">
+                        <stop offset="5%" stopColor="#00897B" stopOpacity={0.25} />
+                        <stop offset="95%" stopColor="#00897B" stopOpacity={0} />
+                      </linearGradient>
+                    </defs>
+                    <CartesianGrid stroke="#f1f5f9" strokeDasharray="3 3" vertical={false} />
+                    <XAxis dataKey="day" tick={{ fontSize: 10, fill: '#94a3b8' }} axisLine={false} tickLine={false} dy={5} />
+                    <YAxis tick={{ fontSize: 10, fill: '#94a3b8' }} axisLine={false} tickLine={false} width={40} domain={[60, 100]} ticks={[60, 68, 76, 84, 92, 100]} />
+                    <Tooltip contentStyle={{ background: '#fff', border: '1px solid #e5e7eb', borderRadius: 12, fontSize: 12 }} animationDuration={150} />
+                    <Area
+                      type="monotone"
+                      dataKey="present"
+                      stroke="#00897B"
+                      strokeWidth={2}
+                      fill="url(#fillAttendance)"
+                      dot={{ r: 4, fill: '#00897B', stroke: '#fff', strokeWidth: 2 }}
+                      activeDot={{ r: 6 }}
+                      label={{ position: 'top', fill: '#475569', fontSize: 10, fontWeight: 600, dy: -8 }}
+                      {...CHART_ANIM}
+                    />
+                  </AreaChart>
+                </ResponsiveContainer>
+              </div>
+              <div className="mt-4 flex bg-slate-50/70 rounded-xl p-3.5 items-center justify-between border border-slate-100">
+                <div className="flex items-center gap-3 w-1/2 justify-center">
+                  <div className="bg-[#00897B] p-2 rounded-lg shadow-sm"><Calendar className="text-white w-4 h-4" /></div>
+                  <div className="flex flex-col text-left">
+                    <p className="text-[#64748b] text-[10px] font-medium tracking-wide">Attendance Rate</p>
+                    <p className="text-[#00897B] font-extrabold text-[15px]">92.86%</p>
+                  </div>
+                </div>
+                <div className="h-10 w-px bg-slate-200" />
+                <div className="flex items-center gap-3 w-1/2 justify-center">
+                  <div className="bg-[#00897B]/10 p-2 rounded-lg"><Users className="text-[#00897B] w-4 h-4" /></div>
+                  <div className="flex flex-col text-left">
+                    <p className="text-[#64748b] text-[10px] font-medium tracking-wide">Total Employees</p>
+                    <p className="text-[#00897B] font-extrabold text-[15px]">84</p>
+                  </div>
+                </div>
+              </div>
             </CardContent>
           </Card>
 
           <Card className="bg-white border border-slate-100 shadow-lg shadow-slate-200/50 rounded-3xl p-4 md:p-5 transition-shadow duration-300 hover:shadow-xl hover:shadow-slate-300/40 animate-in fade-in-0 slide-in-from-bottom-3 duration-700 delay-[400ms] fill-mode-both">
-            <CardHeader className="p-0 mb-2">
+            <CardHeader className="p-0 mb-3 flex flex-row items-center justify-between">
               <CardTitle className="text-[13px] font-bold text-slate-900 flex items-center gap-2">
-                <span className="w-7 h-7 rounded-lg bg-gradient-to-br from-[#7A6A00] to-[#B39B00] flex items-center justify-center">
-                  <Wallet className="w-3.5 h-3.5 text-white" />
+                <span className="w-8 h-8 rounded-lg bg-[#F2BB13] flex items-center justify-center shadow-sm">
+                  <Wallet className="w-4 h-4 text-white" />
                 </span>
                 Expenses <span className="text-[10px] font-medium text-slate-400 normal-case">(illustrative)</span>
               </CardTitle>
+              <button className="flex items-center gap-1.5 px-3 py-1.5 border border-slate-200 rounded-md text-[11px] font-medium text-slate-600 hover:bg-slate-50 transition-colors">
+                <Calendar className="w-3.5 h-3.5" />
+                This Month
+                <ChevronDown className="w-3 h-3 ml-1" />
+              </button>
             </CardHeader>
-            <CardContent className="p-0 h-48 flex items-center gap-4">
-              <ResponsiveContainer width="55%" height="100%">
-                <PieChart>
-                  <Pie data={mockExpenseBreakdown} dataKey="amount" nameKey="category" outerRadius={75} stroke="#fff" strokeWidth={2} {...CHART_ANIM}>
-                    {mockExpenseBreakdown.map((entry, i) => (
-                      <Cell key={entry.category} fill={EXPENSE_COLORS[i % EXPENSE_COLORS.length]} />
-                    ))}
-                  </Pie>
-                  <Tooltip contentStyle={{ background: '#fff', border: '1px solid #e5e7eb', borderRadius: 12, fontSize: 12 }} formatter={(v) => formatCurrency(Number(v))} animationDuration={150} />
-                </PieChart>
-              </ResponsiveContainer>
-              <div className="flex-1 flex flex-col gap-1.5">
-                {mockExpenseBreakdown.map((e, i) => (
-                  <div key={e.category} className="flex items-center justify-between text-[11px] transition-transform duration-200 hover:translate-x-0.5">
-                    <span className="flex items-center gap-1.5 text-slate-600">
-                      <span className="w-2 h-2 rounded-full" style={{ background: EXPENSE_COLORS[i % EXPENSE_COLORS.length] }} />
-                      {e.category}
-                    </span>
-                    <span className="font-semibold text-slate-900">{formatCurrency(e.amount)}</span>
+            <CardContent className="p-0 flex-1 flex flex-col justify-between">
+              <div className="flex items-center gap-0 h-52 w-full">
+                <div className="w-[65%] h-full flex items-center justify-center relative">
+                  <ResponsiveContainer width="100%" height="100%">
+                    <PieChart margin={{ top: 16, right: 16, bottom: 16, left: 16 }}>
+                      <Pie
+                        data={mockExpenseBreakdown}
+                        dataKey="amount"
+                        nameKey="category"
+                        cx="50%"
+                        cy="50%"
+                        outerRadius={72}
+                        stroke="#fff"
+                        strokeWidth={2}
+                        labelLine={{ stroke: '#94a3b8', strokeWidth: 1 }}
+                        label={({ cx, cy, midAngle, outerRadius, percent, name }) => {
+                          const RADIAN = Math.PI / 180;
+                          const radius = outerRadius + 22;
+                          const x = cx + radius * Math.cos(-midAngle * RADIAN);
+                          const y = cy + radius * Math.sin(-midAngle * RADIAN);
+                          const isLeft = x < cx;
+                          return (
+                            <g>
+                              <text
+                                x={x}
+                                y={y - 7}
+                                textAnchor={isLeft ? 'end' : 'start'}
+                                dominantBaseline="central"
+                                fontSize={12}
+                                fontWeight="800"
+                                fill="#1e293b"
+                              >
+                                {`${(percent * 100).toFixed(0)}%`}
+                              </text>
+                              <text
+                                x={x}
+                                y={y + 7}
+                                textAnchor={isLeft ? 'end' : 'start'}
+                                dominantBaseline="central"
+                                fontSize={10}
+                                fill="#64748b"
+                              >
+                                {name}
+                              </text>
+                            </g>
+                          );
+                        }}
+                        {...CHART_ANIM}
+                      >
+                        {mockExpenseBreakdown.map((entry, i) => (
+                          <Cell key={entry.category} fill={EXPENSE_COLORS[i % EXPENSE_COLORS.length]} />
+                        ))}
+                      </Pie>
+                      <Tooltip contentStyle={{ background: '#fff', border: '1px solid #e5e7eb', borderRadius: 12, fontSize: 12 }} formatter={(v) => formatCurrency(Number(v))} animationDuration={150} />
+                    </PieChart>
+                  </ResponsiveContainer>
+                </div>
+                <div className="w-[35%] flex flex-col justify-center pl-1">
+                  <div className="flex items-center justify-between border-b border-slate-200 pb-2 mb-3 text-[10px] font-extrabold text-slate-700 uppercase tracking-wider">
+                    <span>Category</span>
+                    <span className="text-right">Amount</span>
                   </div>
-                ))}
+                  <div className="flex flex-col gap-2.5">
+                    {mockExpenseBreakdown.map((e, i) => (
+                      <div key={e.category} className="flex items-center justify-between text-[11px] group">
+                        <span className="flex items-center gap-2 text-slate-600 font-semibold group-hover:text-slate-900 transition-colors">
+                          <span className="w-2.5 h-2.5 rounded-full flex-shrink-0" style={{ background: EXPENSE_COLORS[i % EXPENSE_COLORS.length] }} />
+                          {e.category}
+                        </span>
+                        <span className="font-bold text-slate-800 tabular-nums text-[11px] text-right">{formatCurrency(e.amount)}</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              </div>
+              <div className="mt-4 flex bg-slate-50/70 rounded-xl p-3 items-center justify-between border border-slate-100">
+                <div className="flex items-center gap-3 w-[55%] justify-center">
+                  <div className="bg-[#2ebf91]/20 p-1.5 rounded-full"><IndianRupee className="text-[#208a68] w-4 h-4" /></div>
+                  <div>
+                    <p className="text-[#64748b] text-[10px] font-medium tracking-wide">Total Expenses</p>
+                    <p className="text-[#208a68] font-extrabold text-[15px]">₹2,57,500</p>
+                  </div>
+                </div>
+                <div className="h-8 w-px bg-slate-200" />
+                <div className="flex items-center gap-3 w-[45%] justify-center">
+                  <div className="bg-[#2ebf91]/10 p-1.5 rounded-md"><TrendingUp className="text-[#208a68] w-4 h-4" /></div>
+                  <div>
+                    <p className="text-[#64748b] text-[10px] font-medium tracking-wide">vs Last Month</p>
+                    <p className="text-[#208a68] font-extrabold text-[13px]">+8.42% ↗</p>
+                  </div>
+                </div>
               </div>
             </CardContent>
           </Card>

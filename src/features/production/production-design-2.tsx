@@ -836,7 +836,7 @@ export function ProductionDesign2() {
           </div>
 
           {/* Delivered Stocks Horizontal Bar */}
-          <div className="bg-[#DAF1DE] border border-green-400 rounded-[10px] px-5 py-2.5 shadow-sm my-1 flex flex-col transition-all duration-300">
+          {/* <div className="bg-[#DAF1DE] border border-green-400 rounded-[10px] px-5 py-2.5 shadow-sm my-1 flex flex-col transition-all duration-300">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-3">
                 <div
@@ -923,7 +923,7 @@ export function ProductionDesign2() {
                 </div>
               </div>
             </div>
-          </div>
+          </div> */}
 
           {/* Data Table Area */}
           <Card className="shadow-sm border-0 bg-white rounded-xl overflow-hidden gap-0 p-0 flex flex-col">
