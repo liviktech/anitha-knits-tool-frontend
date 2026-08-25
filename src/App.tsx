@@ -192,9 +192,9 @@ function App() {
         <Route
           path="/*"
           element={
-            <RequireRole kind="company-user">
+            // <RequireRole kind="company-user">
               <AppShell />
-            </RequireRole>
+            // </RequireRole>
           }
         />
       </Routes>
