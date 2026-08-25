@@ -9,6 +9,8 @@ import { themes } from '@/features/production/day-entry-sections';
 import type { ExtruderGroupDraft, ExtruderBrandDraft } from '@/features/extruder/extruder-section-new';
 
 interface ExtruderModalFormProps {
+  initialData?: ExtruderGroupDraft | null;
+  isEditMode?: boolean;
   onCancel: () => void;
   onSave: (data: ExtruderGroupDraft) => void;
 }
@@ -34,12 +36,12 @@ const emptyGroupDraft = (): ExtruderGroupDraft => ({
   brands: [emptyBrandDraft()],
 });
 
-export function ExtruderModalForm({ onCancel, onSave }: ExtruderModalFormProps) {
+export function ExtruderModalForm({ initialData, isEditMode, onCancel, onSave }: ExtruderModalFormProps) {
   const { data: lookupsData } = useLookups();
   const lookups: Lookups = lookupsData ?? { brands: [], colors: [], chemicals: [], sizes: [] };
   const theme = themes.extruder;
 
-  const [group, setGroup] = useState<ExtruderGroupDraft>(emptyGroupDraft());
+  const [group, setGroup] = useState<ExtruderGroupDraft>(initialData || emptyGroupDraft());
 
   const updateGroupField = (field: keyof ExtruderGroupDraft, value: string) => {
     setGroup(prev => ({ ...prev, [field]: value }));
@@ -90,14 +92,14 @@ export function ExtruderModalForm({ onCancel, onSave }: ExtruderModalFormProps) 
       <div className="grid grid-cols-2 gap-4">
         <div className="space-y-2">
           <Label className="text-gray-600 text-xs font-semibold uppercase tracking-wider">Size</Label>
-          <Select value={group.size} onValueChange={(v) => updateGroupField('size', v)}>
+          <Select value={group.size} onValueChange={(v) => updateGroupField('size', v)} disabled={isEditMode}>
             <SelectTrigger><SelectValue placeholder="Select Size" /></SelectTrigger>
             <SelectContent>{lookups.sizes.map((s) => <SelectItem key={s.id} value={s.name}>{s.name}</SelectItem>)}</SelectContent>
           </Select>
         </div>
         <div className="space-y-2">
           <Label className="text-gray-600 text-xs font-semibold uppercase tracking-wider">Color</Label>
-          <Select value={group.color} onValueChange={(v) => updateGroupField('color', v)}>
+          <Select value={group.color} onValueChange={(v) => updateGroupField('color', v)} disabled={isEditMode}>
             <SelectTrigger><SelectValue placeholder="Select Color" /></SelectTrigger>
             <SelectContent>{lookups.colors.map((c) => <SelectItem key={c.id} value={c.name}>{c.name}</SelectItem>)}</SelectContent>
           </Select>
@@ -160,14 +162,14 @@ export function ExtruderModalForm({ onCancel, onSave }: ExtruderModalFormProps) 
           <div className="space-y-4 pt-1">
             <div className="space-y-2">
               <Label className="text-gray-600 text-xs font-semibold">Chemical Type</Label>
-              <Select value={group.chemical} onValueChange={(v) => updateGroupField('chemical', v)}>
+              <Select value={group.chemical} onValueChange={(v) => updateGroupField('chemical', v)} disabled={isEditMode}>
                 <SelectTrigger><SelectValue placeholder="Select Chem" /></SelectTrigger>
                 <SelectContent>{lookups.chemicals.map((c) => <SelectItem key={c.id} value={c.name}>{c.name}</SelectItem>)}</SelectContent>
               </Select>
             </div>
             <div className="space-y-2">
               <Label className="text-gray-600 text-xs font-semibold">Chemical Weight (kg)</Label>
-              <Input type="number" placeholder="0.00" value={group.chemicalKg} onChange={(e) => updateGroupField('chemicalKg', e.target.value)} />
+              <Input type="number" placeholder="0.00" value={group.chemicalKg} onChange={(e) => updateGroupField('chemicalKg', e.target.value)} disabled={isEditMode} />
             </div>
           </div>
         </div>
@@ -192,7 +194,7 @@ export function ExtruderModalForm({ onCancel, onSave }: ExtruderModalFormProps) 
       <div className="space-y-3 bg-green-50/30 p-4 rounded-lg border border-green-100">
         <h3 className="text-sm font-semibold uppercase tracking-wider text-green-800 border-b border-green-200 pb-2">Yarn Production</h3>
         <div className="w-1/2 space-y-2 pt-1">
-          <Label className="text-green-800 text-xs font-semibold">Total Yarn Output (kg)</Label>
+          <Label className="text-green-800 text-xs font-semibold">Total Yarn Production (kg)</Label>
           <Input type="number" className="border-green-200 focus-visible:ring-green-400 font-bold text-green-700 bg-white" placeholder="0.00" value={group.output} onChange={(e) => updateGroupField('output', e.target.value)} />
         </div>
       </div>

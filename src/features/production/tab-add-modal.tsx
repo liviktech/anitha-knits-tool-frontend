@@ -8,10 +8,12 @@ interface TabAddModalProps {
   isOpen: boolean;
   onClose: () => void;
   activeTab: string;
+  initialExtruderData?: ExtruderGroupDraft | null;
+  isEditMode?: boolean;
   onSaveExtruder?: (data: ExtruderGroupDraft) => void;
 }
 
-export function TabAddModal({ isOpen, onClose, activeTab, onSaveExtruder }: TabAddModalProps) {
+export function TabAddModal({ isOpen, onClose, activeTab, initialExtruderData, isEditMode, onSaveExtruder }: TabAddModalProps) {
   const activeThemeKey = activeTab === 'delivered' ? 'fabricDelivered' : activeTab as Theme;
   const theme = themes[activeThemeKey];
 
@@ -37,6 +39,8 @@ export function TabAddModal({ isOpen, onClose, activeTab, onSaveExtruder }: TabA
         <div className="flex-1 overflow-y-auto p-6">
           {activeTab === 'extruder' ? (
             <ExtruderModalForm
+              initialData={initialExtruderData}
+              isEditMode={isEditMode}
               onCancel={onClose}
               onSave={(data) => {
                 if (onSaveExtruder) onSaveExtruder(data);

@@ -1,24 +1,17 @@
 import React, { useState, useRef, useEffect, useCallback, forwardRef, useImperativeHandle, useMemo } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Loader } from '@/components/shared/loader';
-import { Plus, Trash2, X as XIcon, Edit2 } from 'lucide-react';
+import { Trash2, Edit2 } from 'lucide-react';
 import { DeleteConfirmDialog } from '@/components/shared/delete-confirm-dialog';
-import { apiFetch, extractApiErrorMessage } from '@/lib/api-client';
 import {
   useExtruderProductions,
   useLookups,
   extruderKeys,
-  findIdByName,
   type Lookups,
-  type ExtruderCreatePayload,
-  type ExtruderProductionItem
 } from '@/features/extruder/extruder-queries';
-import { dashboardProductionKey } from '@/features/production/day-wise-queries';
-import { themes, type SectionProps, type SectionRef, type ExtruderRow } from '@/features/production/day-entry-sections';
+import { themes, type SectionProps, type SectionRef } from '@/features/production/day-entry-sections';
 import { sumWastageByCode } from '@/lib/api-types';
 
 export interface ExtruderBrandDraft {
@@ -64,16 +57,13 @@ const emptyGroupDraft = (): ExtruderGroupDraft => ({
   brands: [emptyBrandDraft()],
 });
 
-export const ExtruderSection = forwardRef<SectionRef, SectionProps>(({ productionDate, autoAdd, readOnly, hideExisting, hideBanner }, ref) => {
+export const ExtruderSection = forwardRef<SectionRef, SectionProps>(({ productionDate, autoAdd, readOnly, hideExisting, hideBanner, onEditExtruderGroup }, ref) => {
   const queryClient = useQueryClient();
   const { data, isLoading } = useExtruderProductions(
     productionDate ? `?date_from=${productionDate}&date_to=${productionDate}` : '',
     !hideExisting,
   );
-  const { data: lookupsData } = useLookups();
-  const lookups: Lookups = lookupsData ?? { brands: [], colors: [], chemicals: [], sizes: [] };
 
-  // --- NEW ENTRIES STATE ---
   const [newGroups, setNewGroups] = useState<ExtruderGroupDraft[]>([]);
   const hasAutoAddedRef = useRef(false);
 
@@ -133,6 +123,7 @@ export const ExtruderSection = forwardRef<SectionRef, SectionProps>(({ productio
         brand: item.extruder?.brand?.name ?? '',
         bags: '', // Not tracked by API yet
         weightPerBag: '', // Not tracked by API yet
+        looseWeight: '',
         raw: item.extruder?.rawMaterialKg?.toString() ?? '0',
       });
     });
@@ -140,70 +131,11 @@ export const ExtruderSection = forwardRef<SectionRef, SectionProps>(({ productio
     return Array.from(map.values());
   }, [data?.data, productionDate, hideExisting]);
 
-  // --- EDIT & DELETE STATE ---
-  const [editingGroupId, setEditingGroupId] = useState<string | null>(null);
-  const [editGroupDraft, setEditGroupDraft] = useState<ExtruderGroupDraft | null>(null);
-
-  const [saving, setSaving] = useState(false);
-  const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<{ groupId: string, size: string, color: string } | null>(null);
   const [deleting, setDeleting] = useState(false);
 
-  // --- STATE MUTATIONS ---
-  const updateBrandField = (setter: React.Dispatch<React.SetStateAction<ExtruderGroupDraft[]>>, groupKey: string, brandKey: string, field: keyof ExtruderBrandDraft, value: string) => {
-    setter((groups) => groups.map((g) => {
-      if (g.key !== groupKey) return g;
-      return {
-        ...g,
-        brands: g.brands.map((b) => {
-          if (b.key !== brandKey) return b;
-          const updated = { ...b, [field]: value };
-          if (field === 'bags' || field === 'weightPerBag' || field === 'looseWeight') {
-            const bags = parseFloat(updated.bags) || 0;
-            const wpb = parseFloat(updated.weightPerBag) || 0;
-            const lw = parseFloat(updated.looseWeight) || 0;
-            if (bags > 0 && wpb > 0) {
-              updated.raw = (bags * wpb + lw).toFixed(2);
-            } else if (lw > 0) {
-              updated.raw = lw.toFixed(2);
-            } else {
-              updated.raw = '';
-            }
-          }
-          return updated;
-        })
-      };
-    }));
-  };
-
-  const updateGroupField = (setter: React.Dispatch<React.SetStateAction<ExtruderGroupDraft[]>>, groupKey: string, field: keyof ExtruderGroupDraft, value: string) => {
-    setter((groups) => groups.map((g) => (g.key === groupKey ? { ...g, [field]: value } : g)));
-  };
-
-  const addBrandToGroup = (setter: React.Dispatch<React.SetStateAction<ExtruderGroupDraft[]>>, groupKey: string) => {
-    setter((groups) => groups.map((g) => (g.key === groupKey ? { ...g, brands: [...g.brands, emptyBrandDraft()] } : g)));
-  };
-
-  const removeBrandFromGroup = (setter: React.Dispatch<React.SetStateAction<ExtruderGroupDraft[]>>, groupKey: string, brandKey: string) => {
-    setter((groups) => groups.map((g) => {
-      if (g.key !== groupKey) return g;
-      if (g.brands.length === 1) return g;
-      return { ...g, brands: g.brands.filter((b) => b.key !== brandKey) };
-    }));
-  };
-
   const removeGroup = (groupKey: string) => {
     setNewGroups((groups) => groups.filter((g) => g.key !== groupKey));
-  };
-
-  const startEditGroup = (group: ExtruderGroupDraft) => {
-    setEditingGroupId(group.key);
-    setEditGroupDraft(JSON.parse(JSON.stringify(group))); // Deep copy
-  };
-
-  const cancelEdit = () => {
-    setEditingGroupId(null);
-    setEditGroupDraft(null);
   };
 
   const handleDeleteGroup = async () => {
@@ -226,173 +158,124 @@ export const ExtruderSection = forwardRef<SectionRef, SectionProps>(({ productio
       // Stub for saving new groups and edit groups
       return true;
     },
+    addExtruderGroup: (group: ExtruderGroupDraft) => {
+      setNewGroups(prev => {
+        const existingIndex = prev.findIndex(g => g.size === group.size && g.color === group.color);
+        if (existingIndex >= 0) {
+          const newArray = [...prev];
+          const existing = newArray[existingIndex];
+
+          const updated = { ...existing };
+          updated.brands = [...existing.brands, ...group.brands];
+
+          if (!updated.chemical && group.chemical) {
+            updated.chemical = group.chemical;
+          }
+          updated.chemicalKg = ((parseFloat(updated.chemicalKg) || 0) + (parseFloat(group.chemicalKg) || 0)).toString();
+          updated.lumpsKg = ((parseFloat(updated.lumpsKg) || 0) + (parseFloat(group.lumpsKg) || 0)).toString();
+          updated.yarnWasteKg = ((parseFloat(updated.yarnWasteKg) || 0) + (parseFloat(group.yarnWasteKg) || 0)).toString();
+          updated.output = ((parseFloat(updated.output) || 0) + (parseFloat(group.output) || 0)).toString();
+
+          newArray[existingIndex] = updated;
+          return newArray;
+        }
+        return [...prev, group];
+      });
+    },
+    updateExtruderGroup: (group: ExtruderGroupDraft) => {
+      setNewGroups(prev => {
+        const existingIndex = prev.findIndex(g => g.key === group.key);
+        if (existingIndex >= 0) {
+          const newArray = [...prev];
+          newArray[existingIndex] = group;
+          return newArray;
+        }
+        return prev;
+      });
+    }
   }));
 
   const theme = themes.extruder;
   const roundedClass = hideBanner ? 'rounded-b-xl rounded-tr-xl rounded-tl-none' : 'rounded-xl';
 
-  const renderGroup = (group: ExtruderGroupDraft, isEditable: boolean, stateSetter: React.Dispatch<React.SetStateAction<ExtruderGroupDraft[]>> | null) => {
+  const renderGroup = (group: ExtruderGroupDraft, isNew: boolean) => {
     return (
       <React.Fragment key={group.key}>
         {group.brands.map((brandRow, idx) => (
-          <TableRow key={brandRow.key} className={`group ${isEditable ? 'bg-blue-50/20' : 'hover:bg-gray-50/50'}`}>
+          <TableRow key={brandRow.key} className="hover:bg-gray-50/50">
             {idx === 0 && (
               <TableCell rowSpan={group.brands.length} className="align-top border-r border-gray-200">
-                {isEditable && stateSetter ? (
-                  <Select value={group.size} onValueChange={(v) => updateGroupField(stateSetter, group.key, 'size', v)}>
-                    <SelectTrigger className="h-9"><SelectValue placeholder="Size" /></SelectTrigger>
-                    <SelectContent>{lookups.sizes.map((s) => <SelectItem key={s.id} value={s.name}>{s.name}</SelectItem>)}</SelectContent>
-                  </Select>
-                ) : (
-                  <span className="font-medium text-gray-700">{group.size}</span>
-                )}
+                <span className="font-medium text-gray-700">{group.size || '-'}</span>
               </TableCell>
             )}
             {idx === 0 && (
               <TableCell rowSpan={group.brands.length} className="align-top border-r border-gray-200 w-32">
-                {isEditable && stateSetter ? (
-                  <Select value={group.color} onValueChange={(v) => updateGroupField(stateSetter, group.key, 'color', v)}>
-                    <SelectTrigger className="h-9"><SelectValue placeholder="Color" /></SelectTrigger>
-                    <SelectContent>{lookups.colors.map((c) => <SelectItem key={c.id} value={c.name}>{c.name}</SelectItem>)}</SelectContent>
-                  </Select>
-                ) : (
-                  <span className="font-medium text-gray-700">{group.color}</span>
-                )}
+                <span className="font-medium text-gray-700">{group.color || '-'}</span>
               </TableCell>
             )}
-            {/* Brand Row Inputs */}
-            <TableCell>
-              {isEditable && stateSetter ? (
-                <Input type="number" className="h-9 text-center w-16" value={brandRow.bags} onChange={(e) => updateBrandField(stateSetter, group.key, brandRow.key, 'bags', e.target.value)} />
-              ) : (
-                <span className="block text-center">{brandRow.bags || '-'}</span>
-              )}
-            </TableCell>
 
+            <TableCell>
+              <span className="block text-center">{parseFloat(brandRow.bags) > 0 ? brandRow.bags : '-'}</span>
+            </TableCell>
             <TableCell className="w-32">
-              {isEditable && stateSetter ? (
-                <Select value={brandRow.brand} onValueChange={(v) => updateBrandField(stateSetter, group.key, brandRow.key, 'brand', v)}>
-                  <SelectTrigger className="h-9"><SelectValue placeholder="Brand" /></SelectTrigger>
-                  <SelectContent>{lookups.brands.map((b) => <SelectItem key={b.id} value={b.name}>{b.name}</SelectItem>)}</SelectContent>
-                </Select>
-              ) : (
-                <span>{brandRow.brand}</span>
-              )}
+              <span>{brandRow.brand || '-'}</span>
             </TableCell>
-
             <TableCell>
-              {isEditable && stateSetter ? (
-                <Input type="number" className="h-9 text-center w-16" value={brandRow.weightPerBag} onChange={(e) => updateBrandField(stateSetter, group.key, brandRow.key, 'weightPerBag', e.target.value)} />
-              ) : (
-                <span className="block text-center">{brandRow.weightPerBag || '-'}</span>
-              )}
+              <span className="block text-center">{parseFloat(brandRow.weightPerBag) > 0 ? brandRow.weightPerBag : '-'}</span>
             </TableCell>
-
             <TableCell>
-              {isEditable && stateSetter ? (
-                <Input type="number" className="h-9 text-center w-16" value={brandRow.looseWeight} onChange={(e) => updateBrandField(stateSetter, group.key, brandRow.key, 'looseWeight', e.target.value)} />
-              ) : (
-                <span className="block text-center">{brandRow.looseWeight || '-'}</span>
-              )}
+              <span className="block text-center">{parseFloat(brandRow.looseWeight) > 0 ? brandRow.looseWeight : '-'}</span>
             </TableCell>
-
             <TableCell className="border-r border-gray-200">
-              {isEditable && stateSetter ? (
-                <Input type="number" className="h-9 text-center w-20 font-medium" value={brandRow.raw} onChange={(e) => updateBrandField(stateSetter, group.key, brandRow.key, 'raw', e.target.value)} />
-              ) : (
-                <span className="block text-center font-medium">{parseFloat(brandRow.raw) > 0 ? parseFloat(brandRow.raw).toFixed(2) : '-'}</span>
-              )}
+              <span className="block text-center font-medium">{parseFloat(brandRow.raw) > 0 ? parseFloat(brandRow.raw).toFixed(2) : '-'}</span>
             </TableCell>
 
-            {/* Chemicals */}
             {idx === 0 && (
               <TableCell rowSpan={group.brands.length} className="align-top border-r border-gray-200">
-                {isEditable && stateSetter ? (
-                  <Select value={group.chemical} onValueChange={(v) => updateGroupField(stateSetter, group.key, 'chemical', v)}>
-                    <SelectTrigger className="h-9"><SelectValue placeholder="Chem" /></SelectTrigger>
-                    <SelectContent>{lookups.chemicals.map((c) => <SelectItem key={c.id} value={c.name}>{c.name}</SelectItem>)}</SelectContent>
-                  </Select>
-                ) : (
-                  <span>{group.chemical}</span>
-                )}
+                <span>{group.chemical || '-'}</span>
               </TableCell>
             )}
             {idx === 0 && (
               <TableCell rowSpan={group.brands.length} className="align-top border-r border-gray-200">
-                {isEditable && stateSetter ? (
-                  <Input type="number" className="h-9 text-center w-16" value={group.chemicalKg} onChange={(e) => updateGroupField(stateSetter, group.key, 'chemicalKg', e.target.value)} />
-                ) : (
-                  <span className="block text-center">{parseFloat(group.chemicalKg) > 0 ? parseFloat(group.chemicalKg).toFixed(2) : '-'}</span>
-                )}
+                <span className="block text-center">{parseFloat(group.chemicalKg) > 0 ? parseFloat(group.chemicalKg).toFixed(2) : '-'}</span>
               </TableCell>
             )}
 
-            {/* Waste */}
             {idx === 0 && (
-              <TableCell rowSpan={group.brands.length} className={`align-top border-r border-gray-200 ${isEditable ? "bg-yellow-50/30" : ""}`}>
-                {isEditable && stateSetter ? (
-                  <Input type="number" className="h-9 text-center w-16 bg-transparent border-yellow-200" value={group.lumpsKg} onChange={(e) => updateGroupField(stateSetter, group.key, 'lumpsKg', e.target.value)} />
-                ) : (
-                  <span className="block text-center text-yellow-700">{parseFloat(group.lumpsKg) > 0 ? parseFloat(group.lumpsKg).toFixed(2) : '-'}</span>
-                )}
+              <TableCell rowSpan={group.brands.length} className="align-top border-r border-gray-200">
+                <span className="block text-center text-yellow-700">{parseFloat(group.lumpsKg) > 0 ? parseFloat(group.lumpsKg).toFixed(2) : '-'}</span>
               </TableCell>
             )}
             {idx === 0 && (
-              <TableCell rowSpan={group.brands.length} className={`align-top border-r border-gray-200 ${isEditable ? "bg-yellow-50/30" : ""}`}>
-                {isEditable && stateSetter ? (
-                  <Input type="number" className="h-9 text-center w-16 bg-transparent border-yellow-200" value={group.yarnWasteKg} onChange={(e) => updateGroupField(stateSetter, group.key, 'yarnWasteKg', e.target.value)} />
-                ) : (
-                  <span className="block text-center text-yellow-700">{parseFloat(group.yarnWasteKg) > 0 ? parseFloat(group.yarnWasteKg).toFixed(2) : '-'}</span>
-                )}
+              <TableCell rowSpan={group.brands.length} className="align-top border-r border-gray-200">
+                <span className="block text-center text-yellow-700">{parseFloat(group.yarnWasteKg) > 0 ? parseFloat(group.yarnWasteKg).toFixed(2) : '-'}</span>
               </TableCell>
             )}
 
-            {/* Yarn Output */}
             {idx === 0 && (
-              <TableCell rowSpan={group.brands.length} className={`align-top border-r border-gray-200 ${isEditable ? 'bg-green-50/30' : ''}`}>
-                {isEditable && stateSetter ? (
-                  <Input type="number" className="h-9 text-center w-16 bg-transparent border-green-200 font-semibold text-green-700" placeholder="Yarn Prod." value={group.output} onChange={(e) => updateGroupField(stateSetter, group.key, 'output', e.target.value)} />
-                ) : (
-                  <span className="font-semibold text-green-700 block text-center">{parseFloat(group.output) > 0 ? parseFloat(group.output).toFixed(2) : '-'}</span>
-                )}
+              <TableCell rowSpan={group.brands.length} className="align-top border-r border-gray-200">
+                <span className="font-semibold text-green-700 block text-center">{parseFloat(group.output) > 0 ? parseFloat(group.output).toFixed(2) : '-'}</span>
               </TableCell>
             )}
 
-            {/* Action */}
-            <TableCell className="text-center align-top border-l border-gray-200">
-              {isEditable && stateSetter ? (
-                <div className="flex items-center justify-center gap-1">
-                  {idx === group.brands.length - 1 && (
-                    <Button variant="ghost" size="icon-sm" className="h-8 w-8 text-blue-600 hover:bg-blue-50" onClick={() => addBrandToGroup(stateSetter, group.key)} title="Add Brand to this Group">
-                      <Plus className="h-4 w-4" />
-                    </Button>
-                  )}
-                  {group.brands.length > 1 ? (
-                    <Button variant="ghost" size="icon-sm" className="h-8 w-8 text-red-500 hover:bg-red-50" onClick={() => removeBrandFromGroup(stateSetter, group.key, brandRow.key)} title="Remove Brand">
-                      <Trash2 className="h-3.5 w-3.5" />
+            {idx === 0 && !readOnly && (
+              <TableCell rowSpan={group.brands.length} className="text-center align-middle border-l border-gray-200">
+                <div className="flex flex-col items-center justify-center gap-2 mt-1">
+                  <Button variant="ghost" size="icon-sm" className="h-7 w-7 rounded-full bg-blue-50 text-blue-500 hover:bg-blue-100" onClick={() => onEditExtruderGroup?.(group)}>
+                    <Edit2 className="h-3 w-3" />
+                  </Button>
+                  {isNew ? (
+                    <Button variant="ghost" size="icon-sm" className="h-7 w-7 rounded-full bg-red-50 text-red-500 hover:bg-red-100" onClick={() => removeGroup(group.key)} title="Remove Group">
+                      <Trash2 className="h-3 w-3" />
                     </Button>
                   ) : (
-                    <Button variant="ghost" size="icon-sm" className="h-8 w-8 text-gray-400 hover:bg-gray-100" onClick={() => {
-                      if (stateSetter === setNewGroups) removeGroup(group.key);
-                      else cancelEdit();
-                    }} title={stateSetter === setNewGroups ? "Remove Group" : "Cancel Edit"}>
-                      <XIcon className="h-4 w-4" />
-                    </Button>
-                  )}
-                </div>
-              ) : (
-                idx === 0 && !readOnly && editingGroupId !== group.key && (
-                  <div className="flex flex-col items-center justify-center gap-2 mt-1">
-                    <Button variant="ghost" size="icon-sm" className="h-7 w-7 rounded-full bg-blue-50 text-blue-500 hover:bg-blue-100" onClick={() => startEditGroup(group)}>
-                      <Edit2 className="h-3 w-3" />
-                    </Button>
                     <Button variant="ghost" size="icon-sm" className="h-7 w-7 rounded-full bg-red-50 text-red-500 hover:bg-red-100" onClick={() => setDeleteTarget({ groupId: group.key, size: group.size, color: group.color })}>
                       <Trash2 className="h-3 w-3" />
                     </Button>
-                  </div>
-                )
-              )}
-            </TableCell>
+                  )}
+                </div>
+              </TableCell>
+            )}
           </TableRow>
         ))}
         {/* Separator row between groups */}
@@ -424,7 +307,7 @@ export const ExtruderSection = forwardRef<SectionRef, SectionProps>(({ productio
               <TableHead colSpan={5} className={`text-center text-xs font-semibold uppercase tracking-wide ${theme.headerText} border-b border-r border-black/10`}>HDPE Material</TableHead>
               <TableHead colSpan={2} className={`text-center text-xs font-semibold uppercase tracking-wide ${theme.headerText} border-b border-r border-black/10`}>Chemicals</TableHead>
               <TableHead colSpan={2} className={`text-center text-xs font-semibold uppercase tracking-wide ${theme.headerText} border-b border-black/10`}>Waste (kg)</TableHead>
-              <TableHead rowSpan={2} className={`align-middle text-center text-xs font-semibold uppercase tracking-wide ${theme.headerText} border-r border-black/10`}>Yarn Output (kg)</TableHead>
+              <TableHead rowSpan={2} className={`align-middle text-center text-xs font-semibold uppercase tracking-wide ${theme.headerText} border-r border-black/10`}>Yarn Production (kg)</TableHead>
               {!readOnly && <TableHead rowSpan={2} className={`align-middle text-center text-xs font-semibold uppercase tracking-wide ${theme.headerText}`}>Action</TableHead>}
             </TableRow>
             <TableRow className="hover:!bg-transparent border-b-0">
@@ -450,13 +333,10 @@ export const ExtruderSection = forwardRef<SectionRef, SectionProps>(({ productio
               </TableRow>
             ) : (
               <>
-                {!readOnly && newGroups.map((group) => renderGroup(group, true, setNewGroups))}
+                {!readOnly && newGroups.map((group) => renderGroup(group, true))}
 
                 {existingGroups.map((group) => {
-                  if (editingGroupId === group.key && editGroupDraft) {
-                    return renderGroup(editGroupDraft, true, setEditGroupDraft as any); // Using as any to avoid complex dispatch typing for null
-                  }
-                  return renderGroup(group, false, null);
+                  return renderGroup(group, false);
                 })}
 
                 {newGroups.length === 0 && existingGroups.length === 0 && (
@@ -470,23 +350,6 @@ export const ExtruderSection = forwardRef<SectionRef, SectionProps>(({ productio
           </TableBody>
         </Table>
       </div>
-
-      {!readOnly && (
-        <div className="p-4 flex flex-col gap-2">
-          <div className="flex items-center gap-3">
-            <Button
-              variant="outline"
-              size="sm"
-              className={`h-8 gap-1 rounded-full ${theme.buttonBorder} ${theme.buttonText} ${theme.buttonHover}`}
-              onClick={startAddGroup}
-              disabled={saving}
-            >
-              <Plus className="h-3 w-3" /> Add new size & color group
-            </Button>
-          </div>
-          {errorMessage && <p className="text-xs font-medium text-red-600">{errorMessage}</p>}
-        </div>
-      )}
 
       <DeleteConfirmDialog
         open={!!deleteTarget}

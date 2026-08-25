@@ -226,10 +226,13 @@ export interface SectionProps {
   hideExisting?: boolean;
   /** Hides the colored title banner when rendered inside a tab. */
   hideBanner?: boolean;
+  onEditExtruderGroup?: (group: any) => void;
 }
 
 export interface SectionRef {
   saveDraft: () => Promise<boolean>;
+  addExtruderGroup?: (group: any) => void;
+  updateExtruderGroup?: (group: any) => void;
 }
 
 export { ExtruderSection } from '@/features/extruder/extruder-section-new';

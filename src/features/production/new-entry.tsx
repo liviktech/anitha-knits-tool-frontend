@@ -36,6 +36,7 @@ export function NewEntry({ onClose, defaultDate, readOnly = false }: NewEntryPro
   
   const [activeTab, setActiveTab] = useState<string>('extruder');
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
+  const [editingExtruderGroup, setEditingExtruderGroup] = useState<any>(null);
 
   const { data: lookupsData } = useLookups();
   const lookups = lookupsData ?? { brands: [], colors: [], chemicals: [], sizes: [] };
@@ -246,6 +247,10 @@ export function NewEntry({ onClose, defaultDate, readOnly = false }: NewEntryPro
                 readOnly={readOnly}
                 hideExisting={false}
                 hideBanner={true}
+                onEditExtruderGroup={(group) => {
+                  setEditingExtruderGroup(group);
+                  setIsAddModalOpen(true);
+                }}
               />
             </TabsContent>
 
@@ -279,8 +284,20 @@ export function NewEntry({ onClose, defaultDate, readOnly = false }: NewEntryPro
 
       <TabAddModal 
         isOpen={isAddModalOpen} 
-        onClose={() => setIsAddModalOpen(false)} 
-        activeTab={activeTab} 
+        onClose={() => {
+          setIsAddModalOpen(false);
+          setTimeout(() => setEditingExtruderGroup(null), 300); // clear after animation
+        }} 
+        activeTab={activeTab}
+        initialExtruderData={editingExtruderGroup}
+        isEditMode={!!editingExtruderGroup}
+        onSaveExtruder={(data) => {
+          if (editingExtruderGroup && extruderRef.current?.updateExtruderGroup) {
+            extruderRef.current.updateExtruderGroup(data);
+          } else if (extruderRef.current?.addExtruderGroup) {
+            extruderRef.current.addExtruderGroup(data);
+          }
+        }}
       />
     </div>
   );
