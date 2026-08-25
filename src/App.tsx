@@ -13,6 +13,7 @@ import { InventoryPage } from './features/inventory/inventory-page';
 import { LivikAdminShell } from './features/admin/livik-admin-shell';
 import { EmpExpensesPage } from './features/emp-expenses/emp-expenses-page';
 import { EmployeePage } from './features/employee/employee-page';
+import { AdminPanelPage } from './features/admin-panel/admin-panel-page';
 import threadIcon from '@/assets/thread.png';
 
 const navItems = [
@@ -21,6 +22,7 @@ const navItems = [
   { to: '/inventory', label: 'Inventory', icon: Package },
   { to: '/employees', label: 'Employees', icon: User },
   { to: '/expenses', label: 'Expenses', icon: Wallet },
+  { to: '/admin-panel', label: 'Admin Panel', icon: Settings },
 ];
 
 function getNavItems(role?: CompanyUserRole) {
@@ -168,6 +170,7 @@ function AppShell() {
           <Route path="/inventory" element={<InventoryPage />} />
           <Route path="/employees/*" element={<EmployeePage />} />
           <Route path="/expenses/*" element={<EmpExpensesPage />} />
+          <Route path="/admin-panel" element={<AdminPanelPage />} />
         </Routes>
       </main>
     </div>

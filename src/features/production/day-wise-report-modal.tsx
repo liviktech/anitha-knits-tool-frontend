@@ -35,7 +35,7 @@ const PROD_SUB_HEADERS = [
 
 const DEL_SUB_HEADERS = [
   'Blue', 'White', 'Green',
-  '150mm', '160mm', '170mm', '180mm', '190mm',
+  '150cm', '160cm', '170cm', '180cm', '190cm',
   'Output'
 ];
 
@@ -62,7 +62,7 @@ export function DayWiseReportModal({ open, onOpenChange }: DayWiseReportModalPro
   }, [selectedMonth]);
 
   const { rows: apiRows, totals: apiTotals, isLoading: isProdLoading } = useDayWiseProduction(selectedMonth);
-  
+
   const firstDay = useMemo(() => format(new Date(year, monthIndex, 1), 'yyyy-MM-dd'), [year, monthIndex]);
   const lastDay = useMemo(() => format(new Date(year, monthIndex + 1, 0), 'yyyy-MM-dd'), [year, monthIndex]);
   const { data: loadSentData, isLoading: isLoadSentLoading } = useLoadSentRecords(`?date_from=${firstDay}&date_to=${lastDay}&limit=1000`);
@@ -70,14 +70,14 @@ export function DayWiseReportModal({ open, onOpenChange }: DayWiseReportModalPro
 
   const rows = useMemo(() => {
     const daysInMonth = new Date(year, monthIndex + 1, 0).getDate();
-    
+
     // Aggregate loadSentRecords by date
     const deliveryByDate: Record<string, any> = {};
     loadSentRecords.forEach((record) => {
       // Use record.productionDate if available, else record.date
       const d = (record as any).productionDate || record.date;
       if (!d) return;
-      
+
       if (!deliveryByDate[d]) {
         deliveryByDate[d] = {
           colors: { Blue: 0, White: 0, Green: 0 },
@@ -88,17 +88,17 @@ export function DayWiseReportModal({ open, onOpenChange }: DayWiseReportModalPro
       const w = record.fabricWeight ?? record.weightKg ?? 0;
       const c = record.color?.name || '';
       const s = record.size?.name || '';
-      
+
       if (c === 'Blue') deliveryByDate[d].colors.Blue += w;
       else if (c === 'White') deliveryByDate[d].colors.White += w;
       else if (c === 'Green') deliveryByDate[d].colors.Green += w;
-      
+
       if (s === '150mm') deliveryByDate[d].sizes['150mm'] += w;
       else if (s === '160mm') deliveryByDate[d].sizes['160mm'] += w;
       else if (s === '170mm') deliveryByDate[d].sizes['170mm'] += w;
       else if (s === '180mm') deliveryByDate[d].sizes['180mm'] += w;
       else if (s === '190mm') deliveryByDate[d].sizes['190mm'] += w;
-      
+
       deliveryByDate[d].total += w;
     });
 
@@ -108,9 +108,9 @@ export function DayWiseReportModal({ open, onOpenChange }: DayWiseReportModalPro
       const isHighlighted = d.getDay() === 0;
       const apiRow = apiRows.find(r => r.date === dateStr);
       const del = deliveryByDate[dateStr] || {
-          colors: { Blue: 0, White: 0, Green: 0 },
-          sizes: { '150mm': 0, '160mm': 0, '170mm': 0, '180mm': 0, '190mm': 0 },
-          total: 0
+        colors: { Blue: 0, White: 0, Green: 0 },
+        sizes: { '150mm': 0, '160mm': 0, '170mm': 0, '180mm': 0, '190mm': 0 },
+        total: 0
       };
 
       return {
@@ -129,7 +129,7 @@ export function DayWiseReportModal({ open, onOpenChange }: DayWiseReportModalPro
         }
       };
     });
-    
+
     return allRows.filter(r => r.hasData);
   }, [year, monthIndex, apiRows, loadSentRecords]);
 
