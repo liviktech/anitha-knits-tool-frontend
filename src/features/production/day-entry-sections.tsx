@@ -5,7 +5,8 @@ import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Loader } from '@/components/shared/loader';
-import { Plus, Edit2, X as XIcon } from 'lucide-react';
+import { Plus, Edit2, Trash2, X as XIcon } from 'lucide-react';
+import { DeleteConfirmDialog } from '@/components/shared/delete-confirm-dialog';
 import { apiFetch, extractApiErrorMessage } from '@/lib/api-client';
 import { sumWastageByCode } from '@/lib/api-types';
 import {
@@ -23,12 +24,14 @@ import {
   loomsKeys,
   type LoomsProductionItem,
   type LoomsCreatePayload,
+  type LoomsUpdatePayload,
 } from '@/features/looms/loom-queries';
 import {
   useFabricCheckingRecords,
   fabricCheckingKeys,
   type FabricCheckingRecord,
   type FabricCheckingCreatePayload,
+  type FabricCheckingUpdatePayload,
 } from '@/features/fabric/fabric-queries';
 import { useLoadSentRecords, loadSentKeys, type LoadSentRecord } from '@/features/inventory/load-sent-queries';
 import { dashboardProductionKey } from './day-wise-queries';
@@ -258,6 +261,8 @@ export const ExtruderSection = forwardRef<SectionRef, SectionProps>(({ productio
   const [newRows, setNewRows] = useState<ExtruderNewRow[]>([]);
   const [saving, setSaving] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const [deleteTarget, setDeleteTarget] = useState<ExtruderRow | null>(null);
+  const [deleting, setDeleting] = useState(false);
   const hasAutoAddedRef = useRef(false);
   const nextRowKeyRef = useRef(0);
 
@@ -466,6 +471,22 @@ export const ExtruderSection = forwardRef<SectionRef, SectionProps>(({ productio
     },
   }));
 
+  const handleDeleteRow = async () => {
+    if (!deleteTarget) return;
+    setDeleting(true);
+    try {
+      const response = await apiFetch(`/production/extruder/${deleteTarget.id}`, { method: 'DELETE' });
+      if (!response.ok) throw new Error('Failed to delete extruder entry');
+      await queryClient.invalidateQueries({ queryKey: extruderKeys.all });
+      await queryClient.invalidateQueries({ queryKey: dashboardProductionKey });
+      setDeleteTarget(null);
+    } catch (error) {
+      console.error('Error deleting extruder entry:', error);
+    } finally {
+      setDeleting(false);
+    }
+  };
+
   const theme = themes.extruder;
 
   return (
@@ -542,15 +563,26 @@ export const ExtruderSection = forwardRef<SectionRef, SectionProps>(({ productio
                     <TableCell className="text-center">{row.output.toFixed(2)}</TableCell>
                     {!readOnly && (
                       <TableCell className="text-center">
-                        <Button
-                          variant="ghost"
-                          size="icon-sm"
-                          className="rounded-full bg-blue-50 text-blue-500 hover:bg-blue-100"
-                          aria-label="Edit row"
-                          onClick={() => startEdit(row)}
-                        >
-                          <Edit2 className="h-3.5 w-3.5" />
-                        </Button>
+                        <div className="flex items-center justify-center gap-1.5">
+                          <Button
+                            variant="ghost"
+                            size="icon-sm"
+                            className="rounded-full bg-blue-50 text-blue-500 hover:bg-blue-100"
+                            aria-label="Edit row"
+                            onClick={() => startEdit(row)}
+                          >
+                            <Edit2 className="h-3.5 w-3.5" />
+                          </Button>
+                          <Button
+                            variant="ghost"
+                            size="icon-sm"
+                            className="rounded-full bg-red-50 text-red-500 hover:bg-red-100"
+                            aria-label="Delete row"
+                            onClick={() => setDeleteTarget(row)}
+                          >
+                            <Trash2 className="h-3.5 w-3.5" />
+                          </Button>
+                        </div>
                       </TableCell>
                     )}
                   </TableRow>
@@ -583,6 +615,14 @@ export const ExtruderSection = forwardRef<SectionRef, SectionProps>(({ productio
           {errorMessage && <p className="text-xs font-medium text-red-600">{errorMessage}</p>}
         </div>
       )}
+      <DeleteConfirmDialog
+        open={!!deleteTarget}
+        onOpenChange={(open) => !open && setDeleteTarget(null)}
+        title="Delete this extruder entry?"
+        description={deleteTarget ? `${deleteTarget.size} / ${deleteTarget.color} — ${deleteTarget.raw.toFixed(2)} kg raw material. This action cannot be undone.` : undefined}
+        isPending={deleting}
+        onConfirm={handleDeleteRow}
+      />
     </div>
   );
 });
@@ -730,9 +770,13 @@ export const LoomSection = forwardRef<SectionRef, SectionProps>(({ productionDat
       .filter((row) => row.input > 0 || row.output > 0 || row.loomsWasteKg > 0);
   }, [data, productionDate, hideExisting]);
 
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [editDraft, setEditDraft] = useState<LoomDraft>(emptyLoomDraft);
   const [newRows, setNewRows] = useState<LoomNewRow[]>([]);
   const [saving, setSaving] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const [deleteTarget, setDeleteTarget] = useState<LoomRow | null>(null);
+  const [deleting, setDeleting] = useState(false);
   const hasAutoAddedRef = useRef(false);
   const nextRowKeyRef = useRef(0);
 
@@ -772,6 +816,69 @@ export const LoomSection = forwardRef<SectionRef, SectionProps>(({ productionDat
   };
   const removeNewRow = (key: string) => {
     setNewRows((current) => current.filter((row) => row.key !== key));
+  };
+
+  const startEdit = (row: LoomRow) => {
+    setEditDraft({
+      size: row.size,
+      color: row.color,
+      input: String(row.input),
+      output: String(row.output),
+      loomsWasteKg: String(row.loomsWasteKg),
+    });
+    setEditingId(row.id);
+  };
+
+  const cancelEdit = () => {
+    setEditingId(null);
+    setEditDraft(emptyLoomDraft);
+  };
+
+  const handleSaveExisting = async (): Promise<boolean> => {
+    const sizeId = findIdByName(lookups.sizes, editDraft.size);
+    const colorId = findIdByName(lookups.colors, editDraft.color);
+    if (!sizeId || !colorId) {
+      setErrorMessage('Select Size and Color before saving.');
+      return false;
+    }
+    if (!((parseFloat(editDraft.input) || 0) > 0)) {
+      setErrorMessage('Enter Yarn Input (kg) — it must be greater than 0.');
+      return false;
+    }
+    if (!((parseFloat(editDraft.output) || 0) > 0)) {
+      setErrorMessage('Enter Fabric Output (kg) — it must be greater than 0.');
+      return false;
+    }
+
+    try {
+      const payload: LoomsUpdatePayload = {
+        productionDate: productionDate ?? new Date().toISOString().slice(0, 10),
+        sizeId,
+        colorId,
+        yarnInputKg: parseFloat(editDraft.input) || 0,
+        fabricOutputKg: parseFloat(editDraft.output) || 0,
+        loomsWasteKg: parseFloat(editDraft.loomsWasteKg) || 0,
+      };
+
+      const response = await apiFetch(`/production/looms/${editingId}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
+      });
+      if (!response.ok) {
+        setErrorMessage(await extractApiErrorMessage(response, 'Failed to save the entry. Please try again.'));
+        return false;
+      }
+
+      await queryClient.invalidateQueries({ queryKey: loomsKeys.all });
+      await queryClient.invalidateQueries({ queryKey: dashboardProductionKey });
+      cancelEdit();
+      return true;
+    } catch (error) {
+      console.error('Error saving loom entry:', error);
+      setErrorMessage('Failed to save the entry. Please try again.');
+      return false;
+    }
   };
 
   const handleSaveNewRow = async (row: LoomNewRow): Promise<boolean> => {
@@ -818,27 +925,50 @@ export const LoomSection = forwardRef<SectionRef, SectionProps>(({ productionDat
   useImperativeHandle(ref, () => ({
     saveDraft: async () => {
       if (readOnly) return true;
-      // Blank/untouched rows are silently skipped rather than treated as
-      // failures — they simply stay open for the user to fill in later.
-      const rowsToSave = newRows.filter((row) => JSON.stringify(row.draft) !== JSON.stringify(emptyLoomDraft));
-      if (rowsToSave.length === 0) return true;
-
+      let allOk = true;
       setSaving(true);
       setErrorMessage(null);
       try {
-        const results = await Promise.all(rowsToSave.map((row) => handleSaveNewRow(row)));
-        const succeededKeys = new Set(rowsToSave.filter((_, i) => results[i]).map((row) => row.key));
-        if (succeededKeys.size > 0) {
-          setNewRows((current) => current.filter((row) => !succeededKeys.has(row.key)));
-          await queryClient.invalidateQueries({ queryKey: loomsKeys.all });
-          await queryClient.invalidateQueries({ queryKey: dashboardProductionKey });
+        if (editingId && JSON.stringify(editDraft) !== JSON.stringify(emptyLoomDraft)) {
+          const ok = await handleSaveExisting();
+          if (!ok) allOk = false;
         }
-        return succeededKeys.size === rowsToSave.length;
+
+        // Blank/untouched rows are silently skipped rather than treated as
+        // failures — they simply stay open for the user to fill in later.
+        const rowsToSave = newRows.filter((row) => JSON.stringify(row.draft) !== JSON.stringify(emptyLoomDraft));
+        if (rowsToSave.length > 0) {
+          const results = await Promise.all(rowsToSave.map((row) => handleSaveNewRow(row)));
+          const succeededKeys = new Set(rowsToSave.filter((_, i) => results[i]).map((row) => row.key));
+          if (succeededKeys.size > 0) {
+            setNewRows((current) => current.filter((row) => !succeededKeys.has(row.key)));
+            await queryClient.invalidateQueries({ queryKey: loomsKeys.all });
+            await queryClient.invalidateQueries({ queryKey: dashboardProductionKey });
+          }
+          if (succeededKeys.size < rowsToSave.length) allOk = false;
+        }
       } finally {
         setSaving(false);
       }
+      return allOk;
     },
   }));
+
+  const handleDeleteRow = async () => {
+    if (!deleteTarget) return;
+    setDeleting(true);
+    try {
+      const response = await apiFetch(`/production/looms/${deleteTarget.id}`, { method: 'DELETE' });
+      if (!response.ok) throw new Error('Failed to delete loom entry');
+      await queryClient.invalidateQueries({ queryKey: loomsKeys.all });
+      await queryClient.invalidateQueries({ queryKey: dashboardProductionKey });
+      setDeleteTarget(null);
+    } catch (error) {
+      console.error('Error deleting loom entry:', error);
+    } finally {
+      setDeleting(false);
+    }
+  };
 
   const theme = themes.looms;
 
@@ -932,17 +1062,68 @@ export const LoomSection = forwardRef<SectionRef, SectionProps>(({ productionDat
                       </TableCell>
                     </TableRow>
                   ))}
+                {!readOnly && editingId !== null && (
+                  <TableRow>
+                    <TableCell>
+                      <Select value={editDraft.size} onValueChange={(value) => setEditDraft({ ...editDraft, size: value })}>
+                        <SelectTrigger className="h-10"><SelectValue placeholder="Size" /></SelectTrigger>
+                        <SelectContent>
+                          {lookups.sizes.map((s) => <SelectItem key={s.id} value={s.name}>{s.name}</SelectItem>)}
+                        </SelectContent>
+                      </Select>
+                    </TableCell>
+                    <TableCell className="w-37.5 min-w-37.5 text-center">
+                      <Select value={editDraft.color} onValueChange={(value) => setEditDraft({ ...editDraft, color: value })}>
+                        <SelectTrigger className="h-10 w-full"><SelectValue placeholder="Color" /></SelectTrigger>
+                        <SelectContent>
+                          {lookups.colors.map((c) => <SelectItem key={c.id} value={c.name}>{c.name}</SelectItem>)}
+                        </SelectContent>
+                      </Select>
+                    </TableCell>
+                    <TableCell><Input type="number" className="h-10 w-full text-center" value={editDraft.input} onChange={(e) => setEditDraft({ ...editDraft, input: e.target.value })} /></TableCell>
+                    <TableCell><Input type="number" className="h-10 w-full text-center" value={editDraft.loomsWasteKg} onChange={(e) => setEditDraft({ ...editDraft, loomsWasteKg: e.target.value })} /></TableCell>
+                    <TableCell><Input type="number" className="h-10 w-full text-center" value={editDraft.output} onChange={(e) => setEditDraft({ ...editDraft, output: e.target.value })} /></TableCell>
+                    <TableCell className="text-center">
+                      <Button variant="ghost" size="icon-sm" className="rounded-full bg-gray-100 text-gray-500 hover:bg-gray-200" aria-label="Cancel edit" onClick={cancelEdit} disabled={saving}>
+                        <XIcon className="h-3.5 w-3.5" />
+                      </Button>
+                    </TableCell>
+                  </TableRow>
+                )}
                 {rows.map((row) => (
-                  <TableRow key={row.id}>
+                  <TableRow key={row.id} className={editingId === row.id ? 'bg-blue-50/30' : ''}>
                     <TableCell>{row.size}</TableCell>
                     <TableCell className="w-37.5 min-w-37.5 text-center">{row.color}</TableCell>
                     <TableCell className="text-center">{row.input.toFixed(2)}</TableCell>
                     <TableCell className="text-center">{row.loomsWasteKg.toFixed(2)}</TableCell>
                     <TableCell className="text-center">{row.output.toFixed(2)}</TableCell>
-                    {!readOnly && <TableCell />}
+                    {!readOnly && (
+                      <TableCell className="text-center">
+                        <div className="flex items-center justify-center gap-1.5">
+                          <Button
+                            variant="ghost"
+                            size="icon-sm"
+                            className="rounded-full bg-blue-50 text-blue-500 hover:bg-blue-100"
+                            aria-label="Edit row"
+                            onClick={() => startEdit(row)}
+                          >
+                            <Edit2 className="h-3.5 w-3.5" />
+                          </Button>
+                          <Button
+                            variant="ghost"
+                            size="icon-sm"
+                            className="rounded-full bg-red-50 text-red-500 hover:bg-red-100"
+                            aria-label="Delete row"
+                            onClick={() => setDeleteTarget(row)}
+                          >
+                            <Trash2 className="h-3.5 w-3.5" />
+                          </Button>
+                        </div>
+                      </TableCell>
+                    )}
                   </TableRow>
                 ))}
-                {rows.length === 0 && newRows.length === 0 && (
+                {rows.length === 0 && newRows.length === 0 && editingId === null && (
                   <TableRow>
                     <TableCell colSpan={readOnly ? 5 : 6} className="h-20 text-center text-gray-500">No entries yet.</TableCell>
                   </TableRow>
@@ -969,6 +1150,14 @@ export const LoomSection = forwardRef<SectionRef, SectionProps>(({ productionDat
           {errorMessage && <p className="text-xs font-medium text-red-600">{errorMessage}</p>}
         </div>
       )}
+      <DeleteConfirmDialog
+        open={!!deleteTarget}
+        onOpenChange={(open) => !open && setDeleteTarget(null)}
+        title="Delete this loom entry?"
+        description={deleteTarget ? `${deleteTarget.size} / ${deleteTarget.color} — ${deleteTarget.input.toFixed(2)} kg yarn input. This action cannot be undone.` : undefined}
+        isPending={deleting}
+        onConfirm={handleDeleteRow}
+      />
     </div>
   );
 });
@@ -1062,9 +1251,13 @@ export const FabricSection = forwardRef<SectionRef, SectionProps>(({ productionD
       .filter((row) => row.input > 0 || row.firstGrade > 0 || row.secondGrade > 0 || row.fwKg > 0 || row.bwKg > 0);
   }, [data, productionDate, hideExisting]);
 
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [editDraft, setEditDraft] = useState<FabricDraft>(emptyFabricDraft);
   const [newRows, setNewRows] = useState<FabricNewRow[]>([]);
   const [saving, setSaving] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const [deleteTarget, setDeleteTarget] = useState<FabricRow | null>(null);
+  const [deleting, setDeleting] = useState(false);
   const hasAutoAddedRef = useRef(false);
   const nextRowKeyRef = useRef(0);
 
@@ -1104,6 +1297,67 @@ export const FabricSection = forwardRef<SectionRef, SectionProps>(({ productionD
   };
   const removeNewRow = (key: string) => {
     setNewRows((current) => current.filter((row) => row.key !== key));
+  };
+
+  const startEdit = (row: FabricRow) => {
+    setEditDraft({
+      size: row.size,
+      color: row.color,
+      input: String(row.input),
+      output: String(row.output),
+      fwKg: String(row.fwKg),
+      bwKg: String(row.bwKg),
+    });
+    setEditingId(row.id);
+  };
+
+  const cancelEdit = () => {
+    setEditingId(null);
+    setEditDraft(emptyFabricDraft);
+  };
+
+  const handleSaveExisting = async (): Promise<boolean> => {
+    const sizeId = findIdByName(lookups.sizes, editDraft.size);
+    const colorId = findIdByName(lookups.colors, editDraft.color);
+    if (!sizeId || !colorId) {
+      setErrorMessage('Select Size and Color before saving.');
+      return false;
+    }
+    if (!((parseFloat(editDraft.input) || 0) > 0)) {
+      setErrorMessage('Enter Fabric Input (kg) — it must be greater than 0.');
+      return false;
+    }
+
+    try {
+      const payload: FabricCheckingUpdatePayload = {
+        productionDate: productionDate ?? new Date().toISOString().slice(0, 10),
+        sizeId,
+        colorId,
+        fabricInputKg: parseFloat(editDraft.input) || 0,
+        outputKg: parseFloat(editDraft.output) || 0,
+        fwKg: parseFloat(editDraft.fwKg) || 0,
+        bwKg: parseFloat(editDraft.bwKg) || 0,
+      };
+
+      const response = await apiFetch(`/fabric-checking/${editingId}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
+      });
+      if (!response.ok) {
+        setErrorMessage(await extractApiErrorMessage(response, 'Failed to save the entry. Please try again.'));
+        return false;
+      }
+
+      await queryClient.invalidateQueries({ queryKey: fabricCheckingKeys.all });
+      await queryClient.invalidateQueries({ queryKey: dashboardProductionKey });
+      cancelEdit();
+      return true;
+    } catch (error) {
+      console.error('Error saving fabric checking entry:', error);
+      setErrorMessage('Failed to save the entry. Please try again.');
+      return false;
+    }
   };
 
   const handleSaveNewRow = async (row: FabricNewRow): Promise<boolean> => {
@@ -1147,27 +1401,50 @@ export const FabricSection = forwardRef<SectionRef, SectionProps>(({ productionD
   useImperativeHandle(ref, () => ({
     saveDraft: async () => {
       if (readOnly) return true;
-      // Blank/untouched rows are silently skipped rather than treated as
-      // failures — they simply stay open for the user to fill in later.
-      const rowsToSave = newRows.filter((row) => JSON.stringify(row.draft) !== JSON.stringify(emptyFabricDraft));
-      if (rowsToSave.length === 0) return true;
-
+      let allOk = true;
       setSaving(true);
       setErrorMessage(null);
       try {
-        const results = await Promise.all(rowsToSave.map((row) => handleSaveNewRow(row)));
-        const succeededKeys = new Set(rowsToSave.filter((_, i) => results[i]).map((row) => row.key));
-        if (succeededKeys.size > 0) {
-          setNewRows((current) => current.filter((row) => !succeededKeys.has(row.key)));
-          await queryClient.invalidateQueries({ queryKey: fabricCheckingKeys.all });
-          await queryClient.invalidateQueries({ queryKey: dashboardProductionKey });
+        if (editingId && JSON.stringify(editDraft) !== JSON.stringify(emptyFabricDraft)) {
+          const ok = await handleSaveExisting();
+          if (!ok) allOk = false;
         }
-        return succeededKeys.size === rowsToSave.length;
+
+        // Blank/untouched rows are silently skipped rather than treated as
+        // failures — they simply stay open for the user to fill in later.
+        const rowsToSave = newRows.filter((row) => JSON.stringify(row.draft) !== JSON.stringify(emptyFabricDraft));
+        if (rowsToSave.length > 0) {
+          const results = await Promise.all(rowsToSave.map((row) => handleSaveNewRow(row)));
+          const succeededKeys = new Set(rowsToSave.filter((_, i) => results[i]).map((row) => row.key));
+          if (succeededKeys.size > 0) {
+            setNewRows((current) => current.filter((row) => !succeededKeys.has(row.key)));
+            await queryClient.invalidateQueries({ queryKey: fabricCheckingKeys.all });
+            await queryClient.invalidateQueries({ queryKey: dashboardProductionKey });
+          }
+          if (succeededKeys.size < rowsToSave.length) allOk = false;
+        }
       } finally {
         setSaving(false);
       }
+      return allOk;
     },
   }));
+
+  const handleDeleteRow = async () => {
+    if (!deleteTarget) return;
+    setDeleting(true);
+    try {
+      const response = await apiFetch(`/fabric-checking/${deleteTarget.id}`, { method: 'DELETE' });
+      if (!response.ok) throw new Error('Failed to delete fabric checking entry');
+      await queryClient.invalidateQueries({ queryKey: fabricCheckingKeys.all });
+      await queryClient.invalidateQueries({ queryKey: dashboardProductionKey });
+      setDeleteTarget(null);
+    } catch (error) {
+      console.error('Error deleting fabric checking entry:', error);
+    } finally {
+      setDeleting(false);
+    }
+  };
 
   const theme = themes.fabric;
 
@@ -1256,18 +1533,70 @@ export const FabricSection = forwardRef<SectionRef, SectionProps>(({ productionD
                       </TableCell>
                     </TableRow>
                   ))}
+                {!readOnly && editingId !== null && (
+                  <TableRow>
+                    <TableCell>
+                      <Select value={editDraft.size} onValueChange={(value) => setEditDraft({ ...editDraft, size: value })}>
+                        <SelectTrigger className="h-10"><SelectValue placeholder="Size" /></SelectTrigger>
+                        <SelectContent>
+                          {lookups.sizes.map((s) => <SelectItem key={s.id} value={s.name}>{s.name}</SelectItem>)}
+                        </SelectContent>
+                      </Select>
+                    </TableCell>
+                    <TableCell className="w-37.5 min-w-37.5 text-center">
+                      <Select value={editDraft.color} onValueChange={(value) => setEditDraft({ ...editDraft, color: value })}>
+                        <SelectTrigger className="h-10 w-full"><SelectValue placeholder="Color" /></SelectTrigger>
+                        <SelectContent>
+                          {lookups.colors.map((c) => <SelectItem key={c.id} value={c.name}>{c.name}</SelectItem>)}
+                        </SelectContent>
+                      </Select>
+                    </TableCell>
+                    <TableCell><Input type="number" className="h-10 w-full text-center" value={editDraft.input} onChange={(e) => setEditDraft({ ...editDraft, input: e.target.value })} /></TableCell>
+                    <TableCell><Input type="number" className="h-10 w-full text-center" value={editDraft.fwKg} onChange={(e) => setEditDraft({ ...editDraft, fwKg: e.target.value })} /></TableCell>
+                    <TableCell><Input type="number" className="h-10 w-full text-center" value={editDraft.bwKg} onChange={(e) => setEditDraft({ ...editDraft, bwKg: e.target.value })} /></TableCell>
+                    <TableCell><Input type="number" className="h-10 w-full text-center" value={editDraft.output} onChange={(e) => setEditDraft({ ...editDraft, output: e.target.value })} /></TableCell>
+                    <TableCell className="text-center">
+                      <Button variant="ghost" size="icon-sm" className="rounded-full bg-gray-100 text-gray-500 hover:bg-gray-200" aria-label="Cancel edit" onClick={cancelEdit} disabled={saving}>
+                        <XIcon className="h-3.5 w-3.5" />
+                      </Button>
+                    </TableCell>
+                  </TableRow>
+                )}
                 {rows.map((row) => (
-                  <TableRow key={row.id}>
+                  <TableRow key={row.id} className={editingId === row.id ? 'bg-blue-50/30' : ''}>
                     <TableCell>{row.size}</TableCell>
                     <TableCell className="w-37.5 min-w-37.5 text-center">{row.color}</TableCell>
                     <TableCell className="text-center">{row.input.toFixed(2)}</TableCell>
                     <TableCell className="text-center">{row.fwKg.toFixed(2)}</TableCell>
                     <TableCell className="text-center">{row.bwKg.toFixed(2)}</TableCell>
                     <TableCell className="text-center">{row.output.toFixed(2)}</TableCell>
-                    {!readOnly && <TableCell />}
+                    {!readOnly && (
+                      <TableCell className="text-center">
+                        <div className="flex items-center justify-center gap-1.5">
+                          <Button
+                            variant="ghost"
+                            size="icon-sm"
+                            className="rounded-full bg-blue-50 text-blue-500 hover:bg-blue-100"
+                            aria-label="Edit row"
+                            onClick={() => startEdit(row)}
+                          >
+                            <Edit2 className="h-3.5 w-3.5" />
+                          </Button>
+                          <Button
+                            variant="ghost"
+                            size="icon-sm"
+                            className="rounded-full bg-red-50 text-red-500 hover:bg-red-100"
+                            aria-label="Delete row"
+                            onClick={() => setDeleteTarget(row)}
+                          >
+                            <Trash2 className="h-3.5 w-3.5" />
+                          </Button>
+                        </div>
+                      </TableCell>
+                    )}
                   </TableRow>
                 ))}
-                {rows.length === 0 && newRows.length === 0 && (
+                {rows.length === 0 && newRows.length === 0 && editingId === null && (
                   <TableRow>
                     <TableCell colSpan={readOnly ? 6 : 7} className="h-20 text-center text-gray-500">No entries yet.</TableCell>
                   </TableRow>
@@ -1294,6 +1623,14 @@ export const FabricSection = forwardRef<SectionRef, SectionProps>(({ productionD
           {errorMessage && <p className="text-xs font-medium text-red-600">{errorMessage}</p>}
         </div>
       )}
+      <DeleteConfirmDialog
+        open={!!deleteTarget}
+        onOpenChange={(open) => !open && setDeleteTarget(null)}
+        title="Delete this fabric checking entry?"
+        description={deleteTarget ? `${deleteTarget.size} / ${deleteTarget.color} — ${deleteTarget.input.toFixed(2)} kg fabric input. This action cannot be undone.` : undefined}
+        isPending={deleting}
+        onConfirm={handleDeleteRow}
+      />
     </div>
   );
 });
@@ -1355,6 +1692,8 @@ export const FabricDeliveredSection = forwardRef<SectionRef, SectionProps>(({ pr
   const [editDraft, setEditDraft] = useState<FabricDeliveredDraft>({ size: '', color: '', delivered: '' });
   const [saving, setSaving] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const [deleteTarget, setDeleteTarget] = useState<FabricDeliveredRow | null>(null);
+  const [deleting, setDeleting] = useState(false);
   const nextRowKeyRef = useRef(0);
   const hasAutoAddedRef = useRef(false);
 
@@ -1468,6 +1807,22 @@ export const FabricDeliveredSection = forwardRef<SectionRef, SectionProps>(({ pr
     },
   }));
 
+  const handleDeleteRow = async () => {
+    if (!deleteTarget) return;
+    setDeleting(true);
+    try {
+      const response = await apiFetch(`/load-sent/${deleteTarget.id}`, { method: 'DELETE' });
+      if (!response.ok) throw new Error('Failed to delete fabric delivered entry');
+      await queryClient.invalidateQueries({ queryKey: loadSentKeys.all });
+      await queryClient.invalidateQueries({ queryKey: dashboardProductionKey });
+      setDeleteTarget(null);
+    } catch (error) {
+      console.error('Error deleting fabric delivered entry:', error);
+    } finally {
+      setDeleting(false);
+    }
+  };
+
   const theme = themes.fabricDelivered;
 
   return (
@@ -1561,9 +1916,14 @@ export const FabricDeliveredSection = forwardRef<SectionRef, SectionProps>(({ pr
                     <TableCell className="w-37.5 min-w-37.5 text-center">{row.color}</TableCell>
                     <TableCell className="text-center">{row.delivered.toFixed(2)}</TableCell>
                     <TableCell className="text-center">
-                      <Button variant="ghost" size="icon-sm" className="rounded-full bg-blue-50 text-blue-500 hover:bg-blue-100" aria-label="Edit row" onClick={() => startEdit(row)} disabled={saving}>
-                        <Edit2 className="h-3.5 w-3.5" />
-                      </Button>
+                      <div className="flex items-center justify-center gap-1.5">
+                        <Button variant="ghost" size="icon-sm" className="rounded-full bg-blue-50 text-blue-500 hover:bg-blue-100" aria-label="Edit row" onClick={() => startEdit(row)} disabled={saving}>
+                          <Edit2 className="h-3.5 w-3.5" />
+                        </Button>
+                        <Button variant="ghost" size="icon-sm" className="rounded-full bg-red-50 text-red-500 hover:bg-red-100" aria-label="Delete row" onClick={() => setDeleteTarget(row)} disabled={saving}>
+                          <Trash2 className="h-3.5 w-3.5" />
+                        </Button>
+                      </div>
                     </TableCell>
                   </TableRow>
                 ))}
@@ -1604,6 +1964,14 @@ export const FabricDeliveredSection = forwardRef<SectionRef, SectionProps>(({ pr
 
         </div>
       )}
+      <DeleteConfirmDialog
+        open={!!deleteTarget}
+        onOpenChange={(open) => !open && setDeleteTarget(null)}
+        title="Delete this fabric delivered entry?"
+        description={deleteTarget ? `${deleteTarget.size} / ${deleteTarget.color} — ${deleteTarget.delivered.toFixed(2)} kg delivered. This action cannot be undone.` : undefined}
+        isPending={deleting}
+        onConfirm={handleDeleteRow}
+      />
     </div>
   );
 });

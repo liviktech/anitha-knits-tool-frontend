@@ -51,6 +51,8 @@ export interface LoomsCreatePayload {
   remarks?: string;
 }
 
+export type LoomsUpdatePayload = Partial<LoomsCreatePayload>;
+
 export const loomsKeys = {
   all: ['looms-productions'] as const,
   list: (query: string) => [...loomsKeys.all, 'list', query] as const,

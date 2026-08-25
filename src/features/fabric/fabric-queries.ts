@@ -52,6 +52,8 @@ export interface FabricCheckingCreatePayload {
   remarks?: string;
 }
 
+export type FabricCheckingUpdatePayload = Partial<FabricCheckingCreatePayload>;
+
 export const fabricCheckingKeys = {
   all: ['fabric-checking'] as const,
   list: (query: string) => [...fabricCheckingKeys.all, 'list', query] as const,

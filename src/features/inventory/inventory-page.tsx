@@ -782,20 +782,20 @@ function StockSummaryCard({ onAdd, onEditDate, onDeleteDate }: { onAdd: (e: Reac
         </div>
 
         {/* Mini cards: HDPE, Chemicals, Colors */}
-        <div className="p-4 bg-gradient-to-br from-gray-50 to-green-50/20">
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+        <div className="p-2 bg-gradient-to-br from-gray-50 to-green-50/20" style={{ fontFamily: "'Hanken Grotesk Variable', 'Hanken Grotesk', sans-serif" }}>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-2">
 
             {/* HDPE Card */}
-            <div className="bg-white rounded-xl border border-gray-100 shadow-sm p-4 relative overflow-hidden group/card hover:border-blue-200 transition-colors flex flex-col">
+            <div className="bg-white rounded-xl border border-gray-400 shadow-sm p-4 relative overflow-hidden group/card hover:border-blue-200 transition-colors flex flex-col">
               <div className="absolute top-0 right-0 p-4 opacity-5 group-hover/card:opacity-10 transition-opacity">
-                <Layers className="w-16 h-16 text-blue-600" />
+                <img src="/hdpe.png" alt="" className="w-26 h-26 object-contain" />
               </div>
               <div className="flex justify-between items-start mb-4 relative z-10">
                 <div className="flex items-center gap-2">
-                  <div className="bg-blue-50 p-1.5 rounded-lg border border-blue-100 text-blue-600"><Layers className="w-4 h-4" /></div>
-                  <h3 className="font-semibold text-gray-800 text-sm">HDPE</h3>
+                  <div className=""><img src="/hdpe.png" alt="HDPE" className="w-12 h-12 object-contain" /></div>
+                  <h3 className="font-extrabold text-gray-800 text-lg">HDPE Materials</h3>
                 </div>
-                <div className="text-xl font-black text-gray-900 leading-none">{rawMaterials.weight.toFixed(2)} <span className="text-xs font-medium text-gray-500">kg</span></div>
+                <div className="text-lg font-bold text-gray-800 leading-none">{rawMaterials.weight.toFixed(2)} <span className="text-xs font-medium text-gray-500">kg</span></div>
               </div>
               <div className="mt-auto relative z-10 pt-2 border-t border-gray-50">
                 {rawMaterials.items.length > 0 ? (
@@ -812,16 +812,16 @@ function StockSummaryCard({ onAdd, onEditDate, onDeleteDate }: { onAdd: (e: Reac
             </div>
 
             {/* Chemicals Card */}
-            <div className="bg-white rounded-xl border border-gray-100 shadow-sm p-4 relative overflow-hidden group/card hover:border-orange-200 transition-colors flex flex-col">
+            <div className="bg-white rounded-xl border border-gray-400 shadow-sm p-4 relative overflow-hidden group/card hover:border-orange-200 transition-colors flex flex-col">
               <div className="absolute top-0 right-0 p-4 opacity-5 group-hover/card:opacity-10 transition-opacity">
-                <FlaskConical className="w-16 h-16 text-orange-600" />
+                <img src="/chemical.png" alt="" className="w-26 h-26 object-contain" />
               </div>
               <div className="flex justify-between items-start mb-4 relative z-10">
                 <div className="flex items-center gap-2">
-                  <div className="bg-orange-50 p-1.5 rounded-lg border border-orange-100 text-orange-600"><FlaskConical className="w-4 h-4" /></div>
-                  <h3 className="font-semibold text-gray-800 text-sm">Chemicals</h3>
+                  <div className=""><img src="/chemical.png" alt="Chemicals" className="w-12 h-12 object-contain" /></div>
+                  <h3 className="font-extrabold text-gray-800 text-lg">Chemicals</h3>
                 </div>
-                <div className="text-xl font-black text-gray-900 leading-none">{chemicals.weight.toFixed(2)} <span className="text-xs font-medium text-gray-500">kg</span></div>
+                <div className="text-lg font-bold text-gray-800 leading-none">{chemicals.weight.toFixed(2)} <span className="text-xs font-medium text-gray-500">kg</span></div>
               </div>
               <div className="mt-auto relative z-10 pt-2 border-t border-gray-50">
                 {chemicals.items.length > 0 ? (
@@ -838,16 +838,16 @@ function StockSummaryCard({ onAdd, onEditDate, onDeleteDate }: { onAdd: (e: Reac
             </div>
 
             {/* Colors Card */}
-            <div className="bg-white rounded-xl border border-gray-100 shadow-sm p-4 relative overflow-hidden group/card hover:border-purple-200 transition-colors flex flex-col">
+            <div className="bg-white rounded-xl border border-gray-400 shadow-sm p-4 relative overflow-hidden group/card hover:border-purple-200 transition-colors flex flex-col">
               <div className="absolute top-0 right-0 p-4 opacity-5 group-hover/card:opacity-10 transition-opacity">
-                <Palette className="w-16 h-16 text-purple-600" />
+                <img src="/color.png" alt="" className="w-26 h-26 object-contain" />
               </div>
               <div className="flex justify-between items-start mb-4 relative z-10">
                 <div className="flex items-center gap-2">
-                  <div className="bg-purple-50 p-1.5 rounded-lg border border-purple-100 text-purple-600"><Palette className="w-4 h-4" /></div>
-                  <h3 className="font-semibold text-gray-800 text-sm">Colors</h3>
+                  <div className=""><img src="/color.png" alt="Colors" className="w-12 h-12 object-contain" /></div>
+                  <h3 className="font-extrabold text-gray-800 text-lg">Colors</h3>
                 </div>
-                <div className="text-xl font-black text-gray-900 leading-none">{colors.weight.toFixed(2)} <span className="text-xs font-medium text-gray-500">kg</span></div>
+                <div className="text-lg font-bold text-gray-800 leading-none">{colors.weight.toFixed(2)} <span className="text-xs font-medium text-gray-500">kg</span></div>
               </div>
               <div className="mt-auto relative z-10 pt-2 border-t border-gray-50">
                 {colors.items.length > 0 ? (
