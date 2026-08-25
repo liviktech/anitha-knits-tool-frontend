@@ -344,7 +344,7 @@ function InventoryReceiveTab({ onBack }: { onBack: () => void }) {
               </TableRow>
             ) : groupedRecords.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={5} className="h-20 text-center text-gray-500">No entries yet.</TableCell>
+                <TableCell colSpan={5} className="h-20 !text-center text-gray-500">No entries yet.</TableCell>
               </TableRow>
             ) : (
               groupedRecords.map((group) => (
@@ -682,7 +682,7 @@ function LoadSentTab({ onBack }: { onBack: () => void }) {
               </TableRow>
             ) : records.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={6} className="h-20 text-center text-gray-500">No entries yet.</TableCell>
+                <TableCell colSpan={6} className="h-20 !text-center text-gray-500">No entries yet.</TableCell>
               </TableRow>
             ) : (
               records.map((r) => (

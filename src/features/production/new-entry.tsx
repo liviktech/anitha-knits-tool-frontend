@@ -37,6 +37,9 @@ export function NewEntry({ onClose, defaultDate, readOnly = false }: NewEntryPro
   const [activeTab, setActiveTab] = useState<string>('extruder');
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
   const [editingExtruderGroup, setEditingExtruderGroup] = useState<any>(null);
+  const [editingLoomGroup, setEditingLoomGroup] = useState<any>(null);
+  const [editingFabricGroup, setEditingFabricGroup] = useState<any>(null);
+  const [editingDeliveredGroup, setEditingDeliveredGroup] = useState<any>(null);
 
   const { data: lookupsData } = useLookups();
   const lookups = lookupsData ?? { brands: [], colors: [], chemicals: [], sizes: [] };
@@ -225,11 +228,16 @@ export function NewEntry({ onClose, defaultDate, readOnly = false }: NewEntryPro
                 <TabsTrigger value="delivered" className="data-[state=active]:!bg-[#f2caa0] data-[state=active]:!text-[#61401E] data-[state=active]:!border-b-[#f2caa0]">FABRIC DELIVERED</TabsTrigger>
               </TabsList>
               
-              {!readOnly && activeTab === 'extruder' && (
+              {!readOnly && (
                 <div className="mb-2 mr-2 z-10">
                   <Button 
                     size="sm" 
-                    className={`h-8 gap-1.5 shadow-sm hover:opacity-90 ${themes.extruder.iconBg} ${themes.extruder.iconColor}`}
+                    className={`h-8 gap-1.5 shadow-sm hover:opacity-90 ${
+                      activeTab === 'extruder' ? `${themes.extruder.iconBg} ${themes.extruder.iconColor}` :
+                      activeTab === 'looms' ? `${themes.looms.iconBg} ${themes.looms.iconColor}` :
+                      activeTab === 'fabric' ? `${themes.fabric.iconBg} ${themes.fabric.iconColor}` :
+                      `${themes.fabricDelivered.iconBg} ${themes.fabricDelivered.iconColor}`
+                    }`}
                     onClick={() => setIsAddModalOpen(true)}
                   >
                     <Plus className="h-4 w-4" /> 
@@ -255,15 +263,15 @@ export function NewEntry({ onClose, defaultDate, readOnly = false }: NewEntryPro
             </TabsContent>
 
             <TabsContent value="looms" className="flex flex-col gap-4 mt-0 pt-0">
-              <LoomSection ref={loomRef} productionDate={productionDate} autoAdd={!readOnly} readOnly={readOnly} hideExisting={false} hideBanner={true} />
+              <LoomSection ref={loomRef} productionDate={productionDate} autoAdd={!readOnly} readOnly={readOnly} hideExisting={false} hideBanner={true} onEditLoomGroup={(g) => { setEditingLoomGroup(g); setIsAddModalOpen(true); }} />
             </TabsContent>
 
             <TabsContent value="fabric" className="flex flex-col gap-4 mt-0 pt-0">
-              <FabricSection ref={fabricRef} productionDate={productionDate} autoAdd={!readOnly} readOnly={readOnly} hideExisting={false} hideBanner={true} />
+              <FabricSection ref={fabricRef} productionDate={productionDate} autoAdd={!readOnly} readOnly={readOnly} hideExisting={false} hideBanner={true} onEditFabricGroup={(g) => { setEditingFabricGroup(g); setIsAddModalOpen(true); }} />
             </TabsContent>
 
             <TabsContent value="delivered" className="flex flex-col gap-4 mt-0 pt-0">
-              <FabricDeliveredSection ref={fabricDeliveredRef} productionDate={productionDate} autoAdd={!readOnly} readOnly={readOnly} hideExisting={false} hideBanner={true} />
+              <FabricDeliveredSection ref={fabricDeliveredRef} productionDate={productionDate} autoAdd={!readOnly} readOnly={readOnly} hideExisting={false} hideBanner={true} onEditDeliveredGroup={(g) => { setEditingDeliveredGroup(g); setIsAddModalOpen(true); }} />
             </TabsContent>
           </Tabs>
         </div>
@@ -286,17 +294,37 @@ export function NewEntry({ onClose, defaultDate, readOnly = false }: NewEntryPro
         isOpen={isAddModalOpen} 
         onClose={() => {
           setIsAddModalOpen(false);
-          setTimeout(() => setEditingExtruderGroup(null), 300); // clear after animation
+          setTimeout(() => {
+            setEditingExtruderGroup(null);
+            setEditingLoomGroup(null);
+            setEditingFabricGroup(null);
+            setEditingDeliveredGroup(null);
+          }, 300); // clear after animation
         }} 
         activeTab={activeTab}
         initialExtruderData={editingExtruderGroup}
-        isEditMode={!!editingExtruderGroup}
+        initialLoomData={editingLoomGroup}
+        initialFabricData={editingFabricGroup}
+        initialDeliveredData={editingDeliveredGroup}
+        isEditMode={!!editingExtruderGroup || !!editingLoomGroup || !!editingFabricGroup || !!editingDeliveredGroup}
         onSaveExtruder={(data) => {
           if (editingExtruderGroup && extruderRef.current?.updateExtruderGroup) {
             extruderRef.current.updateExtruderGroup(data);
           } else if (extruderRef.current?.addExtruderGroup) {
             extruderRef.current.addExtruderGroup(data);
           }
+        }}
+        onSaveLoom={(data) => {
+          if (editingLoomGroup && loomRef.current?.updateLoomRow) loomRef.current.updateLoomRow(data);
+          else if (loomRef.current?.addLoomRow) loomRef.current.addLoomRow(data);
+        }}
+        onSaveFabric={(data) => {
+          if (editingFabricGroup && fabricRef.current?.updateFabricRow) fabricRef.current.updateFabricRow(data);
+          else if (fabricRef.current?.addFabricRow) fabricRef.current.addFabricRow(data);
+        }}
+        onSaveDelivered={(data) => {
+          if (editingDeliveredGroup && fabricDeliveredRef.current?.updateDeliveredRow) fabricDeliveredRef.current.updateDeliveredRow(data);
+          else if (fabricDeliveredRef.current?.addDeliveredRow) fabricDeliveredRef.current.addDeliveredRow(data);
         }}
       />
     </div>

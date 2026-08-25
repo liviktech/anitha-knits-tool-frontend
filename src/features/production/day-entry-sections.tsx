@@ -227,12 +227,21 @@ export interface SectionProps {
   /** Hides the colored title banner when rendered inside a tab. */
   hideBanner?: boolean;
   onEditExtruderGroup?: (group: any) => void;
+  onEditLoomGroup?: (group: any) => void;
+  onEditFabricGroup?: (group: any) => void;
+  onEditDeliveredGroup?: (group: any) => void;
 }
 
 export interface SectionRef {
   saveDraft: () => Promise<boolean>;
   addExtruderGroup?: (group: any) => void;
   updateExtruderGroup?: (group: any) => void;
+  addLoomRow?: (draft: any) => void;
+  updateLoomRow?: (draft: any) => void;
+  addFabricRow?: (draft: any) => void;
+  updateFabricRow?: (draft: any) => void;
+  addDeliveredRow?: (draft: any) => void;
+  updateDeliveredRow?: (draft: any) => void;
 }
 
 export { ExtruderSection } from '@/features/extruder/extruder-section-new';

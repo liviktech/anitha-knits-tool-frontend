@@ -3,17 +3,34 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/u
 import { themes, type Theme } from '@/features/production/day-entry-sections';
 import { ExtruderModalForm } from './extruder-modal-form';
 import type { ExtruderGroupDraft } from '@/features/extruder/extruder-section-new';
+import { LoomModalForm } from './loom-modal-form';
+import type { LoomDraft } from '@/features/looms/loom-section';
+import { FabricModalForm } from './fabric-modal-form';
+import type { FabricDraft } from '@/features/fabric/fabric-section';
+import { FabricDeliveredModalForm } from '@/features/inventory/fabric-delivered-modal-form';
+import type { FabricDeliveredDraft } from '@/features/inventory/fabric-delivered-section';
 
 interface TabAddModalProps {
   isOpen: boolean;
   onClose: () => void;
   activeTab: string;
   initialExtruderData?: ExtruderGroupDraft | null;
+  initialLoomData?: LoomDraft | null;
+  initialFabricData?: FabricDraft | null;
+  initialDeliveredData?: FabricDeliveredDraft | null;
   isEditMode?: boolean;
   onSaveExtruder?: (data: ExtruderGroupDraft) => void;
+  onSaveLoom?: (data: LoomDraft) => void;
+  onSaveFabric?: (data: FabricDraft) => void;
+  onSaveDelivered?: (data: FabricDeliveredDraft) => void;
 }
 
-export function TabAddModal({ isOpen, onClose, activeTab, initialExtruderData, isEditMode, onSaveExtruder }: TabAddModalProps) {
+export function TabAddModal({
+  isOpen, onClose, activeTab,
+  initialExtruderData, initialLoomData, initialFabricData, initialDeliveredData,
+  isEditMode,
+  onSaveExtruder, onSaveLoom, onSaveFabric, onSaveDelivered
+}: TabAddModalProps) {
   const activeThemeKey = activeTab === 'delivered' ? 'fabricDelivered' : activeTab as Theme;
   const theme = themes[activeThemeKey];
 
@@ -36,7 +53,7 @@ export function TabAddModal({ isOpen, onClose, activeTab, initialExtruderData, i
           </DialogTitle>
         </DialogHeader>
 
-        <div className="flex-1 overflow-y-auto p-6">
+        <div className="flex-1 overflow-y-auto p-2.5">
           {activeTab === 'extruder' ? (
             <ExtruderModalForm
               initialData={initialExtruderData}
@@ -47,12 +64,37 @@ export function TabAddModal({ isOpen, onClose, activeTab, initialExtruderData, i
                 onClose();
               }}
             />
-          ) : (
-            <div className="text-center p-8 bg-gray-50 rounded-lg border border-dashed border-gray-300 text-gray-500">
-              <p className="font-medium mb-2">Form fields will be displayed here.</p>
-              <p className="text-sm">The existing inline fields in the tabs have not been moved yet.</p>
-            </div>
-          )}
+          ) : activeTab === 'looms' ? (
+            <LoomModalForm
+              initialData={initialLoomData}
+              isEditMode={isEditMode}
+              onCancel={onClose}
+              onSave={(data) => {
+                if (onSaveLoom) onSaveLoom(data);
+                onClose();
+              }}
+            />
+          ) : activeTab === 'fabric' ? (
+            <FabricModalForm
+              initialData={initialFabricData}
+              isEditMode={isEditMode}
+              onCancel={onClose}
+              onSave={(data) => {
+                if (onSaveFabric) onSaveFabric(data);
+                onClose();
+              }}
+            />
+          ) : activeTab === 'delivered' ? (
+            <FabricDeliveredModalForm
+              initialData={initialDeliveredData}
+              isEditMode={isEditMode}
+              onCancel={onClose}
+              onSave={(data) => {
+                if (onSaveDelivered) onSaveDelivered(data);
+                onClose();
+              }}
+            />
+          ) : null}
         </div>
       </DialogContent>
     </Dialog>

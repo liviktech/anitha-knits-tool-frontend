@@ -65,19 +65,9 @@ export const ExtruderSection = forwardRef<SectionRef, SectionProps>(({ productio
   );
 
   const [newGroups, setNewGroups] = useState<ExtruderGroupDraft[]>([]);
-  const hasAutoAddedRef = useRef(false);
 
-  const startAddGroup = useCallback(() => {
-    setNewGroups((current) => [...current, emptyGroupDraft()]);
-  }, []);
 
-  useEffect(() => {
-    if (readOnly || !autoAdd || isLoading || hasAutoAddedRef.current) return;
-    if (newGroups.length === 0) {
-      hasAutoAddedRef.current = true;
-      startAddGroup();
-    }
-  }, [readOnly, autoAdd, isLoading, newGroups.length, startAddGroup]);
+
 
   // --- EXISTING ENTRIES STATE ---
   const existingGroups = useMemo(() => {
@@ -204,72 +194,72 @@ export const ExtruderSection = forwardRef<SectionRef, SectionProps>(({ productio
         {group.brands.map((brandRow, idx) => (
           <TableRow key={brandRow.key} className="hover:bg-gray-50/50">
             {idx === 0 && (
-              <TableCell rowSpan={group.brands.length} className="align-top border-r border-gray-200">
+              <TableCell rowSpan={group.brands.length} className="align-middle border-r border-gray-200 py-1.5 px-2">
                 <span className="font-medium text-gray-700">{group.size || '-'}</span>
               </TableCell>
             )}
             {idx === 0 && (
-              <TableCell rowSpan={group.brands.length} className="align-top border-r border-gray-200 w-32">
+              <TableCell rowSpan={group.brands.length} className="align-middle border-r border-gray-200 w-32 py-1.5 px-2">
                 <span className="font-medium text-gray-700">{group.color || '-'}</span>
               </TableCell>
             )}
 
-            <TableCell>
+            <TableCell className="py-1.5 px-2">
               <span className="block text-center">{parseFloat(brandRow.bags) > 0 ? brandRow.bags : '-'}</span>
             </TableCell>
-            <TableCell className="w-32">
+            <TableCell className="w-32 py-1.5 px-2">
               <span>{brandRow.brand || '-'}</span>
             </TableCell>
-            <TableCell>
+            <TableCell className="py-1.5 px-2">
               <span className="block text-center">{parseFloat(brandRow.weightPerBag) > 0 ? brandRow.weightPerBag : '-'}</span>
             </TableCell>
-            <TableCell>
+            <TableCell className="py-1.5 px-2">
               <span className="block text-center">{parseFloat(brandRow.looseWeight) > 0 ? brandRow.looseWeight : '-'}</span>
             </TableCell>
-            <TableCell className="border-r border-gray-200">
+            <TableCell className="border-r border-gray-200 py-1.5 px-2">
               <span className="block text-center font-medium">{parseFloat(brandRow.raw) > 0 ? parseFloat(brandRow.raw).toFixed(2) : '-'}</span>
             </TableCell>
 
             {idx === 0 && (
-              <TableCell rowSpan={group.brands.length} className="align-top border-r border-gray-200">
+              <TableCell rowSpan={group.brands.length} className="align-middle border-r border-gray-200 py-1.5 px-2">
                 <span>{group.chemical || '-'}</span>
               </TableCell>
             )}
             {idx === 0 && (
-              <TableCell rowSpan={group.brands.length} className="align-top border-r border-gray-200">
+              <TableCell rowSpan={group.brands.length} className="align-middle border-r border-gray-200 py-1.5 px-2">
                 <span className="block text-center">{parseFloat(group.chemicalKg) > 0 ? parseFloat(group.chemicalKg).toFixed(2) : '-'}</span>
               </TableCell>
             )}
 
             {idx === 0 && (
-              <TableCell rowSpan={group.brands.length} className="align-top border-r border-gray-200">
+              <TableCell rowSpan={group.brands.length} className="align-middle border-r border-gray-200 py-1.5 px-2">
                 <span className="block text-center text-yellow-700">{parseFloat(group.lumpsKg) > 0 ? parseFloat(group.lumpsKg).toFixed(2) : '-'}</span>
               </TableCell>
             )}
             {idx === 0 && (
-              <TableCell rowSpan={group.brands.length} className="align-top border-r border-gray-200">
+              <TableCell rowSpan={group.brands.length} className="align-middle border-r border-gray-200 py-1.5 px-2">
                 <span className="block text-center text-yellow-700">{parseFloat(group.yarnWasteKg) > 0 ? parseFloat(group.yarnWasteKg).toFixed(2) : '-'}</span>
               </TableCell>
             )}
 
             {idx === 0 && (
-              <TableCell rowSpan={group.brands.length} className="align-top border-r border-gray-200">
+              <TableCell rowSpan={group.brands.length} className="align-middle border-r border-gray-200 py-1.5 px-2">
                 <span className="font-semibold text-green-700 block text-center">{parseFloat(group.output) > 0 ? parseFloat(group.output).toFixed(2) : '-'}</span>
               </TableCell>
             )}
 
             {idx === 0 && !readOnly && (
               <TableCell rowSpan={group.brands.length} className="text-center align-middle border-l border-gray-200">
-                <div className="flex flex-col items-center justify-center gap-2 mt-1">
-                  <Button variant="ghost" size="icon-sm" className="h-7 w-7 rounded-full bg-blue-50 text-blue-500 hover:bg-blue-100" onClick={() => onEditExtruderGroup?.(group)}>
+                <div className="flex flex-row items-center justify-center gap-1.5 mt-1">
+                  <Button variant="ghost" size="icon-sm" className="h-6 w-6 p-0 rounded bg-blue-50 text-blue-500 hover:bg-blue-100" onClick={() => onEditExtruderGroup?.(group)}>
                     <Edit2 className="h-3 w-3" />
                   </Button>
                   {isNew ? (
-                    <Button variant="ghost" size="icon-sm" className="h-7 w-7 rounded-full bg-red-50 text-red-500 hover:bg-red-100" onClick={() => removeGroup(group.key)} title="Remove Group">
+                    <Button variant="ghost" size="icon-sm" className="h-6 w-6 p-0 rounded bg-red-50 text-red-500 hover:bg-red-100" onClick={() => removeGroup(group.key)} title="Remove Group">
                       <Trash2 className="h-3 w-3" />
                     </Button>
                   ) : (
-                    <Button variant="ghost" size="icon-sm" className="h-7 w-7 rounded-full bg-red-50 text-red-500 hover:bg-red-100" onClick={() => setDeleteTarget({ groupId: group.key, size: group.size, color: group.color })}>
+                    <Button variant="ghost" size="icon-sm" className="h-6 w-6 p-0 rounded bg-red-50 text-red-500 hover:bg-red-100" onClick={() => setDeleteTarget({ groupId: group.key, size: group.size, color: group.color })}>
                       <Trash2 className="h-3 w-3" />
                     </Button>
                   )}
@@ -301,25 +291,25 @@ export const ExtruderSection = forwardRef<SectionRef, SectionProps>(({ productio
         <Table>
           <TableHeader className={`${theme.headerBg}`}>
             <TableRow className="hover:!bg-transparent border-b-0">
-              <TableHead rowSpan={2} className={`align-middle text-xs font-semibold uppercase tracking-wide ${theme.headerText} border-r border-black/10`}>Size</TableHead>
-              <TableHead rowSpan={2} className={`align-middle w-32 min-w-32 text-center text-xs font-semibold uppercase tracking-wide ${theme.headerText} border-r border-black/10`}>Color</TableHead>
+              <TableHead rowSpan={2} className={`align-middle text-xs font-semibold uppercase tracking-wide ${theme.headerText} border-r border-black/10 py-1 px-2`}>Size</TableHead>
+              <TableHead rowSpan={2} className={`align-middle w-32 min-w-32 text-center text-xs font-semibold uppercase tracking-wide ${theme.headerText} border-r border-black/10 py-1 px-2`}>Color</TableHead>
 
-              <TableHead colSpan={5} className={`text-center text-xs font-semibold uppercase tracking-wide ${theme.headerText} border-b border-r border-black/10`}>HDPE Material</TableHead>
-              <TableHead colSpan={2} className={`text-center text-xs font-semibold uppercase tracking-wide ${theme.headerText} border-b border-r border-black/10`}>Chemicals</TableHead>
-              <TableHead colSpan={2} className={`text-center text-xs font-semibold uppercase tracking-wide ${theme.headerText} border-b border-black/10`}>Waste (kg)</TableHead>
-              <TableHead rowSpan={2} className={`align-middle text-center text-xs font-semibold uppercase tracking-wide ${theme.headerText} border-r border-black/10`}>Yarn Production (kg)</TableHead>
-              {!readOnly && <TableHead rowSpan={2} className={`align-middle text-center text-xs font-semibold uppercase tracking-wide ${theme.headerText}`}>Action</TableHead>}
+              <TableHead colSpan={5} className={`text-center text-xs font-semibold uppercase tracking-wide ${theme.headerText} border-b border-r border-black/10 py-1 px-2`}>HDPE Material</TableHead>
+              <TableHead colSpan={2} className={`text-center text-xs font-semibold uppercase tracking-wide ${theme.headerText} border-b border-r border-black/10 py-1 px-2`}>Chemicals</TableHead>
+              <TableHead colSpan={2} className={`text-center text-xs font-semibold uppercase tracking-wide ${theme.headerText} border-b border-black/10 py-1 px-2`}>Waste (kg)</TableHead>
+              <TableHead rowSpan={2} className={`align-middle text-center text-xs font-semibold uppercase tracking-wide ${theme.headerText} border-r border-black/10 py-1 px-2`}>Yarn Production (kg)</TableHead>
+              {!readOnly && <TableHead rowSpan={2} className={`align-middle text-center text-xs font-semibold uppercase tracking-wide ${theme.headerText} py-1 px-2`}>Action</TableHead>}
             </TableRow>
             <TableRow className="hover:!bg-transparent border-b-0">
-              <TableHead className={`text-center text-xs font-semibold uppercase tracking-wide ${theme.headerText}`}>Bag</TableHead>
-              <TableHead className={`w-32 min-w-32 text-center text-xs font-semibold uppercase tracking-wide ${theme.headerText}`}>Brand</TableHead>
-              <TableHead className={`text-center text-xs font-semibold uppercase tracking-wide ${theme.headerText}`}>Bag Weight</TableHead>
-              <TableHead className={`text-center text-xs font-semibold uppercase tracking-wide ${theme.headerText}`}>Loose Wt</TableHead>
-              <TableHead className={`text-center text-xs font-semibold uppercase tracking-wide ${theme.headerText} border-r border-black/10`}>Total (kg)</TableHead>
-              <TableHead className={`text-xs font-semibold uppercase tracking-wide ${theme.headerText}`}>Chemical</TableHead>
-              <TableHead className={`text-center text-xs font-semibold uppercase tracking-wide ${theme.headerText} border-r border-black/10`}>Chem Wt</TableHead>
-              <TableHead className={`text-center text-xs font-semibold uppercase tracking-wide ${theme.headerText}`}>Lumps</TableHead>
-              <TableHead className={`text-center text-xs font-semibold uppercase tracking-wide ${theme.headerText} border-r border-black/10`}>Looms Waste</TableHead>
+              <TableHead className={`text-center text-xs font-semibold uppercase tracking-wide ${theme.headerText} py-1 px-2`}>Bag</TableHead>
+              <TableHead className={`w-32 min-w-32 text-center text-xs font-semibold uppercase tracking-wide ${theme.headerText} py-1 px-2`}>Brand</TableHead>
+              <TableHead className={`text-center text-xs font-semibold uppercase tracking-wide ${theme.headerText} py-1 px-2`}>Bag Weight</TableHead>
+              <TableHead className={`text-center text-xs font-semibold uppercase tracking-wide ${theme.headerText} py-1 px-2`}>Loose Wt</TableHead>
+              <TableHead className={`text-center text-xs font-semibold uppercase tracking-wide ${theme.headerText} border-r border-black/10 py-1 px-2`}>Total (kg)</TableHead>
+              <TableHead className={`text-xs font-semibold uppercase tracking-wide ${theme.headerText} py-1 px-2`}>Chemical</TableHead>
+              <TableHead className={`text-center text-xs font-semibold uppercase tracking-wide ${theme.headerText} border-r border-black/10 py-1 px-2`}>Chem Wt</TableHead>
+              <TableHead className={`text-center text-xs font-semibold uppercase tracking-wide ${theme.headerText} py-1 px-2`}>Lumps</TableHead>
+              <TableHead className={`text-center text-xs font-semibold uppercase tracking-wide ${theme.headerText} border-r border-black/10 py-1 px-2`}>Looms Waste</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
@@ -341,7 +331,7 @@ export const ExtruderSection = forwardRef<SectionRef, SectionProps>(({ productio
 
                 {newGroups.length === 0 && existingGroups.length === 0 && (
                   <TableRow>
-                    <TableCell colSpan={14} className="h-20 text-center text-gray-500">No entries yet.</TableCell>
+                    <TableCell colSpan={14} className="h-20 !text-center text-gray-500">No entries yet.</TableCell>
 
                   </TableRow>
                 )}

@@ -86,7 +86,7 @@ export function ExtruderModalForm({ initialData, isEditMode, onCancel, onSave }:
   };
 
   return (
-    <div className="flex flex-col gap-6 px-1">
+    <div className="flex flex-col gap-3 px-1">
 
       {/* General Settings */}
       <div className="grid grid-cols-2 gap-4">

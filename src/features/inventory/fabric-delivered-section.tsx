@@ -17,11 +17,14 @@ import {
 import { dashboardProductionKey } from '@/features/production/day-wise-queries';
 import { themes, type SectionProps, type SectionRef } from '@/features/production/day-entry-sections';
 
-interface FabricDeliveredDraft {
+export interface FabricDeliveredDraft {
+  key?: string;
   size: string;
   color: string;
   delivered: string;
 }
+
+export const emptyFabricDeliveredDraft: FabricDeliveredDraft = { size: '', color: '', delivered: '' };
 
 interface FabricDeliveredCreatePayload {
   productionDate: string;
@@ -54,7 +57,7 @@ function mapLoadSentRecord(record: LoadSentProductionRecord): FabricDeliveredRow
   };
 }
 
-export const FabricDeliveredSection = forwardRef<SectionRef, SectionProps>(({ productionDate, autoAdd, readOnly, hideExisting, hideBanner }, ref) => {
+export const FabricDeliveredSection = forwardRef<SectionRef, SectionProps & { onEditDeliveredGroup?: (draft: FabricDeliveredDraft) => void }>(({ productionDate, readOnly, hideExisting, hideBanner, onEditDeliveredGroup }, ref) => {
   const queryClient = useQueryClient();
   const { data: lookupsData } = useLookups();
   const lookups: Lookups = lookupsData ?? { brands: [], colors: [], chemicals: [], sizes: [] };
@@ -67,124 +70,45 @@ export const FabricDeliveredSection = forwardRef<SectionRef, SectionProps>(({ pr
       .map((record) => mapLoadSentRecord(record as LoadSentProductionRecord));
   }, [data, productionDate, hideExisting]);
 
-  const [newRows, setNewRows] = useState<{ key: string; draft: FabricDeliveredDraft }[]>([]);
-  const [editingId, setEditingId] = useState<string | null>(null);
-  const [editDraft, setEditDraft] = useState<FabricDeliveredDraft>({ size: '', color: '', delivered: '' });
-  const [saving, setSaving] = useState(false);
-  const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const [newRows, setNewRows] = useState<FabricDeliveredDraft[]>([]);
   const [deleteTarget, setDeleteTarget] = useState<FabricDeliveredRow | null>(null);
   const [deleting, setDeleting] = useState(false);
-  const nextRowKeyRef = useRef(0);
-  const hasAutoAddedRef = useRef(false);
-
-  const startAdd = useCallback(() => {
-    setNewRows((current) => [
-      ...current,
-      { key: `new-${nextRowKeyRef.current++}`, draft: { size: '', color: '', delivered: '' } },
-    ]);
-  }, []);
-
-  useEffect(() => {
-    if (readOnly || !autoAdd || hasAutoAddedRef.current) return;
-    if (newRows.length === 0) {
-      hasAutoAddedRef.current = true;
-      startAdd();
-    }
-  }, [readOnly, autoAdd, newRows.length, startAdd]);
-
-  const updateNewRow = (key: string, draft: FabricDeliveredDraft) => {
-    setNewRows((current) => current.map((row) => (row.key === key ? { ...row, draft } : row)));
-  };
 
   const removeNewRow = (key: string) => {
     setNewRows((current) => current.filter((row) => row.key !== key));
   };
 
-  const validateDraft = (draft: FabricDeliveredDraft) => {
-    const sizeId = findIdByName(lookups.sizes, draft.size);
-    const colorId = findIdByName(lookups.colors, draft.color);
-    const fabricWeight = parseFloat(draft.delivered) || 0;
-    if (!sizeId || !colorId) {
-      setErrorMessage('Select Size and Color before saving.');
-      return null;
-    }
-    if (fabricWeight <= 0) {
-      setErrorMessage('Enter Fabric Weight (kg) — it must be greater than 0.');
-      return null;
-    }
-    return { sizeId, colorId, fabricWeight };
-  };
-
-  const saveRow = async (draft: FabricDeliveredDraft, id?: string): Promise<boolean> => {
-    const values = validateDraft(draft);
-    if (!values) return false;
-
-    try {
-      const payload: FabricDeliveredCreatePayload = {
-        productionDate: productionDate ?? new Date().toISOString().slice(0, 10),
-        colorId: values.colorId,
-        sizeId: values.sizeId,
-        fabricWeight: values.fabricWeight,
-      };
-      const response = await apiFetch(id ? `/load-sent/${id}` : '/load-sent', {
-        method: id ? 'PATCH' : 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(payload),
-      });
-      if (!response.ok) {
-        setErrorMessage(await extractApiErrorMessage(response, 'Failed to save the Fabric Delivered entry.'));
-        return false;
-      }
-      return true;
-    } catch (error) {
-      console.error('Error saving Fabric Delivered entry:', error);
-      setErrorMessage('Failed to save the Fabric Delivered entry.');
-      return false;
-    }
-  };
-
-  const startEdit = (row: FabricDeliveredRow) => {
-    setEditDraft({ size: row.size, color: row.color, delivered: String(row.delivered) });
-    setEditingId(row.id);
-  };
-
-  const cancelEdit = () => {
-    setEditingId(null);
-    setEditDraft({ size: '', color: '', delivered: '' });
-  };
-
   useImperativeHandle(ref, () => ({
     saveDraft: async () => {
-      if (readOnly) return true;
-      setSaving(true);
-      setErrorMessage(null);
-      let allOk = true;
-      try {
-        if (editingId) {
-          const editOk = await saveRow(editDraft, editingId);
-          if (!editOk) allOk = false;
-        }
-
-        const rowsToSave = newRows.filter((row) => JSON.stringify(row.draft) !== JSON.stringify({ size: '', color: '', delivered: '' }));
-        if (rowsToSave.length > 0) {
-          const results = await Promise.all(rowsToSave.map((row) => saveRow(row.draft)));
-          const succeededKeys = new Set(rowsToSave.filter((_, index) => results[index]).map((row) => row.key));
-          if (succeededKeys.size > 0) {
-            setNewRows((current) => current.filter((row) => !succeededKeys.has(row.key)));
-            await queryClient.invalidateQueries({ queryKey: loadSentKeys.all });
-          }
-          if (succeededKeys.size < rowsToSave.length) allOk = false;
-        }
-
-        if (allOk && editingId) {
-          cancelEdit();
-          await queryClient.invalidateQueries({ queryKey: loadSentKeys.all });
-        }
-      } finally {
-        setSaving(false);
-      }
-      return allOk;
+      return true;
     },
+    addDeliveredRow: (draft: FabricDeliveredDraft) => {
+      setNewRows(prev => {
+        const existingIndex = prev.findIndex(r => r.size === draft.size && r.color === draft.color);
+        if (existingIndex >= 0) {
+          const newArray = [...prev];
+          const existing = newArray[existingIndex];
+          
+          const updated = { ...existing };
+          updated.delivered = ((parseFloat(updated.delivered) || 0) + (parseFloat(draft.delivered) || 0)).toString();
+          
+          newArray[existingIndex] = updated;
+          return newArray;
+        }
+        return [...prev, { ...draft, key: crypto.randomUUID() }];
+      });
+    },
+    updateDeliveredRow: (draft: FabricDeliveredDraft) => {
+      setNewRows(prev => {
+        const existingIndex = prev.findIndex(r => r.key === draft.key);
+        if (existingIndex >= 0) {
+          const newArray = [...prev];
+          newArray[existingIndex] = draft;
+          return newArray;
+        }
+        return prev;
+      });
+    }
   }));
 
   const handleDeleteRow = async () => {
@@ -225,7 +149,6 @@ export const FabricDeliveredSection = forwardRef<SectionRef, SectionProps>(({ pr
             <TableRow className="hover:!bg-transparent border-b-0">
               <TableHead className={`text-xs font-semibold uppercase tracking-wide ${theme.headerText}`}>Size</TableHead>
               <TableHead className={`w-37.5 min-w-37.5 text-center text-xs font-semibold uppercase tracking-wide ${theme.headerText}`}>Color</TableHead>
-              {/* <TableHead className={`text-center text-xs font-semibold uppercase tracking-wide ${theme.headerText}`}>Kora</TableHead> */}
               <TableHead className={`text-center text-xs font-semibold uppercase tracking-wide ${theme.headerText}`}>Delivered (kg)</TableHead>
               {!readOnly && <TableHead className={`text-center text-xs font-semibold uppercase tracking-wide ${theme.headerText}`}>Action</TableHead>}
             </TableRow>
@@ -242,85 +165,49 @@ export const FabricDeliveredSection = forwardRef<SectionRef, SectionProps>(({ pr
             ) : (
               <>
                 {!readOnly && newRows.map((row) => (
-                  <TableRow key={row.key}>
-                    <TableCell>
-                      <Select value={row.draft.size} onValueChange={(value) => updateNewRow(row.key, { ...row.draft, size: value })}>
-                        <SelectTrigger className="h-10"><SelectValue placeholder="Size" /></SelectTrigger>
-                        <SelectContent>
-                          {lookups.sizes.map((s) => <SelectItem key={s.id} value={s.name}>{s.name}</SelectItem>)}
-                        </SelectContent>
-                      </Select>
-                    </TableCell>
-                    <TableCell className="w-37.5 min-w-37.5 text-center">
-                      <Select value={row.draft.color} onValueChange={(value) => updateNewRow(row.key, { ...row.draft, color: value })}>
-                        <SelectTrigger className="h-10 w-full"><SelectValue placeholder="Color" /></SelectTrigger>
-                        <SelectContent>
-                          {lookups.colors.map((c) => <SelectItem key={c.id} value={c.name}>{c.name}</SelectItem>)}
-                        </SelectContent>
-                      </Select>
-                    </TableCell>
-                    <TableCell>
-                      <Input type="number" className="h-10 w-full text-center" value={row.draft.delivered} onChange={(e) => updateNewRow(row.key, { ...row.draft, delivered: e.target.value })} />
-                    </TableCell>
-                    <TableCell className="text-center">
-                      <Button variant="ghost" size="icon-sm" className="rounded-full bg-gray-100 text-gray-500 hover:bg-gray-200" aria-label="Cancel" onClick={() => removeNewRow(row.key)} disabled={saving}>
-                        <XIcon className="h-3.5 w-3.5" />
-                      </Button>
-                    </TableCell>
-                  </TableRow>
-                ))}
-                {!readOnly && rows.map((row) => editingId === row.id ? (
-                  <TableRow key={row.id}>
-                    <TableCell>
-                      <Select value={editDraft.size} onValueChange={(value) => setEditDraft({ ...editDraft, size: value })}>
-                        <SelectTrigger className="h-10"><SelectValue placeholder="Size" /></SelectTrigger>
-                        <SelectContent>
-                          {lookups.sizes.map((s) => <SelectItem key={s.id} value={s.name}>{s.name}</SelectItem>)}
-                        </SelectContent>
-                      </Select>
-                    </TableCell>
-                    <TableCell className="w-37.5 min-w-37.5 text-center">
-                      <Select value={editDraft.color} onValueChange={(value) => setEditDraft({ ...editDraft, color: value })}>
-                        <SelectTrigger className="h-10 w-full"><SelectValue placeholder="Color" /></SelectTrigger>
-                        <SelectContent>
-                          {lookups.colors.map((c) => <SelectItem key={c.id} value={c.name}>{c.name}</SelectItem>)}
-                        </SelectContent>
-                      </Select>
-                    </TableCell>
-                    <TableCell><Input type="number" className="h-10 w-full text-center" value={editDraft.delivered} onChange={(e) => setEditDraft({ ...editDraft, delivered: e.target.value })} /></TableCell>
-                    <TableCell className="text-center">
-                      <Button variant="ghost" size="icon-sm" className="rounded-full bg-gray-100 text-gray-500 hover:bg-gray-200" aria-label="Cancel" onClick={cancelEdit} disabled={saving}>
-                        <XIcon className="h-3.5 w-3.5" />
-                      </Button>
-                    </TableCell>
-                  </TableRow>
-                ) : (
-                  <TableRow key={row.id}>
-                    <TableCell>{row.size}</TableCell>
-                    <TableCell className="w-37.5 min-w-37.5 text-center">{row.color}</TableCell>
-                    <TableCell className="text-center">{row.delivered.toFixed(2)}</TableCell>
+                  <TableRow key={row.key} className="bg-orange-50/50">
+                    <TableCell><span className="font-medium text-gray-700">{row.size || '-'}</span></TableCell>
+                    <TableCell className="text-center"><span className="font-medium text-gray-700">{row.color || '-'}</span></TableCell>
+                    <TableCell className="text-center">{parseFloat(row.delivered) > 0 ? parseFloat(row.delivered).toFixed(2) : '-'}</TableCell>
                     <TableCell className="text-center">
                       <div className="flex items-center justify-center gap-1.5">
-                        <Button variant="ghost" size="icon-sm" className="rounded-full bg-blue-50 text-blue-500 hover:bg-blue-100" aria-label="Edit row" onClick={() => startEdit(row)} disabled={saving}>
+                        <Button variant="ghost" size="icon-sm" className="rounded-full bg-blue-50 text-blue-500 hover:bg-blue-100" onClick={() => onEditDeliveredGroup && onEditDeliveredGroup(row)}>
                           <Edit2 className="h-3.5 w-3.5" />
                         </Button>
-                        <Button variant="ghost" size="icon-sm" className="rounded-full bg-red-50 text-red-500 hover:bg-red-100" aria-label="Delete row" onClick={() => setDeleteTarget(row)} disabled={saving}>
+                        <Button variant="ghost" size="icon-sm" className="rounded-full bg-red-50 text-red-500 hover:bg-red-100" onClick={() => removeNewRow(row.key!)}>
                           <Trash2 className="h-3.5 w-3.5" />
                         </Button>
                       </div>
                     </TableCell>
                   </TableRow>
                 ))}
-                {readOnly && rows.map((row) => (
+                {rows.map((row) => (
                   <TableRow key={row.id}>
                     <TableCell>{row.size}</TableCell>
                     <TableCell className="w-37.5 min-w-37.5 text-center">{row.color}</TableCell>
                     <TableCell className="text-center">{row.delivered.toFixed(2)}</TableCell>
+                    {!readOnly && (
+                      <TableCell className="text-center">
+                        <div className="flex items-center justify-center gap-1.5">
+                          <Button variant="ghost" size="icon-sm" className="rounded-full bg-blue-50 text-blue-500 hover:bg-blue-100" aria-label="Edit row" onClick={() => onEditDeliveredGroup && onEditDeliveredGroup({
+                              id: row.id,
+                              size: row.size,
+                              color: row.color,
+                              delivered: String(row.delivered),
+                            })}>
+                            <Edit2 className="h-3.5 w-3.5" />
+                          </Button>
+                          <Button variant="ghost" size="icon-sm" className="rounded-full bg-red-50 text-red-500 hover:bg-red-100" aria-label="Delete row" onClick={() => setDeleteTarget(row)}>
+                            <Trash2 className="h-3.5 w-3.5" />
+                          </Button>
+                        </div>
+                      </TableCell>
+                    )}
                   </TableRow>
                 ))}
                 {rows.length === 0 && newRows.length === 0 && (
                   <TableRow>
-                    <TableCell colSpan={readOnly ? 3 : 4} className="h-20 text-center text-gray-500">No entries yet.</TableCell>
+                    <TableCell colSpan={readOnly ? 3 : 4} className="h-20 !text-center text-gray-500">No entries yet.</TableCell>
                   </TableRow>
                 )}
               </>
@@ -328,26 +215,6 @@ export const FabricDeliveredSection = forwardRef<SectionRef, SectionProps>(({ pr
           </TableBody>
         </Table>
       </div>
-
-      {!readOnly && (
-        <div className="flex flex-col border-t border-gray-100">
-          <div className="p-4 flex flex-col gap-2">
-            <div className="flex items-center gap-3">
-              <Button
-                variant="outline"
-                size="sm"
-                className={`h-8 gap-1 rounded-full ${theme.buttonBorder} ${theme.buttonText} ${theme.buttonHover}`}
-                onClick={startAdd}
-                disabled={saving}
-              >
-                <Plus className="h-3 w-3" /> Add row
-              </Button>
-            </div>
-            {errorMessage && <p className="text-xs font-medium text-red-600">{errorMessage}</p>}
-          </div>
-
-        </div>
-      )}
       <DeleteConfirmDialog
         open={!!deleteTarget}
         onOpenChange={(open) => !open && setDeleteTarget(null)}
