@@ -1,5 +1,7 @@
-import { useQuery } from '@tanstack/react-query';
-import { fetchJson } from '@/lib/api-client';
+// API commented out for now — this hook serves static data.
+// import { useQuery } from '@tanstack/react-query';
+// import { fetchJson } from '@/lib/api-client';
+import { staticDayWiseRows, staticDayWiseTotals, staticDayWiseSummary } from './static-entry-data';
 
 interface StageInOut {
   input: number;
@@ -18,37 +20,46 @@ export interface DayWiseRow {
   fabric: StageTotals;
 }
 
-interface ApiStageTotals {
-  inputKg: number;
-  outputKg: number;
-  wastageKg: number;
-  wastePct: number;
-  efficiencyPct?: number;
-}
-
-interface DashboardProductionResponse {
-  success: boolean;
-  data: {
-    range: { dateFrom: string; dateTo: string };
-    summary: {
-      extruder: ApiStageTotals;
-      looms: ApiStageTotals;
-      fabricChecking: ApiStageTotals;
-    };
-    daily: Array<{
-      date: string;
-      extruder: ApiStageTotals;
-      looms: ApiStageTotals;
-      fabricChecking: ApiStageTotals;
-    }>;
-  };
-}
-
-const emptyTotals: StageTotals = { input: 0, output: 0, wastage: 0, wastePct: 0 };
+// interface ApiStageTotals {
+//   inputKg: number;
+//   outputKg: number;
+//   wastageKg: number;
+//   wastePct: number;
+//   efficiencyPct?: number;
+// }
+//
+// interface DashboardProductionResponse {
+//   success: boolean;
+//   data: {
+//     range: { dateFrom: string; dateTo: string };
+//     summary: {
+//       extruder: ApiStageTotals;
+//       looms: ApiStageTotals;
+//       fabricChecking: ApiStageTotals;
+//     };
+//     daily: Array<{
+//       date: string;
+//       extruder: ApiStageTotals;
+//       looms: ApiStageTotals;
+//       fabricChecking: ApiStageTotals;
+//     }>;
+//   };
+// }
+//
+// const emptyTotals: StageTotals = { input: 0, output: 0, wastage: 0, wastePct: 0 };
 
 export const dashboardProductionKey = ['dashboard', 'production'] as const;
 
-export function useDayWiseProduction(monthStr?: string) {
+export function useDayWiseProduction(_monthStr?: string) {
+  // STATIC DATA — the API call below is commented out for now.
+  return {
+    rows: staticDayWiseRows as DayWiseRow[],
+    totals: staticDayWiseTotals,
+    isLoading: false,
+    apiSummary: staticDayWiseSummary,
+  };
+
+  /* ---- Original API implementation (restore by deleting the block above) ----
   const queryKey = monthStr ? [...dashboardProductionKey, monthStr] : dashboardProductionKey;
 
   const { data, isLoading } = useQuery({
@@ -115,4 +126,5 @@ export function useDayWiseProduction(monthStr?: string) {
   const apiSummary = data?.data?.summary;
 
   return { rows, totals, isLoading, apiSummary };
+  ---- end original API implementation ---- */
 }

@@ -7,9 +7,16 @@ import { Loader } from '@/components/shared/loader';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { ExtruderSection, LoomSection, FabricSection, FabricDeliveredSection } from './day-entry-sections';
 import type { SectionRef } from './day-entry-sections';
-import { useExtruderProductions, useLookups } from '@/features/extruder/extruder-queries';
-import { useInventoryRecords } from '@/features/inventory/inventory-queries';
+// APIs commented out for now — this screen reads from static-entry-data.
+// import { useExtruderProductions, useLookups } from '@/features/extruder/extruder-queries';
+// import { useInventoryRecords } from '@/features/inventory/inventory-queries';
 import { useProductionHeader } from './production-details';
+import {
+  staticLookups,
+  staticHdpeBalances,
+  staticChemicalBalances,
+  staticColorBalances,
+} from './static-entry-data';
 
 interface NewEntryProps {
   onClose: () => void;
@@ -32,8 +39,10 @@ export function NewEntry({ onClose, defaultDate, readOnly = false }: NewEntryPro
   const [submitting, setSubmitting] = useState(false);
   const [isInventoryMinimized, setIsInventoryMinimized] = useState(false);
 
-  const { data: lookupsData } = useLookups();
-  const lookups = lookupsData ?? { brands: [], colors: [], chemicals: [], sizes: [] };
+  // STATIC DATA — API call commented out.
+  // const { data: lookupsData } = useLookups();
+  // const lookups = lookupsData ?? { brands: [], colors: [], chemicals: [], sizes: [] };
+  const lookups = staticLookups;
 
   useEffect(() => {
     setHeaderTitle(isCreateMode ? 'Add new Daily production details' : 'Edit daily production details');
@@ -83,28 +92,33 @@ export function NewEntry({ onClose, defaultDate, readOnly = false }: NewEntryPro
 
   // Most recent entry before the selected date — used to carry forward
   // Data for calculating live stock balances in create mode
-  const { data: allInvData } = useInventoryRecords('?limit=100', !readOnly);
-  const { data: allExtruderData } = useExtruderProductions('?limit=100', !readOnly);
-  const inventoryRecords = allInvData?.data ?? [];
-  const extruderRecords = allExtruderData?.data ?? [];
-
-  const getHDPEBalance = (name: string) => {
-    const received = inventoryRecords.filter(r => r.type === 'HDPE' && r.name === name).reduce((sum, r) => sum + r.weightKg, 0);
-    const consumed = extruderRecords.filter(r => r.extruder?.brand?.name === name).reduce((sum, r) => sum + (r.extruder?.rawMaterialKg ?? 0), 0);
-    return (received - consumed).toFixed(2);
-  };
-
-  const getChemicalBalance = (name: string) => {
-    const received = inventoryRecords.filter(r => r.type === 'CHEMICAL' && r.name === name).reduce((sum, r) => sum + r.weightKg, 0);
-    const consumed = extruderRecords.filter(r => r.extruder?.chemical?.name === name).reduce((sum, r) => sum + (r.extruder?.chemicalKg ?? 0), 0);
-    return (received - consumed).toFixed(2);
-  };
-
-  const getColorBalance = (name: string) => {
-    const received = inventoryRecords.filter(r => r.type === 'COLOR' && r.name === name).reduce((sum, r) => sum + r.weightKg, 0);
-    const consumed = extruderRecords.filter(r => r.color?.name === name).reduce((sum, r) => sum + (r.extruder?.colorConsumedKg ?? 0), 0);
-    return (received - consumed).toFixed(2);
-  };
+  // STATIC DATA — the inventory/extruder API calls and the derived balance
+  // maths below are commented out; balances now come from static-entry-data.
+  // const { data: allInvData } = useInventoryRecords('?limit=100', !readOnly);
+  // const { data: allExtruderData } = useExtruderProductions('?limit=100', !readOnly);
+  // const inventoryRecords = allInvData?.data ?? [];
+  // const extruderRecords = allExtruderData?.data ?? [];
+  //
+  // const getHDPEBalance = (name: string) => {
+  //   const received = inventoryRecords.filter(r => r.type === 'HDPE' && r.name === name).reduce((sum, r) => sum + r.weightKg, 0);
+  //   const consumed = extruderRecords.filter(r => r.extruder?.brand?.name === name).reduce((sum, r) => sum + (r.extruder?.rawMaterialKg ?? 0), 0);
+  //   return (received - consumed).toFixed(2);
+  // };
+  //
+  // const getChemicalBalance = (name: string) => {
+  //   const received = inventoryRecords.filter(r => r.type === 'CHEMICAL' && r.name === name).reduce((sum, r) => sum + r.weightKg, 0);
+  //   const consumed = extruderRecords.filter(r => r.extruder?.chemical?.name === name).reduce((sum, r) => sum + (r.extruder?.chemicalKg ?? 0), 0);
+  //   return (received - consumed).toFixed(2);
+  // };
+  //
+  // const getColorBalance = (name: string) => {
+  //   const received = inventoryRecords.filter(r => r.type === 'COLOR' && r.name === name).reduce((sum, r) => sum + r.weightKg, 0);
+  //   const consumed = extruderRecords.filter(r => r.color?.name === name).reduce((sum, r) => sum + (r.extruder?.colorConsumedKg ?? 0), 0);
+  //   return (received - consumed).toFixed(2);
+  // };
+  const getHDPEBalance = (name: string) => staticHdpeBalances[name] ?? '0.00';
+  const getChemicalBalance = (name: string) => staticChemicalBalances[name] ?? '0.00';
+  const getColorBalance = (name: string) => staticColorBalances[name] ?? '0.00';
 
   const totalRawMaterial = lookups.brands.reduce((sum, b) => sum + parseFloat(getHDPEBalance(b.name) || '0'), 0).toFixed(2);
   const totalChemical = lookups.chemicals.reduce((sum, c) => sum + parseFloat(getChemicalBalance(c.name) || '0'), 0).toFixed(2);

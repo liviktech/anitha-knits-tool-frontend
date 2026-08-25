@@ -1,17 +1,18 @@
 import { useMemo, useState, useRef, useEffect, useCallback, forwardRef, useImperativeHandle } from 'react';
-import { useQueryClient } from '@tanstack/react-query';
+// import { useQueryClient } from '@tanstack/react-query';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Loader } from '@/components/shared/loader';
 import { Plus, Edit2, X as XIcon } from 'lucide-react';
-import { apiFetch, extractApiErrorMessage } from '@/lib/api-client';
+// APIs commented out for now — all four sections read from static-entry-data.
+// import { apiFetch, extractApiErrorMessage } from '@/lib/api-client';
 import { sumWastageByCode } from '@/lib/api-types';
 import {
-  useExtruderProductions,
-  useLookups,
-  extruderKeys,
+  // useExtruderProductions,
+  // useLookups,
+  // extruderKeys,
   findIdByName,
   type Lookups,
   type ExtruderProductionItem,
@@ -19,19 +20,27 @@ import {
   type ExtruderUpdatePayload,
 } from '@/features/extruder/extruder-queries';
 import {
-  useLoomsProductions,
-  loomsKeys,
+  // useLoomsProductions,
+  // loomsKeys,
   type LoomsProductionItem,
   type LoomsCreatePayload,
 } from '@/features/looms/loom-queries';
 import {
-  useFabricCheckingRecords,
-  fabricCheckingKeys,
+  // useFabricCheckingRecords,
+  // fabricCheckingKeys,
   type FabricCheckingRecord,
   type FabricCheckingCreatePayload,
 } from '@/features/fabric/fabric-queries';
-import { useLoadSentRecords, loadSentKeys, type LoadSentRecord } from '@/features/inventory/load-sent-queries';
-import { dashboardProductionKey } from './day-wise-queries';
+// import { useLoadSentRecords, loadSentKeys, type LoadSentRecord } from '@/features/inventory/load-sent-queries';
+// import { type LoadSentRecord } from '@/features/inventory/load-sent-queries';
+// import { dashboardProductionKey } from './day-wise-queries';
+import {
+  staticLookups,
+  staticExtruderRows,
+  staticLoomRows,
+  staticFabricRows,
+  staticDeliveredRows,
+} from './static-entry-data';
 
 /**
  * Shared between the day-close view (day-details.tsx) and the entry modal
@@ -228,13 +237,16 @@ export interface SectionRef {
 }
 
 export const ExtruderSection = forwardRef<SectionRef, SectionProps>(({ productionDate, autoAdd, readOnly, hideExisting }, ref) => {
-  const queryClient = useQueryClient();
-  const { data, isLoading } = useExtruderProductions(
-    productionDate ? `?date_from=${productionDate}&date_to=${productionDate}` : '',
-    !hideExisting,
-  );
-  const { data: lookupsData } = useLookups();
-  const lookups: Lookups = lookupsData ?? { brands: [], colors: [], chemicals: [], sizes: [] };
+  // STATIC DATA — API calls commented out.
+  // const queryClient = useQueryClient();
+  // const { data, isLoading } = useExtruderProductions(
+  //   productionDate ? `?date_from=${productionDate}&date_to=${productionDate}` : '',
+  //   !hideExisting,
+  // );
+  // const { data: lookupsData } = useLookups();
+  // const lookups: Lookups = lookupsData ?? { brands: [], colors: [], chemicals: [], sizes: [] };
+  const isLoading = false;
+  const lookups: Lookups = staticLookups;
 
   const rows = useMemo(() => {
     // hideExisting means this instance never fetched — but `enabled: false`
@@ -242,12 +254,13 @@ export const ExtruderSection = forwardRef<SectionRef, SectionProps>(({ productio
     // under this exact query key from another (e.g. Edit/View) instance. So
     // explicitly ignore `data` here rather than trusting it to be empty.
     if (hideExisting) return [];
-    const items = data?.data ?? [];
-    return items
-      .filter((item) => !productionDate || item.productionDate.startsWith(productionDate))
-      .map(mapExtruderItem)
-      .filter((row) => row.raw > 0 || row.output > 0 || row.chemicalKg > 0);
-  }, [data, productionDate, hideExisting]);
+    // const items = data?.data ?? [];
+    // return items
+    //   .filter((item) => !productionDate || item.productionDate.startsWith(productionDate))
+    //   .map(mapExtruderItem)
+    //   .filter((row) => row.raw > 0 || row.output > 0 || row.chemicalKg > 0);
+    return staticExtruderRows;
+  }, [hideExisting]);
 
   // Editing an EXISTING saved record — a single slot, since editing more
   // than one saved row at a time isn't a supported flow. Adding brand-new
@@ -361,18 +374,20 @@ export const ExtruderSection = forwardRef<SectionRef, SectionProps>(({ productio
         ...(editDraft.colorConsumedKg ? { colorConsumedKg: parseFloat(editDraft.colorConsumedKg) || 0 } : {}),
       };
 
-      const response = await apiFetch(`/production/extruder/${editingId}`, {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(payload),
-      });
-      if (!response.ok) {
-        setErrorMessage(await extractApiErrorMessage(response, 'Failed to save the entry. Please try again.'));
-        return false;
-      }
-
-      await queryClient.invalidateQueries({ queryKey: extruderKeys.all });
-      await queryClient.invalidateQueries({ queryKey: dashboardProductionKey });
+      // STATIC MODE — no network call; the payload is logged and the edit closes.
+      // const response = await apiFetch(`/production/extruder/${editingId}`, {
+      //   method: 'PATCH',
+      //   headers: { 'Content-Type': 'application/json' },
+      //   body: JSON.stringify(payload),
+      // });
+      // if (!response.ok) {
+      //   setErrorMessage(await extractApiErrorMessage(response, 'Failed to save the entry. Please try again.'));
+      //   return false;
+      // }
+      //
+      // await queryClient.invalidateQueries({ queryKey: extruderKeys.all });
+      // await queryClient.invalidateQueries({ queryKey: dashboardProductionKey });
+      console.log('[v0] extruder update (static mode):', editingId, payload);
       cancelEdit();
       return true;
     } catch (error) {
@@ -418,15 +433,18 @@ export const ExtruderSection = forwardRef<SectionRef, SectionProps>(({ productio
         yarnWasteKg: parseFloat(row.draft.yarnWasteKg) || 0,
         ...(row.draft.colorConsumedKg ? { colorConsumedKg: parseFloat(row.draft.colorConsumedKg) || 0 } : {}),
       };
-      const response = await apiFetch('/production/extruder', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(payload),
-      });
-      if (!response.ok) {
-        setErrorMessage(await extractApiErrorMessage(response, 'Failed to save one or more entries. Please try again.'));
-      }
-      return response.ok;
+      // STATIC MODE — no network call.
+      // const response = await apiFetch('/production/extruder', {
+      //   method: 'POST',
+      //   headers: { 'Content-Type': 'application/json' },
+      //   body: JSON.stringify(payload),
+      // });
+      // if (!response.ok) {
+      //   setErrorMessage(await extractApiErrorMessage(response, 'Failed to save one or more entries. Please try again.'));
+      // }
+      // return response.ok;
+      console.log('[v0] extruder create (static mode):', payload);
+      return true;
     } catch (error) {
       console.error('Error saving extruder entry:', error);
       setErrorMessage('Failed to save one or more entries. Please try again.');
@@ -454,8 +472,8 @@ export const ExtruderSection = forwardRef<SectionRef, SectionProps>(({ productio
           const succeededKeys = new Set(rowsToSave.filter((_, i) => results[i]).map((row) => row.key));
           if (succeededKeys.size > 0) {
             setNewRows((current) => current.filter((row) => !succeededKeys.has(row.key)));
-            await queryClient.invalidateQueries({ queryKey: extruderKeys.all });
-            await queryClient.invalidateQueries({ queryKey: dashboardProductionKey });
+            // await queryClient.invalidateQueries({ queryKey: extruderKeys.all });
+            // await queryClient.invalidateQueries({ queryKey: dashboardProductionKey });
           }
           if (succeededKeys.size < rowsToSave.length) allOk = false;
         }
@@ -711,24 +729,28 @@ function suggestLoomOutput(draft: Pick<LoomDraft, 'input' | 'loomsWasteKg'>): st
  * POST /production/looms.
  */
 export const LoomSection = forwardRef<SectionRef, SectionProps>(({ productionDate, autoAdd, readOnly, hideExisting }, ref) => {
-  const queryClient = useQueryClient();
-  const { data, isLoading } = useLoomsProductions(
-    productionDate ? `?date_from=${productionDate}&date_to=${productionDate}` : '',
-    !hideExisting,
-  );
-  const { data: lookupsData } = useLookups();
-  const lookups: Lookups = lookupsData ?? { brands: [], colors: [], chemicals: [], sizes: [] };
+  // STATIC DATA — API calls commented out.
+  // const queryClient = useQueryClient();
+  // const { data, isLoading } = useLoomsProductions(
+  //   productionDate ? `?date_from=${productionDate}&date_to=${productionDate}` : '',
+  //   !hideExisting,
+  // );
+  // const { data: lookupsData } = useLookups();
+  // const lookups: Lookups = lookupsData ?? { brands: [], colors: [], chemicals: [], sizes: [] };
+  const isLoading = false;
+  const lookups: Lookups = staticLookups;
 
   const rows = useMemo(() => {
     // See ExtruderSection's rows useMemo: `enabled: false` doesn't hide
     // data already cached under this exact query key from another instance.
     if (hideExisting) return [];
-    const items = data?.data ?? [];
-    return items
-      .filter((item) => !productionDate || item.productionDate.startsWith(productionDate))
-      .map(mapLoomItem)
-      .filter((row) => row.input > 0 || row.output > 0 || row.loomsWasteKg > 0);
-  }, [data, productionDate, hideExisting]);
+    // const items = data?.data ?? [];
+    // return items
+    //   .filter((item) => !productionDate || item.productionDate.startsWith(productionDate))
+    //   .map(mapLoomItem)
+    //   .filter((row) => row.input > 0 || row.output > 0 || row.loomsWasteKg > 0);
+    return staticLoomRows;
+  }, [hideExisting]);
 
   const [newRows, setNewRows] = useState<LoomNewRow[]>([]);
   const [saving, setSaving] = useState(false);
@@ -799,15 +821,18 @@ export const LoomSection = forwardRef<SectionRef, SectionProps>(({ productionDat
         fabricOutputKg: parseFloat(row.draft.output) || 0,
         loomsWasteKg: parseFloat(row.draft.loomsWasteKg) || 0,
       };
-      const response = await apiFetch('/production/looms', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(payload),
-      });
-      if (!response.ok) {
-        setErrorMessage(await extractApiErrorMessage(response, 'Failed to save one or more entries. Please try again.'));
-      }
-      return response.ok;
+      // STATIC MODE — no network call.
+      // const response = await apiFetch('/production/looms', {
+      //   method: 'POST',
+      //   headers: { 'Content-Type': 'application/json' },
+      //   body: JSON.stringify(payload),
+      // });
+      // if (!response.ok) {
+      //   setErrorMessage(await extractApiErrorMessage(response, 'Failed to save one or more entries. Please try again.'));
+      // }
+      // return response.ok;
+      console.log('[v0] looms create (static mode):', payload);
+      return true;
     } catch (error) {
       console.error('Error saving loom entry:', error);
       setErrorMessage('Failed to save one or more entries. Please try again.');
@@ -830,8 +855,8 @@ export const LoomSection = forwardRef<SectionRef, SectionProps>(({ productionDat
         const succeededKeys = new Set(rowsToSave.filter((_, i) => results[i]).map((row) => row.key));
         if (succeededKeys.size > 0) {
           setNewRows((current) => current.filter((row) => !succeededKeys.has(row.key)));
-          await queryClient.invalidateQueries({ queryKey: loomsKeys.all });
-          await queryClient.invalidateQueries({ queryKey: dashboardProductionKey });
+          // await queryClient.invalidateQueries({ queryKey: loomsKeys.all });
+          // await queryClient.invalidateQueries({ queryKey: dashboardProductionKey });
         }
         return succeededKeys.size === rowsToSave.length;
       } finally {
@@ -1043,24 +1068,28 @@ function suggestFabricOutput(draft: Pick<FabricDraft, 'input' | 'fwKg' | 'bwKg'>
  * rows are read-only and the only mutation is adding a new row via POST.
  */
 export const FabricSection = forwardRef<SectionRef, SectionProps>(({ productionDate, autoAdd, readOnly, hideExisting }, ref) => {
-  const queryClient = useQueryClient();
-  const { data, isLoading } = useFabricCheckingRecords(
-    productionDate ? `?date_from=${productionDate}&date_to=${productionDate}` : '',
-    !hideExisting,
-  );
-  const { data: lookupsData } = useLookups();
-  const lookups: Lookups = lookupsData ?? { brands: [], colors: [], chemicals: [], sizes: [] };
+  // STATIC DATA — API calls commented out.
+  // const queryClient = useQueryClient();
+  // const { data, isLoading } = useFabricCheckingRecords(
+  //   productionDate ? `?date_from=${productionDate}&date_to=${productionDate}` : '',
+  //   !hideExisting,
+  // );
+  // const { data: lookupsData } = useLookups();
+  // const lookups: Lookups = lookupsData ?? { brands: [], colors: [], chemicals: [], sizes: [] };
+  const isLoading = false;
+  const lookups: Lookups = staticLookups;
 
   const rows = useMemo(() => {
     // See ExtruderSection's rows useMemo: `enabled: false` doesn't hide
     // data already cached under this exact query key from another instance.
     if (hideExisting) return [];
-    const items = data?.data ?? [];
-    return items
-      .filter((item) => !productionDate || item.productionDate.startsWith(productionDate))
-      .map(mapFabricItem)
-      .filter((row) => row.input > 0 || row.firstGrade > 0 || row.secondGrade > 0 || row.fwKg > 0 || row.bwKg > 0);
-  }, [data, productionDate, hideExisting]);
+    // const items = data?.data ?? [];
+    // return items
+    //   .filter((item) => !productionDate || item.productionDate.startsWith(productionDate))
+    //   .map(mapFabricItem)
+    //   .filter((row) => row.input > 0 || row.firstGrade > 0 || row.secondGrade > 0 || row.fwKg > 0 || row.bwKg > 0);
+    return staticFabricRows;
+  }, [hideExisting]);
 
   const [newRows, setNewRows] = useState<FabricNewRow[]>([]);
   const [saving, setSaving] = useState(false);
@@ -1128,15 +1157,18 @@ export const FabricSection = forwardRef<SectionRef, SectionProps>(({ productionD
         fwKg: parseFloat(row.draft.fwKg) || 0,
         bwKg: parseFloat(row.draft.bwKg) || 0,
       };
-      const response = await apiFetch('/fabric-checking', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(payload),
-      });
-      if (!response.ok) {
-        setErrorMessage(await extractApiErrorMessage(response, 'Failed to save one or more entries. Please try again.'));
-      }
-      return response.ok;
+      // STATIC MODE — no network call.
+      // const response = await apiFetch('/fabric-checking', {
+      //   method: 'POST',
+      //   headers: { 'Content-Type': 'application/json' },
+      //   body: JSON.stringify(payload),
+      // });
+      // if (!response.ok) {
+      //   setErrorMessage(await extractApiErrorMessage(response, 'Failed to save one or more entries. Please try again.'));
+      // }
+      // return response.ok;
+      console.log('[v0] fabric checking create (static mode):', payload);
+      return true;
     } catch (error) {
       console.error('Error saving fabric checking entry:', error);
       setErrorMessage('Failed to save one or more entries. Please try again.');
@@ -1159,8 +1191,8 @@ export const FabricSection = forwardRef<SectionRef, SectionProps>(({ productionD
         const succeededKeys = new Set(rowsToSave.filter((_, i) => results[i]).map((row) => row.key));
         if (succeededKeys.size > 0) {
           setNewRows((current) => current.filter((row) => !succeededKeys.has(row.key)));
-          await queryClient.invalidateQueries({ queryKey: fabricCheckingKeys.all });
-          await queryClient.invalidateQueries({ queryKey: dashboardProductionKey });
+          // await queryClient.invalidateQueries({ queryKey: fabricCheckingKeys.all });
+          // await queryClient.invalidateQueries({ queryKey: dashboardProductionKey });
         }
         return succeededKeys.size === rowsToSave.length;
       } finally {
@@ -1320,35 +1352,40 @@ interface FabricDeliveredRow {
   delivered: number;
 }
 
-type LoadSentProductionRecord = LoadSentRecord & {
-  productionDate?: string;
-  fabricWeight?: number;
-  loadSent?: {
-    fabricWeight?: number;
-  };
-};
-
-function mapLoadSentRecord(record: LoadSentProductionRecord): FabricDeliveredRow {
-  return {
-    id: record.id,
-    size: record.size?.name ?? '',
-    color: record.color?.name ?? '',
-    delivered: record.loadSent?.fabricWeight ?? record.fabricWeight ?? record.weightKg ?? 0,
-  };
-}
+// Only used by the commented-out load-sent API mapping below.
+// type LoadSentProductionRecord = LoadSentRecord & {
+//   productionDate?: string;
+//   fabricWeight?: number;
+//   loadSent?: {
+//     fabricWeight?: number;
+//   };
+// };
+//
+// function mapLoadSentRecord(record: LoadSentProductionRecord): FabricDeliveredRow {
+//   return {
+//     id: record.id,
+//     size: record.size?.name ?? '',
+//     color: record.color?.name ?? '',
+//     delivered: record.loadSent?.fabricWeight ?? record.fabricWeight ?? record.weightKg ?? 0,
+//   };
+// }
 
 export const FabricDeliveredSection = forwardRef<SectionRef, SectionProps>(({ productionDate, autoAdd, readOnly, hideExisting }, ref) => {
-  const queryClient = useQueryClient();
-  const { data: lookupsData } = useLookups();
-  const lookups: Lookups = lookupsData ?? { brands: [], colors: [], chemicals: [], sizes: [] };
-  const { data, isLoading } = useLoadSentRecords('?limit=100', !hideExisting);
+  // STATIC DATA — API calls commented out.
+  // const queryClient = useQueryClient();
+  // const { data: lookupsData } = useLookups();
+  // const lookups: Lookups = lookupsData ?? { brands: [], colors: [], chemicals: [], sizes: [] };
+  // const { data, isLoading } = useLoadSentRecords('?limit=100', !hideExisting);
+  const isLoading = false;
+  const lookups: Lookups = staticLookups;
 
   const rows = useMemo(() => {
     if (hideExisting) return [];
-    return (data?.data ?? [])
-      .filter((record) => !productionDate || (record as LoadSentProductionRecord).productionDate?.startsWith(productionDate) || record.date?.startsWith(productionDate))
-      .map((record) => mapLoadSentRecord(record as LoadSentProductionRecord));
-  }, [data, productionDate, hideExisting]);
+    // return (data?.data ?? [])
+    //   .filter((record) => !productionDate || (record as LoadSentProductionRecord).productionDate?.startsWith(productionDate) || record.date?.startsWith(productionDate))
+    //   .map((record) => mapLoadSentRecord(record as LoadSentProductionRecord));
+    return staticDeliveredRows;
+  }, [hideExisting]);
 
   const [newRows, setNewRows] = useState<{ key: string; draft: FabricDeliveredDraft }[]>([]);
   const [editingId, setEditingId] = useState<string | null>(null);
@@ -1407,15 +1444,17 @@ export const FabricDeliveredSection = forwardRef<SectionRef, SectionProps>(({ pr
         sizeId: values.sizeId,
         fabricWeight: values.fabricWeight,
       };
-      const response = await apiFetch(id ? `/load-sent/${id}` : '/load-sent', {
-        method: id ? 'PATCH' : 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(payload),
-      });
-      if (!response.ok) {
-        setErrorMessage(await extractApiErrorMessage(response, 'Failed to save the Fabric Delivered entry.'));
-        return false;
-      }
+      // STATIC MODE — no network call.
+      // const response = await apiFetch(id ? `/load-sent/${id}` : '/load-sent', {
+      //   method: id ? 'PATCH' : 'POST',
+      //   headers: { 'Content-Type': 'application/json' },
+      //   body: JSON.stringify(payload),
+      // });
+      // if (!response.ok) {
+      //   setErrorMessage(await extractApiErrorMessage(response, 'Failed to save the Fabric Delivered entry.'));
+      //   return false;
+      // }
+      console.log('[v0] fabric delivered save (static mode):', id ?? 'new', payload);
       return true;
     } catch (error) {
       console.error('Error saving Fabric Delivered entry:', error);
@@ -1452,14 +1491,14 @@ export const FabricDeliveredSection = forwardRef<SectionRef, SectionProps>(({ pr
           const succeededKeys = new Set(rowsToSave.filter((_, index) => results[index]).map((row) => row.key));
           if (succeededKeys.size > 0) {
             setNewRows((current) => current.filter((row) => !succeededKeys.has(row.key)));
-            await queryClient.invalidateQueries({ queryKey: loadSentKeys.all });
+            // await queryClient.invalidateQueries({ queryKey: loadSentKeys.all });
           }
           if (succeededKeys.size < rowsToSave.length) allOk = false;
         }
 
         if (allOk && editingId) {
           cancelEdit();
-          await queryClient.invalidateQueries({ queryKey: loadSentKeys.all });
+          // await queryClient.invalidateQueries({ queryKey: loadSentKeys.all });
         }
       } finally {
         setSaving(false);

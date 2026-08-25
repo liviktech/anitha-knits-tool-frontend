@@ -316,15 +316,17 @@ function DayDetailView({
         ...(loomsData?.data ?? []).map((r) => ({ path: '/production/looms', id: r.id })),
         ...(fabricData?.data ?? []).map((r) => ({ path: '/fabric-checking', id: r.id })),
       ];
-      const results = await Promise.all(targets.map(({ path, id }) => apiFetch(`${path}/${id}`, { method: 'DELETE' })));
-      if (results.some((r) => !r.ok)) throw new Error('Failed to delete one or more entries');
-
-      await Promise.all([
-        queryClient.invalidateQueries({ queryKey: extruderKeys.all }),
-        queryClient.invalidateQueries({ queryKey: loomsKeys.all }),
-        queryClient.invalidateQueries({ queryKey: fabricCheckingKeys.all }),
-        queryClient.invalidateQueries({ queryKey: dashboardProductionKey }),
-      ]);
+      // STATIC MODE — delete API commented out.
+      // const results = await Promise.all(targets.map(({ path, id }) => apiFetch(`${path}/${id}`, { method: 'DELETE' })));
+      // if (results.some((r) => !r.ok)) throw new Error('Failed to delete one or more entries');
+      //
+      // await Promise.all([
+      //   queryClient.invalidateQueries({ queryKey: extruderKeys.all }),
+      //   queryClient.invalidateQueries({ queryKey: loomsKeys.all }),
+      //   queryClient.invalidateQueries({ queryKey: fabricCheckingKeys.all }),
+      //   queryClient.invalidateQueries({ queryKey: dashboardProductionKey }),
+      // ]);
+      console.log('[v0] delete day (static mode):', targets);
       setConfirmDeleteOpen(false);
       onClose();
     } catch (error) {
@@ -562,26 +564,28 @@ export function ProductionDesign2() {
     if (!deleteTargetDate) return;
     setDeletingDate(true);
     try {
-      const dateQuery = `?date_from=${deleteTargetDate}&date_to=${deleteTargetDate}&limit=100`;
-      const [extruderRes, loomsRes, fabricRes] = await Promise.all([
-        fetchJson<{ data: { id: string }[] }>(`/production/extruder${dateQuery}`),
-        fetchJson<{ data: { id: string }[] }>(`/production/looms${dateQuery}`),
-        fetchJson<{ data: { id: string }[] }>(`/fabric-checking${dateQuery}`),
-      ]);
-
-      const results = await Promise.all([
-        ...extruderRes.data.map((r) => apiFetch(`/production/extruder/${r.id}`, { method: 'DELETE' })),
-        ...loomsRes.data.map((r) => apiFetch(`/production/looms/${r.id}`, { method: 'DELETE' })),
-        ...fabricRes.data.map((r) => apiFetch(`/fabric-checking/${r.id}`, { method: 'DELETE' })),
-      ]);
-      if (results.some((r) => !r.ok)) throw new Error('Failed to delete one or more entries');
-
-      await Promise.all([
-        queryClient.invalidateQueries({ queryKey: extruderKeys.all }),
-        queryClient.invalidateQueries({ queryKey: loomsKeys.all }),
-        queryClient.invalidateQueries({ queryKey: fabricCheckingKeys.all }),
-        queryClient.invalidateQueries({ queryKey: dashboardProductionKey }),
-      ]);
+      // STATIC MODE — fetch + delete APIs commented out.
+      // const dateQuery = `?date_from=${deleteTargetDate}&date_to=${deleteTargetDate}&limit=100`;
+      // const [extruderRes, loomsRes, fabricRes] = await Promise.all([
+      //   fetchJson<{ data: { id: string }[] }>(`/production/extruder${dateQuery}`),
+      //   fetchJson<{ data: { id: string }[] }>(`/production/looms${dateQuery}`),
+      //   fetchJson<{ data: { id: string }[] }>(`/fabric-checking${dateQuery}`),
+      // ]);
+      //
+      // const results = await Promise.all([
+      //   ...extruderRes.data.map((r) => apiFetch(`/production/extruder/${r.id}`, { method: 'DELETE' })),
+      //   ...loomsRes.data.map((r) => apiFetch(`/production/looms/${r.id}`, { method: 'DELETE' })),
+      //   ...fabricRes.data.map((r) => apiFetch(`/fabric-checking/${r.id}`, { method: 'DELETE' })),
+      // ]);
+      // if (results.some((r) => !r.ok)) throw new Error('Failed to delete one or more entries');
+      //
+      // await Promise.all([
+      //   queryClient.invalidateQueries({ queryKey: extruderKeys.all }),
+      //   queryClient.invalidateQueries({ queryKey: loomsKeys.all }),
+      //   queryClient.invalidateQueries({ queryKey: fabricCheckingKeys.all }),
+      //   queryClient.invalidateQueries({ queryKey: dashboardProductionKey }),
+      // ]);
+      console.log('[v0] delete date (static mode):', deleteTargetDate);
       setDeleteTargetDate(null);
     } catch (error) {
       console.error('Error deleting day entries:', error);
