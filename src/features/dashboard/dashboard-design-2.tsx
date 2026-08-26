@@ -1,26 +1,9 @@
-import { useMemo } from 'react';
 import { Link } from 'react-router-dom';
 import '@fontsource-variable/hanken-grotesk';
-import {
-  ResponsiveContainer,
-  AreaChart,
-  Area,
-  CartesianGrid,
-  XAxis,
-  YAxis,
-  Tooltip,
-  Legend,
-  PieChart,
-  Pie,
-  Cell,
-  BarChart,
-  Bar,
-} from 'recharts';
-import { ChevronDown, Users, Wallet, Calendar, TrendingUp, IndianRupee, RefreshCw, Download, Briefcase, ClipboardList, Truck, Package, ArrowUp, ArrowDown, ArrowRight, Layers } from 'lucide-react';
-import { format, startOfMonth, endOfMonth, subMonths } from 'date-fns';
-import extruderIcon from '@/assets/extruder-icon.png';
+import { Calendar, RefreshCw, ArrowRight, Layers } from 'lucide-react';
+import { format } from 'date-fns';
 import loomsIcon from '@/assets/looms-icon.png';
-import { useLoadSentRecords } from '@/features/inventory/load-sent-queries';
+import { useLoadSentRecords, getLoadSentWeight } from '@/features/inventory/load-sent-queries';
 import { Loader } from '@/components/shared/loader';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { useDayWiseProduction } from '@/features/production/day-wise-queries';
@@ -30,22 +13,6 @@ import { useLoomsProductions } from '@/features/looms/loom-queries';
 import { useFabricCheckingRecords } from '@/features/fabric/fabric-queries';
 import { sumWastageByCode } from '@/lib/api-types';
 import { useLookups } from '@/lib/lookups';
-import { mockAttendanceTrend, mockExpenseBreakdown } from './mock-data';
-
-// Fixed categorical order (light-surface steps) — see the dataviz skill's
-// validated default palette. Identity stays consistent per stage everywhere.
-const STAGE_COLOR = {
-  extruder: '#800000', // Extruder Red
-  looms: '#7A6A00', // Looms Yellow
-  fabric: '#2F6B2F', // Fabric Green
-};
-const EXPENSE_COLORS = ['#F2BB13', '#EB4345', '#12B2CB', '#B8C926'];
-
-const CHART_ANIM = { animationDuration: 1100, animationEasing: 'ease-out' as const };
-
-function formatCurrency(n: number): string {
-  return `₹${n.toLocaleString('en-IN', { maximumFractionDigits: 0 })}`;
-}
 
 function formatNum(n: number): string {
   return n.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
@@ -54,11 +21,6 @@ function formatNum(n: number): string {
 function formatDateDMY(dateStr: string): string {
   const [y, m, d] = dateStr.slice(0, 10).split('-');
   return y && m && d ? `${d}-${m}-${y}` : dateStr;
-}
-
-function pctChange(current: number, previous: number): number {
-  if (!previous) return current > 0 ? 100 : 0;
-  return ((current - previous) / previous) * 100;
 }
 
 function deliveryColorClass(color: string): string {
@@ -73,11 +35,8 @@ const FABRIC_COLORS = ['Blue', 'Green', 'White'] as const;
 
 export function DashboardDesign2() {
   const currentMonthStr = format(new Date(), 'yyyy-MM');
-  const prevMonthDate = subMonths(new Date(), 1);
-  const prevMonthStr = format(prevMonthDate, 'yyyy-MM');
 
-  const { rows, apiSummary, isLoading } = useDayWiseProduction(currentMonthStr);
-  const { apiSummary: prevApiSummary } = useDayWiseProduction(prevMonthStr);
+  const { apiSummary, isLoading } = useDayWiseProduction(currentMonthStr);
   const { data: inventoryData } = useInventoryRecords('?limit=100');
   const { data: loadSentData, isLoading: loadingLoadSent } = useLoadSentRecords('?limit=100');
   const { data: extruderData } = useExtruderProductions('?limit=100');
@@ -167,7 +126,7 @@ export function DashboardDesign2() {
     (loadSentData?.data ?? []).forEach((r) => {
       const color = r.color?.name;
       const size = r.size?.name;
-      const delivered = r.fabricWeight ?? r.weightKg ?? 0;
+      const delivered = getLoadSentWeight(r);
       if (!color || !size) return;
       const row = getRow(color);
       row.stockBySize[size] = (row.stockBySize[size] ?? 0) - delivered;
@@ -195,37 +154,6 @@ export function DashboardDesign2() {
   };
   const fabricEfficiency = apiSummary?.fabricChecking.efficiencyPct ?? 0;
 
-  // KPI strip — Total Production, Avg Efficiency, Fabric Delivered, Pending Approvals,
-  // each compared against the previous calendar month using data already fetched above.
-  const totalProductionKg = (apiSummary?.extruder.outputKg ?? 0) + (apiSummary?.looms.outputKg ?? 0) + (apiSummary?.fabricChecking.outputKg ?? 0);
-  const prevTotalProductionKg = (prevApiSummary?.extruder.outputKg ?? 0) + (prevApiSummary?.looms.outputKg ?? 0) + (prevApiSummary?.fabricChecking.outputKg ?? 0);
-
-  const avgEfficiencyPct = ((apiSummary?.extruder.efficiencyPct ?? 0) + (apiSummary?.looms.efficiencyPct ?? 0) + (apiSummary?.fabricChecking.efficiencyPct ?? 0)) / 3;
-  const prevAvgEfficiencyPct = ((prevApiSummary?.extruder.efficiencyPct ?? 0) + (prevApiSummary?.looms.efficiencyPct ?? 0) + (prevApiSummary?.fabricChecking.efficiencyPct ?? 0)) / 3;
-
-  const prevMonthDeliveredKg = (loadSentData?.data ?? [])
-    .filter((r) => (r.productionDate ?? r.date ?? '').startsWith(prevMonthStr))
-    .reduce((sum, r) => sum + (r.fabricWeight ?? r.weightKg ?? 0), 0);
-
-  const sparkRows = [...rows].reverse().slice(-7);
-  const productionSparkline = sparkRows.map((r) => r.extruder.output + r.looms.output + r.fabric.output);
-  const efficiencySparkline = sparkRows.map((r) => {
-    const stages = [r.extruder, r.looms, r.fabric];
-    const effs = stages.map((s) => (s.input > 0 ? (s.output / s.input) * 100 : 0));
-    return effs.reduce((a, b) => a + b, 0) / effs.length;
-  });
-  const deliveredByDayMap = new Map<string, number>();
-  (loadSentData?.data ?? []).forEach((r) => {
-    const d = (r.productionDate ?? r.date ?? '').slice(0, 10);
-    if (d) deliveredByDayMap.set(d, (deliveredByDayMap.get(d) ?? 0) + (r.fabricWeight ?? r.weightKg ?? 0));
-  });
-  const deliveredSparkline = Array.from(deliveredByDayMap.entries())
-    .sort(([a], [b]) => (a < b ? -1 : 1))
-    .slice(-7)
-    .map(([, kg]) => kg);
-
-  const prevPeriodLabel = `vs ${format(startOfMonth(prevMonthDate), 'MMM d')} – ${format(endOfMonth(prevMonthDate), 'MMM d')}`;
-
   const inventoryRecords = inventoryData?.data ?? [];
   const month = new Date().toISOString().slice(0, 7);
   const monthRecords = inventoryRecords.filter(r => r.date.startsWith(month));
@@ -252,43 +180,12 @@ export function DashboardDesign2() {
       date: r.productionDate ?? r.date,
       color: r.color?.name ?? '',
       size: r.size?.name ?? '',
-      kg: r.fabricWeight ?? r.weightKg ?? 0,
-      vehicleNo: r.vehicleNo ?? '--',
+      kg: getLoadSentWeight(r),
+      vehicleNo: r.loadSent?.vehicleNo ?? '--',
     }))
     .sort((a, b) => (a.date < b.date ? 1 : -1));
 
   const selectedMonthDeliveryTotal = monthDeliveries.reduce((sum, d) => sum + d.kg, 0);
-
-  const trend = useMemo(() => {
-    // 30 days of mock trend data
-    const mockData = [];
-    const today = new Date();
-    for (let i = 29; i >= 0; i--) {
-      const d = new Date(today);
-      d.setDate(d.getDate() - i);
-      const dateStr = d.toISOString().slice(5, 10);
-
-      // Generate somewhat realistic-looking sequential data
-      const baseExtruder = 600 + Math.sin(i * 0.5) * 100;
-      const baseLooms = baseExtruder * 0.85 + Math.cos(i * 0.3) * 50;
-      const baseFabric = baseLooms * 0.9 + Math.sin(i * 0.7) * 30;
-
-      mockData.push({
-        date: dateStr,
-        Extruder: Math.round(baseExtruder),
-        Looms: Math.round(baseLooms),
-        Fabric: Math.round(baseFabric),
-      });
-    }
-    return mockData;
-  }, []);
-
-  const processDetailsMock = [
-    { name: 'Week 1', Extruder: 10, Looms: 5, Fabric: 8 },
-    { name: 'Week 2', Extruder: 8, Looms: 8, Fabric: 4 },
-    { name: 'Week 3', Extruder: 15, Looms: 10, Fabric: 5 },
-    { name: 'Week 4', Extruder: 10, Looms: 14, Fabric: 8 },
-  ];
 
   if (isLoading) {
     return (
@@ -922,63 +819,6 @@ export function DashboardDesign2() {
         </div> */}
         </div>
       </div>
-    </div>
-  );
-}
-
-function Sparkline({ data }: { data: number[] }) {
-  if (data.length < 2) return null;
-  const max = Math.max(...data);
-  const min = Math.min(...data);
-  const range = max - min || 1;
-  const points = data
-    .map((v, i) => `${(i / (data.length - 1)) * 56},${20 - ((v - min) / range) * 18}`)
-    .join(' ');
-  return (
-    <svg width="56" height="22" viewBox="0 0 56 22" className="shrink-0">
-      <polyline points={points} fill="none" stroke="#16A34A" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
-    </svg>
-  );
-}
-
-function KpiStatCard({
-  icon,
-  iconBg = 'bg-emerald-50',
-  label,
-  value,
-  changePct,
-  periodLabel,
-  sparklineData,
-  footer,
-}: {
-  icon: React.ReactNode;
-  iconBg?: string;
-  label: string;
-  value: string;
-  changePct?: number;
-  periodLabel?: string;
-  sparklineData?: number[];
-  footer?: string;
-}) {
-  const isDown = (changePct ?? 0) < 0;
-  return (
-    <div className="bg-white rounded-xl border border-slate-100 shadow-sm px-5 py-4 flex flex-col gap-2">
-      <div className="flex items-center gap-2">
-        <span className={`w-9 h-9 rounded-full flex items-center justify-center ${iconBg}`}>{icon}</span>
-        <span className="text-sm font-medium text-slate-500">{label}</span>
-      </div>
-      <p className="text-2xl font-bold text-slate-900">{value}</p>
-      {footer ? (
-        <p className="text-xs text-slate-400">{footer}</p>
-      ) : (
-        <div className="flex items-center justify-between gap-2">
-          <span className={`text-xs font-semibold flex items-center gap-1 ${isDown ? 'text-red-500' : 'text-emerald-600'}`}>
-            {isDown ? <ArrowDown className="w-3 h-3" /> : <ArrowUp className="w-3 h-3" />}
-            {Math.abs(changePct ?? 0).toFixed(1)}% {periodLabel}
-          </span>
-          {sparklineData && <Sparkline data={sparklineData} />}
-        </div>
-      )}
     </div>
   );
 }

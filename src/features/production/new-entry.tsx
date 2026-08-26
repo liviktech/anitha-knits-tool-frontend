@@ -31,7 +31,7 @@ export function NewEntry({ onClose, defaultDate, readOnly = false }: NewEntryPro
 
   const [date, setDate] = useState<Date>(defaultDate ? parseISO(defaultDate) : new Date());
   const productionDate = format(date, 'yyyy-MM-dd');
-  const [submitting, setSubmitting] = useState(false);
+  const [submitting] = useState(false);
   const [isInventoryMinimized, setIsInventoryMinimized] = useState(false);
 
   const [searchParams] = useSearchParams();
@@ -119,22 +119,6 @@ export function NewEntry({ onClose, defaultDate, readOnly = false }: NewEntryPro
   const totalRawMaterial = lookups.brands.reduce((sum, b) => sum + parseFloat(getHDPEBalance(b.name) || '0'), 0).toFixed(2);
   const totalChemical = lookups.chemicals.reduce((sum, c) => sum + parseFloat(getChemicalBalance(c.name) || '0'), 0).toFixed(2);
   const totalColor = lookups.colors.reduce((sum, c) => sum + parseFloat(getColorBalance(c.name) || '0'), 0).toFixed(2);
-
-  const handleSaveAll = async () => {
-    setSubmitting(true);
-    try {
-      await Promise.all([
-        extruderRef.current?.saveDraft(),
-        loomRef.current?.saveDraft(),
-        fabricRef.current?.saveDraft(),
-        fabricDeliveredRef.current?.saveDraft(),
-      ]);
-    } catch (e) {
-      console.error(e);
-    } finally {
-      setSubmitting(false);
-    }
-  };
 
   return (
     <div className="flex flex-col h-full bg-[#004D40]/5">
