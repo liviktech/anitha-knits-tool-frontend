@@ -1,40 +1,5 @@
-import { useMemo, useState, useRef, useEffect, useCallback, forwardRef, useImperativeHandle } from 'react';
-import { useQueryClient } from '@tanstack/react-query';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { Loader } from '@/components/shared/loader';
-import { Plus, Edit2, Trash2, X as XIcon } from 'lucide-react';
-import { DeleteConfirmDialog } from '@/components/shared/delete-confirm-dialog';
-import { apiFetch, extractApiErrorMessage } from '@/lib/api-client';
 import { sumWastageByCode } from '@/lib/api-types';
-import {
-  useExtruderProductions,
-  useLookups,
-  extruderKeys,
-  findIdByName,
-  type Lookups,
-  type ExtruderProductionItem,
-  type ExtruderCreatePayload,
-  type ExtruderUpdatePayload,
-} from '@/features/extruder/extruder-queries';
-import {
-  useLoomsProductions,
-  loomsKeys,
-  type LoomsProductionItem,
-  type LoomsCreatePayload,
-  type LoomsUpdatePayload,
-} from '@/features/looms/loom-queries';
-import {
-  useFabricCheckingRecords,
-  fabricCheckingKeys,
-  type FabricCheckingRecord,
-  type FabricCheckingCreatePayload,
-  type FabricCheckingUpdatePayload,
-} from '@/features/fabric/fabric-queries';
-import { useLoadSentRecords, loadSentKeys, type LoadSentRecord } from '@/features/inventory/load-sent-queries';
-import { dashboardProductionKey } from './day-wise-queries';
+import type { ExtruderProductionItem } from '@/features/extruder/extruder-queries';
 
 /**
  * Shared between the day-close view (day-details.tsx) and the entry modal

@@ -1,4 +1,3 @@
-import React from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { themes, type Theme } from '@/features/production/day-entry-sections';
 import { ExtruderModalForm } from './extruder-modal-form';

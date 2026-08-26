@@ -1,24 +1,19 @@
-import { useMemo, useState, useRef, useEffect, useCallback, forwardRef, useImperativeHandle } from 'react';
+import { useMemo, useState, forwardRef, useImperativeHandle } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Loader } from '@/components/shared/loader';
-import { Plus, Edit2, Trash2, X as XIcon } from 'lucide-react';
+import { Edit2, Trash2 } from 'lucide-react';
 import { DeleteConfirmDialog } from '@/components/shared/delete-confirm-dialog';
 import { apiFetch, extractApiErrorMessage } from '@/lib/api-client';
-import { useLoadSentRecords, loadSentKeys, type LoadSentRecord } from '@/features/inventory/load-sent-queries';
-import {
-  useLookups,
-  findIdByName,
-  type Lookups,
-} from '@/features/extruder/extruder-queries';
+import { useLoadSentRecords, loadSentKeys, type LoadSentRecord, type LoadSentCreatePayload } from '@/features/inventory/load-sent-queries';
+import { useLookups, findIdByName, type Lookups } from '@/features/extruder/extruder-queries';
 import { dashboardProductionKey } from '@/features/production/day-wise-queries';
 import { themes, type SectionProps, type SectionRef } from '@/features/production/day-entry-sections';
 
 export interface FabricDeliveredDraft {
   key?: string;
+  id?: string; // If editing an existing (already-persisted) entry
   size: string;
   color: string;
   delivered: string;
@@ -27,13 +22,6 @@ export interface FabricDeliveredDraft {
 }
 
 export const emptyFabricDeliveredDraft: FabricDeliveredDraft = { size: '', color: '', delivered: '', vehicleNo: '', driverName: '' };
-
-interface FabricDeliveredCreatePayload {
-  productionDate: string;
-  colorId: string;
-  sizeId: string;
-  fabricWeight: number;
-}
 
 interface FabricDeliveredRow {
   id: string;
@@ -69,16 +57,21 @@ export const FabricDeliveredSection = forwardRef<SectionRef, SectionProps & { on
   const lookups: Lookups = lookupsData ?? { brands: [], colors: [], chemicals: [], sizes: [] };
   const { data, isLoading } = useLoadSentRecords('?limit=100', !hideExisting);
 
+  const [newRows, setNewRows] = useState<FabricDeliveredDraft[]>([]);
+  const [deleteTarget, setDeleteTarget] = useState<FabricDeliveredRow | null>(null);
+  const [deleting, setDeleting] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [saveError, setSaveError] = useState<string | null>(null);
+
+  const pendingIds = useMemo(() => new Set(newRows.map((r) => r.id).filter(Boolean)), [newRows]);
+
   const rows = useMemo(() => {
     if (hideExisting) return [];
     return (data?.data ?? [])
       .filter((record) => !productionDate || (record as LoadSentProductionRecord).productionDate?.startsWith(productionDate) || record.date?.startsWith(productionDate))
+      .filter((record) => !pendingIds.has(record.id))
       .map((record) => mapLoadSentRecord(record as LoadSentProductionRecord));
-  }, [data, productionDate, hideExisting]);
-
-  const [newRows, setNewRows] = useState<FabricDeliveredDraft[]>([]);
-  const [deleteTarget, setDeleteTarget] = useState<FabricDeliveredRow | null>(null);
-  const [deleting, setDeleting] = useState(false);
+  }, [data, productionDate, hideExisting, pendingIds]);
 
   const removeNewRow = (key: string) => {
     setNewRows((current) => current.filter((row) => row.key !== key));
@@ -86,6 +79,57 @@ export const FabricDeliveredSection = forwardRef<SectionRef, SectionProps & { on
 
   useImperativeHandle(ref, () => ({
     saveDraft: async () => {
+      if (newRows.length === 0) return true;
+      setSaving(true);
+      setSaveError(null);
+      const failed: FabricDeliveredDraft[] = [];
+      let errorMessage: string | null = null;
+      for (const row of newRows) {
+        const colorId = findIdByName(lookups.colors, row.color);
+        const sizeId = findIdByName(lookups.sizes, row.size);
+        if (!colorId || !sizeId) {
+          failed.push(row);
+          errorMessage = 'Could not resolve color/size for one or more entries.';
+          continue;
+        }
+        const payload: LoadSentCreatePayload = {
+          date: productionDate,
+          colorId,
+          sizeId,
+          pieceCount: 0, // Not tracked by this draft yet
+          weightKg: parseFloat(row.delivered) || 0,
+          vehicleNo: row.vehicleNo || undefined,
+          driverName: row.driverName || undefined,
+        };
+        try {
+          const response = row.id
+            ? await apiFetch(`/load-sent/${row.id}`, {
+                method: 'PATCH',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(payload),
+              })
+            : await apiFetch('/load-sent', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(payload),
+              });
+          if (!response.ok) {
+            failed.push(row);
+            errorMessage = await extractApiErrorMessage(response, 'Failed to save one or more fabric delivered entries.');
+          }
+        } catch {
+          failed.push(row);
+          errorMessage = 'Failed to save one or more fabric delivered entries.';
+        }
+      }
+      setNewRows(failed);
+      await queryClient.invalidateQueries({ queryKey: loadSentKeys.all });
+      await queryClient.invalidateQueries({ queryKey: dashboardProductionKey });
+      setSaving(false);
+      if (failed.length > 0) {
+        setSaveError(errorMessage);
+        return false;
+      }
       return true;
     },
     addDeliveredRow: (draft: FabricDeliveredDraft) => {
@@ -112,7 +156,7 @@ export const FabricDeliveredSection = forwardRef<SectionRef, SectionProps & { on
           newArray[existingIndex] = draft;
           return newArray;
         }
-        return prev;
+        return [...prev, { ...draft, key: crypto.randomUUID() }];
       });
     }
   }));
@@ -149,6 +193,10 @@ export const FabricDeliveredSection = forwardRef<SectionRef, SectionProps & { on
         </div>
       )}
 
+      {saveError && (
+        <p className="px-3 pt-2 text-sm text-red-600">{saveError}</p>
+      )}
+
       <div className="overflow-x-auto">
         <Table>
           <TableHeader className={`${theme.headerBg}`}>
@@ -181,10 +229,10 @@ export const FabricDeliveredSection = forwardRef<SectionRef, SectionProps & { on
                     <TableCell className="text-center">{row.driverName || '-'}</TableCell>
                     <TableCell className="text-right">
                       <div className="flex items-center justify-end gap-1.5">
-                        <Button variant="ghost" size="icon-sm" className="rounded-full bg-blue-50 text-blue-500 hover:bg-blue-100" onClick={() => onEditDeliveredGroup && onEditDeliveredGroup(row)}>
+                        <Button variant="ghost" size="icon-sm" disabled={saving} className="rounded-full bg-blue-50 text-blue-500 hover:bg-blue-100" onClick={() => onEditDeliveredGroup && onEditDeliveredGroup(row)}>
                           <Edit2 className="h-3.5 w-3.5" />
                         </Button>
-                        <Button variant="ghost" size="icon-sm" className="rounded-full bg-red-50 text-red-500 hover:bg-red-100" onClick={() => removeNewRow(row.key!)}>
+                        <Button variant="ghost" size="icon-sm" disabled={saving} className="rounded-full bg-red-50 text-red-500 hover:bg-red-100" onClick={() => removeNewRow(row.key!)}>
                           <Trash2 className="h-3.5 w-3.5" />
                         </Button>
                       </div>

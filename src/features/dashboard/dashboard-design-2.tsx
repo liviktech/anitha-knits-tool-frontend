@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useMemo, useState } from 'react';
 import {
   ResponsiveContainer,
   AreaChart,
@@ -8,31 +8,20 @@ import {
   YAxis,
   Tooltip,
   Legend,
-  RadialBarChart,
-  RadialBar,
   PieChart,
   Pie,
   Cell,
-  LineChart,
-  Line,
   BarChart,
   Bar,
 } from 'recharts';
-import { ChevronDown, ChevronRight, Package, Users, Wallet, Gauge, Calendar, TrendingUp, IndianRupee } from 'lucide-react';
-import { useLoadSentRecords, type LoadSentRecord } from '@/features/inventory/load-sent-queries';
-import extruderIcon from '@/assets/extruder-icon.png';
-import loomsIcon from '@/assets/looms-icon.png';
+import { ChevronDown, Users, Wallet, Calendar, TrendingUp, IndianRupee } from 'lucide-react';
+import { useLoadSentRecords } from '@/features/inventory/load-sent-queries';
 import { Loader } from '@/components/shared/loader';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { useDayWiseProduction } from '@/features/production/day-wise-queries';
 import { useInventoryRecords, type InventoryType } from '@/features/inventory/inventory-queries';
 import { useLookups } from '@/lib/lookups';
-import {
-  mockEmployeeSnapshot,
-  mockAttendanceTrend,
-  mockExpenseBreakdown,
-  mockRawMaterialIntake,
-} from './mock-data';
+import { mockAttendanceTrend, mockExpenseBreakdown } from './mock-data';
 
 // Fixed categorical order (light-surface steps) — see the dataviz skill's
 // validated default palette. Identity stays consistent per stage everywhere.
@@ -41,46 +30,12 @@ const STAGE_COLOR = {
   looms: '#7A6A00', // Looms Yellow
   fabric: '#2F6B2F', // Fabric Green
 };
-const STAGE_GRADIENT = {
-  rawMaterial: 'from-slate-400 to-slate-600',
-  extruder: 'from-[#FF8080] to-[#800000]',
-  looms: 'from-[#FFD700] to-[#7A6A00]',
-  fabric: 'from-[#66B266] to-[#2F6B2F]',
-};
 const EXPENSE_COLORS = ['#F2BB13', '#EB4345', '#12B2CB', '#B8C926'];
 
 const CHART_ANIM = { animationDuration: 1100, animationEasing: 'ease-out' as const };
 
 function formatCurrency(n: number): string {
   return `₹${n.toLocaleString('en-IN', { maximumFractionDigits: 0 })}`;
-}
-
-function useCountUp(target: number, durationMs = 900): number {
-  const [value, setValue] = useState(target);
-  const fromRef = useRef(target);
-
-  useEffect(() => {
-    const from = fromRef.current;
-    if (from === target) return;
-    const start = performance.now();
-    let raf: number;
-
-    const tick = (now: number) => {
-      const t = Math.min(1, (now - start) / durationMs);
-      const eased = 1 - Math.pow(1 - t, 3);
-      setValue(from + (target - from) * eased);
-      if (t < 1) {
-        raf = requestAnimationFrame(tick);
-      } else {
-        fromRef.current = target;
-      }
-    };
-
-    raf = requestAnimationFrame(tick);
-    return () => cancelAnimationFrame(raf);
-  }, [target, durationMs]);
-
-  return value;
 }
 
 function formatNum(n: number): string {
@@ -96,36 +51,11 @@ function deliveryColorClass(color: string): string {
   return 'text-gray-700';
 }
 
-function getFabricDeliveredRows(data: unknown, date: string) {
-  const records = (data ?? []) as LoadSentRecord[];
-  return records
-    .filter((record) => (record.productionDate ?? record.date ?? '').startsWith(date))
-    .map((record: any) => ({
-      id: record.id,
-      size: record.size?.name ?? '',
-      color: record.color?.name ?? '',
-      delivered: record.loadSent?.fabricWeight ?? record.fabricWeight ?? record.weightKg ?? 0,
-      original: record as LoadSentRecord,
-    }))
-    .filter((record) => record.delivered > 0);
-}
-
-function getFabricDeliveredTableRows(rows: any[]) {
-  const byColor = new Map<string, any>();
-  rows.forEach((record) => {
-    const size = fabricDeliveredSizes.includes(record.size) ? record.size : null;
-    const existing = byColor.get(record.color) ?? { color: record.color, colorClass: deliveryColorClass(record.color), deliveredBySize: {} };
-    if (size) existing.deliveredBySize[size] = (existing.deliveredBySize[size] ?? 0) + record.delivered;
-    byColor.set(record.color, existing);
-  });
-  return Array.from(byColor.values());
-}
-
 export function DashboardDesign2() {
-  const { rows, apiSummary, isLoading } = useDayWiseProduction();
-  const { data: inventoryData, isLoading: isInvLoading } = useInventoryRecords('?limit=100');
-  const { data: loadSentData, isLoading: loadingLoadSent } = useLoadSentRecords('?limit=100');
-  const { data: lookupsData } = useLookups();
+  const { isLoading } = useDayWiseProduction();
+  const { data: inventoryData } = useInventoryRecords('?limit=100');
+  const { isLoading: loadingLoadSent } = useLoadSentRecords('?limit=100');
+  useLookups();
 
   const [isFabricDeliveredExpanded, setIsFabricDeliveredExpanded] = useState(true);
 
@@ -198,10 +128,6 @@ export function DashboardDesign2() {
     }
     return mockData;
   }, []);
-
-  const extruder = apiSummary?.extruder;
-  const looms = apiSummary?.looms;
-  const fabric = apiSummary?.fabricChecking;
 
   const processDetailsMock = [
     { name: 'Week 1', Extruder: 10, Looms: 5, Fabric: 8 },
@@ -386,7 +312,7 @@ export function DashboardDesign2() {
                       <tr><td colSpan={7} className="px-3 py-5 text-center text-[#61401E]">Loading delivered records...</td></tr>
                     ) : selectedMonthDeliveryTableRows.length === 0 ? (
                       <tr><td colSpan={7} className="px-3 py-5 text-center text-[#61401E]">No delivered records for this month.</td></tr>
-                    ) : selectedMonthDeliveryTableRows.map((row: any) => (
+                    ) : selectedMonthDeliveryTableRows.map((row) => (
                       <tr key={row.color} className="border-t border-[#d9a976]">
                         <td className={`px-3 py-2.5 border-r border-[#d9a976] font-bold ${row.colorClass}`}>{row.color}</td>
                         {fabricDeliveredSizes.map((size) => (
@@ -395,7 +321,7 @@ export function DashboardDesign2() {
                           </td>
                         ))}
                         <td className={`px-3 py-2.5 text-center font-bold bg-[#e6b885]/10 ${row.colorClass}`}>
-                          {Object.values(row.deliveredBySize).reduce((sum: any, value: any) => sum + value, 0).toFixed(3)}
+                          {Object.values(row.deliveredBySize).reduce((sum, value) => sum + value, 0).toFixed(3)}
                         </td>
                       </tr>
                     ))}
@@ -403,8 +329,8 @@ export function DashboardDesign2() {
                       <td className="px-3 py-2.5 border-r border-[#d9a976] font-extrabold text-[#61401E]">TOTAL</td>
                       {fabricDeliveredSizes.map((size) => (
                         <td key={size} className="px-3 py-2.5 border-r border-[#d9a976] text-center text-[#61401E] font-bold">
-                          {selectedMonthDeliveryTableRows.reduce((sum, row: any) => sum + (row.deliveredBySize[size] ?? 0), 0) > 0
-                            ? selectedMonthDeliveryTableRows.reduce((sum, row: any) => sum + (row.deliveredBySize[size] ?? 0), 0).toFixed(3)
+                          {selectedMonthDeliveryTableRows.reduce((sum, row) => sum + (row.deliveredBySize[size] ?? 0), 0) > 0
+                            ? selectedMonthDeliveryTableRows.reduce((sum, row) => sum + (row.deliveredBySize[size] ?? 0), 0).toFixed(3)
                             : '--'}
                         </td>
                       ))}
@@ -416,15 +342,6 @@ export function DashboardDesign2() {
             </div>
           </div>
         </div>
-
-        {/* KPI hero strip */}
-        {/* <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
-          <KpiCard index={0} gradient={STAGE_GRADIENT.rawMaterial} icon={<Package className="w-5 h-5 text-white" />} label="Raw Material In (KG)" value={mockRawMaterialIntake.receivedThisMonthKg} decimals={0} sub={`from ${mockRawMaterialIntake.source}`} valueColor="text-slate-900" />
-          <KpiCard index={1} gradient={STAGE_GRADIENT.extruder} icon={<img src={extruderIcon} alt="" className="w-4 h-4 object-contain" />} chip label="Extruder Output (KG)" value={extruder?.outputKg ?? 0} sub={`${(extruder?.efficiencyPct ?? 0).toFixed(1)}% efficiency`} valueColor="text-[#800000]" />
-          <KpiCard index={2} gradient={STAGE_GRADIENT.looms} icon={<img src={loomsIcon} alt="" className="w-4 h-4 object-contain" />} chip label="Looms Output (MTRS)" value={looms?.outputKg ?? 0} sub={`${(looms?.efficiencyPct ?? 0).toFixed(1)}% efficiency`} valueColor="text-[#7A6A00]" />
-          <KpiCard index={3} gradient={STAGE_GRADIENT.fabric} icon={<Gauge className="w-5 h-5 text-white" />} label="Fabric Output (MTRS)" value={fabric?.outputKg ?? 0} sub={`${(fabric?.efficiencyPct ?? 0).toFixed(1)}% efficiency`} valueColor="text-[#2F6B2F]" />
-        </div> */}
-
 
 
         {/* Trend + efficiency */}
@@ -570,7 +487,7 @@ export function DashboardDesign2() {
                         stroke="#fff"
                         strokeWidth={2}
                         labelLine={{ stroke: '#94a3b8', strokeWidth: 1 }}
-                        label={({ cx, cy, midAngle, outerRadius, percent, name }) => {
+                        label={({ cx, cy, midAngle = 0, outerRadius, percent = 0, name }) => {
                           const RADIAN = Math.PI / 180;
                           const radius = outerRadius + 22;
                           const x = cx + radius * Math.cos(-midAngle * RADIAN);
@@ -655,64 +572,3 @@ export function DashboardDesign2() {
   );
 }
 
-function KpiCard({
-  gradient,
-  icon,
-  chip,
-  label,
-  value,
-  decimals = 2,
-  sub,
-  valueColor,
-  index = 0,
-}: {
-  gradient: string;
-  icon: React.ReactNode;
-  chip?: boolean;
-  label: string;
-  value: number;
-  decimals?: number;
-  sub: string;
-  valueColor: string;
-  index?: number;
-}) {
-  const animated = useCountUp(value);
-
-  return (
-    <Card
-      className="group bg-white border border-slate-100 shadow-lg shadow-slate-200/50 rounded-3xl p-4 transition-all duration-300 hover:-translate-y-1 hover:shadow-xl hover:shadow-slate-300/40 animate-in fade-in-0 slide-in-from-bottom-4 duration-700 fill-mode-both"
-      style={{ animationDelay: `${index * 90}ms` }}
-    >
-      <div className={`w-10 h-10 rounded-xl bg-gradient-to-br ${gradient} flex items-center justify-center shadow-sm mb-3 transition-transform duration-300 group-hover:scale-110`}>
-        {chip ? <span className="w-6 h-6 rounded-md bg-white flex items-center justify-center">{icon}</span> : icon}
-      </div>
-      <p className="text-[10px] font-extrabold uppercase tracking-widest text-slate-400 mb-1.5">{label}</p>
-      <p className={`text-[26px] font-extrabold leading-none tabular-nums ${valueColor}`}>
-        {animated.toLocaleString('en-US', { minimumFractionDigits: decimals, maximumFractionDigits: decimals })}
-      </p>
-      <p className="text-[11px] text-slate-400 mt-1.5">{sub}</p>
-    </Card>
-  );
-}
-
-function FunnelNode({ gradient, icon, chip, label, value }: { gradient: string; icon: React.ReactNode; chip?: boolean; label: string; value: string }) {
-  return (
-    <div className="flex-1 flex items-center gap-2.5 bg-slate-50 border border-slate-100 rounded-xl px-3.5 py-2.5 transition-all duration-300 hover:bg-white hover:border-slate-200 hover:shadow-md hover:-translate-y-0.5">
-      <span className={`w-8 h-8 rounded-full bg-gradient-to-br ${gradient} flex items-center justify-center shrink-0 shadow-sm`}>
-        {chip ? <span className="w-5 h-5 rounded-full bg-white flex items-center justify-center">{icon}</span> : icon}
-      </span>
-      <div className="min-w-0">
-        <p className="text-[9.5px] font-extrabold uppercase tracking-wider text-slate-400 truncate">{label}</p>
-        <p className="text-[13px] font-bold text-slate-900 truncate">{value}</p>
-      </div>
-    </div>
-  );
-}
-
-function Connector() {
-  return (
-    <div className="hidden sm:flex items-center justify-center px-0.5 text-slate-300">
-      <ChevronRight className="w-4 h-4 motion-safe:[animation:dashFlow_1.4s_ease-in-out_infinite]" />
-    </div>
-  );
-}

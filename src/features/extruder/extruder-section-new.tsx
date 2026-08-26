@@ -1,17 +1,22 @@
-import React, { useState, useRef, useEffect, useCallback, forwardRef, useImperativeHandle, useMemo } from 'react';
+import React, { useState, forwardRef, useImperativeHandle, useMemo } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import { Button } from '@/components/ui/button';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Loader } from '@/components/shared/loader';
 import { Trash2, Edit2 } from 'lucide-react';
 import { DeleteConfirmDialog } from '@/components/shared/delete-confirm-dialog';
+import { apiFetch, extractApiErrorMessage } from '@/lib/api-client';
 import {
   useExtruderProductions,
   useLookups,
+  findIdByName,
   extruderKeys,
   type Lookups,
+  type ExtruderCreatePayload,
+  type ExtruderUpdatePayload,
 } from '@/features/extruder/extruder-queries';
 import { themes, type SectionProps, type SectionRef } from '@/features/production/day-entry-sections';
+import { dashboardProductionKey } from '@/features/production/day-wise-queries';
 import { sumWastageByCode } from '@/lib/api-types';
 
 export interface ExtruderBrandDraft {
@@ -36,39 +41,20 @@ export interface ExtruderGroupDraft {
   brands: ExtruderBrandDraft[];
 }
 
-const emptyBrandDraft = (): ExtruderBrandDraft => ({
-  key: crypto.randomUUID(),
-  brand: '',
-  bags: '',
-  weightPerBag: '',
-  looseWeight: '',
-  raw: '',
-});
-
-const emptyGroupDraft = (): ExtruderGroupDraft => ({
-  key: crypto.randomUUID(),
-  size: '',
-  color: '',
-  output: '',
-  chemical: '',
-  chemicalKg: '',
-  lumpsKg: '',
-  yarnWasteKg: '',
-  brands: [emptyBrandDraft()],
-});
-
-export const ExtruderSection = forwardRef<SectionRef, SectionProps>(({ productionDate, autoAdd, readOnly, hideExisting, hideBanner, onEditExtruderGroup }, ref) => {
+export const ExtruderSection = forwardRef<SectionRef, SectionProps>(({ productionDate, readOnly, hideExisting, hideBanner, onEditExtruderGroup }, ref) => {
   const queryClient = useQueryClient();
   const { data, isLoading } = useExtruderProductions(
     productionDate ? `?date_from=${productionDate}&date_to=${productionDate}` : '',
     !hideExisting,
   );
+  const { data: lookupsData } = useLookups();
+  const lookups: Lookups = lookupsData ?? { brands: [], colors: [], chemicals: [], sizes: [] };
 
   const [newGroups, setNewGroups] = useState<ExtruderGroupDraft[]>([]);
+  const [saving, setSaving] = useState(false);
+  const [saveError, setSaveError] = useState<string | null>(null);
 
-
-
-
+  const pendingKeys = useMemo(() => new Set(newGroups.map((g) => g.key)), [newGroups]);
   // --- EXISTING ENTRIES STATE ---
   const existingGroups = useMemo(() => {
     if (hideExisting || !data?.data) return [];
@@ -81,6 +67,7 @@ export const ExtruderSection = forwardRef<SectionRef, SectionProps>(({ productio
       const colorName = item.color?.name ?? '';
 
       const key = `${sizeName}-${colorName}`;
+      if (pendingKeys.has(key)) return;
       if (!map.has(key)) {
         map.set(key, {
           key,
@@ -119,7 +106,7 @@ export const ExtruderSection = forwardRef<SectionRef, SectionProps>(({ productio
     });
 
     return Array.from(map.values());
-  }, [data?.data, productionDate, hideExisting]);
+  }, [data?.data, productionDate, hideExisting, pendingKeys]);
 
   const [deleteTarget, setDeleteTarget] = useState<{ groupId: string, size: string, color: string } | null>(null);
   const [deleting, setDeleting] = useState(false);
@@ -131,13 +118,17 @@ export const ExtruderSection = forwardRef<SectionRef, SectionProps>(({ productio
   const handleDeleteGroup = async () => {
     if (!deleteTarget) return;
     setDeleting(true);
-    // In a real app we'd need to delete all records in the group
-    // For now we'll just simulate the action
     try {
-      // Mock delete
-      await new Promise(r => setTimeout(r, 500));
+      const group = [...newGroups, ...existingGroups].find((g) => g.key === deleteTarget.groupId);
+      const recordIds = (group?.brands ?? []).map((b) => b.id).filter((id): id is string => !!id);
+      const results = await Promise.all(recordIds.map((id) => apiFetch(`/production/extruder/${id}`, { method: 'DELETE' })));
+      if (results.some((r) => !r.ok)) throw new Error('Failed to delete one or more extruder entries');
+      setNewGroups((groups) => groups.filter((g) => g.key !== deleteTarget.groupId));
       await queryClient.invalidateQueries({ queryKey: extruderKeys.all });
+      await queryClient.invalidateQueries({ queryKey: dashboardProductionKey });
       setDeleteTarget(null);
+    } catch (error) {
+      console.error('Error deleting extruder group:', error);
     } finally {
       setDeleting(false);
     }
@@ -145,7 +136,89 @@ export const ExtruderSection = forwardRef<SectionRef, SectionProps>(({ productio
 
   useImperativeHandle(ref, () => ({
     saveDraft: async () => {
-      // Stub for saving new groups and edit groups
+      if (newGroups.length === 0) return true;
+      setSaving(true);
+      setSaveError(null);
+      const failed: ExtruderGroupDraft[] = [];
+      let errorMessage: string | null = null;
+
+      for (const group of newGroups) {
+        const colorId = findIdByName(lookups.colors, group.color);
+        const sizeId = findIdByName(lookups.sizes, group.size);
+        const chemicalId = findIdByName(lookups.chemicals, group.chemical);
+        if (!colorId || !sizeId) {
+          failed.push(group);
+          errorMessage = 'Could not resolve color/size for one or more entries.';
+          continue;
+        }
+
+        let groupFailed = false;
+        for (const [index, brand] of group.brands.entries()) {
+          const isFirst = index === 0;
+          const brandId = findIdByName(lookups.brands, brand.brand);
+          try {
+            if (brand.id) {
+              const payload: ExtruderUpdatePayload = { rawMaterialKg: parseFloat(brand.raw) || 0 };
+              if (isFirst) {
+                payload.chemicalId = chemicalId;
+                payload.chemicalKg = parseFloat(group.chemicalKg) || 0;
+                payload.lumpsKg = parseFloat(group.lumpsKg) || 0;
+                payload.yarnWasteKg = parseFloat(group.yarnWasteKg) || 0;
+                payload.yarnOutputKg = parseFloat(group.output) || 0;
+              }
+              const response = await apiFetch(`/production/extruder/${brand.id}`, {
+                method: 'PATCH',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(payload),
+              });
+              if (!response.ok) {
+                groupFailed = true;
+                errorMessage = await extractApiErrorMessage(response, 'Failed to save one or more extruder entries.');
+              }
+            } else {
+              if (!brandId || !chemicalId) {
+                groupFailed = true;
+                errorMessage = 'Could not resolve brand/chemical for one or more entries.';
+                continue;
+              }
+              const payload: ExtruderCreatePayload = {
+                productionDate: productionDate ?? '',
+                colorId,
+                sizeId,
+                brandId,
+                chemicalId,
+                rawMaterialKg: parseFloat(brand.raw) || 0,
+                chemicalKg: isFirst ? parseFloat(group.chemicalKg) || 0 : 0,
+                yarnOutputKg: isFirst ? parseFloat(group.output) || 0 : 0,
+                lumpsKg: isFirst ? parseFloat(group.lumpsKg) || 0 : 0,
+                yarnWasteKg: isFirst ? parseFloat(group.yarnWasteKg) || 0 : 0,
+              };
+              const response = await apiFetch('/production/extruder', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(payload),
+              });
+              if (!response.ok) {
+                groupFailed = true;
+                errorMessage = await extractApiErrorMessage(response, 'Failed to save one or more extruder entries.');
+              }
+            }
+          } catch {
+            groupFailed = true;
+            errorMessage = 'Failed to save one or more extruder entries.';
+          }
+        }
+        if (groupFailed) failed.push(group);
+      }
+
+      setNewGroups(failed);
+      await queryClient.invalidateQueries({ queryKey: extruderKeys.all });
+      await queryClient.invalidateQueries({ queryKey: dashboardProductionKey });
+      setSaving(false);
+      if (failed.length > 0) {
+        setSaveError(errorMessage);
+        return false;
+      }
       return true;
     },
     addExtruderGroup: (group: ExtruderGroupDraft) => {
@@ -180,7 +253,7 @@ export const ExtruderSection = forwardRef<SectionRef, SectionProps>(({ productio
           newArray[existingIndex] = group;
           return newArray;
         }
-        return prev;
+        return [...prev, group];
       });
     }
   }));
@@ -251,15 +324,15 @@ export const ExtruderSection = forwardRef<SectionRef, SectionProps>(({ productio
             {idx === 0 && !readOnly && (
               <TableCell rowSpan={group.brands.length} className="text-right align-middle border-l border-gray-200">
                 <div className="flex flex-row items-center justify-end gap-1.5 mt-1">
-                  <Button variant="ghost" size="icon-sm" className="h-6 w-6 p-0 rounded bg-blue-50 text-blue-500 hover:bg-blue-100" onClick={() => onEditExtruderGroup?.(group)}>
+                  <Button variant="ghost" size="icon-sm" disabled={saving} className="h-6 w-6 p-0 rounded bg-blue-50 text-blue-500 hover:bg-blue-100" onClick={() => onEditExtruderGroup?.(group)}>
                     <Edit2 className="h-3 w-3" />
                   </Button>
                   {isNew ? (
-                    <Button variant="ghost" size="icon-sm" className="h-6 w-6 p-0 rounded bg-red-50 text-red-500 hover:bg-red-100" onClick={() => removeGroup(group.key)} title="Remove Group">
+                    <Button variant="ghost" size="icon-sm" disabled={saving} className="h-6 w-6 p-0 rounded bg-red-50 text-red-500 hover:bg-red-100" onClick={() => removeGroup(group.key)} title="Remove Group">
                       <Trash2 className="h-3 w-3" />
                     </Button>
                   ) : (
-                    <Button variant="ghost" size="icon-sm" className="h-6 w-6 p-0 rounded bg-red-50 text-red-500 hover:bg-red-100" onClick={() => setDeleteTarget({ groupId: group.key, size: group.size, color: group.color })}>
+                    <Button variant="ghost" size="icon-sm" disabled={saving} className="h-6 w-6 p-0 rounded bg-red-50 text-red-500 hover:bg-red-100" onClick={() => setDeleteTarget({ groupId: group.key, size: group.size, color: group.color })}>
                       <Trash2 className="h-3 w-3" />
                     </Button>
                   )}
@@ -285,6 +358,10 @@ export const ExtruderSection = forwardRef<SectionRef, SectionProps>(({ productio
             EXTRUDER PRODUCTION (KG)
           </div>
         </div>
+      )}
+
+      {saveError && (
+        <p className="px-3 pt-2 text-sm text-red-600">{saveError}</p>
       )}
 
       <div className="overflow-x-auto">

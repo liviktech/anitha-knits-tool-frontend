@@ -1,11 +1,9 @@
-import { useMemo, useState, useRef, useEffect, useCallback, forwardRef, useImperativeHandle } from 'react';
+import { useMemo, useState, forwardRef, useImperativeHandle } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Loader } from '@/components/shared/loader';
-import { Plus, Edit2, Trash2, X as XIcon } from 'lucide-react';
+import { Edit2, Trash2 } from 'lucide-react';
 import { DeleteConfirmDialog } from '@/components/shared/delete-confirm-dialog';
 import { apiFetch, extractApiErrorMessage } from '@/lib/api-client';
 import { sumWastageByCode } from '@/lib/api-types';
@@ -14,13 +12,8 @@ import {
   loomsKeys,
   type LoomsProductionItem,
   type LoomsCreatePayload,
-  type LoomsUpdatePayload,
 } from '@/features/looms/loom-queries';
-import {
-  useLookups,
-  findIdByName,
-  type Lookups,
-} from '@/features/extruder/extruder-queries';
+import { useLookups, findIdByName, type Lookups } from '@/features/extruder/extruder-queries';
 import { dashboardProductionKey } from '@/features/production/day-wise-queries';
 import { themes, type SectionProps, type SectionRef } from '@/features/production/day-entry-sections';
 
@@ -46,6 +39,7 @@ export function mapLoomItem(item: LoomsProductionItem): LoomRow {
 
 export interface LoomDraft {
   key?: string;
+  id?: string; // If editing an existing (already-persisted) entry
   size: string;
   color: string;
   input: string;
@@ -60,7 +54,7 @@ export function suggestLoomOutput(draft: Pick<LoomDraft, 'input' | 'loomsWasteKg
   return suggested > 0 ? suggested.toFixed(2) : '';
 }
 
-export const LoomSection = forwardRef<SectionRef, SectionProps>(({ productionDate, autoAdd, readOnly, hideExisting, hideBanner, onEditLoomGroup }, ref) => {
+export const LoomSection = forwardRef<SectionRef, SectionProps>(({ productionDate, readOnly, hideExisting, hideBanner, onEditLoomGroup }, ref) => {
   const queryClient = useQueryClient();
   const { data, isLoading } = useLoomsProductions(
     productionDate ? `?date_from=${productionDate}&date_to=${productionDate}` : '',
@@ -69,25 +63,80 @@ export const LoomSection = forwardRef<SectionRef, SectionProps>(({ productionDat
   const { data: lookupsData } = useLookups();
   const lookups: Lookups = lookupsData ?? { brands: [], colors: [], chemicals: [], sizes: [] };
 
+  const [newRows, setNewRows] = useState<LoomDraft[]>([]);
+  const [deleteTarget, setDeleteTarget] = useState<LoomRow | null>(null);
+  const [deleting, setDeleting] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [saveError, setSaveError] = useState<string | null>(null);
+
+  const pendingIds = useMemo(() => new Set(newRows.map((r) => r.id).filter(Boolean)), [newRows]);
+
   const rows = useMemo(() => {
     if (hideExisting) return [];
     const items = data?.data ?? [];
     return items
       .filter((item) => !productionDate || item.productionDate.startsWith(productionDate))
+      .filter((item) => !pendingIds.has(item.id))
       .map(mapLoomItem)
       .filter((row) => row.input > 0 || row.output > 0 || row.loomsWasteKg > 0);
-  }, [data, productionDate, hideExisting]);
+  }, [data, productionDate, hideExisting, pendingIds]);
 
-  const [newRows, setNewRows] = useState<LoomDraft[]>([]);
-  const [deleteTarget, setDeleteTarget] = useState<LoomRow | null>(null);
-  const [deleting, setDeleting] = useState(false);
   const removeNewRow = (key: string) => {
     setNewRows((current) => current.filter((row) => row.key !== key));
   };
 
   useImperativeHandle(ref, () => ({
     saveDraft: async () => {
-      // Stub for saving new groups and edit groups
+      if (newRows.length === 0) return true;
+      setSaving(true);
+      setSaveError(null);
+      const failed: LoomDraft[] = [];
+      let errorMessage: string | null = null;
+      for (const row of newRows) {
+        const colorId = findIdByName(lookups.colors, row.color);
+        const sizeId = findIdByName(lookups.sizes, row.size);
+        if (!colorId || !sizeId) {
+          failed.push(row);
+          errorMessage = 'Could not resolve color/size for one or more entries.';
+          continue;
+        }
+        const payload: LoomsCreatePayload = {
+          productionDate: productionDate ?? '',
+          colorId,
+          sizeId,
+          yarnInputKg: parseFloat(row.input) || 0,
+          fabricOutputKg: parseFloat(row.output) || 0,
+          loomsWasteKg: parseFloat(row.loomsWasteKg) || 0,
+        };
+        try {
+          const response = row.id
+            ? await apiFetch(`/production/looms/${row.id}`, {
+                method: 'PATCH',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(payload),
+              })
+            : await apiFetch('/production/looms', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(payload),
+              });
+          if (!response.ok) {
+            failed.push(row);
+            errorMessage = await extractApiErrorMessage(response, 'Failed to save one or more loom entries.');
+          }
+        } catch {
+          failed.push(row);
+          errorMessage = 'Failed to save one or more loom entries.';
+        }
+      }
+      setNewRows(failed);
+      await queryClient.invalidateQueries({ queryKey: loomsKeys.all });
+      await queryClient.invalidateQueries({ queryKey: dashboardProductionKey });
+      setSaving(false);
+      if (failed.length > 0) {
+        setSaveError(errorMessage);
+        return false;
+      }
       return true;
     },
     addLoomRow: (draft: LoomDraft) => {
@@ -96,12 +145,12 @@ export const LoomSection = forwardRef<SectionRef, SectionProps>(({ productionDat
         if (existingIndex >= 0) {
           const newArray = [...prev];
           const existing = newArray[existingIndex];
-          
+
           const updated = { ...existing };
           updated.input = ((parseFloat(updated.input) || 0) + (parseFloat(draft.input) || 0)).toString();
           updated.loomsWasteKg = ((parseFloat(updated.loomsWasteKg) || 0) + (parseFloat(draft.loomsWasteKg) || 0)).toString();
           updated.output = ((parseFloat(updated.output) || 0) + (parseFloat(draft.output) || 0)).toString();
-          
+
           newArray[existingIndex] = updated;
           return newArray;
         }
@@ -116,7 +165,7 @@ export const LoomSection = forwardRef<SectionRef, SectionProps>(({ productionDat
           newArray[existingIndex] = draft;
           return newArray;
         }
-        return prev;
+        return [...prev, { ...draft, key: crypto.randomUUID() }];
       });
     }
   }));
@@ -153,6 +202,10 @@ export const LoomSection = forwardRef<SectionRef, SectionProps>(({ productionDat
         </div>
       )}
 
+      {saveError && (
+        <p className="px-3 pt-2 text-sm text-red-600">{saveError}</p>
+      )}
+
       <div className="overflow-x-auto">
         <Table>
           <TableHeader className={`${theme.headerBg}`}>
@@ -186,10 +239,10 @@ export const LoomSection = forwardRef<SectionRef, SectionProps>(({ productionDat
                       <TableCell className="text-center">{parseFloat(row.output) > 0 ? parseFloat(row.output).toFixed(2) : '-'}</TableCell>
                       <TableCell className="text-right">
                         <div className="flex items-center justify-end gap-1.5">
-                          <Button variant="ghost" size="icon-sm" className="rounded-full bg-blue-50 text-blue-500 hover:bg-blue-100" onClick={() => onEditLoomGroup && onEditLoomGroup(row)}>
+                          <Button variant="ghost" size="icon-sm" disabled={saving} className="rounded-full bg-blue-50 text-blue-500 hover:bg-blue-100" onClick={() => onEditLoomGroup && onEditLoomGroup(row)}>
                             <Edit2 className="h-3.5 w-3.5" />
                           </Button>
-                          <Button variant="ghost" size="icon-sm" className="rounded-full bg-red-50 text-red-500 hover:bg-red-100" onClick={() => removeNewRow(row.key!)}>
+                          <Button variant="ghost" size="icon-sm" disabled={saving} className="rounded-full bg-red-50 text-red-500 hover:bg-red-100" onClick={() => removeNewRow(row.key!)}>
                             <Trash2 className="h-3.5 w-3.5" />
                           </Button>
                         </div>
