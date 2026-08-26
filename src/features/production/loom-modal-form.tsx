@@ -1,26 +1,36 @@
 import { useState } from 'react';
+import { useQueryClient } from '@tanstack/react-query';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { useLookups, type Lookups } from '@/features/extruder/extruder-queries';
+import { Loader } from '@/components/shared/loader';
+import { apiFetch, extractApiErrorMessage } from '@/lib/api-client';
+import { useLookups, findIdByName, type Lookups } from '@/features/extruder/extruder-queries';
+import { loomsKeys, type LoomsCreatePayload } from '@/features/looms/loom-queries';
+import { dashboardProductionKey } from '@/features/production/day-wise-queries';
 import { themes } from '@/features/production/day-entry-sections';
 import { type LoomDraft, emptyLoomDraft, suggestLoomOutput } from '@/features/looms/loom-section';
 
 interface LoomModalFormProps {
+  productionDate: string;
   initialData?: LoomDraft | null;
   isEditMode?: boolean;
   onCancel: () => void;
-  onSave: (data: LoomDraft) => void;
+  /** Called after the entry is successfully persisted to the backend. */
+  onSuccess: () => void;
 }
 
-export function LoomModalForm({ initialData, isEditMode, onCancel, onSave }: LoomModalFormProps) {
+export function LoomModalForm({ productionDate, initialData, isEditMode, onCancel, onSuccess }: LoomModalFormProps) {
+  const queryClient = useQueryClient();
   const { data: lookupsData } = useLookups();
   const lookups: Lookups = lookupsData ?? { brands: [], colors: [], chemicals: [], sizes: [] };
   const theme = themes.looms;
 
   const [draft, setDraft] = useState<LoomDraft>(initialData || { ...emptyLoomDraft });
   const [outputManuallyEdited, setOutputManuallyEdited] = useState(!!initialData);
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   const updateField = (field: keyof LoomDraft, value: string) => {
     setDraft(prev => {
@@ -37,10 +47,46 @@ export function LoomModalForm({ initialData, isEditMode, onCancel, onSave }: Loo
     updateField('output', value);
   };
 
-  const handleSave = () => {
-    // Note: Validation is still handled by the parent saving logic in this architecture, 
-    // but we could add basic required checks here.
-    onSave(draft);
+  const handleSave = async () => {
+    setError(null);
+
+    const colorId = findIdByName(lookups.colors, draft.color);
+    const sizeId = findIdByName(lookups.sizes, draft.size);
+
+    if (!colorId || !sizeId) {
+      setError('Please select a valid size and color.');
+      return;
+    }
+
+    const payload: LoomsCreatePayload = {
+      productionDate,
+      colorId,
+      sizeId,
+      yarnInputKg: parseFloat(draft.input) || 0,
+      fabricOutputKg: parseFloat(draft.output) || 0,
+      loomsWasteKg: parseFloat(draft.loomsWasteKg) || 0,
+    };
+
+    setSaving(true);
+    try {
+      const response = await apiFetch('/production/looms', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
+      });
+      if (!response.ok) {
+        const msg = await extractApiErrorMessage(response, 'Failed to save looms entry.');
+        setError(msg);
+        return;
+      }
+      await queryClient.invalidateQueries({ queryKey: loomsKeys.all });
+      await queryClient.invalidateQueries({ queryKey: dashboardProductionKey });
+      onSuccess();
+    } catch {
+      setError('An unexpected error occurred. Please try again.');
+    } finally {
+      setSaving(false);
+    }
   };
 
   return (
@@ -50,14 +96,14 @@ export function LoomModalForm({ initialData, isEditMode, onCancel, onSave }: Loo
           <Label className="text-gray-600 text-xs font-semibold uppercase tracking-wider">Size</Label>
           <Select value={draft.size} onValueChange={(v) => updateField('size', v)} disabled={isEditMode}>
             <SelectTrigger><SelectValue placeholder="Select Size" /></SelectTrigger>
-            <SelectContent>{lookups.sizes.map((s) => <SelectItem key={s.id} value={s.name}>{s.name}</SelectItem>)}</SelectContent>
+            <SelectContent>{lookups.sizes?.map((s) => <SelectItem key={s.id} value={s.name}>{s.name}</SelectItem>)}</SelectContent>
           </Select>
         </div>
         <div className="space-y-2">
           <Label className="text-gray-600 text-xs font-semibold uppercase tracking-wider">Color</Label>
           <Select value={draft.color} onValueChange={(v) => updateField('color', v)} disabled={isEditMode}>
             <SelectTrigger><SelectValue placeholder="Select Color" /></SelectTrigger>
-            <SelectContent>{lookups.colors.map((c) => <SelectItem key={c.id} value={c.name}>{c.name}</SelectItem>)}</SelectContent>
+            <SelectContent>{lookups.colors?.map((c) => <SelectItem key={c.id} value={c.name}>{c.name}</SelectItem>)}</SelectContent>
           </Select>
         </div>
       </div>
@@ -90,12 +136,17 @@ export function LoomModalForm({ initialData, isEditMode, onCancel, onSave }: Loo
         </div>
       </div>
 
+      {error && (
+        <p className="text-sm text-red-600 bg-red-50 border border-red-200 rounded-md px-3 py-2">{error}</p>
+      )}
+
       <div className="flex justify-end gap-3 mt-2 pt-4 border-t border-gray-100">
-        <Button variant="outline" onClick={onCancel} className="border-gray-300 text-gray-700">
+        <Button variant="outline" onClick={onCancel} disabled={saving} className="border-gray-300 text-gray-700">
           Cancel
         </Button>
-        <Button onClick={handleSave} className={`${theme.iconBg} ${theme.iconColor} hover:opacity-90`}>
-          Save Looms Entry
+        <Button onClick={handleSave} disabled={saving} className={`${theme.iconBg} ${theme.iconColor} hover:opacity-90`}>
+          {saving && <Loader className="mr-2" size="sm" />}
+          {saving ? 'Saving...' : 'Save Looms Entry'}
         </Button>
       </div>
     </div>

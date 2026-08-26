@@ -60,6 +60,7 @@ export interface ExtruderCreatePayload {
   yarnOutputKg: number;
   lumpsKg: number;
   yarnWasteKg: number;
+  type?: 'PRODUCTION' | 'SAMPLE';
   remarks?: string;
   overrideReason?: string;
 }

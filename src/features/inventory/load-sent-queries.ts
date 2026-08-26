@@ -9,11 +9,14 @@ export interface LoadSentRecord {
   productionDate?: string;
   color: MasterDataRef;
   size: MasterDataRef;
-  pieceCount: number;
-  weightKg: number;
   fabricWeight?: number;
-  vehicleNo?: string;
-  driverName?: string;
+  fwWeight?: number;
+  bwWeight?: number;
+  loadSent?: {
+    fabricWeight?: number;
+    vehicleNo?: string;
+    driverName?: string;
+  };
   createdAt: string;
   createdBy: string;
   updatedAt: string;
@@ -28,11 +31,12 @@ export interface LoadSentListResponse {
 
 /** Matches LoadSentCreateRequest — additionalProperties: false, so send exactly this shape. */
 export interface LoadSentCreatePayload {
-  date?: string; // date, e.g. "2026-08-20" — optional, defaults to now server-side
+  productionDate: string; // date, e.g. "2026-08-20"
   colorId: string;
   sizeId: string;
-  pieceCount: number;
-  weightKg: number;
+  fabricWeight: number;
+  fwWeight?: number;
+  bwWeight?: number;
   vehicleNo?: string;
   driverName?: string;
 }

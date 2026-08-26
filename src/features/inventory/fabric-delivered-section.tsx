@@ -37,6 +37,8 @@ type LoadSentProductionRecord = LoadSentRecord & {
   fabricWeight?: number;
   loadSent?: {
     fabricWeight?: number;
+    vehicleNo?: string;
+    driverName?: string;
   };
 };
 
@@ -45,9 +47,9 @@ function mapLoadSentRecord(record: LoadSentProductionRecord): FabricDeliveredRow
     id: record.id,
     size: record.size?.name ?? '',
     color: record.color?.name ?? '',
-    delivered: record.loadSent?.fabricWeight ?? record.fabricWeight ?? record.weightKg ?? 0,
-    vehicleNo: record.vehicleNo ?? '',
-    driverName: record.driverName ?? '',
+    delivered: record.loadSent?.fabricWeight ?? record.fabricWeight ?? 0,
+    vehicleNo: record.loadSent?.vehicleNo ?? '',
+    driverName: record.loadSent?.driverName ?? '',
   };
 }
 
@@ -93,11 +95,10 @@ export const FabricDeliveredSection = forwardRef<SectionRef, SectionProps & { on
           continue;
         }
         const payload: LoadSentCreatePayload = {
-          date: productionDate,
+          productionDate,
           colorId,
           sizeId,
-          pieceCount: 0, // Not tracked by this draft yet
-          weightKg: parseFloat(row.delivered) || 0,
+          fabricWeight: parseFloat(row.delivered) || 0,
           vehicleNo: row.vehicleNo || undefined,
           driverName: row.driverName || undefined,
         };

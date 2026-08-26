@@ -20,7 +20,10 @@ export const lookupsKeys = {
 export function useLookups() {
   return useQuery<Lookups>({
     queryKey: lookupsKeys.all,
-    queryFn: () => fetchJson<Lookups>('/lookups'),
+    queryFn: async () => {
+      const res = await fetchJson<any>('/lookups');
+      return res.data ?? res;
+    },
   });
 }
 

@@ -1,26 +1,36 @@
 import { useState } from 'react';
+import { useQueryClient } from '@tanstack/react-query';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { useLookups, type Lookups } from '@/features/extruder/extruder-queries';
+import { Loader } from '@/components/shared/loader';
+import { apiFetch, extractApiErrorMessage } from '@/lib/api-client';
+import { useLookups, findIdByName, type Lookups } from '@/features/extruder/extruder-queries';
+import { fabricCheckingKeys, type FabricCheckingCreatePayload } from '@/features/fabric/fabric-queries';
+import { dashboardProductionKey } from '@/features/production/day-wise-queries';
 import { themes } from '@/features/production/day-entry-sections';
 import { type FabricDraft, emptyFabricDraft, suggestFabricOutput } from '@/features/fabric/fabric-section';
 
 interface FabricModalFormProps {
+  productionDate: string;
   initialData?: FabricDraft | null;
   isEditMode?: boolean;
   onCancel: () => void;
-  onSave: (data: FabricDraft) => void;
+  /** Called after the entry is successfully persisted to the backend. */
+  onSuccess: () => void;
 }
 
-export function FabricModalForm({ initialData, isEditMode, onCancel, onSave }: FabricModalFormProps) {
+export function FabricModalForm({ productionDate, initialData, isEditMode, onCancel, onSuccess }: FabricModalFormProps) {
+  const queryClient = useQueryClient();
   const { data: lookupsData } = useLookups();
   const lookups: Lookups = lookupsData ?? { brands: [], colors: [], chemicals: [], sizes: [] };
   const theme = themes.fabric;
 
   const [draft, setDraft] = useState<FabricDraft>(initialData || { ...emptyFabricDraft });
   const [outputManuallyEdited, setOutputManuallyEdited] = useState(!!initialData);
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   const updateField = (field: keyof FabricDraft, value: string) => {
     setDraft(prev => {
@@ -37,8 +47,47 @@ export function FabricModalForm({ initialData, isEditMode, onCancel, onSave }: F
     updateField('output', value);
   };
 
-  const handleSave = () => {
-    onSave(draft);
+  const handleSave = async () => {
+    setError(null);
+
+    const colorId = findIdByName(lookups.colors, draft.color);
+    const sizeId = findIdByName(lookups.sizes, draft.size);
+
+    if (!colorId || !sizeId) {
+      setError('Please select a valid size and color.');
+      return;
+    }
+
+    const payload: FabricCheckingCreatePayload = {
+      productionDate,
+      colorId,
+      sizeId,
+      fabricInputKg: parseFloat(draft.input) || 0,
+      outputKg: parseFloat(draft.output) || 0,
+      fwKg: parseFloat(draft.fwKg) || 0,
+      bwKg: parseFloat(draft.bwKg) || 0,
+    };
+
+    setSaving(true);
+    try {
+      const response = await apiFetch('/fabric-checking', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
+      });
+      if (!response.ok) {
+        const msg = await extractApiErrorMessage(response, 'Failed to save fabric checking entry.');
+        setError(msg);
+        return;
+      }
+      await queryClient.invalidateQueries({ queryKey: fabricCheckingKeys.all });
+      await queryClient.invalidateQueries({ queryKey: dashboardProductionKey });
+      onSuccess();
+    } catch {
+      setError('An unexpected error occurred. Please try again.');
+    } finally {
+      setSaving(false);
+    }
   };
 
   return (
@@ -48,14 +97,14 @@ export function FabricModalForm({ initialData, isEditMode, onCancel, onSave }: F
           <Label className="text-gray-600 text-xs font-semibold uppercase tracking-wider">Size</Label>
           <Select value={draft.size} onValueChange={(v) => updateField('size', v)} disabled={isEditMode}>
             <SelectTrigger><SelectValue placeholder="Select Size" /></SelectTrigger>
-            <SelectContent>{lookups.sizes.map((s) => <SelectItem key={s.id} value={s.name}>{s.name}</SelectItem>)}</SelectContent>
+            <SelectContent>{lookups.sizes?.map((s) => <SelectItem key={s.id} value={s.name}>{s.name}</SelectItem>)}</SelectContent>
           </Select>
         </div>
         <div className="space-y-2">
           <Label className="text-gray-600 text-xs font-semibold uppercase tracking-wider">Color</Label>
           <Select value={draft.color} onValueChange={(v) => updateField('color', v)} disabled={isEditMode}>
             <SelectTrigger><SelectValue placeholder="Select Color" /></SelectTrigger>
-            <SelectContent>{lookups.colors.map((c) => <SelectItem key={c.id} value={c.name}>{c.name}</SelectItem>)}</SelectContent>
+            <SelectContent>{lookups.colors?.map((c) => <SelectItem key={c.id} value={c.name}>{c.name}</SelectItem>)}</SelectContent>
           </Select>
         </div>
       </div>
@@ -102,12 +151,17 @@ export function FabricModalForm({ initialData, isEditMode, onCancel, onSave }: F
         </div>
       </div>
 
+      {error && (
+        <p className="text-sm text-red-600 bg-red-50 border border-red-200 rounded-md px-3 py-2">{error}</p>
+      )}
+
       <div className="flex justify-end gap-3 mt-2 pt-4 border-t border-gray-100">
-        <Button variant="outline" onClick={onCancel} className="border-gray-300 text-gray-700">
+        <Button variant="outline" onClick={onCancel} disabled={saving} className="border-gray-300 text-gray-700">
           Cancel
         </Button>
-        <Button onClick={handleSave} className={`${theme.iconBg} ${theme.iconColor} hover:opacity-90`}>
-          Save Fabric Entry
+        <Button onClick={handleSave} disabled={saving} className={`${theme.iconBg} ${theme.iconColor} hover:opacity-90`}>
+          {saving && <Loader className="mr-2" size="sm" />}
+          {saving ? 'Saving...' : 'Save Fabric Entry'}
         </Button>
       </div>
     </div>

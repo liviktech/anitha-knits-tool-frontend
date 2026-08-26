@@ -49,6 +49,7 @@ export interface FabricCheckingCreatePayload {
   outputKg: number;
   fwKg: number;
   bwKg: number;
+  type?: 'PRODUCTION' | 'SAMPLE';
   remarks?: string;
 }
 

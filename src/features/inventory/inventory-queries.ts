@@ -51,7 +51,7 @@ export interface InventoryCreatePayload {
   chemicalId?: string;
   colorId?: string;
   quantityKg: number;
-  dcNumber?: string;
+  DC: string;
 }
 
 /**
@@ -63,7 +63,6 @@ export interface InventoryCreatePayload {
 export interface InventoryUpdatePayload {
   date?: string;
   weightKg?: number;
-  dcNumber?: string;
 }
 
 export const inventoryKeys = {

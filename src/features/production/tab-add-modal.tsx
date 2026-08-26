@@ -13,11 +13,13 @@ interface TabAddModalProps {
   isOpen: boolean;
   onClose: () => void;
   activeTab: string;
+  productionDate: string;
   initialExtruderData?: ExtruderGroupDraft | null;
   initialLoomData?: LoomDraft | null;
   initialFabricData?: FabricDraft | null;
   initialDeliveredData?: FabricDeliveredDraft | null;
   isEditMode?: boolean;
+  // Legacy callbacks kept for backward compatibility with pending-draft editing flow
   onSaveExtruder?: (data: ExtruderGroupDraft) => void;
   onSaveLoom?: (data: LoomDraft) => void;
   onSaveFabric?: (data: FabricDraft) => void;
@@ -25,10 +27,9 @@ interface TabAddModalProps {
 }
 
 export function TabAddModal({
-  isOpen, onClose, activeTab,
+  isOpen, onClose, activeTab, productionDate,
   initialExtruderData, initialLoomData, initialFabricData, initialDeliveredData,
   isEditMode,
-  onSaveExtruder, onSaveLoom, onSaveFabric, onSaveDelivered
 }: TabAddModalProps) {
   const activeThemeKey = activeTab === 'delivered' ? 'fabricDelivered' : activeTab as Theme;
   const theme = themes[activeThemeKey];
@@ -45,7 +46,7 @@ export function TabAddModal({
 
   return (
     <Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
-      <DialogContent className={`!bg-white shadow-2xl sm:max-w-[1000px] max-h-[90vh] flex flex-col border-2 ${theme.border} p-0 overflow-hidden`}>
+      <DialogContent aria-describedby={undefined} className={`!bg-white shadow-2xl sm:max-w-[1000px] max-h-[90vh] flex flex-col border-2 ${theme.border} p-0 overflow-hidden`}>
         <DialogHeader className={`p-4 pb-4 border-b border-gray-200 ${theme.headerBg} shrink-0`}>
           <DialogTitle className={`text-lg font-extrabold uppercase tracking-wider ${theme.headerText}`}>
             {getTitle()}
@@ -55,43 +56,35 @@ export function TabAddModal({
         <div className="flex-1 overflow-y-auto p-2.5">
           {activeTab === 'extruder' ? (
             <ExtruderModalForm
+              productionDate={productionDate}
               initialData={initialExtruderData}
               isEditMode={isEditMode}
               onCancel={onClose}
-              onSave={(data) => {
-                if (onSaveExtruder) onSaveExtruder(data);
-                onClose();
-              }}
+              onSuccess={onClose}
             />
           ) : activeTab === 'looms' ? (
             <LoomModalForm
+              productionDate={productionDate}
               initialData={initialLoomData}
               isEditMode={isEditMode}
               onCancel={onClose}
-              onSave={(data) => {
-                if (onSaveLoom) onSaveLoom(data);
-                onClose();
-              }}
+              onSuccess={onClose}
             />
           ) : activeTab === 'fabric' ? (
             <FabricModalForm
+              productionDate={productionDate}
               initialData={initialFabricData}
               isEditMode={isEditMode}
               onCancel={onClose}
-              onSave={(data) => {
-                if (onSaveFabric) onSaveFabric(data);
-                onClose();
-              }}
+              onSuccess={onClose}
             />
           ) : activeTab === 'delivered' ? (
             <FabricDeliveredModalForm
+              productionDate={productionDate}
               initialData={initialDeliveredData}
               isEditMode={isEditMode}
               onCancel={onClose}
-              onSave={(data) => {
-                if (onSaveDelivered) onSaveDelivered(data);
-                onClose();
-              }}
+              onSuccess={onClose}
             />
           ) : null}
         </div>

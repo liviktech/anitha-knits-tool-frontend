@@ -300,30 +300,12 @@ export function NewEntry({ onClose, defaultDate, readOnly = false }: NewEntryPro
           }, 300); // clear after animation
         }}
         activeTab={activeTab}
+        productionDate={productionDate}
         initialExtruderData={editingExtruderGroup}
         initialLoomData={editingLoomGroup}
         initialFabricData={editingFabricGroup}
         initialDeliveredData={editingDeliveredGroup}
         isEditMode={!!editingExtruderGroup || !!editingLoomGroup || !!editingFabricGroup || !!editingDeliveredGroup}
-        onSaveExtruder={(data) => {
-          if (editingExtruderGroup && extruderRef.current?.updateExtruderGroup) {
-            extruderRef.current.updateExtruderGroup(data);
-          } else if (extruderRef.current?.addExtruderGroup) {
-            extruderRef.current.addExtruderGroup(data);
-          }
-        }}
-        onSaveLoom={(data) => {
-          if (editingLoomGroup && loomRef.current?.updateLoomRow) loomRef.current.updateLoomRow(data);
-          else if (loomRef.current?.addLoomRow) loomRef.current.addLoomRow(data);
-        }}
-        onSaveFabric={(data) => {
-          if (editingFabricGroup && fabricRef.current?.updateFabricRow) fabricRef.current.updateFabricRow(data);
-          else if (fabricRef.current?.addFabricRow) fabricRef.current.addFabricRow(data);
-        }}
-        onSaveDelivered={(data) => {
-          if (editingDeliveredGroup && fabricDeliveredRef.current?.updateDeliveredRow) fabricDeliveredRef.current.updateDeliveredRow(data);
-          else if (fabricDeliveredRef.current?.addDeliveredRow) fabricDeliveredRef.current.addDeliveredRow(data);
-        }}
       />
     </div>
   );

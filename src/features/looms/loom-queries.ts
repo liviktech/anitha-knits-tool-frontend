@@ -48,6 +48,7 @@ export interface LoomsCreatePayload {
   yarnInputKg: number;
   fabricOutputKg: number;
   loomsWasteKg: number;
+  type?: 'PRODUCTION' | 'SAMPLE';
   remarks?: string;
 }
 

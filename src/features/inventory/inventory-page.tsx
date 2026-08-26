@@ -108,11 +108,11 @@ function InventoryFormDialog({ onClose, editDate, editRecords }: InventoryFormDi
           if (!isNaN(val) && val > 0) {
             if (existing) {
               const currentDc = t.type === 'HDPE' ? dcHdpe : t.type === 'CHEMICAL' ? dcChemical : dcColor;
-              if (existing.weightKg !== val || existing.dcNumber !== currentDc) {
+              if (existing.weightKg !== val) {
                 promises.push(apiFetch(`/inventory/${existing.id}`, {
                   method: 'PATCH',
                   headers: { 'Content-Type': 'application/json' },
-                  body: JSON.stringify({ weightKg: val, date, dcNumber: currentDc }),
+                  body: JSON.stringify({ weightKg: val, date }),
                 }));
               }
             } else {
@@ -126,7 +126,7 @@ function InventoryFormDialog({ onClose, editDate, editRecords }: InventoryFormDi
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
                   date, type: t.type, quantityKg: val,
-                  dcNumber: t.type === 'HDPE' ? dcHdpe : t.type === 'CHEMICAL' ? dcChemical : dcColor,
+                  DC: t.type === 'HDPE' ? dcHdpe : t.type === 'CHEMICAL' ? dcChemical : dcColor,
                   ...(t.type === 'HDPE' && { brandId: lookupId }),
                   ...(t.type === 'CHEMICAL' && { chemicalId: lookupId }),
                   ...(t.type === 'COLOR' && { colorId: lookupId }),

@@ -1,18 +1,30 @@
 import { useState } from 'react';
+import { useQueryClient } from '@tanstack/react-query';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Loader } from '@/components/shared/loader';
 import { Plus, Trash2 } from 'lucide-react';
-import { useLookups, type Lookups } from '@/features/extruder/extruder-queries';
+import { apiFetch, extractApiErrorMessage } from '@/lib/api-client';
+import {
+  useLookups,
+  findIdByName,
+  extruderKeys,
+  type Lookups,
+  type ExtruderCreatePayload,
+} from '@/features/extruder/extruder-queries';
+import { dashboardProductionKey } from '@/features/production/day-wise-queries';
 import { themes } from '@/features/production/day-entry-sections';
 import type { ExtruderGroupDraft, ExtruderBrandDraft } from '@/features/extruder/extruder-section-new';
 
 interface ExtruderModalFormProps {
+  productionDate: string;
   initialData?: ExtruderGroupDraft | null;
   isEditMode?: boolean;
   onCancel: () => void;
-  onSave: (data: ExtruderGroupDraft) => void;
+  /** Called after the entry is successfully persisted to the backend. */
+  onSuccess: () => void;
 }
 
 const emptyBrandDraft = (): ExtruderBrandDraft => ({
@@ -36,12 +48,15 @@ const emptyGroupDraft = (): ExtruderGroupDraft => ({
   brands: [emptyBrandDraft()],
 });
 
-export function ExtruderModalForm({ initialData, isEditMode, onCancel, onSave }: ExtruderModalFormProps) {
+export function ExtruderModalForm({ productionDate, initialData, isEditMode, onCancel, onSuccess }: ExtruderModalFormProps) {
+  const queryClient = useQueryClient();
   const { data: lookupsData } = useLookups();
   const lookups: Lookups = lookupsData ?? { brands: [], colors: [], chemicals: [], sizes: [] };
   const theme = themes.extruder;
 
   const [group, setGroup] = useState<ExtruderGroupDraft>(initialData || emptyGroupDraft());
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   const updateGroupField = (field: keyof ExtruderGroupDraft, value: string) => {
     setGroup(prev => ({ ...prev, [field]: value }));
@@ -81,8 +96,65 @@ export function ExtruderModalForm({ initialData, isEditMode, onCancel, onSave }:
     });
   };
 
-  const handleSave = () => {
-    onSave(group);
+  const handleSave = async () => {
+    setError(null);
+
+    const colorId = findIdByName(lookups.colors, group.color);
+    const sizeId = findIdByName(lookups.sizes, group.size);
+    const chemicalId = findIdByName(lookups.chemicals, group.chemical);
+
+    if (!colorId || !sizeId || !chemicalId) {
+      setError('Please select a valid size, color, and chemical.');
+      return;
+    }
+
+    if (group.brands.length === 0) {
+      setError('At least one HDPE brand is required.');
+      return;
+    }
+
+    setSaving(true);
+    try {
+      for (const [index, brandRow] of group.brands.entries()) {
+        const brandId = findIdByName(lookups.brands, brandRow.brand);
+        if (!brandId) {
+          setError(`Brand "${brandRow.brand || '(empty)'}" could not be resolved. Please select a valid brand.`);
+          return;
+        }
+        const isFirst = index === 0;
+        const payload: ExtruderCreatePayload = {
+          productionDate,
+          colorId,
+          sizeId,
+          brandId,
+          chemicalId,
+          rawMaterialKg: parseFloat(brandRow.raw) || 0,
+          // Chemical, output, and wastage are assigned to first brand's record only
+          chemicalKg: isFirst ? (parseFloat(group.chemicalKg) || 0) : 0,
+          yarnOutputKg: isFirst ? (parseFloat(group.output) || 0) : 0,
+          lumpsKg: isFirst ? (parseFloat(group.lumpsKg) || 0) : 0,
+          yarnWasteKg: isFirst ? (parseFloat(group.yarnWasteKg) || 0) : 0,
+        };
+        const response = await apiFetch('/production/extruder', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload),
+        });
+        if (!response.ok) {
+          const msg = await extractApiErrorMessage(response, 'Failed to save extruder entry.');
+          setError(msg);
+          return;
+        }
+      }
+      // All brands saved — refresh the table
+      await queryClient.invalidateQueries({ queryKey: extruderKeys.all });
+      await queryClient.invalidateQueries({ queryKey: dashboardProductionKey });
+      onSuccess();
+    } catch {
+      setError('An unexpected error occurred. Please try again.');
+    } finally {
+      setSaving(false);
+    }
   };
 
   return (
@@ -94,14 +166,14 @@ export function ExtruderModalForm({ initialData, isEditMode, onCancel, onSave }:
           <Label className="text-gray-600 text-xs font-semibold uppercase tracking-wider">Size</Label>
           <Select value={group.size} onValueChange={(v) => updateGroupField('size', v)} disabled={isEditMode}>
             <SelectTrigger><SelectValue placeholder="Select Size" /></SelectTrigger>
-            <SelectContent>{lookups.sizes.map((s) => <SelectItem key={s.id} value={s.name}>{s.name}</SelectItem>)}</SelectContent>
+            <SelectContent>{lookups.sizes?.map((s) => <SelectItem key={s.id} value={s.name}>{s.name}</SelectItem>)}</SelectContent>
           </Select>
         </div>
         <div className="space-y-2">
           <Label className="text-gray-600 text-xs font-semibold uppercase tracking-wider">Color</Label>
           <Select value={group.color} onValueChange={(v) => updateGroupField('color', v)} disabled={isEditMode}>
             <SelectTrigger><SelectValue placeholder="Select Color" /></SelectTrigger>
-            <SelectContent>{lookups.colors.map((c) => <SelectItem key={c.id} value={c.name}>{c.name}</SelectItem>)}</SelectContent>
+            <SelectContent>{lookups.colors?.map((c) => <SelectItem key={c.id} value={c.name}>{c.name}</SelectItem>)}</SelectContent>
           </Select>
         </div>
       </div>
@@ -125,7 +197,7 @@ export function ExtruderModalForm({ initialData, isEditMode, onCancel, onSave }:
                 {idx === 0 && <Label className="text-xs text-gray-500">Brand</Label>}
                 <Select value={brandRow.brand} onValueChange={(v) => updateBrandField(brandRow.key, 'brand', v)}>
                   <SelectTrigger><SelectValue placeholder="Brand" /></SelectTrigger>
-                  <SelectContent>{lookups.brands.map((b) => <SelectItem key={b.id} value={b.name}>{b.name}</SelectItem>)}</SelectContent>
+                  <SelectContent>{lookups.brands?.map((b) => <SelectItem key={b.id} value={b.name}>{b.name}</SelectItem>)}</SelectContent>
                 </Select>
               </div>
               <div className="space-y-1.5 flex-[1] min-w-[80px]">
@@ -164,7 +236,7 @@ export function ExtruderModalForm({ initialData, isEditMode, onCancel, onSave }:
               <Label className="text-gray-600 text-xs font-semibold">Chemical Type</Label>
               <Select value={group.chemical} onValueChange={(v) => updateGroupField('chemical', v)} disabled={isEditMode}>
                 <SelectTrigger><SelectValue placeholder="Select Chem" /></SelectTrigger>
-                <SelectContent>{lookups.chemicals.map((c) => <SelectItem key={c.id} value={c.name}>{c.name}</SelectItem>)}</SelectContent>
+                <SelectContent>{lookups.chemicals?.map((c) => <SelectItem key={c.id} value={c.name}>{c.name}</SelectItem>)}</SelectContent>
               </Select>
             </div>
             <div className="space-y-2">
@@ -199,12 +271,17 @@ export function ExtruderModalForm({ initialData, isEditMode, onCancel, onSave }:
         </div>
       </div>
 
+      {error && (
+        <p className="text-sm text-red-600 bg-red-50 border border-red-200 rounded-md px-3 py-2">{error}</p>
+      )}
+
       <div className="flex justify-end gap-3 mt-2 pt-4 border-t border-gray-100">
-        <Button variant="outline" onClick={onCancel} className="border-gray-300 text-gray-700">
+        <Button variant="outline" onClick={onCancel} disabled={saving} className="border-gray-300 text-gray-700">
           Cancel
         </Button>
-        <Button onClick={handleSave} className={`${theme.iconBg} ${theme.iconColor} hover:opacity-90`}>
-          Save Extruder Entry
+        <Button onClick={handleSave} disabled={saving} className={`${theme.iconBg} ${theme.iconColor} hover:opacity-90`}>
+          {saving && <Loader className="mr-2" size="sm" />}
+          {saving ? 'Saving...' : 'Save Extruder Entry'}
         </Button>
       </div>
     </div>
