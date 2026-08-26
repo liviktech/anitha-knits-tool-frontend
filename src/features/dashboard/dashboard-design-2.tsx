@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useMemo } from 'react';
 import { Link } from 'react-router-dom';
 import '@fontsource-variable/hanken-grotesk';
 import {
@@ -192,8 +192,6 @@ export function DashboardDesign2() {
 
   const prevPeriodLabel = `vs ${format(startOfMonth(prevMonthDate), 'MMM d')} – ${format(endOfMonth(prevMonthDate), 'MMM d')}`;
 
-  const [isFabricDeliveredExpanded, setIsFabricDeliveredExpanded] = useState(true);
-
   const inventoryRecords = inventoryData?.data ?? [];
   const month = new Date().toISOString().slice(0, 7);
   const monthRecords = inventoryRecords.filter(r => r.date.startsWith(month));
@@ -221,6 +219,7 @@ export function DashboardDesign2() {
       color: r.color?.name ?? '',
       size: r.size?.name ?? '',
       kg: r.fabricWeight ?? r.weightKg ?? 0,
+      vehicleNo: r.vehicleNo ?? '--',
     }))
     .sort((a, b) => (a.date < b.date ? 1 : -1));
 
@@ -343,7 +342,7 @@ export function DashboardDesign2() {
         </div> */}
 
           {/* Inventory Summary Mini Cards */}
-        <div className="" style={{ fontFamily: "'Hanken Grotesk Variable', 'Hanken Grotesk', sans-serif" }}>
+        <div className="border-b border-gray-300 pb-3" style={{ fontFamily: "'Hanken Grotesk Variable', 'Hanken Grotesk', sans-serif" }}>
             <p className="font-bold text-xl px-0.5 text-left">Raw Materials</p>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-2 py-2">
             {/* HDPE Card */}
@@ -458,15 +457,15 @@ export function DashboardDesign2() {
                 <div className="flex items-center px-1">
                   <div className="flex-1">
                     <p className="text-[10px] px-3 font-extrabold uppercase tracking-wide text-gray-600 mb-1.5">COLOR</p>
-                    <p className="text-[17px] px-3 font-bold text-gray-900 leading-none font-inter">{latestExtruderRecord?.color?.name ?? '--'}</p>
+                    <p className="text-[15px] px-3 font-bold text-gray-900 leading-none font-inter">{latestExtruderRecord?.color?.name ?? '--'}</p>
                   </div>
                   <div className="flex-1">
                     <p className="text-[10px] px-3 font-extrabold uppercase tracking-wide text-gray-600 mb-1.5">SIZE</p>
-                    <p className="text-[17px] px-3 font-bold text-gray-900 leading-none font-inter">{latestExtruderRecord?.size?.name ?? '--'}</p>
+                    <p className="text-[15px] px-3 font-bold text-gray-900 leading-none font-inter">{latestExtruderRecord?.size?.name ?? '--'}</p>
                   </div>
                   <div className="flex-1">
                     <p className="text-[10px] px-3 font-extrabold uppercase tracking-wide text-gray-600 mb-1.5">OUTPUT (KG)</p>
-                    <p className="text-[17px] px-3 font-bold text-gray-900 leading-none font-inter">{formatNum(latestExtruderRecord?.extruder.yarnOutputKg ?? 0)}</p>
+                    <p className="text-[15px] px-3 font-bold text-gray-900 leading-none font-inter">{formatNum(latestExtruderRecord?.extruder.yarnOutputKg ?? 0)}</p>
                   </div>
                 </div>
               </CardContent>
@@ -502,15 +501,15 @@ export function DashboardDesign2() {
                 <div className="flex items-center px-1">
                   <div className="flex-1">
                     <p className="text-[10px] px-3 font-extrabold uppercase tracking-wide text-gray-600 mb-1">COLOR</p>
-                    <p className="text-[17px] px-3 font-bold text-gray-900 leading-none font-inter">{latestLoomsRecord?.color?.name ?? '--'}</p>
+                    <p className="text-[15px] px-3 font-bold text-gray-900 leading-none font-inter">{latestLoomsRecord?.color?.name ?? '--'}</p>
                   </div>
                   <div className="flex-1">
                     <p className="text-[10px] px-3 font-extrabold uppercase tracking-wide text-gray-600 mb-1">SIZE</p>
-                    <p className="text-[17px] px-3 font-bold text-gray-900 leading-none font-inter">{latestLoomsRecord?.size?.name ?? '--'}</p>
+                    <p className="text-[15px] px-3 font-bold text-gray-900 leading-none font-inter">{latestLoomsRecord?.size?.name ?? '--'}</p>
                   </div>
                   <div className="flex-1">
                     <p className="text-[10px] px-3 font-extrabold uppercase tracking-wide text-gray-600 mb-1">OUTPUT (KG)</p>
-                    <p className="text-[17px] px-3 font-bold text-gray-900 leading-none font-inter">{formatNum(latestLoomsRecord?.loom.fabricOutputKg ?? 0)}</p>
+                    <p className="text-[15px] px-3 font-bold text-gray-900 leading-none font-inter">{formatNum(latestLoomsRecord?.loom.fabricOutputKg ?? 0)}</p>
                   </div>
                 </div>
               </CardContent>
@@ -546,15 +545,15 @@ export function DashboardDesign2() {
                 <div className="flex items-center px-1">
                   <div className="flex-1">
                     <p className="text-[10px] px-3 font-extrabold uppercase tracking-wide text-gray-600 mb-1">COLOR</p>
-                    <p className="text-[17px] px-3 font-bold text-gray-900 leading-none font-inter">{latestFabricRecord?.color?.name ?? '--'}</p>
+                    <p className="text-[15px] px-3 font-bold text-gray-900 leading-none font-inter">{latestFabricRecord?.color?.name ?? '--'}</p>
                   </div>
                   <div className="flex-1">
                     <p className="text-[10px] px-3 font-extrabold uppercase tracking-wide text-gray-600 mb-1">SIZE</p>
-                    <p className="text-[17px] px-3 font-bold text-gray-900 leading-none font-inter">{latestFabricRecord?.size?.name ?? '--'}</p>
+                    <p className="text-[15px] px-3 font-bold text-gray-900 leading-none font-inter">{latestFabricRecord?.size?.name ?? '--'}</p>
                   </div>
                   <div className="flex-1">
                     <p className="text-[10px] px-3 font-extrabold uppercase tracking-wide text-gray-600 mb-1">OUTPUT (KG)</p>
-                    <p className="text-[17px] px-3 font-bold text-gray-900 leading-none font-inter">{formatNum(latestFabricRecord?.fabricCheck.outputKg ?? 0)}</p>
+                    <p className="text-[15px] px-3 font-bold text-gray-900 leading-none font-inter">{formatNum(latestFabricRecord?.fabricCheck.outputKg ?? 0)}</p>
                   </div>
                 </div>
               </CardContent>
@@ -564,24 +563,31 @@ export function DashboardDesign2() {
         </div>
 
            {/* Wastage */}
-        <WastageCard
-          looseWaste={looseWasteKg}
-          lums={lumsWasteKg}
-          loomsWaste={loomsWasteKg}
-          fabricWaste={fabricWasteKg}
-          bitWaste={bitWasteKg}
-        />
-
-
-          {/* Fabric Stock + Fabric Delivered */}
-      <div className="flex flex-col lg:flex-row gap-2.5 items-stretch py-2">
-        <div className="w-full lg:flex-1 lg:min-w-0">
-          <FabricStockCard rows={fabricStockByColor} total={totalFabricStockKg} />
+        <div className="border-b border-gray-300 pb-3">
+          <WastageCard
+            looseWaste={looseWasteKg}
+            lums={lumsWasteKg}
+            loomsWaste={loomsWasteKg}
+            fabricWaste={fabricWasteKg}
+            bitWaste={bitWasteKg}
+          />
         </div>
 
-        <div className="flex-1 min-w-0 h-full min-h-[320px] bg-white rounded-2xl border border-gray-400 shadow-sm flex flex-col">
-          <div className="flex items-center justify-between mb-0.5">
-            <div className="flex items-center gap-2 px-4 py-3">
+
+          {/* Fabric Stock (own horizontal section) */}
+      <div className="w-full py-2 border-b border-gray-300 pb-3">
+        <p className="font-bold text-lg px-0.5 text-left">Fabric Stock Overview</p>
+        <div className="py-2">
+          <FabricStockCard rows={fabricStockByColor} total={totalFabricStockKg} />
+        </div>
+      </div>
+
+      {/* Fabric Delivered (own horizontal section, below Fabric Stock) */}
+      <div className="w-full">
+        <p className="font-bold text-xl px-0.5 text-left">Fabric Delivered Overview</p>
+        <Card className="font-hanken w-full bg-white border border-gray-400 shadow-lg shadow-slate-200/50 rounded-3xl p-3 md:p-3 flex flex-col transition-shadow duration-300 hover:shadow-xl hover:shadow-slate-300/40 animate-in fade-in-0 slide-in-from-bottom-3 duration-700 fill-mode-both mt-2">
+          <CardHeader className="p-0 flex flex-row items-center justify-between border-b border-gray-400 pb-2">
+            <CardTitle className="flex items-center gap-2 px-2 text-[20px] font-bold text-[#004D40]">
               <div
                 className="w-6 h-6 bg-[#004D40]"
                 style={{
@@ -595,50 +601,62 @@ export function DashboardDesign2() {
                   maskPosition: 'center',
                 }}
               />
-              <h3 className="text-xl font-bold text-[#004D40]">Fabric Delivered</h3>
+              Fabric Delivered
+            </CardTitle>
+            <div className="flex items-center gap-3">
+              <span className="text-[17px] font-bold text-[#2F6B2F]">Total : <span className="font-inter">{formatNum(selectedMonthDeliveryTotal)}</span> kg</span>
+              <Link
+                to="/production/new-entry?tab=delivered"
+                className="flex items-center justify-center w-8 h-8 rounded-full border border-slate-200 text-slate-600 hover:bg-slate-50 transition-colors"
+                aria-label="Add fabric delivered entry"
+              >
+                <ArrowRight className="w-4 h-4" />
+              </Link>
             </div>
-            <Link
-              to="/production/new-entry?tab=delivered"
-              className="flex items-center justify-center w-8 h-8 mr-4 rounded-full border border-slate-200 text-slate-600 hover:bg-slate-50 transition-colors"
-              aria-label="Add fabric delivered entry"
-            >
-              <ArrowRight className="w-4 h-4" />
-            </Link>
-          </div>
-
-          <div className="grid grid-cols-5 px-2 py-2.5 text-sm font-semibold text-gray-700 bg-slate-50/70 border border-gray-300">
-            <span>Date</span>
-            <span>Color</span>
-            <span>Size</span>
-            <span className="text-right">Quantity (Kg)</span>
-            <span className="text-right">Status</span>
-          </div>
-
-          <div className="flex-1">
+          </CardHeader>
+          <CardContent className="p-0 flex-1 flex flex-col">
             {loadingLoadSent ? (
-              <div className="h-full flex items-center justify-center text-center text-slate-400 text-sm py-5">Loading delivered records...</div>
+              <div className="flex-1 flex items-center justify-center">
+                <p className="text-xs text-gray-400 italic">Loading delivered records...</p>
+              </div>
             ) : monthDeliveries.length === 0 ? (
-              <div className="h-full flex items-center justify-center text-center text-slate-400 text-sm py-5">No delivered records for this month.</div>
+              <div className="flex-1 flex items-center justify-center">
+                <p className="text-xs text-gray-400 italic">No delivered records for this month.</p>
+              </div>
             ) : (
-              (isFabricDeliveredExpanded ? monthDeliveries : monthDeliveries.slice(0, 5)).map((d) => (
-                <div key={d.id} className="grid grid-cols-5 items-center px-2 py-3.5 text-sm border-b border-slate-100 last:border-b-0">
-                  <span className="text-slate-600">{formatDateDMY(d.date)}</span>
-                  <span className={`font-medium ${deliveryColorClass(d.color)}`}>{d.color}</span>
-                  <span className="text-slate-600">{d.size}</span>
-                  <span className="text-right font-semibold text-slate-900">{formatNum(d.kg)}</span>
-                  <span className="text-right">
-                    <span className="inline-block bg-emerald-50 text-emerald-700 text-xs font-medium px-3 py-1 rounded-full">Delivered</span>
-                  </span>
-                </div>
-              ))
+              <div className="border border-gray-300 rounded-lg overflow-hidden mt-3">
+                <table className="w-full table-fixed text-[13px] text-left">
+                  <thead className="block w-full bg-slate-50 font-bold text-slate-500 uppercase text-[10px] tracking-wide">
+                    <tr className="table w-full table-fixed">
+                      <th className="px-3 py-2.5 w-24">Date</th>
+                      <th className="px-3 py-2.5">Color</th>
+                      <th className="px-3 py-2.5">Size</th>
+                      <th className="px-3 py-2.5">Quantity (Kg)</th>
+                      <th className="px-3 py-2.5">Vehicle No</th>
+                      <th className="px-3 py-2.5 w-28 text-right bg-slate-100">Status</th>
+                    </tr>
+                  </thead>
+                  {/* Shows the 5 most recent deliveries at a glance; anything beyond that
+                      scrolls within the body only, so the card doesn't grow unbounded. */}
+                  <tbody className="block w-full max-h-60 overflow-y-auto">
+                    {monthDeliveries.map((d, i) => (
+                      <tr key={d.id} className={`table w-full table-fixed ${i % 2 === 0 ? 'bg-white' : 'bg-slate-50/60'}`}>
+                        <td className="px-3 py-2.5 w-24 text-slate-600">{formatDateDMY(d.date)}</td>
+                        <td className={`px-3 py-2.5 font-semibold ${deliveryColorClass(d.color)}`}>{d.color}</td>
+                        <td className="px-3 py-2.5 text-slate-700">{d.size}</td>
+                        <td className="px-3 py-2.5 font-bold font-inter text-slate-900">{formatNum(d.kg)}</td>
+                        <td className="px-3 py-2.5 text-slate-600 font-inter">{d.vehicleNo}</td>
+                        <td className="px-3 py-2.5 w-28 text-right bg-slate-50">
+                          <span className="inline-block bg-emerald-50 text-emerald-700 text-xs font-medium px-3 py-1 rounded-full">Delivered</span>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
             )}
-          </div>
-
-          <div className="flex items-center justify-end gap-4 px-5 py-3 mt-2 border-t border-gray-300">
-            <span className="font-bold text-emerald-600">Total Delivered</span>
-            <span className="font-bold text-slate-900">{formatNum(selectedMonthDeliveryTotal)} Kg</span>
-          </div>
-        </div>
+          </CardContent>
+        </Card>
         </div>
 
       
@@ -939,13 +957,22 @@ function FabricStockCard({
   total: number;
 }) {
   return (
-    <Card className="bg-white border border-gray-400 shadow-lg shadow-slate-200/50 rounded-3xl p-3 md:p-3 h-full min-h-80 flex flex-col transition-shadow duration-300 hover:shadow-xl hover:shadow-slate-300/40 animate-in fade-in-0 slide-in-from-bottom-3 duration-700 fill-mode-both">
+    <Card className="font-hanken bg-white border border-gray-400 shadow-lg shadow-slate-200/50 rounded-3xl p-3 md:p-3 flex flex-col transition-shadow duration-300 hover:shadow-xl hover:shadow-slate-300/40 animate-in fade-in-0 slide-in-from-bottom-3 duration-700 fill-mode-both">
       <CardHeader className="p-0 flex flex-row items-center justify-between border-b border-gray-400 pb-2">
         <CardTitle className="flex items-center gap-2 px-2 text-[20px] font-bold text-[#004D40]">
           <img src="/stock.png" alt="" className="w-6 h-6 object-contain" />
           Fabric Stock
         </CardTitle>
-        <span className="text-[17px] font-bold text-[#2F6B2F]">Total : {formatNum(total)} kg</span>
+        <div className="flex items-center gap-3">
+          <span className="text-[17px] font-bold text-[#2F6B2F]">Total : <span className="font-inter">{formatNum(total)}</span> kg</span>
+          <Link
+            to="/inventory"
+            className="flex items-center justify-center w-8 h-8 rounded-full border border-slate-200 text-slate-600 hover:bg-slate-50 transition-colors"
+            aria-label="Go to inventory"
+          >
+            <ArrowRight className="w-4 h-4" />
+          </Link>
+        </div>
       </CardHeader>
       <CardContent className="p-0 flex-1 flex flex-col">
         {rows.length === 0 ? (
@@ -953,43 +980,45 @@ function FabricStockCard({
             <p className="text-xs text-gray-400 italic">No fabric stock records yet.</p>
           </div>
         ) : (
-          <div className="border border-gray-300 rounded-lg overflow-hidden overflow-x-auto">
+          <div className="border border-gray-300 rounded-lg overflow-hidden">
             <table className="w-full table-fixed text-[13px] text-left">
-              <thead className="bg-slate-50 font-bold text-slate-500 uppercase text-[10px] tracking-wide">
-                <tr>
+              <thead className="block w-full bg-slate-50 font-bold text-slate-500 uppercase text-[12px] tracking-wide">
+                <tr className="table w-full table-fixed">
                   <th className="px-3 py-2.5 w-24">Color</th>
                   {FABRIC_STOCK_SIZES.map((size) => (
-                    <th key={size} className="px-3 py-2.5 text-right">{size}</th>
+                    <th key={size} className="px-3 py-2.5 text-center">{size}</th>
                   ))}
-                  <th className="px-3 py-2.5 text-right bg-slate-100">Stock (Kg)</th>
+                  <th className="px-3 py-2.5 w-28 text-right bg-slate-100">Stock (Kg)</th>
                 </tr>
               </thead>
-              <tbody>
+              {/* Caps the visible list at ~3 data rows (+ the pinned Total row below = 4 values on
+                  screen at once); anything beyond that scrolls within the body only. */}
+              <tbody className="block w-full max-h-30 overflow-y-auto">
                 {rows.map((row, i) => {
                   const rowTotal = Object.values(row.stockBySize).reduce((s, v) => s + v, 0);
                   return (
-                    <tr key={row.color} className={i % 2 === 0 ? 'bg-white' : 'bg-slate-50/60'}>
-                      <td className={`px-3 py-2.5 font-semibold ${row.colorClass}`}>{row.color}</td>
+                    <tr key={row.color} className={`table w-full table-fixed ${i % 2 === 0 ? 'bg-white' : 'bg-slate-50/60'}`}>
+                      <td className={`px-3 py-2.5 w-24 font-semibold ${row.colorClass}`}>{row.color}</td>
                       {FABRIC_STOCK_SIZES.map((size) => (
-                        <td key={size} className="px-3 py-2.5 text-right text-slate-700">
+                        <td key={size} className="px-3 py-2.5 text-center text-slate-700 font-inter">
                           {row.stockBySize[size] !== undefined ? formatNum(row.stockBySize[size]) : '--'}
                         </td>
                       ))}
-                      <td className="px-3 py-2.5 text-right font-bold text-[#2F6B2F] bg-slate-50">{formatNum(rowTotal)}</td>
+                      <td className="px-3 py-2.5 w-28 text-right font-bold font-inter text-[#2F6B2F] bg-slate-50">{formatNum(rowTotal)}</td>
                     </tr>
                   );
                 })}
               </tbody>
-              <tfoot>
-                <tr className="border-t-2 border-gray-300 bg-slate-50 font-bold text-slate-700">
-                  <td className="px-3 py-2.5">Total</td>
+              <tfoot className="block w-full">
+                <tr className="table w-full table-fixed border-t-2 border-gray-300 bg-slate-50 font-bold text-slate-700">
+                  <td className="px-3 py-2.5 w-24">Total</td>
                   {FABRIC_STOCK_SIZES.map((size) => {
                     const colTotal = rows.reduce((sum, row) => sum + (row.stockBySize[size] ?? 0), 0);
                     return (
-                      <td key={size} className="px-3 py-2.5 text-right">{formatNum(colTotal)}</td>
+                      <td key={size} className="px-3 py-2.5 text-center font-inter">{formatNum(colTotal)}</td>
                     );
                   })}
-                  <td className="px-3 py-2.5 text-right text-[#2F6B2F] bg-slate-100">{formatNum(total)}</td>
+                  <td className="px-3 py-2.5 w-28 text-right font-inter text-[#2F6B2F] bg-slate-100">{formatNum(total)}</td>
                 </tr>
               </tfoot>
             </table>
@@ -1017,33 +1046,33 @@ function WastageCard({
   const fabricCheckingWaste = fabricWaste + bitWaste;
 
   return (
-    <div className="bg-white border border-gray-400 rounded-xl shadow-sm px-5 py-4 flex flex-wrap items-start justify-between gap-x-8 gap-y-2">
+    <div className="font-hanken bg-white border border-gray-400 rounded-xl shadow-sm px-5 py-4 flex flex-wrap items-start justify-between gap-x-8 gap-y-2">
       <h3 className="text-lg font-bold text-slate-900 tracking-wide self-center">Wastage Summary</h3>
 
       <div className="flex flex-col gap-1">
         <span className="text-md text-[#0B5566]">
-          <span className="font-semibold">Extruder</span> : {formatNum(extruderWaste)}kg
+          <span className="font-semibold">Extruder</span> : <span className="font-inter">{formatNum(extruderWaste)}</span>kg
         </span>
         <span className="text-xs text-gray-500">
-          Loose waste : {formatNum(looseWaste)}kg&nbsp;&nbsp;|&nbsp;&nbsp;Lums Waste : {formatNum(lums)}kg
+          Loose waste : <span className="font-inter">{formatNum(looseWaste)}</span>kg&nbsp;&nbsp;|&nbsp;&nbsp;Lums Waste : <span className="font-inter">{formatNum(lums)}</span>kg
         </span>
       </div>
 
       <div className="flex flex-col gap-1">
         <span className="text-md text-[#7A6A00]">
-          <span className="font-semibold">Looms Production</span> : {formatNum(loomsWaste)}kg
+          <span className="font-semibold">Looms Production</span> : <span className="font-inter">{formatNum(loomsWaste)}</span>kg
         </span>
         <span className="text-xs text-gray-500">
-          Looms/Yarn Waste : {formatNum(loomsWaste)}kg
+          Looms/Yarn Waste : <span className="font-inter">{formatNum(loomsWaste)}</span>kg
         </span>
       </div>
 
       <div className="flex flex-col gap-1">
         <span className="text-md text-[#2F6B2F]">
-          <span className="font-semibold">Fabric checking</span> : {formatNum(fabricCheckingWaste)}kg
+          <span className="font-semibold">Fabric checking</span> : <span className="font-inter">{formatNum(fabricCheckingWaste)}</span>kg
         </span>
         <span className="text-xs text-gray-500">
-          Fabric waste : {formatNum(fabricWaste)}kg&nbsp;&nbsp;|&nbsp;&nbsp;Bit waste : {formatNum(bitWaste)}kg
+          Fabric waste : <span className="font-inter">{formatNum(fabricWaste)}</span>kg&nbsp;&nbsp;|&nbsp;&nbsp;Bit waste : <span className="font-inter">{formatNum(bitWaste)}</span>kg
         </span>
       </div>
     </div>
