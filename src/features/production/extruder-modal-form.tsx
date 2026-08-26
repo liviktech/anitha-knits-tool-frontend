@@ -297,7 +297,7 @@ export function ExtruderModalForm({ productionDate, initialData, isEditMode, onC
     <div className="flex flex-col gap-2 px-1">
 
       {/* General Settings */}
-      <div className="flex gap-6">
+      <div className="flex gap-6 p-3 rounded-lg border border-gray-400">
         <div className="flex items-center gap-1 w-50">
           <Label className="text-gray-600 text-xs font-semibold uppercase tracking-wider shrink-0 w-10">Size</Label>
           <Select value={group.size} onValueChange={(v) => updateGroupField('size', v)} disabled={isEditMode}>
@@ -316,7 +316,7 @@ export function ExtruderModalForm({ productionDate, initialData, isEditMode, onC
       </div>
 
       {/* HDPE Material */}
-      <div className="space-y-2 bg-gray-100 p-3 rounded-lg border border-gray-200">
+      <div className="space-y-2 p-3 rounded-lg border border-gray-400">
         <div className="border-b pb-1.5">
           <h3 className={`text-xs font-semibold uppercase tracking-wider ${theme.headerText}`}>HDPE Material</h3>
         </div>
@@ -368,7 +368,7 @@ export function ExtruderModalForm({ productionDate, initialData, isEditMode, onC
 
       <div className="grid grid-cols-2 gap-3">
         {/* Chemicals */}
-        <div className="space-y-2 bg-gray-100 p-3 rounded-lg border border-gray-200">
+        <div className="space-y-2 p-3 rounded-lg border border-gray-400">
           <h3 className={`text-xs font-semibold uppercase tracking-wider border-b pb-1.5 ${theme.headerText}`}>Chemicals & Colors</h3>
           <div className="space-y-2">
             <div className="space-y-1.5">
@@ -392,7 +392,7 @@ export function ExtruderModalForm({ productionDate, initialData, isEditMode, onC
         </div>
 
         {/* Wastage */}
-        <div className="space-y-2 bg-gray-50/50 p-3 rounded-lg border border-gray-100">
+        <div className="space-y-2 p-3 rounded-lg border border-gray-400">
           <h3 className={`text-xs font-semibold uppercase tracking-wider border-b pb-1.5 ${theme.headerText}`}>Wastage</h3>
           <div className="space-y-2 pt-0.5">
             <div className="space-y-1.5">
@@ -408,7 +408,7 @@ export function ExtruderModalForm({ productionDate, initialData, isEditMode, onC
       </div>
 
       {/* Loom Production */}
-      <div className="space-y-2 bg-green-50/30 p-3 rounded-lg border border-green-100">
+      <div className="space-y-2 bg-green-50/30 p-3 rounded-lg border border-green-300">
         <h3 className="text-xs font-semibold uppercase tracking-wider text-green-800 border-b border-green-200 pb-1.5">Loom Production</h3>
         <div className="flex items-center gap-4 pt-1 w-2/3">
           <Label className="text-green-800 text-xs font-semibold shrink-0">Total Loom Production (kg)</Label>

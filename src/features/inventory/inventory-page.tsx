@@ -61,10 +61,12 @@ function InventoryFormDialog({ onClose, editDate, editRecords }: InventoryFormDi
   const { data: lookupsData } = useLookups();
   const isEdit = !!editDate;
 
+  const findDcForType = (type: InventoryType) => editRecords?.find(r => r.type === type && r.DC_NUMBER)?.DC_NUMBER ?? '';
+
   const [date, setDate] = useState(editDate || todayIso());
-  const [dcHdpe, setDcHdpe] = useState('');
-  const [dcChemical, setDcChemical] = useState('');
-  const [dcColor, setDcColor] = useState('');
+  const [dcHdpe, setDcHdpe] = useState(() => findDcForType('HDPE'));
+  const [dcChemical, setDcChemical] = useState(() => findDcForType('CHEMICAL'));
+  const [dcColor, setDcColor] = useState(() => findDcForType('COLOR'));
 
   const [weights, setWeights] = useState<Record<string, string>>(() => {
     const init: Record<string, string> = {};
@@ -125,11 +127,12 @@ function InventoryFormDialog({ onClose, editDate, editRecords }: InventoryFormDi
 
           if (!isNaN(val) && val > 0) {
             if (existing) {
-              if (existing.weightKg !== val) {
+              const dc = t.dc.trim();
+              if (existing.weightKg !== val || (dc && existing.DC_NUMBER !== dc)) {
                 promises.push(apiFetch(`/inventory/${existing.id}`, {
                   method: 'PATCH',
                   headers: { 'Content-Type': 'application/json' },
-                  body: JSON.stringify({ weightKg: val, date }),
+                  body: JSON.stringify({ weightKg: val, date, ...(dc && { DC: dc }) }),
                 }));
               }
             } else {
@@ -907,17 +910,17 @@ function StockSummaryCard({ onAdd, onEditDate, onDeleteDate }: { onAdd: (e: Reac
               <tr className="bg-gray-50 border-b border-gray-200">
                 <th rowSpan={2} className="border border-gray-200 px-3 py-2 text-left font-semibold text-gray-500 uppercase tracking-wide text-[11px] whitespace-nowrap w-28">DATE</th>
                 {hdpeNames.length > 0 && (
-                  <th colSpan={hdpeNames.length + 1} className="border border-gray-200 px-3 py-2 text-center font-bold text-teal-800 uppercase tracking-wide text-[11px] bg-blue-100">
+                  <th colSpan={hdpeNames.length + 2} className="border border-gray-200 px-3 py-2 text-center font-bold text-teal-800 uppercase tracking-wide text-[11px] bg-blue-100">
                     HDPE (KG)
                   </th>
                 )}
                 {chemicalNames.length > 0 && (
-                  <th colSpan={chemicalNames.length + 1} className="border border-gray-200 px-3 py-2 text-center font-bold text-yellow-800 uppercase tracking-wide text-[11px] bg-yellow-100">
+                  <th colSpan={chemicalNames.length + 2} className="border border-gray-200 px-3 py-2 text-center font-bold text-yellow-800 uppercase tracking-wide text-[11px] bg-yellow-100">
                     CHEMICALS (KG)
                   </th>
                 )}
                 {colorNames.length > 0 && (
-                  <th colSpan={colorNames.length + 1} className="border border-gray-200 px-3 py-2 text-center font-bold text-green-800 uppercase tracking-wide text-[11px] bg-green-100">
+                  <th colSpan={colorNames.length + 2} className="border border-gray-200 px-3 py-2 text-center font-bold text-green-800 uppercase tracking-wide text-[11px] bg-green-100">
                     COLORS (KG)
                   </th>
                 )}
@@ -929,14 +932,17 @@ function StockSummaryCard({ onAdd, onEditDate, onDeleteDate }: { onAdd: (e: Reac
                 {hdpeNames.map(name => (
                   <th key={name} className="border border-gray-200 px-3 py-1.5 text-center font-bold text-gray-800 text-[11px] uppercase whitespace-nowrap">{name}</th>
                 ))}
+                {hdpeNames.length > 0 && <th className="border border-gray-200 px-3 py-1.5 text-center font-bold text-teal-800 text-[11px] uppercase whitespace-nowrap bg-blue-50/70">Total</th>}
                 {chemicalNames.length > 0 && <th className="border border-gray-200 px-3 py-1.5 text-center font-bold text-gray-800 text-[11px] uppercase whitespace-nowrap bg-gray-50/50">DC NO</th>}
                 {chemicalNames.map(name => (
                   <th key={name} className="border border-gray-200 px-3 py-1.5 text-center font-bold text-gray-800 text-[11px] uppercase whitespace-nowrap">{name}</th>
                 ))}
+                {chemicalNames.length > 0 && <th className="border border-gray-200 px-3 py-1.5 text-center font-bold text-yellow-800 text-[11px] uppercase whitespace-nowrap bg-yellow-50/70">Total</th>}
                 {colorNames.length > 0 && <th className="border border-gray-200 px-3 py-1.5 text-center font-bold text-gray-800 text-[11px] uppercase whitespace-nowrap bg-gray-50/50">DC NO</th>}
                 {colorNames.map(name => (
                   <th key={name} className="border border-gray-200 px-3 py-1.5 text-center font-bold text-gray-800 text-[11px] uppercase whitespace-nowrap">{name}</th>
                 ))}
+                {colorNames.length > 0 && <th className="border border-gray-200 px-3 py-1.5 text-center font-bold text-green-800 text-[11px] uppercase whitespace-nowrap bg-green-50/70">Total</th>}
                 {totalCols === 0 && <th className="border border-gray-200"></th>}
               </tr>
             </thead>
@@ -946,12 +952,16 @@ function StockSummaryCard({ onAdd, onEditDate, onDeleteDate }: { onAdd: (e: Reac
                   <td colSpan={2 + totalCols || 3} className="text-center py-8 text-gray-400 text-sm">No stock received this month.</td>
                 </tr>
               ) : (
-                groupedByDate.map(([date, dayRecords]) => (
+                groupedByDate.map(([date, dayRecords]) => {
+                  const dayHdpeTotal = dayRecords.filter(r => r.type === 'HDPE').reduce((s, r) => s + r.weightKg, 0);
+                  const dayChemicalTotal = dayRecords.filter(r => r.type === 'CHEMICAL').reduce((s, r) => s + r.weightKg, 0);
+                  const dayColorTotal = dayRecords.filter(r => r.type === 'COLOR').reduce((s, r) => s + r.weightKg, 0);
+                  return (
                   <tr key={date} className="hover:bg-green-50/40 transition-colors group">
                     <td className="border border-gray-200 px-3 py-1 font-bold text-teal-900 whitespace-nowrap text-sm">{formatDateDisplay(date)}</td>
                     {hdpeNames.length > 0 && (
                       <td className="border border-gray-200 px-3 py-1 text-center font-bold text-blue-900 text-[10px] bg-blue-50/30">
-                        {dayRecords.find(r => r.type === 'HDPE' && r.dcNumber)?.dcNumber || '-'}
+                        {dayRecords.find(r => r.type === 'HDPE')?.DC_NUMBER || '-'}
                       </td>
                     )}
                     {hdpeNames.map(name => {
@@ -962,9 +972,14 @@ function StockSummaryCard({ onAdd, onEditDate, onDeleteDate }: { onAdd: (e: Reac
                         </td>
                       );
                     })}
+                    {hdpeNames.length > 0 && (
+                      <td className="border border-gray-200 px-3 py-1 text-center font-bold text-teal-700 text-xs bg-blue-50/30">
+                        {dayHdpeTotal > 0 ? dayHdpeTotal.toFixed(2) : <span className="text-gray-500">0.00</span>}
+                      </td>
+                    )}
                     {chemicalNames.length > 0 && (
                       <td className="border border-gray-200 px-3 py-1 text-center font-bold text-yellow-900 text-[10px] bg-yellow-50/30">
-                        {dayRecords.find(r => r.type === 'CHEMICAL' && r.dcNumber)?.dcNumber || '-'}
+                        {dayRecords.find(r => r.type === 'CHEMICAL')?.DC_NUMBER || '-'}
                       </td>
                     )}
                     {chemicalNames.map(name => {
@@ -975,9 +990,14 @@ function StockSummaryCard({ onAdd, onEditDate, onDeleteDate }: { onAdd: (e: Reac
                         </td>
                       );
                     })}
+                    {chemicalNames.length > 0 && (
+                      <td className="border border-gray-200 px-3 py-1 text-center font-bold text-yellow-700 text-xs bg-yellow-50/30">
+                        {dayChemicalTotal > 0 ? dayChemicalTotal.toFixed(2) : <span className="text-gray-500">0.00</span>}
+                      </td>
+                    )}
                     {colorNames.length > 0 && (
                       <td className="border border-gray-200 px-3 py-1 text-center font-bold text-green-900 text-[10px] bg-green-50/30">
-                        {dayRecords.find(r => r.type === 'COLOR' && r.dcNumber)?.dcNumber || '-'}
+                        {dayRecords.find(r => r.type === 'COLOR')?.DC_NUMBER || '-'}
                       </td>
                     )}
                     {colorNames.map(name => {
@@ -988,6 +1008,11 @@ function StockSummaryCard({ onAdd, onEditDate, onDeleteDate }: { onAdd: (e: Reac
                         </td>
                       );
                     })}
+                    {colorNames.length > 0 && (
+                      <td className="border border-gray-200 px-3 py-1 text-center font-bold text-green-700 text-xs bg-green-50/30">
+                        {dayColorTotal > 0 ? dayColorTotal.toFixed(2) : <span className="text-gray-500">0.00</span>}
+                      </td>
+                    )}
                     {totalCols === 0 && <td className="border border-gray-200 px-3 py-1"></td>}
                     <td className="border border-gray-200 px-3 py-1 text-center">
                       <div className="flex items-center justify-center gap-1">
@@ -1000,7 +1025,8 @@ function StockSummaryCard({ onAdd, onEditDate, onDeleteDate }: { onAdd: (e: Reac
                       </div>
                     </td>
                   </tr>
-                ))
+                  );
+                })
               )}
               {groupedByDate.length > 0 && (
                 <tr className="bg-white border-t-2 border-gray-300 font-bold">
@@ -1009,14 +1035,23 @@ function StockSummaryCard({ onAdd, onEditDate, onDeleteDate }: { onAdd: (e: Reac
                   {hdpeTotals.map((val, i) => (
                     <td key={i} className="border border-gray-200 px-3 py-1 text-center text-teal-600 text-xs font-bold">{val > 0 ? val.toFixed(2) : <span className="text-gray-500">0.00</span>}</td>
                   ))}
+                  {hdpeNames.length > 0 && (
+                    <td className="border border-gray-200 px-3 py-1 text-center text-teal-700 text-xs font-bold bg-blue-50/50">{rawMaterials.weight > 0 ? rawMaterials.weight.toFixed(2) : <span className="text-gray-500">0.00</span>}</td>
+                  )}
                   {chemicalNames.length > 0 && <td className="border border-gray-200 px-3 py-1 bg-gray-50"></td>}
                   {chemTotals.map((val, i) => (
                     <td key={i} className="border border-gray-200 px-3 py-1 text-center text-teal-600 text-xs font-bold">{val > 0 ? val.toFixed(2) : <span className="text-gray-500">0.00</span>}</td>
                   ))}
+                  {chemicalNames.length > 0 && (
+                    <td className="border border-gray-200 px-3 py-1 text-center text-yellow-700 text-xs font-bold bg-yellow-50/50">{chemicals.weight > 0 ? chemicals.weight.toFixed(2) : <span className="text-gray-500">0.00</span>}</td>
+                  )}
                   {colorNames.length > 0 && <td className="border border-gray-200 px-3 py-1 bg-gray-50"></td>}
                   {colorTotals.map((val, i) => (
                     <td key={i} className="border border-gray-200 px-3 py-1 text-center text-teal-600 text-xs font-bold">{val > 0 ? val.toFixed(2) : <span className="text-gray-500">0.00</span>}</td>
                   ))}
+                  {colorNames.length > 0 && (
+                    <td className="border border-gray-200 px-3 py-1 text-center text-green-700 text-xs font-bold bg-green-50/50">{colors.weight > 0 ? colors.weight.toFixed(2) : <span className="text-gray-500">0.00</span>}</td>
+                  )}
                   {totalCols === 0 && <td className="border border-gray-200 px-3 py-1"></td>}
                   <td className="border border-gray-200 px-3 py-1"></td>
                 </tr>

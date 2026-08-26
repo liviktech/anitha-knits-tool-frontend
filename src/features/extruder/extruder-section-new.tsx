@@ -303,19 +303,19 @@ export const ExtruderSection = forwardRef<SectionRef, SectionProps>(({ productio
               </TableCell>
             )}
 
-            <TableCell className="py-1.5 px-2">
+            <TableCell className="py-1.5 px-2 border border-black/10">
               <span className="block text-center">{parseFloat(brandRow.bags) > 0 ? brandRow.bags : '-'}</span>
             </TableCell>
-            <TableCell className="w-36 min-w-36 py-1.5 px-2">
+            <TableCell className="w-36 min-w-36 py-1.5 px-2 border border-black/10">
               <span className="text-center block">{brandRow.brand || '-'}</span>
             </TableCell>
-            <TableCell className="py-1.5 px-2">
+            <TableCell className="py-1.5 px-2 border border-black/10">
               <span className="block text-center">{parseFloat(brandRow.basisWeightKg) > 0 ? brandRow.basisWeightKg : '-'}</span>
             </TableCell>
-            <TableCell className="py-1.5 px-2">
+            <TableCell className="py-1.5 px-2 border border-black/10">
               <span className="block text-center">{parseFloat(brandRow.looseWeight) > 0 ? brandRow.looseWeight : '-'}</span>
             </TableCell>
-            <TableCell className="border-r border-gray-200 py-1.5 px-2">
+            <TableCell className="border-r border-gray-200 py-1.5 px-2 border border-black/10">
               <span className="block text-center font-medium">{parseFloat(brandRow.raw) > 0 ? parseFloat(brandRow.raw).toFixed(2) : '-'}</span>
             </TableCell>
 
@@ -332,18 +332,18 @@ export const ExtruderSection = forwardRef<SectionRef, SectionProps>(({ productio
 
             {idx === 0 && (
               <TableCell rowSpan={group.brands.length} className="align-middle border-r border-gray-200 py-1.5 px-2">
-                <span className="block text-center text-yellow-700">{parseFloat(group.lumpsKg) > 0 ? parseFloat(group.lumpsKg).toFixed(2) : '-'}</span>
+                <span className="block text-center">{parseFloat(group.lumpsKg) > 0 ? parseFloat(group.lumpsKg).toFixed(2) : '-'}</span>
               </TableCell>
             )}
             {idx === 0 && (
               <TableCell rowSpan={group.brands.length} className="align-middle border-r border-gray-200 py-1.5 px-2">
-                <span className="block text-center text-yellow-700">{parseFloat(group.yarnWasteKg) > 0 ? parseFloat(group.yarnWasteKg).toFixed(2) : '-'}</span>
+                <span className="block text-center">{parseFloat(group.yarnWasteKg) > 0 ? parseFloat(group.yarnWasteKg).toFixed(2) : '-'}</span>
               </TableCell>
             )}
 
             {idx === 0 && (
               <TableCell rowSpan={group.brands.length} className="align-middle border-r border-gray-200 py-1.5 px-0.5 w-24 min-w-24">
-                <span className="font-semibold text-green-700 block text-center text-xs sm:text-sm">{parseFloat(group.output) > 0 ? parseFloat(group.output).toFixed(2) : '-'}</span>
+                <span className="block text-center text-xs sm:text-sm">{parseFloat(group.output) > 0 ? parseFloat(group.output).toFixed(2) : '-'}</span>
               </TableCell>
             )}
 
@@ -394,8 +394,8 @@ export const ExtruderSection = forwardRef<SectionRef, SectionProps>(({ productio
         <Table>
           <TableHeader className={`${theme.headerBg}`}>
             <TableRow className="hover:!bg-transparent border-b-0">
-              <TableHead rowSpan={2} className={`align-middle !text-center text-sm font-semibold  tracking-wide ${theme.headerText} border-r border-black/10 py-1 px-2 w-20 min-w-20`}>Size</TableHead>
-              <TableHead colSpan={2} className={`align-middle !text-center text-sm font-semibold  tracking-wide ${theme.headerText} border-r border-black/10 py-1 px-2`}>Color</TableHead>
+              <TableHead rowSpan={2} className={`align-middle !text-center text-sm font-semibold  tracking-wide ${theme.headerText} border  border-black/10 py-1 px-2 w-20 min-w-20`}>Size</TableHead>
+              <TableHead colSpan={2} className={`align-middle !text-center text-sm font-semibold  tracking-wide ${theme.headerText} border border-black/10 py-1 px-2`}>Color</TableHead>
 
               <TableHead colSpan={5} className={`!text-center text-sm font-semibold  tracking-wide ${theme.headerText} border border-black/10 py-1 px-2`}>HDPE Material</TableHead>
               <TableHead colSpan={2} className={`!text-center text-sm font-semibold  tracking-wide ${theme.headerText} border border-black/10 py-1 px-2`}>Chemicals</TableHead>

@@ -240,7 +240,7 @@ export const FabricSection = forwardRef<SectionRef, SectionProps>(({ productionD
               <TableHead className={`text-center text-sm font-semibold  tracking-wide border border-black/10 ${theme.headerText}`}>Fabric Production (kg)</TableHead>
               <TableHead className={`text-center text-sm font-semibold  tracking-wide border border-black/10 ${theme.headerText}`}>Fabric Waste</TableHead>
               <TableHead className={`text-center text-sm font-semibold  tracking-wide border border-black/10 ${theme.headerText}`}>Bit Waste</TableHead>
-              <TableHead className={`text-center text-xs font-semibold  tracking-wide ${theme.headerText}`}>Fabric Stock (kg)</TableHead>
+              <TableHead className={`text-center text-sm font-semibold  tracking-wide ${theme.headerText}`}>Fabric Stock (kg)</TableHead>
               {!readOnly && <TableHead className={`!text-center text-sm font-semibold  tracking-wide border border-black/10 ${theme.headerText}`}>Action</TableHead>}
             </TableRow>
           </TableHeader>
