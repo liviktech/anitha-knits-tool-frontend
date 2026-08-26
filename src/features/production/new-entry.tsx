@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { format, parseISO } from 'date-fns';
 import { Calendar as CalendarIcon, ChevronUp, ChevronDown, Plus } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -33,7 +34,8 @@ export function NewEntry({ onClose, defaultDate, readOnly = false }: NewEntryPro
   const [submitting, setSubmitting] = useState(false);
   const [isInventoryMinimized, setIsInventoryMinimized] = useState(false);
 
-  const [activeTab, setActiveTab] = useState<string>('extruder');
+  const [searchParams] = useSearchParams();
+  const [activeTab, setActiveTab] = useState<string>(searchParams.get('tab') || 'extruder');
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
   const [editingExtruderGroup, setEditingExtruderGroup] = useState<any>(null);
   const [editingLoomGroup, setEditingLoomGroup] = useState<any>(null);

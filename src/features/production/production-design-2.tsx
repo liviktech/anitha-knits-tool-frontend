@@ -744,10 +744,7 @@ export function ProductionDesign2() {
                       <p className="text-[10px] px-3 font-extrabold uppercase tracking-wide text-gray-600 mb-1">WASTE %</p>
                       <p className="text-[17px] px-3 font-bold text-gray-900 leading-none font-inter">{loomsWastePct.toFixed(2)}%</p>
                     </div>
-                    <div className="flex-[1.7]">
-                      <p className="text-[10px] px-3 font-extrabold uppercase tracking-wide text-gray-600 mb-1">100 WASTAGE (KG)</p>
-                      <p className="text-[17px] px-3 font-bold text-gray-900 leading-none font-inter">0.00</p>
-                    </div>
+                  
                   </div>
                 </CardContent>
               </div>

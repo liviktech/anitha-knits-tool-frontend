@@ -1,4 +1,6 @@
 import { useMemo, useState } from 'react';
+import { Link } from 'react-router-dom';
+import '@fontsource-variable/hanken-grotesk';
 import {
   ResponsiveContainer,
   AreaChart,
@@ -14,12 +16,19 @@ import {
   BarChart,
   Bar,
 } from 'recharts';
-import { ChevronDown, Users, Wallet, Calendar, TrendingUp, IndianRupee } from 'lucide-react';
+import { ChevronDown, Users, Wallet, Calendar, TrendingUp, IndianRupee, RefreshCw, Download, Briefcase, ClipboardList, Truck, Package, ArrowUp, ArrowDown, ArrowRight, Layers } from 'lucide-react';
+import { format, startOfMonth, endOfMonth, subMonths } from 'date-fns';
+import extruderIcon from '@/assets/extruder-icon.png';
+import loomsIcon from '@/assets/looms-icon.png';
 import { useLoadSentRecords } from '@/features/inventory/load-sent-queries';
 import { Loader } from '@/components/shared/loader';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { useDayWiseProduction } from '@/features/production/day-wise-queries';
 import { useInventoryRecords, type InventoryType } from '@/features/inventory/inventory-queries';
+import { useExtruderProductions } from '@/features/extruder/extruder-queries';
+import { useLoomsProductions } from '@/features/looms/loom-queries';
+import { useFabricCheckingRecords } from '@/features/fabric/fabric-queries';
+import { sumWastageByCode } from '@/lib/api-types';
 import { useLookups } from '@/lib/lookups';
 import { mockAttendanceTrend, mockExpenseBreakdown } from './mock-data';
 
@@ -42,7 +51,15 @@ function formatNum(n: number): string {
   return n.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 }
 
-const fabricDeliveredSizes = ['150cm', '160cm', '170cm', '180cm', '190cm'] as const;
+function formatDateDMY(dateStr: string): string {
+  const [y, m, d] = dateStr.slice(0, 10).split('-');
+  return y && m && d ? `${d}-${m}-${y}` : dateStr;
+}
+
+function pctChange(current: number, previous: number): number {
+  if (!previous) return current > 0 ? 100 : 0;
+  return ((current - previous) / previous) * 100;
+}
 
 function deliveryColorClass(color: string): string {
   const normalizedColor = color.toLowerCase();
@@ -51,11 +68,129 @@ function deliveryColorClass(color: string): string {
   return 'text-gray-700';
 }
 
+const FABRIC_STOCK_SIZES = ['150cm', '160cm', '170cm', '180cm', '190cm'] as const;
+
 export function DashboardDesign2() {
-  const { isLoading } = useDayWiseProduction();
+  const currentMonthStr = format(new Date(), 'yyyy-MM');
+  const prevMonthDate = subMonths(new Date(), 1);
+  const prevMonthStr = format(prevMonthDate, 'yyyy-MM');
+
+  const { rows, apiSummary, isLoading } = useDayWiseProduction(currentMonthStr);
+  const { apiSummary: prevApiSummary } = useDayWiseProduction(prevMonthStr);
   const { data: inventoryData } = useInventoryRecords('?limit=100');
-  const { isLoading: loadingLoadSent } = useLoadSentRecords('?limit=100');
+  const { data: loadSentData, isLoading: loadingLoadSent } = useLoadSentRecords('?limit=100');
+  const { data: extruderData } = useExtruderProductions('?limit=100');
+  const { data: loomsData } = useLoomsProductions('?limit=100');
+  const { data: fabricCheckingData } = useFabricCheckingRecords('?limit=100');
   useLookups();
+
+  // Wastage from each process — quantities live on each record's `wastages` array,
+  // keyed by wastageType.code (LUMPS/YARN_WASTE for Extruder, LOOMS_WASTE for Looms,
+  // FW/BW for Fabric Checking), never as a field on the stage's own detail object.
+  const latestExtruderRecord = [...(extruderData?.data ?? [])].sort((a, b) =>
+    a.productionDate < b.productionDate ? 1 : a.productionDate > b.productionDate ? -1 : 0,
+  )[0];
+  const latestLoomsRecord = [...(loomsData?.data ?? [])].sort((a, b) =>
+    a.productionDate < b.productionDate ? 1 : a.productionDate > b.productionDate ? -1 : 0,
+  )[0];
+  const latestFabricRecord = [...(fabricCheckingData?.data ?? [])].sort((a, b) =>
+    a.productionDate < b.productionDate ? 1 : a.productionDate > b.productionDate ? -1 : 0,
+  )[0];
+
+  const looseWasteKg = (extruderData?.data ?? []).reduce((sum, r) => sum + sumWastageByCode(r.wastages, 'YARN_WASTE'), 0);
+  const lumsWasteKg = (extruderData?.data ?? []).reduce((sum, r) => sum + sumWastageByCode(r.wastages, 'LUMPS'), 0);
+  const loomsWasteKg = (loomsData?.data ?? []).reduce((sum, r) => sum + sumWastageByCode(r.wastages, 'LOOMS_WASTE'), 0);
+  const fabricWasteKg = (fabricCheckingData?.data ?? []).reduce((sum, r) => sum + sumWastageByCode(r.wastages, 'FW'), 0);
+  const bitWasteKg = (fabricCheckingData?.data ?? []).reduce((sum, r) => sum + sumWastageByCode(r.wastages, 'BW'), 0);
+
+  // Fabric Stock — no persisted "current stock" field exists anywhere in the API
+  // (unlike HDPE/Chemical/Color inventory). Derived as everything Fabric Checking
+  // has produced minus everything that's gone out via Load Sent, grouped by color x size.
+  const fabricStockByColor = (() => {
+    const byColor = new Map<string, { color: string; colorClass: string; stockBySize: Record<string, number> }>();
+    const getRow = (color: string) => {
+      const existing = byColor.get(color);
+      if (existing) return existing;
+      const row = { color, colorClass: deliveryColorClass(color), stockBySize: {} as Record<string, number> };
+      byColor.set(color, row);
+      return row;
+    };
+    (fabricCheckingData?.data ?? []).forEach((r) => {
+      const color = r.color?.name;
+      const size = r.size?.name;
+      const output = r.fabricCheck?.outputKg ?? 0;
+      if (!color || !size) return;
+      const row = getRow(color);
+      row.stockBySize[size] = (row.stockBySize[size] ?? 0) + output;
+    });
+    (loadSentData?.data ?? []).forEach((r) => {
+      const color = r.color?.name;
+      const size = r.size?.name;
+      const delivered = r.fabricWeight ?? r.weightKg ?? 0;
+      if (!color || !size) return;
+      const row = getRow(color);
+      row.stockBySize[size] = (row.stockBySize[size] ?? 0) - delivered;
+    });
+    return Array.from(byColor.values());
+  })();
+  const totalFabricStockKg = fabricStockByColor.reduce(
+    (sum, row) => sum + Object.values(row.stockBySize).reduce((s, v) => s + v, 0),
+    0,
+  );
+
+  // Per-stage summary — mirrors production-design-2.tsx's Summary Cards block verbatim
+  // (same variable names) so the two pages' process cards stay pixel-identical.
+  const extruderSummary = {
+    input: apiSummary?.extruder.inputKg ?? 0,
+    output: apiSummary?.extruder.outputKg ?? 0,
+    wastage: apiSummary?.extruder.wastageKg ?? 0,
+  };
+  const efficiency = apiSummary?.extruder.efficiencyPct ?? 0;
+
+  const loomsSummary = {
+    input: apiSummary?.looms.inputKg ?? 0,
+    output: apiSummary?.looms.outputKg ?? 0,
+    wastage: apiSummary?.looms.wastageKg ?? 0,
+  };
+  const loomsEfficiency = apiSummary?.looms.efficiencyPct ?? 0;
+
+  const fabricSummary = {
+    input: apiSummary?.fabricChecking.inputKg ?? 0,
+    checked: apiSummary?.fabricChecking.outputKg ?? 0,
+    wastage: apiSummary?.fabricChecking.wastageKg ?? 0,
+  };
+  const fabricEfficiency = apiSummary?.fabricChecking.efficiencyPct ?? 0;
+
+  // KPI strip — Total Production, Avg Efficiency, Fabric Delivered, Pending Approvals,
+  // each compared against the previous calendar month using data already fetched above.
+  const totalProductionKg = (apiSummary?.extruder.outputKg ?? 0) + (apiSummary?.looms.outputKg ?? 0) + (apiSummary?.fabricChecking.outputKg ?? 0);
+  const prevTotalProductionKg = (prevApiSummary?.extruder.outputKg ?? 0) + (prevApiSummary?.looms.outputKg ?? 0) + (prevApiSummary?.fabricChecking.outputKg ?? 0);
+
+  const avgEfficiencyPct = ((apiSummary?.extruder.efficiencyPct ?? 0) + (apiSummary?.looms.efficiencyPct ?? 0) + (apiSummary?.fabricChecking.efficiencyPct ?? 0)) / 3;
+  const prevAvgEfficiencyPct = ((prevApiSummary?.extruder.efficiencyPct ?? 0) + (prevApiSummary?.looms.efficiencyPct ?? 0) + (prevApiSummary?.fabricChecking.efficiencyPct ?? 0)) / 3;
+
+  const prevMonthDeliveredKg = (loadSentData?.data ?? [])
+    .filter((r) => (r.productionDate ?? r.date ?? '').startsWith(prevMonthStr))
+    .reduce((sum, r) => sum + (r.fabricWeight ?? r.weightKg ?? 0), 0);
+
+  const sparkRows = [...rows].reverse().slice(-7);
+  const productionSparkline = sparkRows.map((r) => r.extruder.output + r.looms.output + r.fabric.output);
+  const efficiencySparkline = sparkRows.map((r) => {
+    const stages = [r.extruder, r.looms, r.fabric];
+    const effs = stages.map((s) => (s.input > 0 ? (s.output / s.input) * 100 : 0));
+    return effs.reduce((a, b) => a + b, 0) / effs.length;
+  });
+  const deliveredByDayMap = new Map<string, number>();
+  (loadSentData?.data ?? []).forEach((r) => {
+    const d = (r.productionDate ?? r.date ?? '').slice(0, 10);
+    if (d) deliveredByDayMap.set(d, (deliveredByDayMap.get(d) ?? 0) + (r.fabricWeight ?? r.weightKg ?? 0));
+  });
+  const deliveredSparkline = Array.from(deliveredByDayMap.entries())
+    .sort(([a], [b]) => (a < b ? -1 : 1))
+    .slice(-7)
+    .map(([, kg]) => kg);
+
+  const prevPeriodLabel = `vs ${format(startOfMonth(prevMonthDate), 'MMM d')} – ${format(endOfMonth(prevMonthDate), 'MMM d')}`;
 
   const [isFabricDeliveredExpanded, setIsFabricDeliveredExpanded] = useState(true);
 
@@ -78,32 +213,18 @@ export function DashboardDesign2() {
   const chemicals = getCategoryData('CHEMICAL');
   const invColors = getCategoryData('COLOR');
 
-  // Mock Data for Fabric Delivered
-  const selectedMonthDeliveryTableRows = [
-    {
-      color: 'White',
-      colorClass: deliveryColorClass('White'),
-      deliveredBySize: { '150cm': 120.5, '160cm': 45.2, '170cm': 0, '180cm': 89.0, '190cm': 12.4 }
-    },
-    {
-      color: 'Blue',
-      colorClass: deliveryColorClass('Blue'),
-      deliveredBySize: { '150cm': 0, '160cm': 210.0, '170cm': 55.5, '180cm': 0, '190cm': 0 }
-    },
-    {
-      color: 'Green',
-      colorClass: deliveryColorClass('Green'),
-      deliveredBySize: { '150cm': 30.0, '160cm': 0, '170cm': 100.0, '180cm': 40.0, '190cm': 0 }
-    }
-  ];
+  const monthDeliveries = (loadSentData?.data ?? [])
+    .filter((r) => (r.productionDate ?? r.date ?? '').startsWith(month))
+    .map((r) => ({
+      id: r.id,
+      date: r.productionDate ?? r.date,
+      color: r.color?.name ?? '',
+      size: r.size?.name ?? '',
+      kg: r.fabricWeight ?? r.weightKg ?? 0,
+    }))
+    .sort((a, b) => (a.date < b.date ? 1 : -1));
 
-  const deliveredColorTotals = {
-    white: Object.values(selectedMonthDeliveryTableRows[0].deliveredBySize).reduce((a, b) => a + b, 0),
-    blue: Object.values(selectedMonthDeliveryTableRows[1].deliveredBySize).reduce((a, b) => a + b, 0),
-    green: Object.values(selectedMonthDeliveryTableRows[2].deliveredBySize).reduce((a, b) => a + b, 0),
-  };
-
-  const selectedMonthDeliveryTotal = deliveredColorTotals.white + deliveredColorTotals.blue + deliveredColorTotals.green;
+  const selectedMonthDeliveryTotal = monthDeliveries.reduce((sum, d) => sum + d.kg, 0);
 
   const trend = useMemo(() => {
     // 30 days of mock trend data
@@ -162,36 +283,88 @@ export function DashboardDesign2() {
       <div className="pointer-events-none absolute top-1/3 -left-24 w-72 h-72 rounded-full bg-yellow-200/30 blur-3xl motion-safe:[animation:dashFloatB_11s_ease-in-out_infinite]" />
       <div className="pointer-events-none absolute bottom-0 right-1/4 w-96 h-64 rounded-full bg-green-200/30 blur-3xl motion-safe:[animation:dashFloatC_10s_ease-in-out_infinite]" />
 
-      <div className="relative z-10 p-2.5 md:p-2.5 flex flex-col gap-3 bg-[#F4F1E8]">
+      <div className="relative z-10 p-1.5 md:p-1.5 flex flex-col gap-2 bg-[#F4F1E8]">
         {/* Header */}
-        <div className="flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between animate-in fade-in-0 slide-in-from-top-2 duration-500 fill-mode-both">
+        <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between border-b border-gray-200 px-2 py-1 animate-in fade-in-0 slide-in-from-top-2 duration-500 fill-mode-both">
           <div>
-            <h1 className="text-xl md:text-2xl font-bold text-slate-900 mt-2 px-3">Production Overview</h1>
+            <h1 className="text-[22px] font-bold text-black leading-tight px-1">Dashboard</h1>
+             {/* <p className="text-[12px] font-medium text-gray-600 leading-tight mt-0.5">Production overview</p> */}
+          </div>
+          <div className="flex flex-wrap items-center gap-2">
+            <div className="flex items-center gap-2 border border-gray-400 rounded-lg px-3 py-2 text-sm font-medium text-slate-700">
+              <span>{format(new Date(), 'MMM d, yyyy')}</span>
+              <Calendar className="w-4 h-4 text-slate-400" />
+            </div>
+            <button className="flex items-center justify-center border border-gray-400 rounded-lg w-9 h-9 text-slate-500 hover:bg-slate-50 transition-colors" aria-label="Refresh">
+              <RefreshCw className="w-4 h-4" />
+            </button>
+            {/* <button className="flex items-center gap-2 bg-[#1B7A4D] rounded-lg px-4 py-2 text-sm font-semibold text-white hover:bg-[#166841] transition-colors">
+              <Download className="w-4 h-4" />
+              Export
+            </button> */}
           </div>
         </div>
 
-        {/* Inventory Summary Mini Cards */}
-        <div className="py-3 bg-gradient-to-br from-gray-50 to-green-50/20 rounded-xl" style={{ fontFamily: "'Hanken Grotesk Variable', 'Hanken Grotesk', sans-serif" }}>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-2">
+        {/* White content surface wrapping everything below the header */}
+        <div className="bg-white rounded-2xl shadow-sm p-2 md:p-2 flex flex-col gap-1">
+
+        {/* KPI Strip */}
+        {/* <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-2.5">
+          <KpiStatCard
+            icon={<Briefcase className="w-4 h-4 text-emerald-600" />}
+            label="Total Production (Kg)"
+            value={formatNum(totalProductionKg)}
+            changePct={pctChange(totalProductionKg, prevTotalProductionKg)}
+            periodLabel={prevPeriodLabel}
+            sparklineData={productionSparkline}
+          />
+          <KpiStatCard
+            icon={<Package className="w-4 h-4 text-emerald-600" />}
+            label="Fabric Stock (Kg)"
+            value={formatNum(totalFabricStockKg)}
+            footer="Fabric Checking output minus deliveries"
+          />
+          <KpiStatCard
+            icon={<Truck className="w-4 h-4 text-emerald-600" />}
+            label="Fabric Delivered (Kg)"
+            value={formatNum(selectedMonthDeliveryTotal)}
+            changePct={pctChange(selectedMonthDeliveryTotal, prevMonthDeliveredKg)}
+            periodLabel={prevPeriodLabel}
+            sparklineData={deliveredSparkline}
+          />
+          <KpiStatCard
+            icon={<ClipboardList className="w-4 h-4 text-emerald-600" />}
+            label="Avg. Efficiency"
+            value={`${avgEfficiencyPct.toFixed(1)}%`}
+            changePct={pctChange(avgEfficiencyPct, prevAvgEfficiencyPct)}
+            periodLabel={prevPeriodLabel}
+            sparklineData={efficiencySparkline}
+          />
+        </div> */}
+
+          {/* Inventory Summary Mini Cards */}
+        <div className="" style={{ fontFamily: "'Hanken Grotesk Variable', 'Hanken Grotesk', sans-serif" }}>
+            <p className="font-bold text-xl px-0.5 text-left">Raw Materials</p>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-2 py-2">
             {/* HDPE Card */}
             <div className="bg-white rounded-xl border border-gray-400 shadow-sm p-4 relative overflow-hidden group/card hover:border-blue-200 transition-colors flex flex-col">
               <div className="absolute top-0 right-0 p-4 opacity-5 group-hover/card:opacity-10 transition-opacity">
                 <img src="/hdpe.png" alt="" className="w-26 h-26 object-contain" />
               </div>
-              <div className="flex justify-between items-start mb-4 relative z-10">
+              <div className="flex justify-between items-start mb-1 relative z-10">
                 <div className="flex items-center gap-2">
                   <div className=""><img src="/hdpe.png" alt="HDPE" className="w-12 h-12 object-contain" /></div>
                   <h3 className="font-extrabold text-gray-800 text-lg">HDPE Materials</h3>
                 </div>
-                <div className="text-lg font-bold text-gray-800 leading-none">{rawMaterials.weight.toFixed(2)} <span className="text-xs font-medium text-gray-500">kg</span></div>
+                <div className="text-lg font-bold text-brown-400 leading-none">{rawMaterials.weight.toFixed(2)} <span className="text-xs font-medium text-gray-500">kg</span></div>
               </div>
               <div className="mt-auto relative z-10 pt-2 border-t border-gray-50">
                 {rawMaterials.items.length > 0 ? (
-                  <div className="flex flex-wrap items-center gap-x-6 gap-y-3 mt-1">
+                  <div className="flex flex-wrap items-center justify-between gap-x-6 gap-y-3 mt-1">
                     {rawMaterials.items.map(item => (
                       <div key={item.name} className="flex flex-col gap-0.5 text-sm">
                         <span className="font-medium text-gray-500">{item.name}</span>
-                        <span className="font-bold text-gray-900">{item.weight.toFixed(2)}<span className="text-gray-400 font-normal text-[10px] ml-0.5">kg</span></span>
+                        <span className="font-extrabold text-[#004D40]">{item.weight.toFixed(2)}<span className="text-gray-500 font-normal text-[12px] ml-0.5">kg</span></span>
                       </div>
                     ))}
                   </div>
@@ -204,7 +377,7 @@ export function DashboardDesign2() {
               <div className="absolute top-0 right-0 p-4 opacity-5 group-hover/card:opacity-10 transition-opacity">
                 <img src="/chemical.png" alt="" className="w-26 h-26 object-contain" />
               </div>
-              <div className="flex justify-between items-start mb-4 relative z-10">
+              <div className="flex justify-between items-start mb-1 relative z-10">
                 <div className="flex items-center gap-2">
                   <div className=""><img src="/chemical.png" alt="Chemicals" className="w-12 h-12 object-contain" /></div>
                   <h3 className="font-extrabold text-gray-800 text-lg">Chemicals</h3>
@@ -213,11 +386,11 @@ export function DashboardDesign2() {
               </div>
               <div className="mt-auto relative z-10 pt-2 border-t border-gray-50">
                 {chemicals.items.length > 0 ? (
-                  <div className="flex flex-wrap items-center gap-x-6 gap-y-3 mt-1">
+                  <div className="flex flex-wrap items-center justify-center gap-x-6 gap-y-3 mt-px">
                     {chemicals.items.map(item => (
                       <div key={item.name} className="flex flex-col gap-0.5 text-sm">
                         <span className="font-medium text-gray-500">{item.name}</span>
-                        <span className="font-bold text-gray-900">{item.weight.toFixed(2)}<span className="text-gray-400 font-normal text-[10px] ml-0.5">kg</span></span>
+                        <span className="font-extrabold text-[#004D40]">{item.weight.toFixed(2)}<span className="text-gray-500 font-normal text-[12px] ml-0.5">kg</span></span>
                       </div>
                     ))}
                   </div>
@@ -230,7 +403,7 @@ export function DashboardDesign2() {
               <div className="absolute top-0 right-0 p-4 opacity-5 group-hover/card:opacity-10 transition-opacity">
                 <img src="/color.png" alt="" className="w-26 h-26 object-contain" />
               </div>
-              <div className="flex justify-between items-start mb-4 relative z-10">
+              <div className="flex justify-between items-start mb-1 relative z-10">
                 <div className="flex items-center gap-2">
                   <div className=""><img src="/color.png" alt="Colors" className="w-12 h-12 object-contain" /></div>
                   <h3 className="font-extrabold text-gray-800 text-lg">Colors</h3>
@@ -239,11 +412,11 @@ export function DashboardDesign2() {
               </div>
               <div className="mt-auto relative z-10 pt-2 border-t border-gray-50">
                 {invColors.items.length > 0 ? (
-                  <div className="flex flex-wrap items-center gap-x-6 gap-y-3 mt-1">
+                  <div className="flex flex-wrap items-center justify-center gap-x-6 gap-y-3 mt-1">
                     {invColors.items.map(item => (
-                      <div key={item.name} className="flex flex-col gap-0.5 text-sm">
+                      <div key={item.name} className="flex flex-col items-center gap-0.5 text-sm">
                         <span className="font-medium text-gray-500">{item.name}</span>
-                        <span className="font-bold text-gray-900">{item.weight.toFixed(2)}<span className="text-gray-400 font-normal text-[10px] ml-0.5">kg</span></span>
+                        <span className="font-extrabold text-[#004D40]">{item.weight.toFixed(2)}<span className="text-gray-500 font-normal text-[12px] ml-0.5">kg</span></span>
                       </div>
                     ))}
                   </div>
@@ -253,12 +426,164 @@ export function DashboardDesign2() {
           </div>
         </div>
 
-        {/* Delivered Stocks Horizontal Bar */}
-        <div className="bg-gray-100 border border-gray-400 rounded-[10px] px-5 py-2.5 shadow-sm flex flex-col transition-all duration-300">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-3">
+        {/* Production Summary (Extruder / Looms / Fabric) — copied verbatim from production-design-2.tsx's Summary Cards block */}
+        <div className="font-hanken">
+           <p className="font-bold text-xl px-0.5 text-left">Production Summary</p>
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-2.5 py-2">
+          <Card className="bg-white border border-gray-400 rounded-[14px] p-2 hover:shadow-md transition-all">
+            <div className="bg-[#00897B]/5 border border-[#B8DCD0] rounded-[10px] h-full flex flex-col">
+              <CardHeader className="flex flex-row items-center justify-between pb-3 pt-4 px-4">
+                <CardTitle className="text-[17px] font-extrabold text-[#0B5566] flex items-center gap-3">
+                  Extruder Production
+                </CardTitle>
+                {/* <div className="bg-white p-1.5 rounded-md border border-gray-100 shadow-[0_1px_2px_rgba(0,0,0,0.05)]">
+                  <img src={extruderIcon} alt="Extruder" className="w-[35px] h-[35px] object-contain opacity-90" />
+                </div> */}
+              </CardHeader>
+              <CardContent className="px-3 pb-4 pt-0 flex-1 flex flex-col justify-between">
+                <div className="flex border border-gray-100 rounded-lg mb-4 bg-white overflow-hidden">
+                  <div className="flex-1 border-r border-gray-100 px-2 sm:px-3 py-3 flex flex-col justify-center">
+                    <p className="text-[10.5px] font-extrabold uppercase tracking-wide text-gray-600 mb-1.5 whitespace-nowrap">TOTAL PRODUCTION (KG)</p>
+                    <p className="text-[18px] font-bold text-[#004D40] leading-none font-inter">{formatNum(extruderSummary.output)}</p>
+                  </div>
+                  <div className="flex-1 border-r border-gray-100 px-2 sm:px-3 py-3 flex flex-col justify-center">
+                    <p className="text-[10.5px] font-extrabold uppercase tracking-wide text-gray-600 mb-1.5 whitespace-nowrap">TOTAL WASTAGE (KG)</p>
+                    <p className="text-[17px] font-bold text-[#004D40] leading-none font-inter">{formatNum(extruderSummary.wastage)}</p>
+                  </div>
+                  <div className="flex-1 px-2 sm:px-3 py-3 flex flex-col justify-center">
+                    <p className="text-[10.5px] font-extrabold uppercase tracking-wide text-gray-600 mb-1.5">EFFICIENCY</p>
+                    <p className="text-[17px] font-bold text-[#00A87E] leading-none font-inter">{efficiency.toFixed(2)}%</p>
+                  </div>
+                </div>
+                <div className="flex items-center px-1">
+                  <div className="flex-1">
+                    <p className="text-[10px] px-3 font-extrabold uppercase tracking-wide text-gray-600 mb-1.5">COLOR</p>
+                    <p className="text-[17px] px-3 font-bold text-gray-900 leading-none font-inter">{latestExtruderRecord?.color?.name ?? '--'}</p>
+                  </div>
+                  <div className="flex-1">
+                    <p className="text-[10px] px-3 font-extrabold uppercase tracking-wide text-gray-600 mb-1.5">SIZE</p>
+                    <p className="text-[17px] px-3 font-bold text-gray-900 leading-none font-inter">{latestExtruderRecord?.size?.name ?? '--'}</p>
+                  </div>
+                  <div className="flex-1">
+                    <p className="text-[10px] px-3 font-extrabold uppercase tracking-wide text-gray-600 mb-1.5">OUTPUT (KG)</p>
+                    <p className="text-[17px] px-3 font-bold text-gray-900 leading-none font-inter">{formatNum(latestExtruderRecord?.extruder.yarnOutputKg ?? 0)}</p>
+                  </div>
+                </div>
+              </CardContent>
+            </div>
+          </Card>
+
+          <Card className="bg-white border border-gray-400 rounded-[14px] p-2 hover:shadow-md transition-all">
+            <div className="bg-[#004D40]/5 border border-[#B8D8D5] rounded-[10px] h-full flex flex-col">
+              <CardHeader className="flex flex-row items-center justify-between pb-3 pt-4 px-4">
+                <CardTitle className="text-[17px] font-extrabold text-[#7A6A00] flex items-center gap-3">
+                  {/* <div className="bg-[#7A6A00] border text-white w-6 h-6 rounded-[4px] flex items-center justify-center text-sm font-bold shadow-sm">2</div> */}
+                  Looms Production
+                </CardTitle>
+                {/* <div className="bg-white p-1.5 rounded-md border border-gray-100 shadow-[0_1px_2px_rgba(0,0,0,0.05)]">
+                  <img src={loomsIcon} alt="Looms" className="w-[35px] h-[35px] object-contain opacity-90" />
+                </div> */}
+              </CardHeader>
+              <CardContent className="px-3 pb-4 pt-0 flex-1 flex flex-col justify-between">
+                <div className="flex border border-gray-100 rounded-lg mb-4 bg-white overflow-hidden">
+                  <div className="flex-1 border-r border-gray-100 px-2 sm:px-3 py-3 flex flex-col justify-center">
+                    <p className="text-[10.5px] font-extrabold uppercase tracking-wide text-gray-600 mb-1.5 whitespace-nowrap">TOTAL PRODUCTION (KG)</p>
+                    <p className="text-[18px] font-bold text-[#004D40] leading-none font-inter">{loomsSummary.output.toFixed(2)}</p>
+                  </div>
+                  <div className="flex-1 border-r border-gray-100 px-2 sm:px-3 py-3 flex flex-col justify-center">
+                    <p className="text-[10.5px] font-extrabold uppercase tracking-wide text-gray-600 mb-1.5 whitespace-nowrap">TOTAL WASTAGE (KG)</p>
+                    <p className="text-[17px] font-bold text-[#004D40] leading-none font-inter">{loomsSummary.wastage.toFixed(2)}</p>
+                  </div>
+                  <div className="flex-1 px-2 sm:px-3 py-3 flex flex-col justify-center">
+                    <p className="text-[10.5px] font-extrabold uppercase tracking-wide text-gray-600 mb-1.5">EFFICIENCY</p>
+                    <p className="text-[17px] font-bold text-[#00A87E] leading-none font-inter">{loomsEfficiency.toFixed(2)}%</p>
+                  </div>
+                </div>
+                <div className="flex items-center px-1">
+                  <div className="flex-1">
+                    <p className="text-[10px] px-3 font-extrabold uppercase tracking-wide text-gray-600 mb-1">COLOR</p>
+                    <p className="text-[17px] px-3 font-bold text-gray-900 leading-none font-inter">{latestLoomsRecord?.color?.name ?? '--'}</p>
+                  </div>
+                  <div className="flex-1">
+                    <p className="text-[10px] px-3 font-extrabold uppercase tracking-wide text-gray-600 mb-1">SIZE</p>
+                    <p className="text-[17px] px-3 font-bold text-gray-900 leading-none font-inter">{latestLoomsRecord?.size?.name ?? '--'}</p>
+                  </div>
+                  <div className="flex-1">
+                    <p className="text-[10px] px-3 font-extrabold uppercase tracking-wide text-gray-600 mb-1">OUTPUT (KG)</p>
+                    <p className="text-[17px] px-3 font-bold text-gray-900 leading-none font-inter">{formatNum(latestLoomsRecord?.loom.fabricOutputKg ?? 0)}</p>
+                  </div>
+                </div>
+              </CardContent>
+            </div>
+          </Card>
+
+          <Card className="bg-white border border-gray-400 rounded-[14px] p-2 hover:shadow-md transition-all">
+            <div className="bg-[#004D40]/5 border border-[#C5D8C2] rounded-[10px] h-full flex flex-col">
+              <CardHeader className="flex flex-row items-center justify-between pb-3 pt-4 px-4">
+                <CardTitle className="text-[17px] font-extrabold text-[#2F6B2F] flex items-center gap-3">
+                  {/* <div className="bg-[#2F6B2F] border text-white w-6 h-6 rounded-[4px] flex items-center justify-center text-sm font-bold shadow-sm">3</div> */}
+                  Fabric Production
+                </CardTitle>
+                {/* <div className="bg-white p-1.5 rounded-md border border-gray-100 shadow-[0_1px_2px_rgba(0,0,0,0.05)] text-[#004D40] flex items-center justify-center">
+                  <Layers className="w-[35px] h-[35px] opacity-90" />
+                </div> */}
+              </CardHeader>
+              <CardContent className="px-3 pb-4 pt-0 flex-1 flex flex-col justify-between">
+                <div className="flex border border-gray-100 rounded-lg mb-4 bg-white overflow-hidden">
+                  <div className="flex-1 border-r border-gray-100 px-2 sm:px-3 py-3 flex flex-col justify-center">
+                    <p className="text-[10.5px] font-extrabold uppercase tracking-wide text-gray-600 mb-1.5 whitespace-nowrap">TOTAL PRODUCTION (KG)</p>
+                    <p className="text-[18px] font-bold text-[#004D40] leading-none font-inter">{fabricSummary.checked.toFixed(2)}</p>
+                  </div>
+                  <div className="flex-1 border-r border-gray-100 px-2 sm:px-3 py-3 flex flex-col justify-center">
+                    <p className="text-[10.5px] font-extrabold uppercase tracking-wide text-gray-600 mb-1.5 whitespace-nowrap">TOTAL WASTAGE (KG)</p>
+                    <p className="text-[17px] font-bold text-[#004D40] leading-none font-inter">{fabricSummary.wastage.toFixed(2)}</p>
+                  </div>
+                  <div className="flex-1 px-2 sm:px-3 py-3 flex flex-col justify-center">
+                    <p className="text-[10.5px] font-extrabold uppercase tracking-wide text-gray-600 mb-1.5">EFFICIENCY</p>
+                    <p className="text-[17px] font-bold text-[#00A87E] leading-none font-inter">{fabricEfficiency.toFixed(2)}%</p>
+                  </div>
+                </div>
+                <div className="flex items-center px-1">
+                  <div className="flex-1">
+                    <p className="text-[10px] px-3 font-extrabold uppercase tracking-wide text-gray-600 mb-1">COLOR</p>
+                    <p className="text-[17px] px-3 font-bold text-gray-900 leading-none font-inter">{latestFabricRecord?.color?.name ?? '--'}</p>
+                  </div>
+                  <div className="flex-1">
+                    <p className="text-[10px] px-3 font-extrabold uppercase tracking-wide text-gray-600 mb-1">SIZE</p>
+                    <p className="text-[17px] px-3 font-bold text-gray-900 leading-none font-inter">{latestFabricRecord?.size?.name ?? '--'}</p>
+                  </div>
+                  <div className="flex-1">
+                    <p className="text-[10px] px-3 font-extrabold uppercase tracking-wide text-gray-600 mb-1">OUTPUT (KG)</p>
+                    <p className="text-[17px] px-3 font-bold text-gray-900 leading-none font-inter">{formatNum(latestFabricRecord?.fabricCheck.outputKg ?? 0)}</p>
+                  </div>
+                </div>
+              </CardContent>
+            </div>
+          </Card>
+        </div>
+        </div>
+
+           {/* Wastage */}
+        <WastageCard
+          looseWaste={looseWasteKg}
+          lums={lumsWasteKg}
+          loomsWaste={loomsWasteKg}
+          fabricWaste={fabricWasteKg}
+          bitWaste={bitWasteKg}
+        />
+
+
+          {/* Fabric Stock + Fabric Delivered */}
+      <div className="flex flex-col lg:flex-row gap-2.5 items-stretch py-2">
+        <div className="w-full lg:flex-1 lg:min-w-0">
+          <FabricStockCard rows={fabricStockByColor} total={totalFabricStockKg} />
+        </div>
+
+        <div className="flex-1 min-w-0 h-full min-h-[320px] bg-white rounded-2xl border border-gray-400 shadow-sm flex flex-col">
+          <div className="flex items-center justify-between mb-0.5">
+            <div className="flex items-center gap-2 px-4 py-3">
               <div
-                className="w-[28px] h-[28px] bg-[#235347]"
+                className="w-6 h-6 bg-[#004D40]"
                 style={{
                   WebkitMaskImage: 'url(/delivery.png)',
                   WebkitMaskSize: 'contain',
@@ -267,85 +592,61 @@ export function DashboardDesign2() {
                   maskImage: 'url(/delivery.png)',
                   maskSize: 'contain',
                   maskRepeat: 'no-repeat',
-                  maskPosition: 'center'
+                  maskPosition: 'center',
                 }}
               />
-              <span className="font-bold text-[#235347] text-[22px]">Fabric Delivered</span>
+              <h3 className="text-xl font-bold text-[#004D40]">Fabric Delivered</h3>
             </div>
-            <div className="flex items-center gap-4">
-              <div className={`flex items-center gap-12 transition-opacity duration-300 ${isFabricDeliveredExpanded ? 'opacity-0 pointer-events-none' : 'opacity-100'}`}>
-                <div className="flex items-center gap-3">
-                  <span className="text-[15px] font-bold text-[#61401E] uppercase tracking-wide">White </span>
-                  <span className="font-bold  text-[#61401E] text-[20px]">{formatNum(deliveredColorTotals.white)}</span>
-                </div>
-                <div className="flex items-center gap-3">
-                  <span className="text-[15px] font-bold text-[#0088CC] uppercase tracking-wide">Blue</span>
-                  <span className="font-bold text-[#0088CC] text-[20px]">{formatNum(deliveredColorTotals.blue)}</span>
-                </div>
-                <div className="flex items-center gap-3">
-                  <span className="text-[15px] font-bold text-[#5BA300] uppercase tracking-wide">Green</span>
-                  <span className="font-bold text-[#5BA300] text-[20px]">{formatNum(deliveredColorTotals.green)}</span>
-                </div>
-              </div>
-              <ChevronDown
-                className={`w-5 h-5 text-[#61401E] cursor-pointer transition-transform duration-300 ${isFabricDeliveredExpanded ? 'rotate-180' : ''}`}
-                onClick={() => setIsFabricDeliveredExpanded(!isFabricDeliveredExpanded)}
-              />
-            </div>
+            <Link
+              to="/production/new-entry?tab=delivered"
+              className="flex items-center justify-center w-8 h-8 mr-4 rounded-full border border-slate-200 text-slate-600 hover:bg-slate-50 transition-colors"
+              aria-label="Add fabric delivered entry"
+            >
+              <ArrowRight className="w-4 h-4" />
+            </Link>
           </div>
 
-          <div className={`grid transition-all duration-300 ease-in-out ${isFabricDeliveredExpanded ? 'grid-rows-[1fr] mt-3 opacity-100' : 'grid-rows-[0fr] opacity-0'}`}>
-            <div className="overflow-hidden">
-              <div className="border border-[#d9a976] rounded-md overflow-hidden bg-white/60 shadow-inner">
-                <table className="w-full text-[13px] text-left">
-                  <thead className="bg-[#e6b885]/30 font-extrabold text-[#61401E]">
-                    <tr>
-                      <th className="px-3 py-2 border-r border-[#d9a976] w-24"></th>
-                      {fabricDeliveredSizes.map((size) => (
-                        <th key={size} className="px-3 py-2 border-r border-[#d9a976] text-center">{size}</th>
-                      ))}
-                      <th className="px-3 py-2 text-center bg-[#e6b885]/40">TOTAL</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {loadingLoadSent ? (
-                      <tr><td colSpan={7} className="px-3 py-5 text-center text-[#61401E]">Loading delivered records...</td></tr>
-                    ) : selectedMonthDeliveryTableRows.length === 0 ? (
-                      <tr><td colSpan={7} className="px-3 py-5 text-center text-[#61401E]">No delivered records for this month.</td></tr>
-                    ) : selectedMonthDeliveryTableRows.map((row) => (
-                      <tr key={row.color} className="border-t border-[#d9a976]">
-                        <td className={`px-3 py-2.5 border-r border-[#d9a976] font-bold ${row.colorClass}`}>{row.color}</td>
-                        {fabricDeliveredSizes.map((size) => (
-                          <td key={size} className="px-3 py-2.5 border-r border-[#d9a976] text-center text-gray-800 font-medium">
-                            {row.deliveredBySize[size] !== undefined ? row.deliveredBySize[size].toFixed(3) : '--'}
-                          </td>
-                        ))}
-                        <td className={`px-3 py-2.5 text-center font-bold bg-[#e6b885]/10 ${row.colorClass}`}>
-                          {Object.values(row.deliveredBySize).reduce((sum, value) => sum + value, 0).toFixed(3)}
-                        </td>
-                      </tr>
-                    ))}
-                    <tr className="border-t-2 border-[#d9a976] bg-[#e6b885]/30">
-                      <td className="px-3 py-2.5 border-r border-[#d9a976] font-extrabold text-[#61401E]">TOTAL</td>
-                      {fabricDeliveredSizes.map((size) => (
-                        <td key={size} className="px-3 py-2.5 border-r border-[#d9a976] text-center text-[#61401E] font-bold">
-                          {selectedMonthDeliveryTableRows.reduce((sum, row) => sum + (row.deliveredBySize[size] ?? 0), 0) > 0
-                            ? selectedMonthDeliveryTableRows.reduce((sum, row) => sum + (row.deliveredBySize[size] ?? 0), 0).toFixed(3)
-                            : '--'}
-                        </td>
-                      ))}
-                      <td className="px-3 py-2.5 text-center text-[#61401E] font-extrabold bg-[#e6b885]/50">{selectedMonthDeliveryTotal.toFixed(3)}</td>
-                    </tr>
-                  </tbody>
-                </table>
-              </div>
-            </div>
+          <div className="grid grid-cols-5 px-2 py-2.5 text-sm font-semibold text-gray-700 bg-slate-50/70 border border-gray-300">
+            <span>Date</span>
+            <span>Color</span>
+            <span>Size</span>
+            <span className="text-right">Quantity (Kg)</span>
+            <span className="text-right">Status</span>
+          </div>
+
+          <div className="flex-1">
+            {loadingLoadSent ? (
+              <div className="h-full flex items-center justify-center text-center text-slate-400 text-sm py-5">Loading delivered records...</div>
+            ) : monthDeliveries.length === 0 ? (
+              <div className="h-full flex items-center justify-center text-center text-slate-400 text-sm py-5">No delivered records for this month.</div>
+            ) : (
+              (isFabricDeliveredExpanded ? monthDeliveries : monthDeliveries.slice(0, 5)).map((d) => (
+                <div key={d.id} className="grid grid-cols-5 items-center px-2 py-3.5 text-sm border-b border-slate-100 last:border-b-0">
+                  <span className="text-slate-600">{formatDateDMY(d.date)}</span>
+                  <span className={`font-medium ${deliveryColorClass(d.color)}`}>{d.color}</span>
+                  <span className="text-slate-600">{d.size}</span>
+                  <span className="text-right font-semibold text-slate-900">{formatNum(d.kg)}</span>
+                  <span className="text-right">
+                    <span className="inline-block bg-emerald-50 text-emerald-700 text-xs font-medium px-3 py-1 rounded-full">Delivered</span>
+                  </span>
+                </div>
+              ))
+            )}
+          </div>
+
+          <div className="flex items-center justify-end gap-4 px-5 py-3 mt-2 border-t border-gray-300">
+            <span className="font-bold text-emerald-600">Total Delivered</span>
+            <span className="font-bold text-slate-900">{formatNum(selectedMonthDeliveryTotal)} Kg</span>
           </div>
         </div>
+        </div>
 
+      
+      
 
+     
         {/* Trend + efficiency */}
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-2.5">
+        {/* <div className="grid grid-cols-1 lg:grid-cols-2 gap-2.5">
           <Card className="bg-white border border-slate-100 shadow-lg shadow-slate-200/50 rounded-3xl p-4 md:p-5 transition-shadow duration-300 hover:shadow-xl hover:shadow-slate-300/40 animate-in fade-in-0 slide-in-from-bottom-3 duration-700 delay-200 fill-mode-both">
             <CardHeader className="p-0 mb-2">
               <CardTitle className="text-[13px] font-bold text-slate-900">30-Day Output Trend</CardTitle>
@@ -391,10 +692,10 @@ export function DashboardDesign2() {
               </ResponsiveContainer>
             </CardContent>
           </Card>
-        </div>
+        </div> */}
 
         {/* Employees + Expenses (mock) */}
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-2.5">
+        {/* <div className="grid grid-cols-1 lg:grid-cols-2 gap-2.5">
           <Card className="bg-white border border-slate-100 shadow-lg shadow-slate-200/50 rounded-3xl p-4 md:p-5 transition-shadow duration-300 hover:shadow-xl hover:shadow-slate-300/40 animate-in fade-in-0 slide-in-from-bottom-3 duration-700 delay-[350ms] fill-mode-both">
             <CardHeader className="p-0 mb-2 flex flex-row items-center justify-between">
               <CardTitle className="text-[13px] font-bold text-slate-900 flex items-center gap-2">
@@ -566,7 +867,184 @@ export function DashboardDesign2() {
               </div>
             </CardContent>
           </Card>
+        </div> */}
         </div>
+      </div>
+    </div>
+  );
+}
+
+function Sparkline({ data }: { data: number[] }) {
+  if (data.length < 2) return null;
+  const max = Math.max(...data);
+  const min = Math.min(...data);
+  const range = max - min || 1;
+  const points = data
+    .map((v, i) => `${(i / (data.length - 1)) * 56},${20 - ((v - min) / range) * 18}`)
+    .join(' ');
+  return (
+    <svg width="56" height="22" viewBox="0 0 56 22" className="shrink-0">
+      <polyline points={points} fill="none" stroke="#16A34A" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+    </svg>
+  );
+}
+
+function KpiStatCard({
+  icon,
+  iconBg = 'bg-emerald-50',
+  label,
+  value,
+  changePct,
+  periodLabel,
+  sparklineData,
+  footer,
+}: {
+  icon: React.ReactNode;
+  iconBg?: string;
+  label: string;
+  value: string;
+  changePct?: number;
+  periodLabel?: string;
+  sparklineData?: number[];
+  footer?: string;
+}) {
+  const isDown = (changePct ?? 0) < 0;
+  return (
+    <div className="bg-white rounded-xl border border-slate-100 shadow-sm px-5 py-4 flex flex-col gap-2">
+      <div className="flex items-center gap-2">
+        <span className={`w-9 h-9 rounded-full flex items-center justify-center ${iconBg}`}>{icon}</span>
+        <span className="text-sm font-medium text-slate-500">{label}</span>
+      </div>
+      <p className="text-2xl font-bold text-slate-900">{value}</p>
+      {footer ? (
+        <p className="text-xs text-slate-400">{footer}</p>
+      ) : (
+        <div className="flex items-center justify-between gap-2">
+          <span className={`text-xs font-semibold flex items-center gap-1 ${isDown ? 'text-red-500' : 'text-emerald-600'}`}>
+            {isDown ? <ArrowDown className="w-3 h-3" /> : <ArrowUp className="w-3 h-3" />}
+            {Math.abs(changePct ?? 0).toFixed(1)}% {periodLabel}
+          </span>
+          {sparklineData && <Sparkline data={sparklineData} />}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function FabricStockCard({
+  rows,
+  total,
+}: {
+  rows: { color: string; colorClass: string; stockBySize: Record<string, number> }[];
+  total: number;
+}) {
+  return (
+    <Card className="bg-white border border-gray-400 shadow-lg shadow-slate-200/50 rounded-3xl p-3 md:p-3 h-full min-h-80 flex flex-col transition-shadow duration-300 hover:shadow-xl hover:shadow-slate-300/40 animate-in fade-in-0 slide-in-from-bottom-3 duration-700 fill-mode-both">
+      <CardHeader className="p-0 flex flex-row items-center justify-between border-b border-gray-400 pb-2">
+        <CardTitle className="flex items-center gap-2 px-2 text-[20px] font-bold text-[#004D40]">
+          <img src="/stock.png" alt="" className="w-6 h-6 object-contain" />
+          Fabric Stock
+        </CardTitle>
+        <span className="text-[17px] font-bold text-[#2F6B2F]">Total : {formatNum(total)} kg</span>
+      </CardHeader>
+      <CardContent className="p-0 flex-1 flex flex-col">
+        {rows.length === 0 ? (
+          <div className="flex-1 flex items-center justify-center">
+            <p className="text-xs text-gray-400 italic">No fabric stock records yet.</p>
+          </div>
+        ) : (
+          <div className="border border-gray-300 rounded-lg overflow-hidden overflow-x-auto">
+            <table className="w-full table-fixed text-[13px] text-left">
+              <thead className="bg-slate-50 font-bold text-slate-500 uppercase text-[10px] tracking-wide">
+                <tr>
+                  <th className="px-3 py-2.5 w-24">Color</th>
+                  {FABRIC_STOCK_SIZES.map((size) => (
+                    <th key={size} className="px-3 py-2.5 text-right">{size}</th>
+                  ))}
+                  <th className="px-3 py-2.5 text-right bg-slate-100">Stock (Kg)</th>
+                </tr>
+              </thead>
+              <tbody>
+                {rows.map((row, i) => {
+                  const rowTotal = Object.values(row.stockBySize).reduce((s, v) => s + v, 0);
+                  return (
+                    <tr key={row.color} className={i % 2 === 0 ? 'bg-white' : 'bg-slate-50/60'}>
+                      <td className={`px-3 py-2.5 font-semibold ${row.colorClass}`}>{row.color}</td>
+                      {FABRIC_STOCK_SIZES.map((size) => (
+                        <td key={size} className="px-3 py-2.5 text-right text-slate-700">
+                          {row.stockBySize[size] !== undefined ? formatNum(row.stockBySize[size]) : '--'}
+                        </td>
+                      ))}
+                      <td className="px-3 py-2.5 text-right font-bold text-[#2F6B2F] bg-slate-50">{formatNum(rowTotal)}</td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+              <tfoot>
+                <tr className="border-t-2 border-gray-300 bg-slate-50 font-bold text-slate-700">
+                  <td className="px-3 py-2.5">Total</td>
+                  {FABRIC_STOCK_SIZES.map((size) => {
+                    const colTotal = rows.reduce((sum, row) => sum + (row.stockBySize[size] ?? 0), 0);
+                    return (
+                      <td key={size} className="px-3 py-2.5 text-right">{formatNum(colTotal)}</td>
+                    );
+                  })}
+                  <td className="px-3 py-2.5 text-right text-[#2F6B2F] bg-slate-100">{formatNum(total)}</td>
+                </tr>
+              </tfoot>
+            </table>
+          </div>
+        )}
+      </CardContent>
+    </Card>
+  );
+}
+
+function WastageCard({
+  looseWaste,
+  lums,
+  loomsWaste,
+  fabricWaste,
+  bitWaste,
+}: {
+  looseWaste: number;
+  lums: number;
+  loomsWaste: number;
+  fabricWaste: number;
+  bitWaste: number;
+}) {
+  const extruderWaste = looseWaste + lums;
+  const fabricCheckingWaste = fabricWaste + bitWaste;
+
+  return (
+    <div className="bg-white border border-gray-400 rounded-xl shadow-sm px-5 py-4 flex flex-wrap items-start justify-between gap-x-8 gap-y-2">
+      <h3 className="text-lg font-bold text-slate-900 tracking-wide self-center">Wastage Summary</h3>
+
+      <div className="flex flex-col gap-1">
+        <span className="text-md text-[#0B5566]">
+          <span className="font-semibold">Extruder</span> : {formatNum(extruderWaste)}kg
+        </span>
+        <span className="text-xs text-gray-500">
+          Loose waste : {formatNum(looseWaste)}kg&nbsp;&nbsp;|&nbsp;&nbsp;Lums Waste : {formatNum(lums)}kg
+        </span>
+      </div>
+
+      <div className="flex flex-col gap-1">
+        <span className="text-md text-[#7A6A00]">
+          <span className="font-semibold">Looms Production</span> : {formatNum(loomsWaste)}kg
+        </span>
+        <span className="text-xs text-gray-500">
+          Looms/Yarn Waste : {formatNum(loomsWaste)}kg
+        </span>
+      </div>
+
+      <div className="flex flex-col gap-1">
+        <span className="text-md text-[#2F6B2F]">
+          <span className="font-semibold">Fabric checking</span> : {formatNum(fabricCheckingWaste)}kg
+        </span>
+        <span className="text-xs text-gray-500">
+          Fabric waste : {formatNum(fabricWaste)}kg&nbsp;&nbsp;|&nbsp;&nbsp;Bit waste : {formatNum(bitWaste)}kg
+        </span>
       </div>
     </div>
   );
