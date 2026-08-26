@@ -439,7 +439,7 @@ export function DashboardDesign2() {
                   <img src={extruderIcon} alt="Extruder" className="w-[35px] h-[35px] object-contain opacity-90" />
                 </div> */}
               </CardHeader>
-              <CardContent className="px-3 pb-4 pt-0 flex-1 flex flex-col justify-between">
+              <CardContent className="px-2 pb-4 pt-0 flex-1 flex flex-col justify-between">
                 <div className="flex border border-gray-100 rounded-lg mb-4 bg-white overflow-hidden">
                   <div className="flex-1 border-r border-gray-100 px-2 sm:px-3 py-3 flex flex-col justify-center">
                     <p className="text-[10.5px] font-extrabold uppercase tracking-wide text-gray-600 mb-1.5 whitespace-nowrap">TOTAL PRODUCTION (KG)</p>
@@ -483,7 +483,7 @@ export function DashboardDesign2() {
                   <img src={loomsIcon} alt="Looms" className="w-[35px] h-[35px] object-contain opacity-90" />
                 </div> */}
               </CardHeader>
-              <CardContent className="px-3 pb-4 pt-0 flex-1 flex flex-col justify-between">
+              <CardContent className="px-2 pb-4 pt-0 flex-1 flex flex-col justify-between">
                 <div className="flex border border-gray-100 rounded-lg mb-4 bg-white overflow-hidden">
                   <div className="flex-1 border-r border-gray-100 px-2 sm:px-3 py-3 flex flex-col justify-center">
                     <p className="text-[10.5px] font-extrabold uppercase tracking-wide text-gray-600 mb-1.5 whitespace-nowrap">TOTAL PRODUCTION (KG)</p>
@@ -527,7 +527,7 @@ export function DashboardDesign2() {
                   <Layers className="w-[35px] h-[35px] opacity-90" />
                 </div> */}
               </CardHeader>
-              <CardContent className="px-3 pb-4 pt-0 flex-1 flex flex-col justify-between">
+              <CardContent className="px-2 pb-4 pt-0 flex-1 flex flex-col justify-between">
                 <div className="flex border border-gray-100 rounded-lg mb-4 bg-white overflow-hidden">
                   <div className="flex-1 border-r border-gray-100 px-2 sm:px-3 py-3 flex flex-col justify-center">
                     <p className="text-[10.5px] font-extrabold uppercase tracking-wide text-gray-600 mb-1.5 whitespace-nowrap">TOTAL PRODUCTION (KG)</p>

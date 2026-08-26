@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Settings, Scale, ListTree, Users } from 'lucide-react';
+import { Scale, ListTree, Users } from 'lucide-react';
 
 export const BAG_WEIGHT_STORAGE_KEY = 'extruder_default_bag_weight';
 
@@ -30,44 +30,45 @@ export function AdminPanelPage() {
   ] as const;
 
   return (
-    <div className="flex flex-col h-full bg-gray-50/50">
-      {/* Header */}
-      <div className="sticky top-0 z-20 flex-shrink-0 border-b border-gray-200 bg-white shadow-sm px-6 py-4">
-        <div className="flex items-center gap-3">
-          <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-blue-50 text-blue-600">
-            <Settings className="h-5 w-5" strokeWidth={2} />
-          </div>
-          <div>
-            <h1 className="text-xl font-bold text-gray-900 tracking-tight">Admin Panel</h1>
-            <p className="text-sm font-medium text-gray-500">Configure global settings for production</p>
-          </div>
-        </div>
-        
-        {/* Tabs */}
-        <div className="flex items-center gap-6 mt-6 border-b border-gray-100">
-          {tabs.map(tab => {
-            const Icon = tab.icon;
-            const isActive = activeTab === tab.id;
-            return (
-              <button
-                key={tab.id}
-                onClick={() => setActiveTab(tab.id)}
-                className={`flex items-center gap-2 pb-3 px-1 border-b-2 transition-colors ${
-                  isActive 
-                    ? 'border-blue-600 text-blue-700 font-semibold' 
-                    : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300 font-medium'
-                }`}
-              >
-                <Icon className={`w-4 h-4 ${isActive ? 'text-blue-600' : 'text-gray-400'}`} />
-                {tab.label}
-              </button>
-            );
-          })}
+    <div id="admin-panel-layout" className="flex flex-col h-full bg-[#004D40]/5 min-h-full flex-1">
+      <style>{`
+        #admin-panel-layout, #admin-panel-layout * { font-family: 'Hanken Grotesk Variable', 'Hanken Grotesk', sans-serif !important; }
+        #admin-panel-layout .font-inter { font-family: 'Inter Variable', 'Inter', sans-serif !important; }
+      `}</style>
+
+      {/* Unified Header */}
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between px-4 py-3 bg-[#F4F1E8] border-b border-gray-100 shrink-0">
+        <div>
+          <h1 className="text-[20px] font-bold text-black leading-tight px-2">Admin Panel</h1>
+          <p className="text-[12.5px] text-gray-500 font-medium px-2">Configure global settings for production</p>
         </div>
       </div>
 
-      {/* Content */}
-      <div className="p-6 max-w-4xl flex-1 overflow-auto">
+      {/* Content Area */}
+      <div className="flex-1 overflow-y-auto relative flex flex-col">
+        <div className="p-6 max-w-4xl flex-1">
+          {/* Tabs */}
+          <div className="flex items-center gap-6 mb-6 border-b border-gray-200">
+            {tabs.map(tab => {
+              const Icon = tab.icon;
+              const isActive = activeTab === tab.id;
+              return (
+                <button
+                  key={tab.id}
+                  onClick={() => setActiveTab(tab.id)}
+                  className={`flex items-center gap-2 pb-3 px-1 border-b-2 transition-colors ${
+                    isActive
+                      ? 'border-blue-600 text-blue-700 font-semibold'
+                      : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300 font-medium'
+                  }`}
+                >
+                  <Icon className={`w-4 h-4 ${isActive ? 'text-blue-600' : 'text-gray-400'}`} />
+                  {tab.label}
+                </button>
+              );
+            })}
+          </div>
+
         {activeTab === 'bag-weight' && (
           <div className="bg-white border border-gray-200 rounded-xl shadow-sm p-6">
             <h2 className="text-lg font-bold text-gray-900 mb-4">Extruder Production Settings</h2>
@@ -127,6 +128,7 @@ export function AdminPanelPage() {
             </p>
           </div>
         )}
+        </div>
       </div>
     </div>
   );
