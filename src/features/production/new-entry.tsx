@@ -1,11 +1,13 @@
 import { useEffect, useRef, useState } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { format, parseISO } from 'date-fns';
-import { Calendar as CalendarIcon, ChevronUp, ChevronDown } from 'lucide-react';
+import { Calendar as CalendarIcon, ChevronUp, ChevronDown, Plus } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Calendar } from '@/components/ui/calendar';
-import { Loader } from '@/components/shared/loader';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
-import { ExtruderSection, LoomSection, FabricSection, FabricDeliveredSection } from './day-entry-sections';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { ExtruderSection, LoomSection, FabricSection, FabricDeliveredSection, themes } from './day-entry-sections';
+import { TabAddModal } from './tab-add-modal';
 import type { SectionRef } from './day-entry-sections';
 import { useExtruderProductions, useLookups } from '@/features/extruder/extruder-queries';
 import { useInventoryRecords } from '@/features/inventory/inventory-queries';
@@ -29,14 +31,22 @@ export function NewEntry({ onClose, defaultDate, readOnly = false }: NewEntryPro
 
   const [date, setDate] = useState<Date>(defaultDate ? parseISO(defaultDate) : new Date());
   const productionDate = format(date, 'yyyy-MM-dd');
-  const [submitting, setSubmitting] = useState(false);
+  const [submitting] = useState(false);
   const [isInventoryMinimized, setIsInventoryMinimized] = useState(false);
+
+  const [searchParams] = useSearchParams();
+  const [activeTab, setActiveTab] = useState<string>(searchParams.get('tab') || 'extruder');
+  const [isAddModalOpen, setIsAddModalOpen] = useState(false);
+  const [editingExtruderGroup, setEditingExtruderGroup] = useState<any>(null);
+  const [editingLoomGroup, setEditingLoomGroup] = useState<any>(null);
+  const [editingFabricGroup, setEditingFabricGroup] = useState<any>(null);
+  const [editingDeliveredGroup, setEditingDeliveredGroup] = useState<any>(null);
 
   const { data: lookupsData } = useLookups();
   const lookups = lookupsData ?? { brands: [], colors: [], chemicals: [], sizes: [] };
 
   useEffect(() => {
-    setHeaderTitle(isCreateMode ? 'Add new Daily production details' : 'Edit daily production details');
+    setHeaderTitle(isCreateMode ? 'Add New Daily Production Details' : 'Edit Daily Production Details');
     setShowBackButton(true);
     setOnBackClick(() => onClose);
 
@@ -109,29 +119,6 @@ export function NewEntry({ onClose, defaultDate, readOnly = false }: NewEntryPro
   const totalRawMaterial = lookups.brands.reduce((sum, b) => sum + parseFloat(getHDPEBalance(b.name) || '0'), 0).toFixed(2);
   const totalChemical = lookups.chemicals.reduce((sum, c) => sum + parseFloat(getChemicalBalance(c.name) || '0'), 0).toFixed(2);
   const totalColor = lookups.colors.reduce((sum, c) => sum + parseFloat(getColorBalance(c.name) || '0'), 0).toFixed(2);
-
-  const handleSaveDayEntry = async () => {
-    setSubmitting(true);
-    try {
-      const results = await Promise.all([
-        extruderRef.current?.saveDraft(),
-        loomRef.current?.saveDraft(),
-        fabricRef.current?.saveDraft(),
-        fabricDeliveredRef.current?.saveDraft()
-      ]);
-
-      // If any returned false (i.e. validation failed or save failed), don't close.
-      if (results.some(success => success === false)) {
-        return;
-      }
-
-      onClose();
-    } catch (e) {
-      console.error(e);
-    } finally {
-      setSubmitting(false);
-    }
-  };
 
   return (
     <div className="flex flex-col h-full bg-[#004D40]/5">
@@ -217,43 +204,91 @@ export function NewEntry({ onClose, defaultDate, readOnly = false }: NewEntryPro
 
         {/* Forms Container */}
         <div className="flex flex-col gap-2.5">
-          <ExtruderSection
-            ref={extruderRef}
-            productionDate={productionDate}
-            autoAdd={!readOnly}
-            readOnly={readOnly}
-            hideExisting={false}
-          />
-          <LoomSection ref={loomRef} productionDate={productionDate} autoAdd={!readOnly} readOnly={readOnly} hideExisting={false} />
-          <FabricSection ref={fabricRef} productionDate={productionDate} autoAdd={!readOnly} readOnly={readOnly} hideExisting={false} />
-          <FabricDeliveredSection ref={fabricDeliveredRef} productionDate={productionDate} autoAdd={!readOnly} readOnly={readOnly} hideExisting={false} />
+          <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full flex-col gap-0">
+            <div className="flex justify-between items-end border-b border-gray-200">              <TabsList variant="folder" className="flex overflow-x-auto sm:overflow-visible">
+                <TabsTrigger value="extruder" className="data-[state=active]:!bg-[#D6EEF7] data-[state=active]:!text-[#0B5566] data-[state=active]:!border-b-[#D6EEF7]">Extruder Production</TabsTrigger>
+                <TabsTrigger value="looms" className="data-[state=active]:!bg-[#FFF6BF] data-[state=active]:!text-[#7A6A00] data-[state=active]:!border-b-[#FFF6BF]">Looms Production</TabsTrigger>
+                <TabsTrigger value="fabric" className="data-[state=active]:!bg-[#DCEEDB] data-[state=active]:!text-[#2F6B2F] data-[state=active]:!border-b-[#DCEEDB]">Fabric Checking</TabsTrigger>
+                <TabsTrigger value="delivered" className="data-[state=active]:!bg-[#f2caa0] data-[state=active]:!text-[#61401E] data-[state=active]:!border-b-[#f2caa0]">Fabric Delivered</TabsTrigger>
+              </TabsList>
+            </div>
+
+            <TabsContent value="extruder" className="flex flex-col gap-4 mt-0 pt-0">
+              <ExtruderSection
+                ref={extruderRef}
+                productionDate={productionDate}
+                autoAdd={!readOnly}
+                readOnly={readOnly}
+                hideExisting={false}
+                hideBanner={true}
+                onEditExtruderGroup={(group) => {
+                  setEditingExtruderGroup(group);
+                  setIsAddModalOpen(true);
+                }}
+              />
+            </TabsContent>
+
+            <TabsContent value="looms" className="flex flex-col gap-4 mt-0 pt-0">
+              <LoomSection ref={loomRef} productionDate={productionDate} autoAdd={!readOnly} readOnly={readOnly} hideExisting={false} hideBanner={true} onEditLoomGroup={(g) => { setEditingLoomGroup(g); setIsAddModalOpen(true); }} />
+            </TabsContent>
+
+            <TabsContent value="fabric" className="flex flex-col gap-4 mt-0 pt-0">
+              <FabricSection ref={fabricRef} productionDate={productionDate} autoAdd={!readOnly} readOnly={readOnly} hideExisting={false} hideBanner={true} onEditFabricGroup={(g) => { setEditingFabricGroup(g); setIsAddModalOpen(true); }} />
+            </TabsContent>
+
+            <TabsContent value="delivered" className="flex flex-col gap-4 mt-0 pt-0">
+              <FabricDeliveredSection ref={fabricDeliveredRef} productionDate={productionDate} autoAdd={!readOnly} readOnly={readOnly} hideExisting={false} hideBanner={true} onEditDeliveredGroup={(g) => { setEditingDeliveredGroup(g); setIsAddModalOpen(true); }} />
+            </TabsContent>
+          </Tabs>
         </div>
 
-        {/* Footer */}
-        <div className="mt-4 mb-8 flex justify-end">
+        <div className="mt-4 mb-8 flex justify-between items-center">
+          {!readOnly ? (
+            <Button
+              size="sm"
+              className={`h-8 gap-1.5 shadow-sm transition-colors duration-200 ${activeTab === 'extruder' ? `${themes.extruder.iconBg} ${themes.extruder.iconColor} ${themes.extruder.iconHoverBg} ${themes.extruder.iconHoverColor}` :
+                activeTab === 'looms' ? `${themes.looms.iconBg} ${themes.looms.iconColor} ${themes.looms.iconHoverBg} ${themes.looms.iconHoverColor}` :
+                  activeTab === 'fabric' ? `${themes.fabric.iconBg} ${themes.fabric.iconColor} ${themes.fabric.iconHoverBg} ${themes.fabric.iconHoverColor}` :
+                    `${themes.fabricDelivered.iconBg} ${themes.fabricDelivered.iconColor} ${themes.fabricDelivered.iconHoverBg} ${themes.fabricDelivered.iconHoverColor}`
+                }`}
+              onClick={() => setIsAddModalOpen(true)}
+            >
+              <Plus className="h-4 w-4" />
+              Add Row
+            </Button>
+          ) : <span />}
           <div className="flex items-center gap-3">
-            {readOnly ? (
-              <Button variant="outline" onClick={onClose} className="border-gray-300 text-gray-700 bg-white">
-                Close
+            <Button variant="outline" onClick={onClose} className="border-gray-300 text-gray-700 bg-white" disabled={submitting}>
+              Close
+            </Button>
+            {/* {!readOnly && (
+              <Button onClick={handleSaveAll} className="bg-[#004D40] hover:bg-[#00332A] text-white" disabled={submitting}>
+                {submitting ? 'Saving All...' : 'Save'}
               </Button>
-            ) : (
-              <>
-                <Button variant="outline" onClick={onClose} className="border-gray-300 text-gray-700 bg-white font-semibold shadow-sm" disabled={submitting}>
-                  Cancel
-                </Button>
-                <Button
-                  className="bg-[#004D40] text-white hover:bg-[#00382e] font-semibold shadow-sm px-6"
-                  onClick={handleSaveDayEntry}
-                  disabled={submitting}
-                >
-                  {submitting && <Loader size="sm" className="mr-2" />}
-                  Save
-                </Button>
-              </>
-            )}
+            )} */}
           </div>
         </div>
       </div>
+
+      <TabAddModal
+        isOpen={isAddModalOpen}
+        onClose={() => {
+          setIsAddModalOpen(false);
+          setTimeout(() => {
+            setEditingExtruderGroup(null);
+            setEditingLoomGroup(null);
+            setEditingFabricGroup(null);
+            setEditingDeliveredGroup(null);
+          }, 300); // clear after animation
+        }}
+        activeTab={activeTab}
+        productionDate={productionDate}
+        initialExtruderData={editingExtruderGroup}
+        initialLoomData={editingLoomGroup}
+        initialFabricData={editingFabricGroup}
+        initialDeliveredData={editingDeliveredGroup}
+        isEditMode={!!editingExtruderGroup || !!editingLoomGroup || !!editingFabricGroup || !!editingDeliveredGroup}
+      />
     </div>
   );
 }

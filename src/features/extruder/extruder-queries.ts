@@ -17,6 +17,10 @@ export interface ExtruderDetail {
   yarnOutputKg: number;
   isRecipeOverridden: boolean;
   overrideReason: string | null;
+  bagCount: number | null;
+  bagWeightKg: number | null;
+  looseWeightKg: number | null;
+  totalWeightKg: number | null;
 }
 
 /**
@@ -60,8 +64,13 @@ export interface ExtruderCreatePayload {
   yarnOutputKg: number;
   lumpsKg: number;
   yarnWasteKg: number;
+  type?: 'PRODUCTION' | 'SAMPLE';
   remarks?: string;
   overrideReason?: string;
+  bagCount?: number;
+  bagWeightKg?: number;
+  looseWeightKg?: number;
+  totalWeightKg?: number;
 }
 
 /**
@@ -76,6 +85,51 @@ export const extruderKeys = {
   all: ['extruder-productions'] as const,
   list: (query: string) => [...extruderKeys.all, 'list', query] as const,
 };
+
+/** Matches the real API's ColorConsumptionStandard record (see GET /color-consumption-standard/latest). Numeric fields come back as strings. */
+export interface ColorConsumptionStandard {
+  id: string;
+  companyId: string;
+  basisWeightKg: string;
+  hdpematerialbag: number;
+  whiteKgBasis: string;
+  blueKgBasis: string;
+  greenKgBasis: string;
+  chemicalWeight: string;
+  date: string;
+  isActive: boolean;
+  createdAt: string;
+  createdBy: string;
+  updatedAt: string;
+  updatedBy: string | null;
+}
+
+interface ColorConsumptionStandardResponse {
+  success: boolean;
+  data: ColorConsumptionStandard;
+}
+
+export const colorConsumptionStandardKeys = {
+  latest: ['color-consumption-standard', 'latest'] as const,
+};
+
+export function useColorConsumptionStandard() {
+  return useQuery({
+    queryKey: colorConsumptionStandardKeys.latest,
+    queryFn: () => fetchJson<ColorConsumptionStandardResponse>('/color-consumption-standard/latest'),
+  });
+}
+
+/** Returns the raw backend value for a colour's per-basis consumption field. */
+export function colorGramsPerBasis(standard: ColorConsumptionStandard | undefined, colorName: string): number | undefined {
+  if (!standard || !colorName) return undefined;
+  // API fields are named {color}KgBasis (e.g. whiteKgBasis, blueKgBasis, greenKgBasis)
+  const key = `${colorName.toLowerCase()}KgBasis` as keyof ColorConsumptionStandard;
+  const raw = standard[key];
+  // API may return as string or number — handle both
+  const value = typeof raw === 'string' ? parseFloat(raw) : typeof raw === 'number' ? raw : NaN;
+  return isNaN(value) ? undefined : value;
+}
 
 export function useExtruderProductions(query: string = '', enabled: boolean = true) {
   return useQuery({

@@ -3,8 +3,8 @@ import { useQueryClient } from '@tanstack/react-query';
 import '@fontsource-variable/hanken-grotesk';
 import '@fontsource-variable/inter';
 import { parseISO, format } from 'date-fns';
-import { Trash2, Calendar, ChevronDown, Plus, Download, Edit2, Edit, Layers, ChevronRight, CheckCircle2 } from 'lucide-react';
-import { LoadSentFormDialog } from '../inventory/inventory-page';
+import { Trash2, Calendar, Plus, Download, Edit2, Edit, Layers, ChevronRight, CheckCircle2 } from 'lucide-react';
+import { LoadSentFormDialog } from '../inventory/load-sent-form-dialog';
 import { type LoadSentRecord } from '../inventory/load-sent-queries';
 import { Loader } from '@/components/shared/loader';
 import { DeleteConfirmDialog } from '@/components/shared/delete-confirm-dialog';
@@ -84,28 +84,12 @@ const stageTheme = {
   },
 } as const;
 
-const fabricDeliveredSizes = ['150mm', '160mm', '170mm', '180mm', '190mm'] as const;
-type FabricDeliveredSize = (typeof fabricDeliveredSizes)[number];
-
-function deliveryColorClass(color: string): string {
-  const normalizedColor = color.toLowerCase();
-  if (normalizedColor === 'blue') return 'text-[#0088CC]';
-  if (normalizedColor === 'green') return 'text-[#5BA300]';
-  return 'text-gray-700';
-}
-
 interface FabricDeliveredDetailRow {
   id: string;
   size: string;
   color: string;
   delivered: number;
   original: LoadSentRecord;
-}
-
-interface FabricDeliveredTableRow {
-  color: string;
-  colorClass: string;
-  deliveredBySize: Partial<Record<FabricDeliveredSize, number>>;
 }
 
 function getFabricDeliveredRows(data: unknown, date: string): FabricDeliveredDetailRow[] {
@@ -120,17 +104,6 @@ function getFabricDeliveredRows(data: unknown, date: string): FabricDeliveredDet
       original: record as LoadSentRecord,
     }))
     .filter((record) => record.delivered > 0);
-}
-
-function getFabricDeliveredTableRows(rows: FabricDeliveredDetailRow[]): FabricDeliveredTableRow[] {
-  const byColor = new Map<string, FabricDeliveredTableRow>();
-  rows.forEach((record) => {
-    const size = fabricDeliveredSizes.includes(record.size as FabricDeliveredSize) ? record.size as FabricDeliveredSize : null;
-    const existing = byColor.get(record.color) ?? { color: record.color, colorClass: deliveryColorClass(record.color), deliveredBySize: {} };
-    if (size) existing.deliveredBySize[size] = (existing.deliveredBySize[size] ?? 0) + record.delivered;
-    byColor.set(record.color, existing);
-  });
-  return Array.from(byColor.values());
 }
 
 interface StageBlockProps {
@@ -540,7 +513,6 @@ export function ProductionDesign2() {
   const [deleteTargetDate, setDeleteTargetDate] = useState<string | null>(null);
   const [deletingDate, setDeletingDate] = useState(false);
   const [editingLoadSent, setEditingLoadSent] = useState<LoadSentRecord | null>(null);
-  const [isFabricDeliveredExpanded, setIsFabricDeliveredExpanded] = useState(false);
   const [filterDate, setFilterDate] = useState<Date>(new Date());
   const monthStr = format(filterDate, 'yyyy-MM');
   const { rows: dayWiseRows, totals: dayWiseTotals, isLoading: loadingDayWise, apiSummary } = useDayWiseProduction(monthStr);
@@ -548,10 +520,6 @@ export function ProductionDesign2() {
   const selectedMonthDeliveryRows = useMemo(
     () => getFabricDeliveredRows(loadSentData?.data, monthStr),
     [loadSentData, monthStr],
-  );
-  const selectedMonthDeliveryTableRows = useMemo(
-    () => getFabricDeliveredTableRows(selectedMonthDeliveryRows),
-    [selectedMonthDeliveryRows],
   );
   const selectedMonthDeliveryTotal = selectedMonthDeliveryRows.reduce((sum, record) => sum + record.delivered, 0);
 
@@ -776,10 +744,7 @@ export function ProductionDesign2() {
                       <p className="text-[10px] px-3 font-extrabold uppercase tracking-wide text-gray-600 mb-1">WASTE %</p>
                       <p className="text-[17px] px-3 font-bold text-gray-900 leading-none font-inter">{loomsWastePct.toFixed(2)}%</p>
                     </div>
-                    <div className="flex-[1.7]">
-                      <p className="text-[10px] px-3 font-extrabold uppercase tracking-wide text-gray-600 mb-1">100 WASTAGE (KG)</p>
-                      <p className="text-[17px] px-3 font-bold text-gray-900 leading-none font-inter">0.00</p>
-                    </div>
+                  
                   </div>
                 </CardContent>
               </div>
@@ -826,95 +791,6 @@ export function ProductionDesign2() {
             </Card>
           </div>
 
-          {/* Delivered Stocks Horizontal Bar */}
-          <div className="bg-[#DAF1DE] border border-green-400 rounded-[10px] px-5 py-2.5 shadow-sm my-1 flex flex-col transition-all duration-300">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-3">
-                <div
-                  className="w-[28px] h-[28px] bg-[#235347]"
-                  style={{
-                    WebkitMaskImage: 'url(/delivery.png)',
-                    WebkitMaskSize: 'contain',
-                    WebkitMaskRepeat: 'no-repeat',
-                    WebkitMaskPosition: 'center',
-                    maskImage: 'url(/delivery.png)',
-                    maskSize: 'contain',
-                    maskRepeat: 'no-repeat',
-                    maskPosition: 'center'
-                  }}
-                />
-                <span className="font-extrabold text-[#235347] text-[22px]">Fabric Delivered</span>
-              </div>
-              <div className="flex items-center gap-4">
-                <div className={`flex items-center gap-12 transition-opacity duration-300 ${isFabricDeliveredExpanded ? 'opacity-0 pointer-events-none' : 'opacity-100'}`}>
-                  <div className="flex items-center gap-3">
-                    <span className="text-[15px] font-extrabold text-[#61401E] uppercase tracking-wide">White </span>
-                    <span className="font-extrabold text-[#61401E] text-[20px]">456.90</span>
-                  </div>
-                  <div className="flex items-center gap-3">
-                    <span className="text-[15px] font-extrabold text-[#0088CC] uppercase tracking-wide">Blue</span>
-                    <span className="font-bold text-[#0088CC] text-[20px]">457.67</span>
-                  </div>
-                  <div className="flex items-center gap-3">
-                    <span className="text-[15px] font-extrabold text-[#5BA300] uppercase tracking-wide">Green</span>
-                    <span className="font-bold text-[#5BA300] text-[20px]">345.234</span>
-                  </div>
-                </div>
-                <ChevronDown
-                  className={`w-5 h-5 text-[#61401E] cursor-pointer transition-transform duration-300 ${isFabricDeliveredExpanded ? 'rotate-180' : ''}`}
-                  onClick={() => setIsFabricDeliveredExpanded(!isFabricDeliveredExpanded)}
-                />
-              </div>
-            </div>
-
-            <div className={`grid transition-all duration-300 ease-in-out ${isFabricDeliveredExpanded ? 'grid-rows-[1fr] mt-3 opacity-100' : 'grid-rows-[0fr] opacity-0'}`}>
-              <div className="overflow-hidden">
-                <div className="border border-[#d9a976] rounded-md overflow-hidden bg-white/60 shadow-inner">
-                  <table className="w-full text-[13px] text-left">
-                    <thead className="bg-[#e6b885]/30 font-extrabold text-[#61401E]">
-                      <tr>
-                        <th className="px-3 py-2 border-r border-[#d9a976] w-24"></th>
-                        {fabricDeliveredSizes.map((size) => (
-                          <th key={size} className="px-3 py-2 border-r border-[#d9a976] text-center">{size}</th>
-                        ))}
-                        <th className="px-3 py-2 text-center bg-[#e6b885]/40">TOTAL</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {loadingLoadSent ? (
-                        <tr><td colSpan={7} className="px-3 py-5 text-center text-[#61401E]">Loading delivered records...</td></tr>
-                      ) : selectedMonthDeliveryTableRows.length === 0 ? (
-                        <tr><td colSpan={7} className="px-3 py-5 text-center text-[#61401E]">No delivered records for this month.</td></tr>
-                      ) : selectedMonthDeliveryTableRows.map((row) => (
-                        <tr key={row.color} className="border-t border-[#d9a976]">
-                          <td className={`px-3 py-2.5 border-r border-[#d9a976] font-bold ${row.colorClass}`}>{row.color}</td>
-                          {fabricDeliveredSizes.map((size) => (
-                            <td key={size} className="px-3 py-2.5 border-r border-[#d9a976] text-center text-gray-800 font-medium">
-                              {row.deliveredBySize[size] !== undefined ? row.deliveredBySize[size].toFixed(3) : '--'}
-                            </td>
-                          ))}
-                          <td className={`px-3 py-2.5 text-center font-bold bg-[#e6b885]/10 ${row.colorClass}`}>
-                            {Object.values(row.deliveredBySize).reduce((sum, value) => sum + value, 0).toFixed(3)}
-                          </td>
-                        </tr>
-                      ))}
-                      <tr className="border-t-2 border-[#d9a976] bg-[#e6b885]/30">
-                        <td className="px-3 py-2.5 border-r border-[#d9a976] font-extrabold text-[#61401E]">TOTAL</td>
-                        {fabricDeliveredSizes.map((size) => (
-                          <td key={size} className="px-3 py-2.5 border-r border-[#d9a976] text-center text-[#61401E] font-bold">
-                            {selectedMonthDeliveryTableRows.reduce((sum, row) => sum + (row.deliveredBySize[size] ?? 0), 0) > 0
-                              ? selectedMonthDeliveryTableRows.reduce((sum, row) => sum + (row.deliveredBySize[size] ?? 0), 0).toFixed(3)
-                              : '--'}
-                          </td>
-                        ))}
-                        <td className="px-3 py-2.5 text-center text-[#61401E] font-extrabold bg-[#e6b885]/50">{selectedMonthDeliveryTotal.toFixed(3)}</td>
-                      </tr>
-                    </tbody>
-                  </table>
-                </div>
-              </div>
-            </div>
-          </div>
 
           {/* Data Table Area */}
           <Card className="shadow-sm border-0 bg-white rounded-xl overflow-hidden gap-0 p-0 flex flex-col">

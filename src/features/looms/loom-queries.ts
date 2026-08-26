@@ -48,8 +48,11 @@ export interface LoomsCreatePayload {
   yarnInputKg: number;
   fabricOutputKg: number;
   loomsWasteKg: number;
+  type?: 'PRODUCTION' | 'SAMPLE';
   remarks?: string;
 }
+
+export type LoomsUpdatePayload = Partial<LoomsCreatePayload>;
 
 export const loomsKeys = {
   all: ['looms-productions'] as const,

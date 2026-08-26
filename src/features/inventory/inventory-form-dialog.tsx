@@ -1,0 +1,229 @@
+import { useState } from 'react';
+import { useQueryClient } from '@tanstack/react-query';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { Loader } from '@/components/shared/loader';
+import { apiFetch } from '@/lib/api-client';
+import { useLookups } from '@/lib/lookups';
+import { todayIso } from './inventory-utils';
+import { inventoryKeys, type InventoryRecord, type InventoryType } from './inventory-queries';
+
+interface InventoryFormDialogProps {
+  onClose: () => void;
+  editDate?: string;
+  editRecords?: InventoryRecord[];
+}
+
+export function InventoryFormDialog({ onClose, editDate, editRecords }: InventoryFormDialogProps) {
+  const queryClient = useQueryClient();
+  const { data: lookupsData } = useLookups();
+  const isEdit = !!editDate;
+
+  const findDcForType = (type: InventoryType) => editRecords?.find(r => r.type === type && r.DC_NUMBER)?.DC_NUMBER ?? '';
+
+  const [date, setDate] = useState(editDate || todayIso());
+  const [dcHdpe, setDcHdpe] = useState(() => findDcForType('HDPE'));
+  const [dcChemical, setDcChemical] = useState(() => findDcForType('CHEMICAL'));
+  const [dcColor, setDcColor] = useState(() => findDcForType('COLOR'));
+
+  const [weights, setWeights] = useState<Record<string, string>>(() => {
+    const init: Record<string, string> = {};
+    if (editRecords) {
+      for (const r of editRecords) {
+        if (r.name) init[`${r.type}-${r.name}`] = String(r.weightKg);
+      }
+    }
+    return init;
+  });
+
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  const hdpeNames = (lookupsData?.brands ?? []).map(b => b.name).sort();
+  const chemicalNames = (lookupsData?.chemicals ?? []).map(c => c.name).sort();
+  const colorNames = (lookupsData?.colors ?? []).map(c => c.name).sort();
+
+  const handleWeightChange = (type: InventoryType, name: string, val: string) => {
+    setWeights(prev => ({ ...prev, [`${type}-${name}`]: val }));
+  };
+
+  const handleSubmit = async () => {
+    if (!date) {
+      setError('Date is required');
+      return;
+    }
+    setSaving(true);
+    setError(null);
+
+    try {
+      const promises: Promise<unknown>[] = [];
+      const types = [
+        { type: 'HDPE' as InventoryType, names: hdpeNames, dc: dcHdpe },
+        { type: 'CHEMICAL' as InventoryType, names: chemicalNames, dc: dcChemical },
+        { type: 'COLOR' as InventoryType, names: colorNames, dc: dcColor },
+      ];
+
+      // Validate: if any weight is entered for a type, DC must be provided
+      for (const t of types) {
+        const hasAnyWeight = t.names.some(name => {
+          const val = parseFloat(weights[`${t.type}-${name}`]);
+          return !isNaN(val) && val > 0;
+        });
+        if (hasAnyWeight && !t.dc.trim()) {
+          setError(`DC number is required for ${t.type === 'HDPE' ? 'HDPE' : t.type === 'CHEMICAL' ? 'Chemicals' : 'Colors'} when entering quantities.`);
+          setSaving(false);
+          return;
+        }
+      }
+
+      for (const t of types) {
+        for (const name of t.names) {
+          const key = `${t.type}-${name}`;
+          const valStr = weights[key];
+          const val = parseFloat(valStr);
+          const existing = editRecords?.find(r => r.type === t.type && r.name === name);
+
+          if (!isNaN(val) && val > 0) {
+            if (existing) {
+              const dc = t.dc.trim();
+              if (existing.weightKg !== val || (dc && existing.DC_NUMBER !== dc)) {
+                promises.push(apiFetch(`/inventory/${existing.id}`, {
+                  method: 'PATCH',
+                  headers: { 'Content-Type': 'application/json' },
+                  body: JSON.stringify({ weightKg: val, date, ...(dc && { DC: dc }) }),
+                }));
+              }
+            } else {
+              let lookupId = '';
+              if (t.type === 'HDPE') lookupId = lookupsData?.brands.find(b => b.name === name)?.id || '';
+              if (t.type === 'CHEMICAL') lookupId = lookupsData?.chemicals.find(b => b.name === name)?.id || '';
+              if (t.type === 'COLOR') lookupId = lookupsData?.colors.find(b => b.name === name)?.id || '';
+
+              promises.push(apiFetch('/inventory', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                  date, type: t.type, quantityKg: val,
+                  DC: t.dc,
+                  ...(t.type === 'HDPE' && { brandId: lookupId }),
+                  ...(t.type === 'CHEMICAL' && { chemicalId: lookupId }),
+                  ...(t.type === 'COLOR' && { colorId: lookupId }),
+                }),
+              }));
+            }
+          } else if (existing) {
+            promises.push(apiFetch(`/inventory/${existing.id}`, { method: 'DELETE' }));
+          }
+        }
+      }
+
+      await Promise.all(promises);
+      await queryClient.invalidateQueries({ queryKey: inventoryKeys.all });
+      onClose();
+    } catch (e) {
+      console.error(e);
+      setError('Could not save records. Please try again.');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  return (
+    <Dialog open onOpenChange={(next) => !saving && !next && onClose()}>
+      <DialogContent className="max-w-[100vw] w-full lg:max-w-[1400px] overflow-hidden flex flex-col max-h-[90vh]">
+        <DialogHeader className="flex flex-row items-center justify-between space-y-0 pb-2 border-b border-gray-100">
+          <DialogTitle>{isEdit ? 'Edit Stock' : 'Add Received Stock'}</DialogTitle>
+          <div className="flex items-center gap-3 pr-8">
+            <Label htmlFor="inv-date" className="text-sm font-medium whitespace-nowrap text-gray-700">Date</Label>
+            <Input id="inv-date" type="date" value={date} onChange={(e) => setDate(e.target.value)} className="w-40 h-8 text-sm bg-white" />
+          </div>
+        </DialogHeader>
+
+        <div className="flex-1 overflow-auto flex flex-col py-2 px-1">
+          <div className="border border-gray-200 rounded-lg overflow-x-auto shadow-sm">
+            <table className="w-full text-xs border-collapse bg-white">
+              <thead>
+                <tr className="bg-gray-50 border-b border-gray-200">
+                  {hdpeNames.length > 0 && (
+                    <th colSpan={hdpeNames.length + 1} className="border-r border-gray-200 px-3 py-2 text-center font-bold text-blue-700 uppercase tracking-wide bg-blue-50/50">
+                      HDPE (KG)
+                    </th>
+                  )}
+                  {chemicalNames.length > 0 && (
+                    <th colSpan={chemicalNames.length + 1} className="border-r border-gray-200 px-3 py-2 text-center font-bold text-yellow-700 uppercase tracking-wide bg-yellow-50/50">
+                      CHEMICALS (KG)
+                    </th>
+                  )}
+                  {colorNames.length > 0 && (
+                    <th colSpan={colorNames.length + 1} className="px-3 py-2 text-center font-bold text-purple-700 uppercase tracking-wide bg-purple-50/50">
+                      COLORS (KG)
+                    </th>
+                  )}
+                </tr>
+                <tr className="bg-gray-50/80 border-b border-gray-200">
+                  {hdpeNames.length > 0 && <th className="border-r border-gray-200 px-3 py-2 text-center font-semibold text-blue-800 text-[10px] uppercase whitespace-nowrap">DC</th>}
+                  {hdpeNames.map(name => (
+                    <th key={name} className="border-r border-gray-200 px-3 py-2 text-center font-semibold text-blue-600 text-[10px] uppercase whitespace-nowrap">{name}</th>
+                  ))}
+                  {chemicalNames.length > 0 && <th className="border-r border-gray-200 px-3 py-2 text-center font-semibold text-yellow-800 text-[10px] uppercase whitespace-nowrap">DC</th>}
+                  {chemicalNames.map(name => (
+                    <th key={name} className="border-r border-gray-200 px-3 py-2 text-center font-semibold text-yellow-600 text-[10px] uppercase whitespace-nowrap">{name}</th>
+                  ))}
+                  {colorNames.length > 0 && <th className="border-r border-gray-200 px-3 py-2 text-center font-semibold text-purple-800 text-[10px] uppercase whitespace-nowrap">DC</th>}
+                  {colorNames.map(name => (
+                    <th key={name} className="border-r border-gray-200 px-3 py-2 text-center font-semibold text-purple-600 text-[10px] uppercase whitespace-nowrap">{name}</th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  {hdpeNames.length > 0 && (
+                    <td className="border-r border-gray-200 p-2">
+                      <Input type="text" maxLength={8} placeholder="DC No" className="w-28 text-center h-8 text-xs font-bold bg-blue-50 border-blue-200 mx-auto" value={dcHdpe} onChange={(e) => setDcHdpe(e.target.value.slice(0, 8))} />
+                    </td>
+                  )}
+                  {hdpeNames.map(name => (
+                    <td key={name} className="border-r border-gray-200 p-2">
+                      <Input type="number" placeholder="0" className="w-20 text-center h-8 text-xs font-medium bg-blue-50/10 border-blue-100 mx-auto" value={weights[`HDPE-${name}`] || ''} onChange={(e) => handleWeightChange('HDPE', name, e.target.value)} />
+                    </td>
+                  ))}
+                  {chemicalNames.length > 0 && (
+                    <td className="border-r border-gray-200 p-2">
+                      <Input type="text" maxLength={8} placeholder="DC No" className="w-28 text-center h-8 text-xs font-bold bg-yellow-50 border-yellow-200 mx-auto" value={dcChemical} onChange={(e) => setDcChemical(e.target.value.slice(0, 8))} />
+                    </td>
+                  )}
+                  {chemicalNames.map(name => (
+                    <td key={name} className="border-r border-gray-200 p-2">
+                      <Input type="number" placeholder="0" className="w-20 text-center h-8 text-xs font-medium bg-yellow-50/10 border-yellow-100 mx-auto" value={weights[`CHEMICAL-${name}`] || ''} onChange={(e) => handleWeightChange('CHEMICAL', name, e.target.value)} />
+                    </td>
+                  ))}
+                  {colorNames.length > 0 && (
+                    <td className="border-r border-gray-200 p-2">
+                      <Input type="text" maxLength={8} placeholder="DC No" className="w-28 text-center h-8 text-xs font-bold bg-purple-50 border-purple-200 mx-auto" value={dcColor} onChange={(e) => setDcColor(e.target.value.slice(0, 8))} />
+                    </td>
+                  )}
+                  {colorNames.map(name => (
+                    <td key={name} className="border-r border-gray-200 p-2">
+                      <Input type="number" placeholder="0" className="w-20 text-center h-8 text-xs font-medium bg-purple-50/10 border-purple-100 mx-auto" value={weights[`COLOR-${name}`] || ''} onChange={(e) => handleWeightChange('COLOR', name, e.target.value)} />
+                    </td>
+                  ))}
+                </tr>
+              </tbody>
+            </table>
+          </div>
+          {error && <p className="text-sm text-red-600 font-medium">{error}</p>}
+        </div>
+
+        <DialogFooter className="mt-2 pt-4 border-t border-gray-100">
+          <Button variant="outline" onClick={onClose} disabled={saving}>Cancel</Button>
+          <Button onClick={handleSubmit} disabled={saving} className="bg-green-600 hover:bg-green-700 min-w-24">
+            {saving ? <Loader size="sm" className="mr-2" /> : null}
+            {isEdit ? 'Save Changes' : 'Create Entries'}
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+}

@@ -13,6 +13,7 @@ import { AttendanceTab } from './attendance-tab';
 export interface EmployeeRecord {
   id: string;
   name: string;
+  designation: string;
   mobileNumber: string;
   aadharCard: string;
   dateOfJoining: string;
@@ -26,6 +27,7 @@ const INITIAL_EMPLOYEES: EmployeeRecord[] = [
   {
     id: 'EMP-001',
     name: 'Karthik Subramanian',
+    designation: 'Knitting Operator',
     mobileNumber: '+91 98765 43210',
     aadharCard: '4521 8890 1234',
     dateOfJoining: '2024-01-15',
@@ -37,6 +39,7 @@ const INITIAL_EMPLOYEES: EmployeeRecord[] = [
   {
     id: 'EMP-002',
     name: 'Priya Ramesh',
+    designation: 'Quality Checker',
     mobileNumber: '+91 98421 67890',
     aadharCard: '5890 3341 9812',
     dateOfJoining: '2024-03-01',
@@ -48,6 +51,7 @@ const INITIAL_EMPLOYEES: EmployeeRecord[] = [
   {
     id: 'EMP-003',
     name: 'Muthukumar S.',
+    designation: 'Extruder Operator',
     mobileNumber: '+91 97100 23456',
     aadharCard: '6712 9044 1122',
     dateOfJoining: '2023-11-10',
@@ -59,6 +63,7 @@ const INITIAL_EMPLOYEES: EmployeeRecord[] = [
   {
     id: 'EMP-004',
     name: 'Lakshmi Narayanan',
+    designation: 'Helper',
     mobileNumber: '+91 99445 11223',
     aadharCard: '2341 8901 7765',
     dateOfJoining: '2024-05-20',
@@ -70,6 +75,7 @@ const INITIAL_EMPLOYEES: EmployeeRecord[] = [
   {
     id: 'EMP-005',
     name: 'Suresh Kumar',
+    designation: 'Supervisor',
     mobileNumber: '+91 96554 88776',
     aadharCard: '8910 4455 3321',
     dateOfJoining: '2023-08-14',
@@ -117,6 +123,7 @@ function EmployeeDirectoryTab() {
   // Form input states
   const [formId, setFormId] = useState('');
   const [formName, setFormName] = useState('');
+  const [formDesignation, setFormDesignation] = useState('');
   const [formMobile, setFormMobile] = useState('');
   const [formAadhar, setFormAadhar] = useState('');
   const [formDoj, setFormDoj] = useState(todayIso());
@@ -144,6 +151,7 @@ function EmployeeDirectoryTab() {
       const matchesSearch =
         emp.id.toLowerCase().includes(q) ||
         emp.name.toLowerCase().includes(q) ||
+        emp.designation.toLowerCase().includes(q) ||
         emp.mobileNumber.toLowerCase().includes(q) ||
         emp.aadharCard.toLowerCase().includes(q) ||
         emp.residentialAddress.toLowerCase().includes(q);
@@ -160,6 +168,7 @@ function EmployeeDirectoryTab() {
     setEditingEmployee(null);
     setFormId(generatedId);
     setFormName('');
+    setFormDesignation('');
     setFormMobile('');
     setFormAadhar('');
     setFormDoj(todayIso());
@@ -175,6 +184,7 @@ function EmployeeDirectoryTab() {
     setEditingEmployee(emp);
     setFormId(emp.id);
     setFormName(emp.name);
+    setFormDesignation(emp.designation);
     setFormMobile(emp.mobileNumber);
     setFormAadhar(emp.aadharCard);
     setFormDoj(emp.dateOfJoining);
@@ -208,6 +218,7 @@ function EmployeeDirectoryTab() {
             ? {
               ...emp,
               name: formName.trim(),
+              designation: formDesignation.trim(),
               mobileNumber: formMobile.trim(),
               aadharCard: formAadhar.trim(),
               dateOfJoining: formDoj,
@@ -223,6 +234,7 @@ function EmployeeDirectoryTab() {
       const newEmp: EmployeeRecord = {
         id: formId.trim() || `EMP-${Date.now().toString().slice(-3)}`,
         name: formName.trim(),
+        designation: formDesignation.trim(),
         mobileNumber: formMobile.trim(),
         aadharCard: formAadhar.trim(),
         dateOfJoining: formDoj,
@@ -339,6 +351,9 @@ function EmployeeDirectoryTab() {
                 <TableHead className="text-2xs font-semibold uppercase tracking-wide text-gray-500 min-w-[150px]">
                   Name
                 </TableHead>
+                <TableHead className="text-2xs font-semibold uppercase tracking-wide text-gray-500 min-w-[150px]">
+                  Designation
+                </TableHead>
                 <TableHead className="text-2xs font-semibold uppercase tracking-wide text-gray-500 min-w-[130px]">
                   Mobile Number
                 </TableHead>
@@ -353,9 +368,6 @@ function EmployeeDirectoryTab() {
                 </TableHead>
                 <TableHead className="text-2xs font-semibold uppercase tracking-wide text-gray-500 min-w-[80px]">
                   Gender
-                </TableHead>
-                <TableHead className="text-right text-2xs font-semibold uppercase tracking-wide text-gray-500 min-w-[110px]">
-                  Salary
                 </TableHead>
                 <TableHead className="text-center text-2xs font-semibold uppercase tracking-wide text-gray-500 min-w-[90px]">
                   Status
@@ -385,6 +397,9 @@ function EmployeeDirectoryTab() {
                       {emp.name}
                     </TableCell>
                     <TableCell className="text-xs text-gray-700 whitespace-nowrap">
+                      {emp.designation}
+                    </TableCell>
+                    <TableCell className="text-xs text-gray-700 whitespace-nowrap">
                       {emp.mobileNumber}
                     </TableCell>
                     <TableCell className="text-xs text-gray-600 font-mono whitespace-nowrap">
@@ -400,9 +415,6 @@ function EmployeeDirectoryTab() {
                       <span className="inline-flex items-center rounded-full px-2 py-0.5 text-[11px] font-medium bg-slate-100 text-slate-700 border border-slate-200">
                         {emp.gender}
                       </span>
-                    </TableCell>
-                    <TableCell className="text-right font-bold text-gray-900 text-xs whitespace-nowrap">
-                      {formatCurrency(emp.salary)}
                     </TableCell>
                     <TableCell className="text-center whitespace-nowrap">
                       <span
@@ -481,6 +493,17 @@ function EmployeeDirectoryTab() {
                 placeholder="e.g. Ramesh Kumar"
                 value={formName}
                 onChange={(e) => setFormName(e.target.value)}
+                className="h-9 text-xs"
+              />
+            </div>
+
+            <div className="flex flex-col gap-1.5">
+              <Label htmlFor="emp-designation" className="text-xs font-semibold text-gray-700">Designation</Label>
+              <Input
+                id="emp-designation"
+                placeholder="e.g. Knitting Operator"
+                value={formDesignation}
+                onChange={(e) => setFormDesignation(e.target.value)}
                 className="h-9 text-xs"
               />
             </div>
