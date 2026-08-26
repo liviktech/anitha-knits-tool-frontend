@@ -29,6 +29,20 @@ export interface ExtruderBrandDraft {
   raw: string;
 }
 
+/** Extracts a brand row's bag breakdown for the create/update payload — omits any field that isn't filled in. */
+function brandBagFields(brand: ExtruderBrandDraft): Pick<ExtruderCreatePayload, 'bagCount' | 'bagWeightKg' | 'looseWeightKg' | 'totalWeightKg'> {
+  const fields: Pick<ExtruderCreatePayload, 'bagCount' | 'bagWeightKg' | 'looseWeightKg' | 'totalWeightKg'> = {};
+  const bagCount = parseInt(brand.bags, 10);
+  const bagWeightKg = parseFloat(brand.weightPerBag);
+  const looseWeightKg = parseFloat(brand.looseWeight);
+  const totalWeightKg = parseFloat(brand.raw);
+  if (!isNaN(bagCount) && bagCount > 0) fields.bagCount = bagCount;
+  if (!isNaN(bagWeightKg) && bagWeightKg > 0) fields.bagWeightKg = bagWeightKg;
+  if (!isNaN(looseWeightKg) && looseWeightKg > 0) fields.looseWeightKg = looseWeightKg;
+  if (!isNaN(totalWeightKg) && totalWeightKg > 0) fields.totalWeightKg = totalWeightKg;
+  return fields;
+}
+
 export interface ExtruderGroupDraft {
   key: string; // "sizeId-colorId" for existing, or random UUID for new
   size: string;
@@ -36,6 +50,7 @@ export interface ExtruderGroupDraft {
   output: string;
   chemical: string;
   chemicalKg: string;
+  colorConsumedKg: string;
   lumpsKg: string;
   yarnWasteKg: string;
   brands: ExtruderBrandDraft[];
@@ -76,6 +91,7 @@ export const ExtruderSection = forwardRef<SectionRef, SectionProps>(({ productio
           output: '0',
           chemical: '',
           chemicalKg: '0',
+          colorConsumedKg: '0',
           lumpsKg: '0',
           yarnWasteKg: '0',
           brands: []
@@ -91,6 +107,7 @@ export const ExtruderSection = forwardRef<SectionRef, SectionProps>(({ productio
         group.chemical = item.extruder.chemical.name;
       }
       group.chemicalKg = ((parseFloat(group.chemicalKg) || 0) + (item.extruder?.chemicalKg || 0)).toString();
+      group.colorConsumedKg = ((parseFloat(group.colorConsumedKg) || 0) + (item.extruder?.colorConsumedKg || 0)).toString();
       group.lumpsKg = ((parseFloat(group.lumpsKg) || 0) + sumWastageByCode(item.wastages, 'LUMPS')).toString();
       group.yarnWasteKg = ((parseFloat(group.yarnWasteKg) || 0) + sumWastageByCode(item.wastages, 'YARN_WASTE')).toString();
 
@@ -98,9 +115,9 @@ export const ExtruderSection = forwardRef<SectionRef, SectionProps>(({ productio
         key: item.id,
         id: item.id,
         brand: item.extruder?.brand?.name ?? '',
-        bags: '', // Not tracked by API yet
-        weightPerBag: '', // Not tracked by API yet
-        looseWeight: '',
+        bags: item.extruder?.bagCount != null ? item.extruder.bagCount.toString() : '',
+        weightPerBag: item.extruder?.bagWeightKg != null ? item.extruder.bagWeightKg.toString() : '',
+        looseWeight: item.extruder?.looseWeightKg != null ? item.extruder.looseWeightKg.toString() : '',
         raw: item.extruder?.rawMaterialKg?.toString() ?? '0',
       });
     });
@@ -158,7 +175,10 @@ export const ExtruderSection = forwardRef<SectionRef, SectionProps>(({ productio
           const brandId = findIdByName(lookups.brands, brand.brand);
           try {
             if (brand.id) {
-              const payload: ExtruderUpdatePayload = { rawMaterialKg: parseFloat(brand.raw) || 0 };
+              const payload: ExtruderUpdatePayload = {
+                rawMaterialKg: parseFloat(brand.raw) || 0,
+                ...brandBagFields(brand),
+              };
               if (isFirst) {
                 payload.chemicalId = chemicalId;
                 payload.chemicalKg = parseFloat(group.chemicalKg) || 0;
@@ -192,6 +212,7 @@ export const ExtruderSection = forwardRef<SectionRef, SectionProps>(({ productio
                 yarnOutputKg: isFirst ? parseFloat(group.output) || 0 : 0,
                 lumpsKg: isFirst ? parseFloat(group.lumpsKg) || 0 : 0,
                 yarnWasteKg: isFirst ? parseFloat(group.yarnWasteKg) || 0 : 0,
+                ...brandBagFields(brand),
               };
               const response = await apiFetch('/production/extruder', {
                 method: 'POST',
@@ -267,21 +288,26 @@ export const ExtruderSection = forwardRef<SectionRef, SectionProps>(({ productio
         {group.brands.map((brandRow, idx) => (
           <TableRow key={brandRow.key} className="hover:bg-gray-50/50">
             {idx === 0 && (
-              <TableCell rowSpan={group.brands.length} className="align-middle border-r border-gray-200 py-1.5 px-2">
-                <span className="font-medium text-gray-700">{group.size || '-'}</span>
+              <TableCell rowSpan={group.brands.length} className="align-middle border-r border-gray-200 py-1.5 px-2 w-20 min-w-20 !text-center">
+                <span className="font-medium text-gray-700 text-center block">{group.size || '-'}</span>
               </TableCell>
             )}
             {idx === 0 && (
-              <TableCell rowSpan={group.brands.length} className="align-middle border-r border-gray-200 w-32 py-1.5 px-2">
-                <span className="font-medium text-gray-700">{group.color || '-'}</span>
+              <TableCell rowSpan={group.brands.length} className="align-middle border-r border-gray-200 py-1.5 px-2 w-24 min-w-24">
+                <span className="font-medium text-gray-700 text-center block">{group.color || '-'}</span>
+              </TableCell>
+            )}
+            {idx === 0 && (
+              <TableCell rowSpan={group.brands.length} className="align-middle border-r border-gray-200 py-1.5 px-2 w-20 min-w-20">
+                <span className="font-medium text-gray-700 text-center block">{parseFloat(group.colorConsumedKg) > 0 ? parseFloat(group.colorConsumedKg).toFixed(2) : '-'}</span>
               </TableCell>
             )}
 
             <TableCell className="py-1.5 px-2">
               <span className="block text-center">{parseFloat(brandRow.bags) > 0 ? brandRow.bags : '-'}</span>
             </TableCell>
-            <TableCell className="w-32 py-1.5 px-2">
-              <span>{brandRow.brand || '-'}</span>
+            <TableCell className="w-36 min-w-36 py-1.5 px-2">
+              <span className="text-center block">{brandRow.brand || '-'}</span>
             </TableCell>
             <TableCell className="py-1.5 px-2">
               <span className="block text-center">{parseFloat(brandRow.weightPerBag) > 0 ? brandRow.weightPerBag : '-'}</span>
@@ -316,14 +342,14 @@ export const ExtruderSection = forwardRef<SectionRef, SectionProps>(({ productio
             )}
 
             {idx === 0 && (
-              <TableCell rowSpan={group.brands.length} className="align-middle border-r border-gray-200 py-1.5 px-2">
-                <span className="font-semibold text-green-700 block text-center">{parseFloat(group.output) > 0 ? parseFloat(group.output).toFixed(2) : '-'}</span>
+              <TableCell rowSpan={group.brands.length} className="align-middle border-r border-gray-200 py-1.5 px-0.5 w-24 min-w-24">
+                <span className="font-semibold text-green-700 block text-center text-xs sm:text-sm">{parseFloat(group.output) > 0 ? parseFloat(group.output).toFixed(2) : '-'}</span>
               </TableCell>
             )}
 
             {idx === 0 && !readOnly && (
-              <TableCell rowSpan={group.brands.length} className="text-right align-middle border-l border-gray-200">
-                <div className="flex flex-row items-center justify-end gap-1.5 mt-1">
+              <TableCell rowSpan={group.brands.length} className="!text-center align-middle border-l border-gray-200">
+                <div className="flex flex-row items-center justify-center gap-1.5 mt-1">
                   <Button variant="ghost" size="icon-sm" disabled={saving} className="h-6 w-6 p-0 rounded bg-blue-50 text-blue-500 hover:bg-blue-100" onClick={() => onEditExtruderGroup?.(group)}>
                     <Edit2 className="h-3 w-3" />
                   </Button>
@@ -342,7 +368,7 @@ export const ExtruderSection = forwardRef<SectionRef, SectionProps>(({ productio
           </TableRow>
         ))}
         {/* Separator row between groups */}
-        <TableRow className="h-2 bg-gray-50/50"><TableCell colSpan={14} className="p-0 border-b-2 border-gray-200" /></TableRow>
+        <TableRow className="h-2 bg-gray-50/50"><TableCell colSpan={15} className="p-0 border-b-2 border-gray-200" /></TableRow>
       </React.Fragment>
     );
   };
@@ -351,7 +377,7 @@ export const ExtruderSection = forwardRef<SectionRef, SectionProps>(({ productio
     <div className={`${roundedClass} border ${theme.border} bg-white shadow-sm overflow-hidden`}>
       {!hideBanner && (
         <div className={`p-3 ${theme.headerBg} flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between`}>
-          <div className={`flex items-center gap-3 text-[13px] font-extrabold ${theme.headerText} uppercase tracking-wider`}>
+          <div className={`flex items-center gap-3 text-[13px] font-extrabold ${theme.headerText} tracking-wider`}>
             <div className={`${theme.iconBg} ${theme.iconColor} h-5 w-5 flex items-center justify-center rounded-sm text-[10px] font-bold`}>
               1
             </div>
@@ -368,31 +394,33 @@ export const ExtruderSection = forwardRef<SectionRef, SectionProps>(({ productio
         <Table>
           <TableHeader className={`${theme.headerBg}`}>
             <TableRow className="hover:!bg-transparent border-b-0">
-              <TableHead rowSpan={2} className={`align-middle text-xs font-semibold uppercase tracking-wide ${theme.headerText} border-r border-black/10 py-1 px-2`}>Size</TableHead>
-              <TableHead rowSpan={2} className={`align-middle w-32 min-w-32 text-center text-xs font-semibold uppercase tracking-wide ${theme.headerText} border-r border-black/10 py-1 px-2`}>Color</TableHead>
+              <TableHead rowSpan={2} className={`align-middle !text-center text-sm font-semibold  tracking-wide ${theme.headerText} border-r border-black/10 py-1 px-2 w-20 min-w-20`}>Size</TableHead>
+              <TableHead colSpan={2} className={`align-middle !text-center text-sm font-semibold  tracking-wide ${theme.headerText} border-r border-black/10 py-1 px-2`}>Color</TableHead>
 
-              <TableHead colSpan={5} className={`text-center text-xs font-semibold uppercase tracking-wide ${theme.headerText} border-b border-r border-black/10 py-1 px-2`}>HDPE Material</TableHead>
-              <TableHead colSpan={2} className={`text-center text-xs font-semibold uppercase tracking-wide ${theme.headerText} border-b border-r border-black/10 py-1 px-2`}>Chemicals</TableHead>
-              <TableHead colSpan={2} className={`text-center text-xs font-semibold uppercase tracking-wide ${theme.headerText} border-b border-black/10 py-1 px-2`}>Waste (kg)</TableHead>
-              <TableHead rowSpan={2} className={`align-middle text-center text-xs font-semibold uppercase tracking-wide ${theme.headerText} border-r border-black/10 py-1 px-2`}>Loom Production (kg)</TableHead>
-              {!readOnly && <TableHead rowSpan={2} className={`align-middle text-right text-xs font-semibold uppercase tracking-wide ${theme.headerText} py-1 px-2`}>Action</TableHead>}
+              <TableHead colSpan={5} className={`!text-center text-sm font-semibold  tracking-wide ${theme.headerText} border border-black/10 py-1 px-2`}>HDPE Material</TableHead>
+              <TableHead colSpan={2} className={`!text-center text-sm font-semibold  tracking-wide ${theme.headerText} border border-black/10 py-1 px-2`}>Chemicals</TableHead>
+              <TableHead colSpan={2} className={`!text-center text-sm font-semibold  tracking-wide ${theme.headerText} border border-black/10 py-1 px-2`}>Waste (kg)</TableHead>
+              <TableHead rowSpan={2} className={`align-middle !text-center text-sm font-semibold  tracking-wide ${theme.headerText} border border-black/10 py-1 px-2 w-32 min-w-32`}>Loom Production (kg)</TableHead>
+              {!readOnly && <TableHead rowSpan={2} className={`align-middle !text-center text-sm font-semibold  tracking-wide ${theme.headerText} py-1 px-2`}>Action</TableHead>}
             </TableRow>
             <TableRow className="hover:!bg-transparent border-b-0">
-              <TableHead className={`text-center text-xs font-semibold uppercase tracking-wide ${theme.headerText} py-1 px-2`}>Bag</TableHead>
-              <TableHead className={`w-32 min-w-32 text-center text-xs font-semibold uppercase tracking-wide ${theme.headerText} py-1 px-2`}>Brand</TableHead>
-              <TableHead className={`text-center text-xs font-semibold uppercase tracking-wide ${theme.headerText} py-1 px-2`}>Bag Weight</TableHead>
-              <TableHead className={`text-center text-xs font-semibold uppercase tracking-wide ${theme.headerText} py-1 px-2`}>Loose Wt</TableHead>
-              <TableHead className={`text-center text-xs font-semibold uppercase tracking-wide ${theme.headerText} border-r border-black/10 py-1 px-2`}>Total (kg)</TableHead>
-              <TableHead className={`text-xs font-semibold uppercase tracking-wide ${theme.headerText} py-1 px-2`}>Chemical</TableHead>
-              <TableHead className={`text-center text-xs font-semibold uppercase tracking-wide ${theme.headerText} border-r border-black/10 py-1 px-2`}>Chem Wt</TableHead>
-              <TableHead className={`text-center text-xs font-semibold uppercase tracking-wide ${theme.headerText} py-1 px-2`}>Lumps</TableHead>
-              <TableHead className={`text-center text-xs font-semibold uppercase tracking-wide ${theme.headerText} border-r border-black/10 py-1 px-2`}>Looms Waste</TableHead>
+              <TableHead className={`!text-center text-sm font-semibold  tracking-wide ${theme.headerText} py-1 px-2  border border-black/10 w-24 min-w-24`}>Name</TableHead>
+              <TableHead className={`!text-center text-sm font-semibold  tracking-wide ${theme.headerText} py-1 px-2  border border-black/10 w-20 min-w-20`}>Weight</TableHead>
+              <TableHead className={`!text-center text-sm font-semibold  tracking-wide ${theme.headerText} py-1 px-2  border border-black/10`}>Bag</TableHead>
+              <TableHead className={`w-36 min-w-36 !text-center text-sm font-semibold  tracking-wide ${theme.headerText} py-1 px-2  border border-black/10`}>Brand</TableHead>
+              <TableHead className={`!text-center text-sm font-semibold  tracking-wide ${theme.headerText} py-1 px-2  border border-black/10`}>Bag Weight</TableHead>
+              <TableHead className={`!text-center text-sm font-semibold  tracking-wide ${theme.headerText} py-1 px-2  border border-black/10`}>Loose Wt</TableHead>
+              <TableHead className={`!text-center text-sm font-semibold  tracking-wide ${theme.headerText}  border border-black/10`}>Total (kg)</TableHead>
+              <TableHead className={`!text-center text-sm font-semibold  tracking-wide ${theme.headerText} py-1 px-2  border border-black/10`}>Chemical</TableHead>
+              <TableHead className={`!text-center text-sm font-semibold  tracking-wide ${theme.headerText}  border border-black/10`}>Chem Wt</TableHead>
+              <TableHead className={`!text-center text-sm font-semibold  tracking-wide ${theme.headerText} py-1 px-2  border border-black/10`}>Lumps</TableHead>
+              <TableHead className={`!text-center text-sm font-semibold  tracking-wide ${theme.headerText}  py-1 px-2 border border-black/10`}>Looms Waste</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
             {isLoading ? (
               <TableRow>
-                <TableCell colSpan={14} className="h-20 text-center text-gray-500">
+                <TableCell colSpan={15} className="h-20 text-center text-gray-500">
                   <div className="flex items-center justify-center gap-2 text-gray-500">
                     <Loader size="sm" /> Loading entries...
                   </div>
@@ -408,7 +436,7 @@ export const ExtruderSection = forwardRef<SectionRef, SectionProps>(({ productio
 
                 {newGroups.length === 0 && existingGroups.length === 0 && (
                   <TableRow>
-                    <TableCell colSpan={14} className="h-20 !text-center text-gray-500">No entries yet.</TableCell>
+                    <TableCell colSpan={15} className="h-20 !text-center text-gray-500">No entries yet.</TableCell>
 
                   </TableRow>
                 )}

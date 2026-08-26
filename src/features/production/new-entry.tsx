@@ -44,7 +44,7 @@ export function NewEntry({ onClose, defaultDate, readOnly = false }: NewEntryPro
   const lookups = lookupsData ?? { brands: [], colors: [], chemicals: [], sizes: [] };
 
   useEffect(() => {
-    setHeaderTitle(isCreateMode ? 'Add new Daily production details' : 'Edit daily production details');
+    setHeaderTitle(isCreateMode ? 'Add New Daily Production Details' : 'Edit Daily Production Details');
     setShowBackButton(true);
     setOnBackClick(() => onClose);
 
@@ -221,28 +221,11 @@ export function NewEntry({ onClose, defaultDate, readOnly = false }: NewEntryPro
           <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full flex-col gap-0">
             <div className="flex justify-between items-end border-b border-gray-200">
               <TabsList variant="folder" className="flex overflow-x-auto sm:overflow-visible">
-                <TabsTrigger value="extruder" className="data-[state=active]:!bg-[#D6EEF7] data-[state=active]:!text-[#0B5566] data-[state=active]:!border-b-[#D6EEF7]">EXTRUDER PRODUCTION</TabsTrigger>
-                <TabsTrigger value="looms" className="data-[state=active]:!bg-[#FFF6BF] data-[state=active]:!text-[#7A6A00] data-[state=active]:!border-b-[#FFF6BF]">LOOMS PRODUCTION</TabsTrigger>
-                <TabsTrigger value="fabric" className="data-[state=active]:!bg-[#DCEEDB] data-[state=active]:!text-[#2F6B2F] data-[state=active]:!border-b-[#DCEEDB]">FABRIC CHECKING</TabsTrigger>
-                <TabsTrigger value="delivered" className="data-[state=active]:!bg-[#f2caa0] data-[state=active]:!text-[#61401E] data-[state=active]:!border-b-[#f2caa0]">FABRIC DELIVERED</TabsTrigger>
+                <TabsTrigger value="extruder" className="data-[state=active]:!bg-[#D6EEF7] data-[state=active]:!text-[#0B5566] data-[state=active]:!border-b-[#D6EEF7]">EXtruder Production</TabsTrigger>
+                <TabsTrigger value="looms" className="data-[state=active]:!bg-[#FFF6BF] data-[state=active]:!text-[#7A6A00] data-[state=active]:!border-b-[#FFF6BF]">Looms Production</TabsTrigger>
+                <TabsTrigger value="fabric" className="data-[state=active]:!bg-[#DCEEDB] data-[state=active]:!text-[#2F6B2F] data-[state=active]:!border-b-[#DCEEDB]">Fabric Checking</TabsTrigger>
+                <TabsTrigger value="delivered" className="data-[state=active]:!bg-[#f2caa0] data-[state=active]:!text-[#61401E] data-[state=active]:!border-b-[#f2caa0]">Fabric Delivered</TabsTrigger>
               </TabsList>
-
-              {!readOnly && (
-                <div className="mb-2 mr-2 z-10">
-                  <Button
-                    size="sm"
-                    className={`h-8 gap-1.5 shadow-sm hover:opacity-90 ${activeTab === 'extruder' ? `${themes.extruder.iconBg} ${themes.extruder.iconColor}` :
-                        activeTab === 'looms' ? `${themes.looms.iconBg} ${themes.looms.iconColor}` :
-                          activeTab === 'fabric' ? `${themes.fabric.iconBg} ${themes.fabric.iconColor}` :
-                            `${themes.fabricDelivered.iconBg} ${themes.fabricDelivered.iconColor}`
-                      }`}
-                    onClick={() => setIsAddModalOpen(true)}
-                  >
-                    <Plus className="h-4 w-4" />
-                    Add Entry
-                  </Button>
-                </div>
-              )}
             </div>
 
             <TabsContent value="extruder" className="flex flex-col gap-4 mt-0 pt-0">
@@ -274,7 +257,21 @@ export function NewEntry({ onClose, defaultDate, readOnly = false }: NewEntryPro
           </Tabs>
         </div>
 
-        <div className="mt-4 mb-8 flex justify-end">
+        <div className="mt-4 mb-8 flex justify-between items-center">
+          {!readOnly ? (
+            <Button
+              size="sm"
+              className={`h-8 gap-1.5 shadow-sm hover:opacity-90 ${activeTab === 'extruder' ? `${themes.extruder.iconBg} ${themes.extruder.iconColor}` :
+                  activeTab === 'looms' ? `${themes.looms.iconBg} ${themes.looms.iconColor}` :
+                    activeTab === 'fabric' ? `${themes.fabric.iconBg} ${themes.fabric.iconColor}` :
+                      `${themes.fabricDelivered.iconBg} ${themes.fabricDelivered.iconColor}`
+                }`}
+              onClick={() => setIsAddModalOpen(true)}
+            >
+              <Plus className="h-4 w-4" />
+              Add Row
+            </Button>
+          ) : <span />}
           <div className="flex items-center gap-3">
             <Button variant="outline" onClick={onClose} className="border-gray-300 text-gray-700 bg-white" disabled={submitting}>
               Close

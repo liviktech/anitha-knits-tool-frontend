@@ -33,6 +33,7 @@ export function TabAddModal({
 }: TabAddModalProps) {
   const activeThemeKey = activeTab === 'delivered' ? 'fabricDelivered' : activeTab as Theme;
   const theme = themes[activeThemeKey];
+  const maxWidth = activeTab === 'extruder' ? 'sm:max-w-[600px]' : 'sm:max-w-[500px]';
 
   const getTitle = () => {
     switch (activeTab) {
@@ -46,9 +47,9 @@ export function TabAddModal({
 
   return (
     <Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
-      <DialogContent aria-describedby={undefined} className={`!bg-white shadow-2xl sm:max-w-[1000px] max-h-[90vh] flex flex-col border-2 ${theme.border} p-0 overflow-hidden`}>
-        <DialogHeader className={`p-4 pb-4 border-b border-gray-200 ${theme.headerBg} shrink-0`}>
-          <DialogTitle className={`text-lg font-extrabold uppercase tracking-wider ${theme.headerText}`}>
+      <DialogContent aria-describedby={undefined} className={`!bg-white shadow-2xl ${maxWidth} max-h-[90vh] flex flex-col border-2 ${theme.border} p-0 overflow-hidden`}>
+        <DialogHeader className={`p-3 pb-2 border-b border-gray-200 ${theme.headerBg} shrink-0`}>
+          <DialogTitle className={`text-lg font-extrabold tracking-wider ${theme.headerText}`}>
             {getTitle()}
           </DialogTitle>
         </DialogHeader>

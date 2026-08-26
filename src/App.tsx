@@ -18,7 +18,7 @@ import threadIcon from '@/assets/thread.png';
 
 const navItems = [
   { to: '/dashboard', label: 'Dashboard', icon: LayoutDashboard },
-  { to: '/production', label: 'Production details', icon: LineChart },
+  { to: '/production', label: 'Production Details', icon: LineChart },
   { to: '/inventory', label: 'Inventory', icon: Package },
   { to: '/employees', label: 'Employees', icon: User },
   { to: '/expenses', label: 'Expenses', icon: Wallet },

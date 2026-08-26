@@ -17,6 +17,10 @@ export interface ExtruderDetail {
   yarnOutputKg: number;
   isRecipeOverridden: boolean;
   overrideReason: string | null;
+  bagCount: number | null;
+  bagWeightKg: number | null;
+  looseWeightKg: number | null;
+  totalWeightKg: number | null;
 }
 
 /**
@@ -63,6 +67,10 @@ export interface ExtruderCreatePayload {
   type?: 'PRODUCTION' | 'SAMPLE';
   remarks?: string;
   overrideReason?: string;
+  bagCount?: number;
+  bagWeightKg?: number;
+  looseWeightKg?: number;
+  totalWeightKg?: number;
 }
 
 /**
@@ -77,6 +85,48 @@ export const extruderKeys = {
   all: ['extruder-productions'] as const,
   list: (query: string) => [...extruderKeys.all, 'list', query] as const,
 };
+
+/** Matches the real API's ColorConsumptionStandard record (see GET /color-consumption-standard/latest). Numeric fields come back as strings. */
+export interface ColorConsumptionStandard {
+  id: string;
+  companyId: string;
+  basisWeightKg: string;
+  hdpematerialbag: number;
+  whiteGramsPerBasis: string;
+  blueGramsPerBasis: string;
+  greenGramsPerBasis: string;
+  chemicalWeight: string;
+  date: string;
+  isActive: boolean;
+  createdAt: string;
+  createdBy: string;
+  updatedAt: string;
+  updatedBy: string | null;
+}
+
+interface ColorConsumptionStandardResponse {
+  success: boolean;
+  data: ColorConsumptionStandard;
+}
+
+export const colorConsumptionStandardKeys = {
+  latest: ['color-consumption-standard', 'latest'] as const,
+};
+
+export function useColorConsumptionStandard() {
+  return useQuery({
+    queryKey: colorConsumptionStandardKeys.latest,
+    queryFn: () => fetchJson<ColorConsumptionStandardResponse>('/color-consumption-standard/latest'),
+  });
+}
+
+/** The standard's per-colour grams-per-basis field is named `{colour}GramsPerBasis` — resolves it case-insensitively by colour display name. */
+export function colorGramsPerBasis(standard: ColorConsumptionStandard | undefined, colorName: string): number | undefined {
+  if (!standard || !colorName) return undefined;
+  const key = `${colorName.toLowerCase()}GramsPerBasis` as keyof ColorConsumptionStandard;
+  const value = standard[key];
+  return typeof value === 'string' ? parseFloat(value) : undefined;
+}
 
 export function useExtruderProductions(query: string = '', enabled: boolean = true) {
   return useQuery({
