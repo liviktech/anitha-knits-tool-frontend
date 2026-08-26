@@ -1096,18 +1096,28 @@ export function InventoryPage() {
   const [activeView, setActiveView] = useState<'summary' | 'receive' | 'send'>('summary');
 
   return (
-    <div className="flex flex-col gap-6 p-4">
-      {activeView === 'summary' && (
-        <>
-          <div>
-            <h1 className="text-2xl font-bold text-gray-900">Inventory</h1>
-            <p className="text-sm text-gray-500">Track stock received into and sent out of the warehouse</p>
-          </div>
-          <InventorySummary />
-        </>
-      )}
-      {activeView === 'receive' && <InventoryReceiveTab onBack={() => setActiveView('summary')} />}
-      {activeView === 'send' && <LoadSentTab onBack={() => setActiveView('summary')} />}
+    <div id="inventory-layout" className="flex flex-col h-full bg-[#004D40]/5 min-h-full flex-1">
+      <style>{`
+        #inventory-layout, #inventory-layout * { font-family: 'Hanken Grotesk Variable', 'Hanken Grotesk', sans-serif !important; }
+        #inventory-layout .font-inter { font-family: 'Inter Variable', 'Inter', sans-serif !important; }
+      `}</style>
+
+      {/* Unified Header */}
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between px-4 py-3 bg-[#F4F1E8] border-b border-gray-100 shrink-0">
+        <div>
+          <h1 className="text-[20px] font-bold text-black leading-tight px-2">Inventory</h1>
+          <p className="text-[12.5px] text-gray-500 font-medium px-2">Track stock received into and sent out of the warehouse</p>
+        </div>
+      </div>
+
+      {/* Content Area */}
+      <div className="flex-1 overflow-y-auto relative flex flex-col">
+        <div className="flex flex-col gap-6 p-4">
+          {activeView === 'summary' && <InventorySummary />}
+          {activeView === 'receive' && <InventoryReceiveTab onBack={() => setActiveView('summary')} />}
+          {activeView === 'send' && <LoadSentTab onBack={() => setActiveView('summary')} />}
+        </div>
+      </div>
     </div>
   );
 }
