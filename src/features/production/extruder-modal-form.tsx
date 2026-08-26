@@ -122,7 +122,6 @@ export function ExtruderModalForm({ productionDate, initialData, isEditMode, onC
 
   const { data: standardData } = useColorConsumptionStandard();
   const standard = standardData?.data;
-  const bagWeightStandard = standard?.hdpematerialbag;
   const chemicalWeightStandard = standard ? parseFloat(standard.chemicalWeight) : undefined;
   const basisWeightKg = standard ? parseFloat(standard.basisWeightKg) : undefined;
   const kgPerBasis = colorGramsPerBasis(standard, group.color); // actual API field is kg per basis unit
