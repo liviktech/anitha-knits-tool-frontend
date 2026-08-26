@@ -69,6 +69,7 @@ function deliveryColorClass(color: string): string {
 }
 
 const FABRIC_STOCK_SIZES = ['150cm', '160cm', '170cm', '180cm', '190cm'] as const;
+const FABRIC_COLORS = ['Blue', 'Green', 'White'] as const;
 
 export function DashboardDesign2() {
   const currentMonthStr = format(new Date(), 'yyyy-MM');
@@ -87,9 +88,6 @@ export function DashboardDesign2() {
   // Wastage from each process — quantities live on each record's `wastages` array,
   // keyed by wastageType.code (LUMPS/YARN_WASTE for Extruder, LOOMS_WASTE for Looms,
   // FW/BW for Fabric Checking), never as a field on the stage's own detail object.
-  const latestExtruderRecord = [...(extruderData?.data ?? [])].sort((a, b) =>
-    a.productionDate < b.productionDate ? 1 : a.productionDate > b.productionDate ? -1 : 0,
-  )[0];
   const latestLoomsRecord = [...(loomsData?.data ?? [])].sort((a, b) =>
     a.productionDate < b.productionDate ? 1 : a.productionDate > b.productionDate ? -1 : 0,
   )[0];
@@ -102,6 +100,49 @@ export function DashboardDesign2() {
   const loomsWasteKg = (loomsData?.data ?? []).reduce((sum, r) => sum + sumWastageByCode(r.wastages, 'LOOMS_WASTE'), 0);
   const fabricWasteKg = (fabricCheckingData?.data ?? []).reduce((sum, r) => sum + sumWastageByCode(r.wastages, 'FW'), 0);
   const bitWasteKg = (fabricCheckingData?.data ?? []).reduce((sum, r) => sum + sumWastageByCode(r.wastages, 'BW'), 0);
+
+  // Extruder Lums/Yarn waste broken down by color — each wastage entry carries
+  // its own optional color, falling back to the parent record's color.
+  const extruderWasteByColor = (() => {
+    const map = new Map<string, { lums: number; yarnWaste: number }>();
+    FABRIC_COLORS.forEach((color) => map.set(color, { lums: 0, yarnWaste: 0 }));
+    (extruderData?.data ?? []).forEach((r) => {
+      (r.wastages ?? []).forEach((w) => {
+        if (w.wastageType.code !== 'LUMPS' && w.wastageType.code !== 'YARN_WASTE') return;
+        const colorName = w.color?.name ?? r.color?.name ?? 'Unspecified';
+        const existing = map.get(colorName) ?? { lums: 0, yarnWaste: 0 };
+        if (w.wastageType.code === 'LUMPS') existing.lums += w.quantityKg;
+        else existing.yarnWaste += w.quantityKg;
+        map.set(colorName, existing);
+      });
+    });
+    return Array.from(map.entries()).map(([color, vals]) => ({ color, ...vals }));
+  })();
+
+  // Extruder production + waste combined, by color — used by the Production Summary
+  // Extruder card's per-color breakdown table.
+  const extruderSummaryByColor = (() => {
+    const map = new Map<string, { production: number; waste: number }>();
+    FABRIC_COLORS.forEach((color) => map.set(color, { production: 0, waste: 0 }));
+    (extruderData?.data ?? []).forEach((r) => {
+      const colorName = r.color?.name ?? 'Unspecified';
+      const existing = map.get(colorName) ?? { production: 0, waste: 0 };
+      existing.production += r.extruder?.yarnOutputKg ?? 0;
+      map.set(colorName, existing);
+    });
+    extruderWasteByColor.forEach((w) => {
+      const existing = map.get(w.color) ?? { production: 0, waste: 0 };
+      existing.waste += w.lums + w.yarnWaste;
+      map.set(w.color, existing);
+    });
+    return Array.from(map.entries()).map(([color, vals]) => ({
+      color,
+      production: vals.production,
+      waste: vals.waste,
+      total: vals.production + vals.waste,
+    }));
+  })();
+  const extruderGrandTotal = extruderSummaryByColor.reduce((sum, row) => sum + row.production, 0);
 
   // Fabric Stock — no persisted "current stock" field exists anywhere in the API
   // (unlike HDPE/Chemical/Color inventory). Derived as everything Fabric Checking
@@ -140,13 +181,6 @@ export function DashboardDesign2() {
 
   // Per-stage summary — mirrors production-design-2.tsx's Summary Cards block verbatim
   // (same variable names) so the two pages' process cards stay pixel-identical.
-  const extruderSummary = {
-    input: apiSummary?.extruder.inputKg ?? 0,
-    output: apiSummary?.extruder.outputKg ?? 0,
-    wastage: apiSummary?.extruder.wastageKg ?? 0,
-  };
-  const efficiency = apiSummary?.extruder.efficiencyPct ?? 0;
-
   const loomsSummary = {
     input: apiSummary?.looms.inputKg ?? 0,
     output: apiSummary?.looms.outputKg ?? 0,
@@ -286,7 +320,7 @@ export function DashboardDesign2() {
         {/* Header */}
         <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between border-b border-gray-200 px-2 py-1 animate-in fade-in-0 slide-in-from-top-2 duration-500 fill-mode-both">
           <div>
-            <h1 className="text-[22px] font-bold text-black leading-tight px-1">Dashboard</h1>
+            <h1 className="text-[22px] font-bold text-black leading-tight px-1">Summary</h1>
              {/* <p className="text-[12px] font-medium text-gray-600 leading-tight mt-0.5">Production overview</p> */}
           </div>
           <div className="flex flex-wrap items-center gap-2">
@@ -305,7 +339,7 @@ export function DashboardDesign2() {
         </div>
 
         {/* White content surface wrapping everything below the header */}
-        <div className="bg-white rounded-2xl shadow-sm p-2 md:p-2 flex flex-col gap-1">
+        <div className="">
 
         {/* KPI Strip */}
         {/* <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-2.5">
@@ -342,9 +376,9 @@ export function DashboardDesign2() {
         </div> */}
 
           {/* Inventory Summary Mini Cards */}
-        <div className="border-b border-gray-300 pb-3" style={{ fontFamily: "'Hanken Grotesk Variable', 'Hanken Grotesk', sans-serif" }}>
-            <p className="font-bold text-xl px-0.5 text-left">Raw Materials</p>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-2 py-2">
+        <div className="bg-white rounded-2xl border border-gray-400 shadow-sm p-2.5" style={{ fontFamily: "'Hanken Grotesk Variable', 'Hanken Grotesk', sans-serif" }}>
+            <p className="font-bold text-xl px-0.5 text-left pb-2">Raw Materials</p>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-2">
             {/* HDPE Card */}
             <div className="bg-white rounded-xl border border-gray-400 shadow-sm p-4 relative overflow-hidden group/card hover:border-blue-200 transition-colors flex flex-col">
               <div className="absolute top-0 right-0 p-4 opacity-5 group-hover/card:opacity-10 transition-opacity">
@@ -426,54 +460,55 @@ export function DashboardDesign2() {
         </div>
 
         {/* Production Summary (Extruder / Looms / Fabric) — copied verbatim from production-design-2.tsx's Summary Cards block */}
-        <div className="font-hanken">
-           <p className="font-bold text-xl px-0.5 text-left">Production Summary</p>
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-2.5 py-2">
-          <Card className="bg-white border border-gray-400 rounded-[14px] p-2 hover:shadow-md transition-all">
-            <div className="bg-[#00897B]/5 border border-[#B8DCD0] rounded-[10px] h-full flex flex-col">
-              <CardHeader className="flex flex-row items-center justify-between pb-3 pt-4 px-4">
+        <div className="font-hanken bg-white rounded-2xl border border-gray-400 shadow-sm p-2.5 mt-2">
+           <p className="font-bold text-xl px-0.5 text-left pb-3">Production Summary</p>
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-2.5">
+          <Card className="bg-[#00897B]/5 border border-[#B8DCD0] rounded-[14px] hover:shadow-md transition-all flex flex-col gap-0 self-start py-0">
+              <CardHeader className="flex flex-row items-center justify-between pb-2 pt-3 px-4">
                 <CardTitle className="text-[17px] font-extrabold text-[#0B5566] flex items-center gap-3">
                   Extruder Production
                 </CardTitle>
-                {/* <div className="bg-white p-1.5 rounded-md border border-gray-100 shadow-[0_1px_2px_rgba(0,0,0,0.05)]">
-                  <img src={extruderIcon} alt="Extruder" className="w-[35px] h-[35px] object-contain opacity-90" />
-                </div> */}
+                <span className="text-[13px] font-bold text-[#0B5566]">Total : <span className="font-inter">{formatNum(extruderGrandTotal)}</span> kg</span>
               </CardHeader>
-              <CardContent className="px-2 pb-4 pt-0 flex-1 flex flex-col justify-between">
-                <div className="flex border border-gray-100 rounded-lg mb-4 bg-white overflow-hidden">
-                  <div className="flex-1 border-r border-gray-100 px-2 sm:px-3 py-3 flex flex-col justify-center">
-                    <p className="text-[10.5px] font-extrabold uppercase tracking-wide text-gray-600 mb-1.5 whitespace-nowrap">TOTAL PRODUCTION (KG)</p>
-                    <p className="text-[18px] font-bold text-[#004D40] leading-none font-inter">{formatNum(extruderSummary.output)}</p>
-                  </div>
-                  <div className="flex-1 border-r border-gray-100 px-2 sm:px-3 py-3 flex flex-col justify-center">
-                    <p className="text-[10.5px] font-extrabold uppercase tracking-wide text-gray-600 mb-1.5 whitespace-nowrap">TOTAL WASTAGE (KG)</p>
-                    <p className="text-[17px] font-bold text-[#004D40] leading-none font-inter">{formatNum(extruderSummary.wastage)}</p>
-                  </div>
-                  <div className="flex-1 px-2 sm:px-3 py-3 flex flex-col justify-center">
-                    <p className="text-[10.5px] font-extrabold uppercase tracking-wide text-gray-600 mb-1.5">EFFICIENCY</p>
-                    <p className="text-[17px] font-bold text-[#00A87E] leading-none font-inter">{efficiency.toFixed(2)}%</p>
-                  </div>
-                </div>
-                <div className="flex items-center px-1">
-                  <div className="flex-1">
-                    <p className="text-[10px] px-3 font-extrabold uppercase tracking-wide text-gray-600 mb-1.5">COLOR</p>
-                    <p className="text-[15px] px-3 font-bold text-gray-900 leading-none font-inter">{latestExtruderRecord?.color?.name ?? '--'}</p>
-                  </div>
-                  <div className="flex-1">
-                    <p className="text-[10px] px-3 font-extrabold uppercase tracking-wide text-gray-600 mb-1.5">SIZE</p>
-                    <p className="text-[15px] px-3 font-bold text-gray-900 leading-none font-inter">{latestExtruderRecord?.size?.name ?? '--'}</p>
-                  </div>
-                  <div className="flex-1">
-                    <p className="text-[10px] px-3 font-extrabold uppercase tracking-wide text-gray-600 mb-1.5">OUTPUT (KG)</p>
-                    <p className="text-[15px] px-3 font-bold text-gray-900 leading-none font-inter">{formatNum(latestExtruderRecord?.extruder.yarnOutputKg ?? 0)}</p>
-                  </div>
+              <CardContent className="px-2 pb-2 pt-0 flex flex-col">
+                <div className="w-full border border-gray-400 rounded-lg overflow-hidden">
+                  <table className="w-full text-[13px] text-left border-collapse">
+                    <thead className="bg-slate-50 font-bold text-gray-700">
+                      <tr>
+                        <th className="px-3 py-2 border-b border-r border-gray-300"></th>
+                        <th className="px-3 py-2 border-b border-r border-gray-300 text-center">production</th>
+                        <th className="px-3 py-2 border-b border-r border-gray-300 text-center">waste</th>
+                        <th className="px-3 py-2 border-b border-gray-300 text-center">total</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {extruderSummaryByColor.length === 0 ? (
+                        <tr>
+                          <td colSpan={4} className="px-3 py-4 text-center text-xs text-gray-400 italic">No extruder production recorded yet.</td>
+                        </tr>
+                      ) : (
+                        extruderSummaryByColor.map((row) => (
+                          <tr key={row.color} className="border-b border-gray-200 last:border-b-0">
+                            <td className={`px-3 py-2 border-r border-gray-300 font-semibold ${deliveryColorClass(row.color)}`}>{row.color}</td>
+                            <td className="px-3 py-2 border-r border-gray-300 text-center font-inter text-gray-900">{row.production > 0 ? formatNum(row.production) : '--'}</td>
+                            <td className="px-3 py-2 border-r border-gray-300 text-center font-inter text-gray-900">{row.waste > 0 ? formatNum(row.waste) : '--'}</td>
+                            <td className="px-3 py-2 text-center font-bold font-inter text-gray-900 bg-slate-50">{formatNum(row.total)}</td>
+                          </tr>
+                        ))
+                      )}
+                      <tr className="bg-slate-50 font-bold border-t-2 border-gray-400">
+                        <td className="px-3 py-2 border-r border-gray-300 text-gray-700">Total</td>
+                        <td className="px-3 py-2 border-r border-gray-300 text-center font-inter text-gray-900">{formatNum(extruderSummaryByColor.reduce((sum, row) => sum + row.production, 0))}</td>
+                        <td className="px-3 py-2 border-r border-gray-300 text-center font-inter text-gray-900">{formatNum(extruderSummaryByColor.reduce((sum, row) => sum + row.waste, 0))}</td>
+                        <td className="px-3 py-2 text-center font-inter text-gray-900 bg-slate-100">{formatNum(extruderSummaryByColor.reduce((sum, row) => sum + row.total, 0))}</td>
+                      </tr>
+                    </tbody>
+                  </table>
                 </div>
               </CardContent>
-            </div>
           </Card>
 
-          <Card className="bg-white border border-gray-400 rounded-[14px] p-2 hover:shadow-md transition-all">
-            <div className="bg-[#004D40]/5 border border-[#B8D8D5] rounded-[10px] h-full flex flex-col">
+          <Card className="bg-[#004D40]/5 border border-[#B8D8D5] rounded-[14px] hover:shadow-md transition-all h-full flex flex-col">
               <CardHeader className="flex flex-row items-center justify-between pb-3 pt-4 px-4">
                 <CardTitle className="text-[17px] font-extrabold text-[#7A6A00] flex items-center gap-3">
                   {/* <div className="bg-[#7A6A00] border text-white w-6 h-6 rounded-[4px] flex items-center justify-center text-sm font-bold shadow-sm">2</div> */}
@@ -513,11 +548,9 @@ export function DashboardDesign2() {
                   </div>
                 </div>
               </CardContent>
-            </div>
           </Card>
 
-          <Card className="bg-white border border-gray-400 rounded-[14px] p-2 hover:shadow-md transition-all">
-            <div className="bg-[#004D40]/5 border border-[#C5D8C2] rounded-[10px] h-full flex flex-col">
+          <Card className="bg-[#004D40]/5 border border-[#C5D8C2] rounded-[14px] hover:shadow-md transition-all h-full flex flex-col">
               <CardHeader className="flex flex-row items-center justify-between pb-3 pt-4 px-4">
                 <CardTitle className="text-[17px] font-extrabold text-[#2F6B2F] flex items-center gap-3">
                   {/* <div className="bg-[#2F6B2F] border text-white w-6 h-6 rounded-[4px] flex items-center justify-center text-sm font-bold shadow-sm">3</div> */}
@@ -557,26 +590,27 @@ export function DashboardDesign2() {
                   </div>
                 </div>
               </CardContent>
-            </div>
           </Card>
         </div>
         </div>
 
            {/* Wastage */}
-        <div className="border-b border-gray-300 pb-3">
+        <div className="font-hanken bg-white rounded-2xl border border-gray-400 shadow-sm p-2.5 mt-2">
+          <p className="font-bold text-xl px-0.5 text-left pb-3">Wastage Summary</p>
           <WastageCard
             looseWaste={looseWasteKg}
             lums={lumsWasteKg}
             loomsWaste={loomsWasteKg}
             fabricWaste={fabricWasteKg}
             bitWaste={bitWasteKg}
+            extruderWasteByColor={extruderWasteByColor}
           />
         </div>
 
 
           {/* Fabric Stock (own horizontal section) */}
       <div className="w-full py-2 border-b border-gray-300 pb-3">
-        <p className="font-bold text-lg px-0.5 text-left">Fabric Stock Overview</p>
+        {/* <p className="font-bold text-lg px-0.5 text-left">Fabric Stock Overview</p> */}
         <div className="py-2">
           <FabricStockCard rows={fabricStockByColor} total={totalFabricStockKg} />
         </div>
@@ -584,7 +618,7 @@ export function DashboardDesign2() {
 
       {/* Fabric Delivered (own horizontal section, below Fabric Stock) */}
       <div className="w-full">
-        <p className="font-bold text-xl px-0.5 text-left">Fabric Delivered Overview</p>
+        {/* <p className="font-bold text-xl px-0.5 text-left">Fabric Delivered Overview</p> */}
         <Card className="font-hanken w-full bg-white border border-gray-400 shadow-lg shadow-slate-200/50 rounded-3xl p-3 md:p-3 flex flex-col transition-shadow duration-300 hover:shadow-xl hover:shadow-slate-300/40 animate-in fade-in-0 slide-in-from-bottom-3 duration-700 fill-mode-both mt-2">
           <CardHeader className="p-0 flex flex-row items-center justify-between border-b border-gray-400 pb-2">
             <CardTitle className="flex items-center gap-2 px-2 text-[20px] font-bold text-[#004D40]">
@@ -1035,46 +1069,109 @@ function WastageCard({
   loomsWaste,
   fabricWaste,
   bitWaste,
+  extruderWasteByColor,
 }: {
   looseWaste: number;
   lums: number;
   loomsWaste: number;
   fabricWaste: number;
   bitWaste: number;
+  extruderWasteByColor: { color: string; lums: number; yarnWaste: number }[];
 }) {
-  const extruderWaste = looseWaste + lums;
-  const fabricCheckingWaste = fabricWaste + bitWaste;
-
   return (
-    <div className="font-hanken bg-white border border-gray-400 rounded-xl shadow-sm px-5 py-4 flex flex-wrap items-start justify-between gap-x-8 gap-y-2">
-      <h3 className="text-lg font-bold text-slate-900 tracking-wide self-center">Wastage Summary</h3>
+    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-2.5">
+      {/* Extruder Wastage */}
+      <Card className="bg-[#00897B]/5 border border-[#B8DCD0] rounded-[14px] hover:shadow-md transition-all flex flex-col gap-0 self-start py-0">
+          <CardHeader className="flex flex-row items-center justify-between pb-2 pt-2 px-3">
+            <CardTitle className="text-[17px] font-extrabold text-[#0B5566] flex items-center gap-3">
+              {/* <div className="bg-[#0B5566] border text-white w-6 h-6 rounded-[4px] flex items-center justify-center text-xs font-bold shadow-sm">1</div> */}
+              Extruder Wastage
+            </CardTitle>
+            <span className="text-[13px] font-bold text-[#0B5566]">Total : <span className="font-inter">{formatNum(lums + looseWaste)}</span> kg</span>
+          </CardHeader>
+          <CardContent className="px-2 pb-2 flex flex-col">
+            <div className="w-full border border-gray-400 rounded-lg overflow-hidden">
+              <table className="w-full text-[13px] text-left border-collapse">
+                <thead className="bg-slate-50 font-bold text-gray-700">
+                  <tr>
+                    <th className="px-3 py-2 border-b border-r border-gray-300">Extruder waste</th>
+                    <th className="px-3 py-2 border-b border-r border-gray-300 text-center">Lums</th>
+                    <th className="px-3 py-2 border-b border-r border-gray-300 text-center">Yarn waste</th>
+                    <th className="px-3 py-2 border-b border-gray-300 text-center bg-slate-100">Total</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {extruderWasteByColor.length === 0 ? (
+                    <tr>
+                      <td colSpan={4} className="px-3 py-4 text-center text-xs text-gray-400 italic">No extruder wastage recorded yet.</td>
+                    </tr>
+                  ) : (
+                    extruderWasteByColor.map((row) => (
+                      <tr key={row.color} className="border-b border-gray-200 last:border-b-0">
+                        <td className={`px-3 py-2 border-r border-gray-300 font-semibold ${deliveryColorClass(row.color)}`}>{row.color}</td>
+                        <td className="px-3 py-2 border-r border-gray-300 text-center font-inter text-gray-900">{row.lums > 0 ? formatNum(row.lums) : '--'}</td>
+                        <td className="px-3 py-2 border-r border-gray-300 text-center font-inter text-gray-900">{row.yarnWaste > 0 ? formatNum(row.yarnWaste) : '--'}</td>
+                        <td className="px-3 py-2 text-center font-bold font-inter text-gray-900 bg-slate-50">{formatNum(row.lums + row.yarnWaste)}</td>
+                      </tr>
+                    ))
+                  )}
+                  <tr className="bg-slate-50 font-bold border-t-2 border-gray-400">
+                    <td className="px-3 py-2 border-r border-gray-300 text-gray-700">Total</td>
+                    <td className="px-3 py-2 border-r border-gray-300 text-center font-inter text-gray-900">{formatNum(lums)}</td>
+                    <td className="px-3 py-2 border-r border-gray-300 text-center font-inter text-gray-900">{formatNum(looseWaste)}</td>
+                    <td className="px-3 py-2 text-center font-inter text-gray-900 bg-slate-100">{formatNum(lums + looseWaste)}</td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          </CardContent>
+      </Card>
 
-      <div className="flex flex-col gap-1">
-        <span className="text-md text-[#0B5566]">
-          <span className="font-semibold">Extruder</span> : <span className="font-inter">{formatNum(extruderWaste)}</span>kg
-        </span>
-        <span className="text-xs text-gray-500">
-          Loose waste : <span className="font-inter">{formatNum(looseWaste)}</span>kg&nbsp;&nbsp;|&nbsp;&nbsp;Lums Waste : <span className="font-inter">{formatNum(lums)}</span>kg
-        </span>
-      </div>
+      {/* Looms Wastage */}
+      <Card className="bg-[#004D40]/5 border border-[#B8D8D5] rounded-[14px] hover:shadow-md transition-all h-full flex flex-col">
+          <CardHeader className="flex flex-row items-center justify-between pb-3 pt-4 px-4">
+            <CardTitle className="text-[17px] font-extrabold text-[#7A6A00] flex items-center gap-3">
+              <div className="bg-[#7A6A00] border text-white w-6 h-6 rounded-[4px] flex items-center justify-center text-xs font-bold shadow-sm">2</div>
+              Looms Wastage
+            </CardTitle>
+            <div className="bg-white p-1.5 rounded-md border border-gray-100 shadow-[0_1px_2px_rgba(0,0,0,0.05)]">
+              <img src={loomsIcon} alt="Looms" className="w-6 h-6 object-contain opacity-90" />
+            </div>
+          </CardHeader>
+          <CardContent className="px-3 pb-4 pt-0 flex-1 flex flex-col justify-center">
+            <div className="flex border border-gray-100 rounded-lg bg-white overflow-hidden">
+              <div className="flex-1 px-2 sm:px-3 py-3 flex flex-col justify-center">
+                <p className="text-[10px] font-extrabold uppercase tracking-wide text-gray-600 mb-1.5">Looms/Yarn Waste</p>
+                <p className="text-[17px] font-bold font-inter text-gray-900 leading-none">{formatNum(loomsWaste)} kg</p>
+              </div>
+            </div>
+          </CardContent>
+      </Card>
 
-      <div className="flex flex-col gap-1">
-        <span className="text-md text-[#7A6A00]">
-          <span className="font-semibold">Looms Production</span> : <span className="font-inter">{formatNum(loomsWaste)}</span>kg
-        </span>
-        <span className="text-xs text-gray-500">
-          Looms/Yarn Waste : <span className="font-inter">{formatNum(loomsWaste)}</span>kg
-        </span>
-      </div>
-
-      <div className="flex flex-col gap-1">
-        <span className="text-md text-[#2F6B2F]">
-          <span className="font-semibold">Fabric checking</span> : <span className="font-inter">{formatNum(fabricCheckingWaste)}</span>kg
-        </span>
-        <span className="text-xs text-gray-500">
-          Fabric waste : <span className="font-inter">{formatNum(fabricWaste)}</span>kg&nbsp;&nbsp;|&nbsp;&nbsp;Bit waste : <span className="font-inter">{formatNum(bitWaste)}</span>kg
-        </span>
-      </div>
+      {/* Fabric Checking Wastage */}
+      <Card className="bg-[#004D40]/5 border border-[#C5D8C2] rounded-[14px] hover:shadow-md transition-all h-full flex flex-col">
+          <CardHeader className="flex flex-row items-center justify-between pb-3 pt-4 px-4">
+            <CardTitle className="text-[17px] font-extrabold text-[#2F6B2F] flex items-center gap-3">
+              <div className="bg-[#2F6B2F] border text-white w-6 h-6 rounded-[4px] flex items-center justify-center text-xs font-bold shadow-sm">3</div>
+              Fabric Checking Wastage
+            </CardTitle>
+            <div className="bg-white p-1.5 rounded-md border border-gray-100 shadow-[0_1px_2px_rgba(0,0,0,0.05)] text-[#004D40] flex items-center justify-center">
+              <Layers className="w-6 h-6 opacity-90" />
+            </div>
+          </CardHeader>
+          <CardContent className="px-3 pb-4 pt-0 flex-1 flex flex-col justify-center">
+            <div className="flex border border-gray-100 rounded-lg bg-white overflow-hidden">
+              <div className="flex-1 border-r border-gray-100 px-2 sm:px-3 py-3 flex flex-col justify-center">
+                <p className="text-[10px] font-extrabold uppercase tracking-wide text-gray-600 mb-1.5">Fabric waste</p>
+                <p className="text-[17px] font-bold font-inter text-gray-900 leading-none">{formatNum(fabricWaste)} kg</p>
+              </div>
+              <div className="flex-1 px-2 sm:px-3 py-3 flex flex-col justify-center">
+                <p className="text-[10px] font-extrabold uppercase tracking-wide text-gray-600 mb-1.5">Bit Waste</p>
+                <p className="text-[17px] font-bold font-inter text-gray-900 leading-none">{formatNum(bitWaste)} kg</p>
+              </div>
+            </div>
+          </CardContent>
+      </Card>
     </div>
   );
 }

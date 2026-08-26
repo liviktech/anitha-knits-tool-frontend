@@ -37,7 +37,7 @@ export function AdminPanelPage() {
       `}</style>
 
       {/* Unified Header */}
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between px-4 py-3 bg-[#F4F1E8] border-b border-gray-100 shrink-0">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between px-4 py-3 bg-[#F4F1E8] border-b border-[#004D40] shrink-0">
         <div>
           <h1 className="text-[20px] font-bold text-black leading-tight px-2">Admin Panel</h1>
           <p className="text-[12.5px] text-gray-500 font-medium px-2">Configure global settings for production</p>
@@ -48,7 +48,7 @@ export function AdminPanelPage() {
       <div className="flex-1 overflow-y-auto relative flex flex-col">
         <div className="p-6 max-w-4xl flex-1">
           {/* Tabs */}
-          <div className="flex items-center gap-6 mb-6 border-b border-gray-200">
+          <div className="flex items-center gap-2 mb-6">
             {tabs.map(tab => {
               const Icon = tab.icon;
               const isActive = activeTab === tab.id;
@@ -56,13 +56,13 @@ export function AdminPanelPage() {
                 <button
                   key={tab.id}
                   onClick={() => setActiveTab(tab.id)}
-                  className={`flex items-center gap-2 pb-3 px-1 border-b-2 transition-colors ${
+                  className={`flex items-center gap-2 rounded-full px-4 py-2 transition-colors ${
                     isActive
-                      ? 'border-blue-600 text-blue-700 font-semibold'
-                      : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300 font-medium'
+                      ? 'bg-[#004D40] text-white font-semibold'
+                      : 'text-gray-600 hover:bg-gray-100 font-medium'
                   }`}
                 >
-                  <Icon className={`w-4 h-4 ${isActive ? 'text-blue-600' : 'text-gray-400'}`} />
+                  <Icon className={`w-4 h-4 ${isActive ? 'text-white' : 'text-gray-400'}`} />
                   {tab.label}
                 </button>
               );
