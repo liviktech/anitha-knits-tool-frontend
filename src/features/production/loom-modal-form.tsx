@@ -90,17 +90,17 @@ export function LoomModalForm({ productionDate, initialData, isEditMode, onCance
   };
 
   return (
-    <div className="flex flex-col h-full space-y-6">
-      <div className="grid grid-cols-2 gap-4">
-        <div className="space-y-2">
-          <Label className="text-gray-600 text-xs font-semibold uppercase tracking-wider">Size</Label>
+    <div className="flex flex-col h-full gap-4 px-1">
+      <div className="flex gap-6">
+        <div className="flex items-center gap-3 w-56">
+          <Label className="text-gray-600 text-xs font-semibold uppercase tracking-wider shrink-0 w-10">Size</Label>
           <Select value={draft.size} onValueChange={(v) => updateField('size', v)} disabled={isEditMode}>
             <SelectTrigger><SelectValue placeholder="Select Size" /></SelectTrigger>
             <SelectContent>{lookups.sizes?.map((s) => <SelectItem key={s.id} value={s.name}>{s.name}</SelectItem>)}</SelectContent>
           </Select>
         </div>
-        <div className="space-y-2">
-          <Label className="text-gray-600 text-xs font-semibold uppercase tracking-wider">Color</Label>
+        <div className="flex items-center gap-3 w-56">
+          <Label className="text-gray-600 text-xs font-semibold uppercase tracking-wider shrink-0 w-12">Color</Label>
           <Select value={draft.color} onValueChange={(v) => updateField('color', v)} disabled={isEditMode}>
             <SelectTrigger><SelectValue placeholder="Select Color" /></SelectTrigger>
             <SelectContent>{lookups.colors?.map((c) => <SelectItem key={c.id} value={c.name}>{c.name}</SelectItem>)}</SelectContent>
@@ -108,27 +108,27 @@ export function LoomModalForm({ productionDate, initialData, isEditMode, onCance
         </div>
       </div>
 
-      <div className="space-y-3 bg-gray-50/50 p-4 rounded-lg border border-gray-100">
-        <h3 className={`text-sm font-semibold uppercase tracking-wider border-b pb-2 ${theme.headerText}`}>Production Details</h3>
+      <div className="space-y-2 bg-gray-100 p-3 rounded-lg border border-gray-200">
+        <h3 className={`text-xs font-semibold uppercase tracking-wider border-b pb-1.5 ${theme.headerText}`}>Production Details</h3>
         <div className="grid grid-cols-2 gap-4 pt-1">
-          <div className="space-y-2">
+          <div className="space-y-1.5">
             <Label className="text-gray-600 text-xs font-semibold">Loom Production (kg)</Label>
             <Input type="number" placeholder="0.00" value={draft.input} onChange={(e) => updateField('input', e.target.value)} />
           </div>
-          <div className="space-y-2">
+          <div className="space-y-1.5">
             <Label className="text-gray-600 text-xs font-semibold">Looms/Yarn Waste (kg)</Label>
             <Input type="number" placeholder="0.00" value={draft.loomsWasteKg} onChange={(e) => updateField('loomsWasteKg', e.target.value)} />
           </div>
         </div>
       </div>
 
-      <div className="space-y-3 bg-yellow-50/50 p-4 rounded-lg border border-yellow-100">
-        <h3 className="text-sm font-semibold uppercase tracking-wider text-yellow-800 border-b border-yellow-200 pb-2">Fabric Production</h3>
-        <div className="w-1/2 space-y-2 pt-1">
-          <Label className="text-yellow-800 text-xs font-semibold">Total Fabric Production (kg)</Label>
+      <div className="space-y-2 bg-yellow-100 p-3 rounded-lg border border-yellow-200">
+        <h3 className="text-xs font-semibold uppercase tracking-wider text-yellow-800 border-b border-yellow-200 pb-1.5">Fabric Production</h3>
+        <div className="flex items-center gap-4 pt-1 w-2/3">
+          <Label className="text-yellow-800 text-xs font-semibold shrink-0">Total Fabric Production (kg)</Label>
           <Input
             type="number"
-            className="border-yellow-200 focus-visible:ring-yellow-400 font-bold text-yellow-700 bg-white"
+            className="h-8 text-xs border-yellow-200 focus-visible:ring-yellow-400 font-bold text-yellow-700 bg-white w-48"
             placeholder="0.00"
             value={draft.output}
             onChange={(e) => handleManualOutputChange(e.target.value)}
@@ -140,13 +140,13 @@ export function LoomModalForm({ productionDate, initialData, isEditMode, onCance
         <p className="text-sm text-red-600 bg-red-50 border border-red-200 rounded-md px-3 py-2">{error}</p>
       )}
 
-      <div className="flex justify-end gap-3 mt-2 pt-4 border-t border-gray-100">
+      <div className="flex justify-end gap-3 mt-1 pt-2 border-t border-gray-100">
         <Button variant="outline" onClick={onCancel} disabled={saving} className="border-gray-300 text-gray-700">
           Cancel
         </Button>
         <Button onClick={handleSave} disabled={saving} className={`${theme.iconBg} ${theme.iconColor} hover:opacity-90`}>
           {saving && <Loader className="mr-2" size="sm" />}
-          {saving ? 'Saving...' : 'Save Looms Entry'}
+          {saving ? 'Saving...' : 'Save'}
         </Button>
       </div>
     </div>

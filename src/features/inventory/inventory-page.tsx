@@ -41,6 +41,11 @@ function formatDateDisplay(iso: string) {
   return d.toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' }).replace(/ /g, ' ');
 }
 
+/** LoadSentRecord's weight can come back nested under `loadSent` or top-level, depending on the endpoint. */
+function getLoadSentWeight(record: LoadSentRecord): number {
+  return record.loadSent?.fabricWeight ?? record.fabricWeight ?? 0;
+}
+
 /* ---------------------------------------------------------------------- */
 /* Receive — backed by /api/v1/inventory                                   */
 /* ---------------------------------------------------------------------- */
@@ -57,9 +62,9 @@ function InventoryFormDialog({ onClose, editDate, editRecords }: InventoryFormDi
   const isEdit = !!editDate;
 
   const [date, setDate] = useState(editDate || todayIso());
-  const [dcHdpe, setDcHdpe] = useState(() => editRecords?.find(r => r.type === 'HDPE')?.dcNumber || '');
-  const [dcChemical, setDcChemical] = useState(() => editRecords?.find(r => r.type === 'CHEMICAL')?.dcNumber || '');
-  const [dcColor, setDcColor] = useState(() => editRecords?.find(r => r.type === 'COLOR')?.dcNumber || '');
+  const [dcHdpe, setDcHdpe] = useState('');
+  const [dcChemical, setDcChemical] = useState('');
+  const [dcColor, setDcColor] = useState('');
 
   const [weights, setWeights] = useState<Record<string, string>>(() => {
     const init: Record<string, string> = {};
@@ -91,12 +96,25 @@ function InventoryFormDialog({ onClose, editDate, editRecords }: InventoryFormDi
     setError(null);
 
     try {
-      const promises: Promise<any>[] = [];
+      const promises: Promise<unknown>[] = [];
       const types = [
-        { type: 'HDPE' as InventoryType, names: hdpeNames },
-        { type: 'CHEMICAL' as InventoryType, names: chemicalNames },
-        { type: 'COLOR' as InventoryType, names: colorNames },
+        { type: 'HDPE' as InventoryType, names: hdpeNames, dc: dcHdpe },
+        { type: 'CHEMICAL' as InventoryType, names: chemicalNames, dc: dcChemical },
+        { type: 'COLOR' as InventoryType, names: colorNames, dc: dcColor },
       ];
+
+      // Validate: if any weight is entered for a type, DC must be provided
+      for (const t of types) {
+        const hasAnyWeight = t.names.some(name => {
+          const val = parseFloat(weights[`${t.type}-${name}`]);
+          return !isNaN(val) && val > 0;
+        });
+        if (hasAnyWeight && !t.dc.trim()) {
+          setError(`DC number is required for ${t.type === 'HDPE' ? 'HDPE' : t.type === 'CHEMICAL' ? 'Chemicals' : 'Colors'} when entering quantities.`);
+          setSaving(false);
+          return;
+        }
+      }
 
       for (const t of types) {
         for (const name of t.names) {
@@ -107,7 +125,6 @@ function InventoryFormDialog({ onClose, editDate, editRecords }: InventoryFormDi
 
           if (!isNaN(val) && val > 0) {
             if (existing) {
-              const currentDc = t.type === 'HDPE' ? dcHdpe : t.type === 'CHEMICAL' ? dcChemical : dcColor;
               if (existing.weightKg !== val) {
                 promises.push(apiFetch(`/inventory/${existing.id}`, {
                   method: 'PATCH',
@@ -126,7 +143,7 @@ function InventoryFormDialog({ onClose, editDate, editRecords }: InventoryFormDi
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
                   date, type: t.type, quantityKg: val,
-                  DC: t.type === 'HDPE' ? dcHdpe : t.type === 'CHEMICAL' ? dcChemical : dcColor,
+                  DC: t.dc,
                   ...(t.type === 'HDPE' && { brandId: lookupId }),
                   ...(t.type === 'CHEMICAL' && { chemicalId: lookupId }),
                   ...(t.type === 'COLOR' && { colorId: lookupId }),
@@ -201,7 +218,7 @@ function InventoryFormDialog({ onClose, editDate, editRecords }: InventoryFormDi
                 <tr>
                   {hdpeNames.length > 0 && (
                     <td className="border-r border-gray-200 p-2">
-                      <Input type="text" maxLength={7} placeholder="DC No" className="w-20 text-center h-8 text-xs font-bold bg-blue-50 border-blue-200 mx-auto" value={dcHdpe} onChange={(e) => setDcHdpe(e.target.value.replace(/\D/g, '').slice(0, 7))} />
+                      <Input type="text" maxLength={8} placeholder="DC No" className="w-20 text-center h-8 text-xs font-bold bg-blue-50 border-blue-200 mx-auto" value={dcHdpe} onChange={(e) => setDcHdpe(e.target.value.slice(0, 8))} />
                     </td>
                   )}
                   {hdpeNames.map(name => (
@@ -211,7 +228,7 @@ function InventoryFormDialog({ onClose, editDate, editRecords }: InventoryFormDi
                   ))}
                   {chemicalNames.length > 0 && (
                     <td className="border-r border-gray-200 p-2">
-                      <Input type="text" maxLength={7} placeholder="DC No" className="w-20 text-center h-8 text-xs font-bold bg-yellow-50 border-yellow-200 mx-auto" value={dcChemical} onChange={(e) => setDcChemical(e.target.value.replace(/\D/g, '').slice(0, 7))} />
+                      <Input type="text" maxLength={8} placeholder="DC No" className="w-20 text-center h-8 text-xs font-bold bg-yellow-50 border-yellow-200 mx-auto" value={dcChemical} onChange={(e) => setDcChemical(e.target.value.slice(0, 8))} />
                     </td>
                   )}
                   {chemicalNames.map(name => (
@@ -221,7 +238,7 @@ function InventoryFormDialog({ onClose, editDate, editRecords }: InventoryFormDi
                   ))}
                   {colorNames.length > 0 && (
                     <td className="border-r border-gray-200 p-2">
-                      <Input type="text" maxLength={7} placeholder="DC No" className="w-20 text-center h-8 text-xs font-bold bg-purple-50 border-purple-200 mx-auto" value={dcColor} onChange={(e) => setDcColor(e.target.value.replace(/\D/g, '').slice(0, 7))} />
+                      <Input type="text" maxLength={8} placeholder="DC No" className="w-20 text-center h-8 text-xs font-bold bg-purple-50 border-purple-200 mx-auto" value={dcColor} onChange={(e) => setDcColor(e.target.value.slice(0, 8))} />
                     </td>
                   )}
                   {colorNames.map(name => (
@@ -434,7 +451,7 @@ export function LoadSentFormDialog({ onClose, record }: LoadSentFormDialogProps)
   const [date, setDate] = useState(record ? formatDate(record.date) : todayIso());
   const [color, setColor] = useState(record?.color?.name ?? '');
   const [size, setSize] = useState(record?.size?.name ?? '');
-  const [weightKg, setWeightKg] = useState(record ? String(record.weightKg) : '');
+  const [weightKg, setWeightKg] = useState(record ? String(getLoadSentWeight(record)) : '');
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -449,11 +466,10 @@ export function LoadSentFormDialog({ onClose, record }: LoadSentFormDialogProps)
     setError(null);
     try {
       const payload: LoadSentCreatePayload = {
-        date,
+        productionDate: date,
         colorId,
         sizeId,
-        pieceCount: 0,
-        weightKg: parseFloat(weightKg) || 0,
+        fabricWeight: parseFloat(weightKg) || 0,
       };
       const response = await apiFetch(isEdit ? `/load-sent/${record.id}` : '/load-sent', {
         method: isEdit ? 'PATCH' : 'POST',
@@ -536,8 +552,7 @@ function LoadSentTab({ onBack }: { onBack: () => void }) {
   const prodRecords = prodData?.data ?? [];
   const isLoading = isSentLoading || isProdLoading;
 
-  const totalKg = records.reduce((sum, r) => sum + r.weightKg, 0);
-  const totalPieces = records.reduce((sum, r) => sum + r.pieceCount, 0);
+  const totalKg = records.reduce((sum, r) => sum + getLoadSentWeight(r), 0);
 
   const [selectedColorId, setSelectedColorId] = useState<string>('');
 
@@ -547,17 +562,14 @@ function LoadSentTab({ onBack }: { onBack: () => void }) {
 
     const prodForSizeColor = prodRecords.filter(r => r.size.id === s.id && r.color.id === selectedColorId);
     const prodKg = prodForSizeColor.reduce((sum, r) => sum + (r.fabricCheck?.outputKg ?? 0), 0);
-    const prodPcs = 0; // Piece count is no longer tracked in production
 
     const sentForSizeColor = records.filter(r => r.size?.id === s.id && r.color?.id === selectedColorId);
-    const sentKg = sentForSizeColor.reduce((sum, r) => sum + r.weightKg, 0);
-    const sentPcs = sentForSizeColor.reduce((sum, r) => sum + r.pieceCount, 0);
+    const sentKg = sentForSizeColor.reduce((sum, r) => sum + getLoadSentWeight(r), 0);
 
     return {
       id: s.id,
       name: s.name,
       balanceKg: prodKg - sentKg,
-      balancePcs: prodPcs - sentPcs
     };
   }).filter(Boolean);
 
@@ -600,10 +612,6 @@ function LoadSentTab({ onBack }: { onBack: () => void }) {
           </div>
         </div>
         <div className="flex flex-wrap items-center gap-3 text-sm">
-          <div className="flex items-center gap-1.5 rounded-lg border border-gray-200 bg-white px-3 py-1.5">
-            <span className="text-xs font-medium text-gray-500">Pieces</span>
-            <span className="font-bold text-gray-900">{totalPieces}</span>
-          </div>
           <div className="flex items-center gap-1.5 rounded-lg border border-gray-200 bg-white px-3 py-1.5">
             <span className="text-xs font-medium text-gray-500">Total</span>
             <span className="font-bold text-gray-900">{totalKg.toFixed(2)}</span>
@@ -666,7 +674,6 @@ function LoadSentTab({ onBack }: { onBack: () => void }) {
               <TableHead className="text-2xs font-semibold uppercase tracking-wide text-gray-400">Date</TableHead>
               <TableHead className="text-2xs font-semibold uppercase tracking-wide text-gray-400">Color</TableHead>
               <TableHead className="text-2xs font-semibold uppercase tracking-wide text-gray-400">Size</TableHead>
-              <TableHead className="text-center text-2xs font-semibold uppercase tracking-wide text-gray-400">Pieces</TableHead>
               <TableHead className="text-center text-2xs font-semibold uppercase tracking-wide text-gray-400">Weight (kg)</TableHead>
               <TableHead className="text-center text-2xs font-semibold uppercase tracking-wide text-gray-400">Actions</TableHead>
             </TableRow>
@@ -674,7 +681,7 @@ function LoadSentTab({ onBack }: { onBack: () => void }) {
           <TableBody>
             {isLoading ? (
               <TableRow>
-                <TableCell colSpan={6} className="h-20 text-center">
+                <TableCell colSpan={5} className="h-20 text-center">
                   <div className="flex items-center justify-center gap-2 text-gray-500">
                     <Loader size="sm" /> Loading entries...
                   </div>
@@ -682,7 +689,7 @@ function LoadSentTab({ onBack }: { onBack: () => void }) {
               </TableRow>
             ) : records.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={6} className="h-20 !text-center text-gray-500">No entries yet.</TableCell>
+                <TableCell colSpan={5} className="h-20 !text-center text-gray-500">No entries yet.</TableCell>
               </TableRow>
             ) : (
               records.map((r) => (
@@ -690,12 +697,11 @@ function LoadSentTab({ onBack }: { onBack: () => void }) {
                   <TableCell>{formatDate(r.date)}</TableCell>
                   <TableCell>
                     <span className="inline-flex items-center rounded-full bg-orange-50 text-orange-700 px-2.5 py-0.5 text-xs font-semibold">
-                      {r.color?.name ?? 'Ã¢â‚¬â€'}
+                      {r.color?.name ?? '—'}
                     </span>
                   </TableCell>
                   <TableCell>{r.size?.name ?? ''}</TableCell>
-                  <TableCell className="text-center">{r.pieceCount}</TableCell>
-                  <TableCell className="text-center">{r.weightKg.toFixed(2)}</TableCell>
+                  <TableCell className="text-center">{getLoadSentWeight(r).toFixed(2)}</TableCell>
                   <TableCell className="text-center">
                     <div className="flex items-center justify-center gap-2">
                       <Button variant="ghost" size="icon-sm" className="rounded-full bg-blue-50 text-blue-500 hover:bg-blue-100" aria-label="Edit row" onClick={() => openEdit(r)}>
@@ -718,7 +724,7 @@ function LoadSentTab({ onBack }: { onBack: () => void }) {
         open={!!deleteTarget}
         onOpenChange={(open) => !open && setDeleteTarget(null)}
         title="Delete this load sent record?"
-        description={deleteTarget ? `${deleteTarget.pieceCount} pcs, ${deleteTarget.weightKg.toFixed(2)} kg. This action cannot be undone.` : undefined}
+        description={deleteTarget ? `${getLoadSentWeight(deleteTarget).toFixed(2)} kg. This action cannot be undone.` : undefined}
         isPending={deleting}
         onConfirm={handleDelete}
       />

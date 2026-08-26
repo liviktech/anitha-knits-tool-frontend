@@ -85,7 +85,7 @@ export function DayWiseReportModal({ open, onOpenChange }: DayWiseReportModalPro
           total: 0
         };
       }
-      const w = record.fabricWeight ?? record.weightKg ?? 0;
+      const w = record.loadSent?.fabricWeight ?? record.fabricWeight ?? 0;
       const c = record.color?.name || '';
       const s = record.size?.name || '';
 

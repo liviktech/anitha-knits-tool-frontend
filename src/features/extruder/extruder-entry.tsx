@@ -202,7 +202,7 @@ export function ExtruderEntry({ onClose }: ExtruderEntryProps) {
 
   return (
     <Card className="shadow-sm border-gray-200 mx-auto w-full max-w-7xl">
-      <CardHeader className="flex flex-row items-start justify-between pb-4 border-b">
+      <CardHeader className="flex flex-row items-start justify-between pb-4 border-b bg-red-600">
         <div className="flex items-center gap-3">
           <div className="p-2 bg-green-50 text-green-700 rounded-lg">
             <FileText className="w-5 h-5" />
@@ -331,7 +331,7 @@ export function ExtruderEntry({ onClose }: ExtruderEntryProps) {
               disabled={submitting}
             >
               {submitting && <Loader className="mr-2" />}
-              {submitting ? (editingId ? 'Updating...' : 'Adding...') : editingId ? 'Edit Entry' : '+ Add Entry'}
+              {submitting ? (editingId ? 'Updating...' : 'Adding...') : editingId ? 'Edit Entry' : '+ Add row'}
             </Button>
           </div>
         </div>

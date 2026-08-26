@@ -78,23 +78,23 @@ export function FabricDeliveredModalForm({ productionDate, initialData, isEditMo
   };
 
   return (
-    <div className="flex flex-col h-full space-y-6">
-      <div className="grid grid-cols-5 gap-4">
-        <div className="space-y-2">
+    <div className="flex flex-col h-full gap-4 px-1">
+      <div className="grid grid-cols-3 gap-4">
+        <div className="space-y-1.5">
           <Label className="text-gray-600 text-xs font-semibold uppercase tracking-wider">Size</Label>
           <Select value={draft.size} onValueChange={(v) => updateField('size', v)} disabled={isEditMode}>
             <SelectTrigger><SelectValue placeholder="Select Size" /></SelectTrigger>
             <SelectContent>{lookups.sizes?.map((s) => <SelectItem key={s.id} value={s.name}>{s.name}</SelectItem>)}</SelectContent>
           </Select>
         </div>
-        <div className="space-y-2">
+        <div className="space-y-1.5">
           <Label className="text-gray-600 text-xs font-semibold uppercase tracking-wider">Color</Label>
           <Select value={draft.color} onValueChange={(v) => updateField('color', v)} disabled={isEditMode}>
             <SelectTrigger><SelectValue placeholder="Select Color" /></SelectTrigger>
             <SelectContent>{lookups.colors?.map((c) => <SelectItem key={c.id} value={c.name}>{c.name}</SelectItem>)}</SelectContent>
           </Select>
         </div>
-        <div className="space-y-2">
+        <div className="space-y-1.5">
           <Label className="text-gray-600 text-xs font-semibold uppercase tracking-wider">Delivered (kg)</Label>
           <Input
             type="number"
@@ -103,7 +103,9 @@ export function FabricDeliveredModalForm({ productionDate, initialData, isEditMo
             onChange={(e) => updateField('delivered', e.target.value)}
           />
         </div>
-        <div className="space-y-2">
+      </div>
+      <div className="grid grid-cols-2 gap-4">
+        <div className="space-y-1.5">
           <Label className="text-gray-600 text-xs font-semibold uppercase tracking-wider">Vehicle No</Label>
           <Input
             type="text"
@@ -112,7 +114,7 @@ export function FabricDeliveredModalForm({ productionDate, initialData, isEditMo
             onChange={(e) => updateField('vehicleNo', e.target.value)}
           />
         </div>
-        <div className="space-y-2">
+        <div className="space-y-1.5">
           <Label className="text-gray-600 text-xs font-semibold uppercase tracking-wider">Driver Name</Label>
           <Input
             type="text"
@@ -127,13 +129,13 @@ export function FabricDeliveredModalForm({ productionDate, initialData, isEditMo
         <p className="text-sm text-red-600 bg-red-50 border border-red-200 rounded-md px-3 py-2">{error}</p>
       )}
 
-      <div className="flex justify-end gap-3 mt-2 pt-4 border-t border-gray-100">
+      <div className="flex justify-end gap-3 mt-auto pt-3 border-t border-gray-100">
         <Button variant="outline" onClick={onCancel} disabled={saving} className="border-gray-300 text-gray-700">
           Cancel
         </Button>
         <Button onClick={handleSave} disabled={saving} className={`${theme.iconBg} ${theme.iconColor} hover:opacity-90`}>
           {saving && <Loader className="mr-2" size="sm" />}
-          {saving ? 'Saving...' : 'Save Delivery Entry'}
+          {saving ? 'Saving...' : 'Save'}
         </Button>
       </div>
     </div>

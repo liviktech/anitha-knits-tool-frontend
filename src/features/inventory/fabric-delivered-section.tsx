@@ -95,7 +95,7 @@ export const FabricDeliveredSection = forwardRef<SectionRef, SectionProps & { on
           continue;
         }
         const payload: LoadSentCreatePayload = {
-          productionDate,
+          productionDate: productionDate ?? '',
           colorId,
           sizeId,
           fabricWeight: parseFloat(row.delivered) || 0,
@@ -105,15 +105,15 @@ export const FabricDeliveredSection = forwardRef<SectionRef, SectionProps & { on
         try {
           const response = row.id
             ? await apiFetch(`/load-sent/${row.id}`, {
-                method: 'PATCH',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(payload),
-              })
+              method: 'PATCH',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify(payload),
+            })
             : await apiFetch('/load-sent', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(payload),
-              });
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify(payload),
+            });
           if (!response.ok) {
             failed.push(row);
             errorMessage = await extractApiErrorMessage(response, 'Failed to save one or more fabric delivered entries.');
@@ -139,10 +139,10 @@ export const FabricDeliveredSection = forwardRef<SectionRef, SectionProps & { on
         if (existingIndex >= 0) {
           const newArray = [...prev];
           const existing = newArray[existingIndex];
-          
+
           const updated = { ...existing };
           updated.delivered = ((parseFloat(updated.delivered) || 0) + (parseFloat(draft.delivered) || 0)).toString();
-          
+
           newArray[existingIndex] = updated;
           return newArray;
         }
@@ -202,12 +202,12 @@ export const FabricDeliveredSection = forwardRef<SectionRef, SectionProps & { on
         <Table>
           <TableHeader className={`${theme.headerBg}`}>
             <TableRow className="hover:!bg-transparent border-b-0">
-              <TableHead className={`text-xs font-semibold uppercase tracking-wide ${theme.headerText}`}>Size</TableHead>
-              <TableHead className={`w-37.5 min-w-37.5 text-center text-xs font-semibold uppercase tracking-wide ${theme.headerText}`}>Color</TableHead>
-              <TableHead className={`text-center text-xs font-semibold uppercase tracking-wide ${theme.headerText}`}>Delivered (kg)</TableHead>
-              <TableHead className={`text-center text-xs font-semibold uppercase tracking-wide ${theme.headerText}`}>Vehicle No</TableHead>
-              <TableHead className={`text-center text-xs font-semibold uppercase tracking-wide ${theme.headerText}`}>Driver Name</TableHead>
-              {!readOnly && <TableHead className={`text-right text-xs font-semibold uppercase tracking-wide ${theme.headerText}`}>Action</TableHead>}
+              <TableHead className={`text-sm !text-center font-semibold tracking-wide  ${theme.headerText}`}>Size</TableHead>
+              <TableHead className={`w-37.5 min-w-37.5 text-center text-sm font-semibold tracking-wide border border-black/10 ${theme.headerText}`}>Color</TableHead>
+              <TableHead className={`text-center text-sm font-semibold tracking-wide border border-black/10 ${theme.headerText}`}>Fabric Delivered (kg)</TableHead>
+              <TableHead className={`text-center text-sm font-semibold tracking-wide border border-black/10 ${theme.headerText}`}>Vehicle No</TableHead>
+              <TableHead className={`text-center text-sm font-semibold tracking-wide border border-black/10 ${theme.headerText}`}>Driver Name</TableHead>
+              {!readOnly && <TableHead className={`!text-center text-sm font-semibold tracking-wide border border-black/10 ${theme.headerText}`}>Action</TableHead>}
             </TableRow>
           </TableHeader>
           <TableBody>
@@ -223,13 +223,13 @@ export const FabricDeliveredSection = forwardRef<SectionRef, SectionProps & { on
               <>
                 {!readOnly && newRows.map((row) => (
                   <TableRow key={row.key} className="bg-orange-50/50">
-                    <TableCell><span className="font-medium text-gray-700">{row.size || '-'}</span></TableCell>
+                    <TableCell className="!text-center"><span className="font-medium text-gray-700">{row.size || '-'}</span></TableCell>
                     <TableCell className="text-center"><span className="font-medium text-gray-700">{row.color || '-'}</span></TableCell>
                     <TableCell className="text-center">{parseFloat(row.delivered) > 0 ? parseFloat(row.delivered).toFixed(2) : '-'}</TableCell>
                     <TableCell className="text-center">{row.vehicleNo || '-'}</TableCell>
                     <TableCell className="text-center">{row.driverName || '-'}</TableCell>
-                    <TableCell className="text-right">
-                      <div className="flex items-center justify-end gap-1.5">
+                    <TableCell className="!text-center">
+                      <div className="flex items-center justify-center gap-1.5">
                         <Button variant="ghost" size="icon-sm" disabled={saving} className="rounded-full bg-blue-50 text-blue-500 hover:bg-blue-100" onClick={() => onEditDeliveredGroup && onEditDeliveredGroup(row)}>
                           <Edit2 className="h-3.5 w-3.5" />
                         </Button>
@@ -242,22 +242,22 @@ export const FabricDeliveredSection = forwardRef<SectionRef, SectionProps & { on
                 ))}
                 {rows.map((row) => (
                   <TableRow key={row.id}>
-                    <TableCell>{row.size}</TableCell>
+                    <TableCell className="!text-center">{row.size}</TableCell>
                     <TableCell className="w-37.5 min-w-37.5 text-center">{row.color}</TableCell>
                     <TableCell className="text-center">{row.delivered.toFixed(2)}</TableCell>
                     <TableCell className="text-center">{row.vehicleNo || '-'}</TableCell>
                     <TableCell className="text-center">{row.driverName || '-'}</TableCell>
                     {!readOnly && (
-                      <TableCell className="text-right">
-                        <div className="flex items-center justify-end gap-1.5">
+                      <TableCell className="!text-center">
+                        <div className="flex items-center justify-center gap-1.5">
                           <Button variant="ghost" size="icon-sm" className="rounded-full bg-blue-50 text-blue-500 hover:bg-blue-100" aria-label="Edit row" onClick={() => onEditDeliveredGroup && onEditDeliveredGroup({
-                              id: row.id,
-                              size: row.size,
-                              color: row.color,
-                              delivered: String(row.delivered),
-                              vehicleNo: row.vehicleNo,
-                              driverName: row.driverName,
-                            })}>
+                            id: row.id,
+                            size: row.size,
+                            color: row.color,
+                            delivered: String(row.delivered),
+                            vehicleNo: row.vehicleNo,
+                            driverName: row.driverName,
+                          })}>
                             <Edit2 className="h-3.5 w-3.5" />
                           </Button>
                           <Button variant="ghost" size="icon-sm" className="rounded-full bg-red-50 text-red-500 hover:bg-red-100" aria-label="Delete row" onClick={() => setDeleteTarget(row)}>
