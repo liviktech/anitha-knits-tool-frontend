@@ -54,7 +54,7 @@ function NavLinks({ onNavigate }: { onNavigate?: () => void }) {
   const currentNavItems = getNavItems(role);
 
   return (
-    <nav className="flex-1 px-2 py-4 space-y-1 font-['Inter',sans-serif]">
+    <nav className="flex-1 px-2 py-4 space-y-1 font-['Hanken_Grotesk',sans-serif]">
       {currentNavItems.map((item) => {
         const Icon = item.icon;
 
@@ -68,7 +68,7 @@ function NavLinks({ onNavigate }: { onNavigate?: () => void }) {
               }`
             }
           >
-            <Icon className={`w-5 h-5 shrink-0 ${location.pathname.startsWith(item.to) ? 'text-white' : 'text-white/70'}`} strokeWidth={1.75} />
+            <Icon className={`w-[22px] h-[22px] shrink-0 ${location.pathname.startsWith(item.to) ? 'text-white' : 'text-white/70'}`} strokeWidth={1.75} />
             {item.label}
           </NavLink>
         );
