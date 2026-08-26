@@ -69,6 +69,7 @@ function deliveryColorClass(color: string): string {
 }
 
 const FABRIC_STOCK_SIZES = ['150cm', '160cm', '170cm', '180cm', '190cm'] as const;
+const FABRIC_COLORS = ['Blue', 'Green', 'White'] as const;
 
 export function DashboardDesign2() {
   const currentMonthStr = format(new Date(), 'yyyy-MM');
@@ -104,6 +105,7 @@ export function DashboardDesign2() {
   // its own optional color, falling back to the parent record's color.
   const extruderWasteByColor = (() => {
     const map = new Map<string, { lums: number; yarnWaste: number }>();
+    FABRIC_COLORS.forEach((color) => map.set(color, { lums: 0, yarnWaste: 0 }));
     (extruderData?.data ?? []).forEach((r) => {
       (r.wastages ?? []).forEach((w) => {
         if (w.wastageType.code !== 'LUMPS' && w.wastageType.code !== 'YARN_WASTE') return;
@@ -121,6 +123,7 @@ export function DashboardDesign2() {
   // Extruder card's per-color breakdown table.
   const extruderSummaryByColor = (() => {
     const map = new Map<string, { production: number; waste: number }>();
+    FABRIC_COLORS.forEach((color) => map.set(color, { production: 0, waste: 0 }));
     (extruderData?.data ?? []).forEach((r) => {
       const colorName = r.color?.name ?? 'Unspecified';
       const existing = map.get(colorName) ?? { production: 0, waste: 0 };
@@ -373,9 +376,9 @@ export function DashboardDesign2() {
         </div> */}
 
           {/* Inventory Summary Mini Cards */}
-        <div className="bg-white rounded-2xl border border-gray-300 shadow-sm p-4" style={{ fontFamily: "'Hanken Grotesk Variable', 'Hanken Grotesk', sans-serif" }}>
-            <p className="font-bold text-xl px-0.5 text-left">Raw Materials</p>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-2 py-2">
+        <div className="bg-white rounded-2xl border border-gray-400 shadow-sm p-2.5" style={{ fontFamily: "'Hanken Grotesk Variable', 'Hanken Grotesk', sans-serif" }}>
+            <p className="font-bold text-xl px-0.5 text-left pb-2">Raw Materials</p>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-2">
             {/* HDPE Card */}
             <div className="bg-white rounded-xl border border-gray-400 shadow-sm p-4 relative overflow-hidden group/card hover:border-blue-200 transition-colors flex flex-col">
               <div className="absolute top-0 right-0 p-4 opacity-5 group-hover/card:opacity-10 transition-opacity">
@@ -457,18 +460,18 @@ export function DashboardDesign2() {
         </div>
 
         {/* Production Summary (Extruder / Looms / Fabric) — copied verbatim from production-design-2.tsx's Summary Cards block */}
-        <div className="font-hanken bg-white rounded-2xl border border-gray-300 shadow-sm p-4 mt-2">
-           <p className="font-bold text-xl px-0.5 text-left">Production Summary</p>
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-2.5 py-2">
-          <Card className="bg-[#00897B]/5 border border-[#B8DCD0] rounded-[14px] hover:shadow-md transition-all h-full flex flex-col">
-              <CardHeader className="flex flex-row items-center justify-between pb-3 pt-4 px-4">
+        <div className="font-hanken bg-white rounded-2xl border border-gray-400 shadow-sm p-2.5 mt-2">
+           <p className="font-bold text-xl px-0.5 text-left pb-3">Production Summary</p>
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-2.5">
+          <Card className="bg-[#00897B]/5 border border-[#B8DCD0] rounded-[14px] hover:shadow-md transition-all flex flex-col gap-0 self-start py-0">
+              <CardHeader className="flex flex-row items-center justify-between pb-2 pt-3 px-4">
                 <CardTitle className="text-[17px] font-extrabold text-[#0B5566] flex items-center gap-3">
-                  Extruder
+                  Extruder Production
                 </CardTitle>
-                <span className="text-[13px] font-bold text-[#0B5566]">Grand total : <span className="font-inter">{formatNum(extruderGrandTotal)}</span> kg</span>
+                <span className="text-[13px] font-bold text-[#0B5566]">Total : <span className="font-inter">{formatNum(extruderGrandTotal)}</span> kg</span>
               </CardHeader>
-              <CardContent className="px-2 pb-4 pt-0 flex-1 flex flex-col">
-                <div className="border border-gray-400 rounded-lg overflow-hidden">
+              <CardContent className="px-2 pb-2 pt-0 flex flex-col">
+                <div className="w-full border border-gray-400 rounded-lg overflow-hidden">
                   <table className="w-full text-[13px] text-left border-collapse">
                     <thead className="bg-slate-50 font-bold text-gray-700">
                       <tr>
@@ -493,6 +496,12 @@ export function DashboardDesign2() {
                           </tr>
                         ))
                       )}
+                      <tr className="bg-slate-50 font-bold border-t-2 border-gray-400">
+                        <td className="px-3 py-2 border-r border-gray-300 text-gray-700">Total</td>
+                        <td className="px-3 py-2 border-r border-gray-300 text-center font-inter text-gray-900">{formatNum(extruderSummaryByColor.reduce((sum, row) => sum + row.production, 0))}</td>
+                        <td className="px-3 py-2 border-r border-gray-300 text-center font-inter text-gray-900">{formatNum(extruderSummaryByColor.reduce((sum, row) => sum + row.waste, 0))}</td>
+                        <td className="px-3 py-2 text-center font-inter text-gray-900 bg-slate-100">{formatNum(extruderSummaryByColor.reduce((sum, row) => sum + row.total, 0))}</td>
+                      </tr>
                     </tbody>
                   </table>
                 </div>
@@ -586,8 +595,8 @@ export function DashboardDesign2() {
         </div>
 
            {/* Wastage */}
-        <div className="font-hanken bg-white rounded-2xl border border-gray-300 shadow-sm p-4 mt-2">
-          <p className="font-bold text-xl px-0.5 text-left">Wastage</p>
+        <div className="font-hanken bg-white rounded-2xl border border-gray-400 shadow-sm p-2.5 mt-2">
+          <p className="font-bold text-xl px-0.5 text-left pb-3">Wastage Summary</p>
           <WastageCard
             looseWaste={looseWasteKg}
             lums={lumsWasteKg}
@@ -1070,20 +1079,18 @@ function WastageCard({
   extruderWasteByColor: { color: string; lums: number; yarnWaste: number }[];
 }) {
   return (
-    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-2.5 py-2">
+    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-2.5">
       {/* Extruder Wastage */}
-      <Card className="bg-[#00897B]/5 border border-[#B8DCD0] rounded-[14px] hover:shadow-md transition-all h-full flex flex-col">
-          <CardHeader className="flex flex-row items-center justify-between pb-3 pt-4 px-4">
+      <Card className="bg-[#00897B]/5 border border-[#B8DCD0] rounded-[14px] hover:shadow-md transition-all flex flex-col gap-0 self-start py-0">
+          <CardHeader className="flex flex-row items-center justify-between pb-2 pt-2 px-3">
             <CardTitle className="text-[17px] font-extrabold text-[#0B5566] flex items-center gap-3">
-              <div className="bg-[#0B5566] border text-white w-6 h-6 rounded-[4px] flex items-center justify-center text-xs font-bold shadow-sm">1</div>
+              {/* <div className="bg-[#0B5566] border text-white w-6 h-6 rounded-[4px] flex items-center justify-center text-xs font-bold shadow-sm">1</div> */}
               Extruder Wastage
             </CardTitle>
-            <div className="bg-white p-1.5 rounded-md border border-gray-100 shadow-[0_1px_2px_rgba(0,0,0,0.05)]">
-              <img src={extruderIcon} alt="Extruder" className="w-6 h-6 object-contain opacity-90" />
-            </div>
+            <span className="text-[13px] font-bold text-[#0B5566]">Total : <span className="font-inter">{formatNum(lums + looseWaste)}</span> kg</span>
           </CardHeader>
-          <CardContent className="px-3 pb-4 pt-0 flex-1 flex flex-col justify-center">
-            <div className="border border-gray-400 rounded-lg overflow-hidden">
+          <CardContent className="px-2 pb-2 flex flex-col">
+            <div className="w-full border border-gray-400 rounded-lg overflow-hidden">
               <table className="w-full text-[13px] text-left border-collapse">
                 <thead className="bg-slate-50 font-bold text-gray-700">
                   <tr>
