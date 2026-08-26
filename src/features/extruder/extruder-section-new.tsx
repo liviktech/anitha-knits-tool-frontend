@@ -24,7 +24,7 @@ export interface ExtruderBrandDraft {
   id?: string; // If editing existing
   brand: string;
   bags: string;
-  weightPerBag: string;
+  basisWeightKg: string;
   looseWeight: string;
   raw: string;
 }
@@ -33,7 +33,7 @@ export interface ExtruderBrandDraft {
 function brandBagFields(brand: ExtruderBrandDraft): Pick<ExtruderCreatePayload, 'bagCount' | 'bagWeightKg' | 'looseWeightKg' | 'totalWeightKg'> {
   const fields: Pick<ExtruderCreatePayload, 'bagCount' | 'bagWeightKg' | 'looseWeightKg' | 'totalWeightKg'> = {};
   const bagCount = parseInt(brand.bags, 10);
-  const bagWeightKg = parseFloat(brand.weightPerBag);
+  const bagWeightKg = parseFloat(brand.basisWeightKg);
   const looseWeightKg = parseFloat(brand.looseWeight);
   const totalWeightKg = parseFloat(brand.raw);
   if (!isNaN(bagCount) && bagCount > 0) fields.bagCount = bagCount;
@@ -116,7 +116,7 @@ export const ExtruderSection = forwardRef<SectionRef, SectionProps>(({ productio
         id: item.id,
         brand: item.extruder?.brand?.name ?? '',
         bags: item.extruder?.bagCount != null ? item.extruder.bagCount.toString() : '',
-        weightPerBag: item.extruder?.bagWeightKg != null ? item.extruder.bagWeightKg.toString() : '',
+        basisWeightKg: item.extruder?.bagWeightKg != null ? item.extruder.bagWeightKg.toString() : '',
         looseWeight: item.extruder?.looseWeightKg != null ? item.extruder.looseWeightKg.toString() : '',
         raw: item.extruder?.rawMaterialKg?.toString() ?? '0',
       });
@@ -310,7 +310,7 @@ export const ExtruderSection = forwardRef<SectionRef, SectionProps>(({ productio
               <span className="text-center block">{brandRow.brand || '-'}</span>
             </TableCell>
             <TableCell className="py-1.5 px-2">
-              <span className="block text-center">{parseFloat(brandRow.weightPerBag) > 0 ? brandRow.weightPerBag : '-'}</span>
+              <span className="block text-center">{parseFloat(brandRow.basisWeightKg) > 0 ? brandRow.basisWeightKg : '-'}</span>
             </TableCell>
             <TableCell className="py-1.5 px-2">
               <span className="block text-center">{parseFloat(brandRow.looseWeight) > 0 ? brandRow.looseWeight : '-'}</span>

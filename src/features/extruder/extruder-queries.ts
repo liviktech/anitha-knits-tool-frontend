@@ -92,9 +92,9 @@ export interface ColorConsumptionStandard {
   companyId: string;
   basisWeightKg: string;
   hdpematerialbag: number;
-  whiteGramsPerBasis: string;
-  blueGramsPerBasis: string;
-  greenGramsPerBasis: string;
+  whiteKgBasis: string;
+  blueKgBasis: string;
+  greenKgBasis: string;
   chemicalWeight: string;
   date: string;
   isActive: boolean;
@@ -120,12 +120,15 @@ export function useColorConsumptionStandard() {
   });
 }
 
-/** The standard's per-colour grams-per-basis field is named `{colour}GramsPerBasis` — resolves it case-insensitively by colour display name. */
+/** Returns the raw backend value for a colour's per-basis consumption field. */
 export function colorGramsPerBasis(standard: ColorConsumptionStandard | undefined, colorName: string): number | undefined {
   if (!standard || !colorName) return undefined;
-  const key = `${colorName.toLowerCase()}GramsPerBasis` as keyof ColorConsumptionStandard;
-  const value = standard[key];
-  return typeof value === 'string' ? parseFloat(value) : undefined;
+  // API fields are named {color}KgBasis (e.g. whiteKgBasis, blueKgBasis, greenKgBasis)
+  const key = `${colorName.toLowerCase()}KgBasis` as keyof ColorConsumptionStandard;
+  const raw = standard[key];
+  // API may return as string or number — handle both
+  const value = typeof raw === 'string' ? parseFloat(raw) : typeof raw === 'number' ? raw : NaN;
+  return isNaN(value) ? undefined : value;
 }
 
 export function useExtruderProductions(query: string = '', enabled: boolean = true) {
