@@ -36,7 +36,7 @@ interface ErrorEnvelope {
 export function CompanyFormDialog({ onClose, company }: CompanyFormDialogProps) {
   const queryClient = useQueryClient();
   const isEdit = !!company;
-  const { data: companiesData } = useCompanies('?limit=1000');
+  const { data: companiesData } = useCompanies('?limit=100');
 
   const [name, setName] = useState(company?.name ?? '');
   const [companyCode, setCompanyCode] = useState(company?.companyCode ?? '');
