@@ -56,12 +56,6 @@ export function MarkAttendanceModal({ isOpen, onClose, onSave, employees, defaul
            (e.customUserId || e.id).toLowerCase().includes(search.toLowerCase())
   );
 
-  const markAllPresent = () => {
-    const next: Record<string, DailyStatus> = {};
-    employees.forEach((e) => { next[e.id] = 'Present'; });
-    setStatusMap(next);
-  };
-
   const handleSubmit = () => {
     const entries: DailyAttendanceEntry[] = employees
       .filter((e) => statusMap[e.id])

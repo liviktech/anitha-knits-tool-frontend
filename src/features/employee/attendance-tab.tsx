@@ -1,6 +1,5 @@
 import { useState, useMemo } from 'react';
-import { Search, Plus, Calendar, Edit2, Trash2, Eye, LayoutList } from 'lucide-react';
-import { DeleteConfirmDialog } from '@/components/shared/delete-confirm-dialog';
+import { Search, Plus, Calendar, Edit2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
