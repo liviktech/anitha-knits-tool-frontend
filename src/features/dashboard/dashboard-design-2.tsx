@@ -305,17 +305,17 @@ export function DashboardDesign2() {
 
   if (isLoading) {
     return (
-      <div className="h-full flex items-center justify-center bg-white">
-        <div className="flex items-center gap-2 text-slate-500">
-          <Loader size="xl" />
-          Loading dashboard...
+      <div className="h-full flex items-center justify-center bg-white animate-in fade-in-0 duration-300">
+        <div className="flex flex-col items-center gap-3 text-slate-500">
+          <Loader size="xl" className="text-[#004D40]" />
+          <p className="text-sm font-medium animate-pulse">Loading dashboard...</p>
         </div>
       </div>
     );
   }
 
   return (
-    <div className="relative min-h-full overflow-hidden bg-white">
+    <div className="relative min-h-full overflow-hidden bg-white animate-in fade-in-0 slide-in-from-bottom-4 duration-500 fill-mode-both">
       <style>{`
         @keyframes dashFloatA { 0%, 100% { transform: translate3d(0,0,0) scale(1); } 50% { transform: translate3d(-18px,24px,0) scale(1.06); } }
         @keyframes dashFloatB { 0%, 100% { transform: translate3d(0,0,0) scale(1); } 50% { transform: translate3d(20px,-16px,0) scale(1.08); } }
