@@ -99,7 +99,7 @@ function UserFooter() {
       </div>
       <div className="flex flex-col flex-1 min-w-0">
         <span className="text-sm font-inter font-bold text-white leading-tight truncate">{displayName}</span>
-        <span className="text-sm font-inter font-medium text-white/60 truncate">{roleLabel}</span>
+        <span className="text-xs font-inter font-medium text-white/60 truncate">{roleLabel}</span>
       </div>
       <button
         type="button"
