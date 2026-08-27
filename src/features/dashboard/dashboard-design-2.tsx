@@ -1,18 +1,10 @@
 import { Link } from 'react-router-dom';
 import '@fontsource-variable/hanken-grotesk';
-import { Calendar, RefreshCw, ArrowRight, Layers } from 'lucide-react';
-import { format, startOfMonth, endOfMonth, subMonths } from 'date-fns';
-import loomsIcon from '@/assets/looms-icon.png';
-import { useLoadSentRecords, getLoadSentWeight } from '@/features/inventory/load-sent-queries';
+import { Calendar, RefreshCw, ArrowRight } from 'lucide-react';
+import { format } from 'date-fns';
 import { Loader } from '@/components/shared/loader';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { useDayWiseProduction } from '@/features/production/day-wise-queries';
-import { useInventoryRecords, type InventoryType } from '@/features/inventory/inventory-queries';
-import { useExtruderProductions } from '@/features/extruder/extruder-queries';
-import { useLoomsProductions } from '@/features/looms/loom-queries';
-import { useFabricCheckingRecords } from '@/features/fabric/fabric-queries';
-import { sumWastageByCode } from '@/lib/api-types';
-import { useLookups } from '@/lib/lookups';
+import { useMonthlyDashboard } from './dashboard-queries';
 
 function formatNum(n: number): string {
   return n.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
@@ -44,147 +36,36 @@ const FABRIC_COLORS = ['Blue', 'Green', 'White'] as const;
 
 export function DashboardDesign2() {
   const currentMonthStr = format(new Date(), 'yyyy-MM');
-  const prevMonthDate = subMonths(new Date(), 1);
-  const prevMonthStr = format(prevMonthDate, 'yyyy-MM');
 
-  const { rows, apiSummary, isLoading } = useDayWiseProduction(currentMonthStr);
-  const { apiSummary: prevApiSummary } = useDayWiseProduction(prevMonthStr);
-  const { data: inventoryData } = useInventoryRecords('?limit=100');
-  const { data: loadSentData, isLoading: loadingLoadSent } = useLoadSentRecords('?limit=100');
-  const { data: extruderData } = useExtruderProductions('?limit=100');
-  const { data: loomsData } = useLoomsProductions('?limit=100');
-  const { data: fabricCheckingData } = useFabricCheckingRecords('?limit=100');
-  useLookups();
+  const { dashboardData, isLoading: loadingDashboard } = useMonthlyDashboard(currentMonthStr);
 
-  // Wastage from each process — quantities live on each record's `wastages` array,
-  // keyed by wastageType.code (LUMPS/YARN_WASTE for Extruder, LOOMS_WASTE for Looms,
-  // FW/BW for Fabric Checking), never as a field on the stage's own detail object.
-  const looseWasteKg = (extruderData?.data ?? []).reduce((sum, r) => sum + sumWastageByCode(r.wastages, 'YARN_WASTE'), 0);
-  const lumsWasteKg = (extruderData?.data ?? []).reduce((sum, r) => sum + sumWastageByCode(r.wastages, 'LUMPS'), 0);
+  const isLoading = loadingDashboard;
 
-  // Extruder Lums/Yarn waste broken down by color — each wastage entry carries
-  // its own optional color, falling back to the parent record's color.
-  const extruderWasteByColor = (() => {
-    const map = new Map<string, { lums: number; yarnWaste: number }>();
-    FABRIC_COLORS.forEach((color) => map.set(color, { lums: 0, yarnWaste: 0 }));
-    (extruderData?.data ?? []).forEach((r) => {
-      (r.wastages ?? []).forEach((w) => {
-        if (w.wastageType.code !== 'LUMPS' && w.wastageType.code !== 'YARN_WASTE') return;
-        const colorName = w.color?.name ?? r.color?.name ?? 'Unspecified';
-        const existing = map.get(colorName) ?? { lums: 0, yarnWaste: 0 };
-        if (w.wastageType.code === 'LUMPS') existing.lums += w.quantityKg;
-        else existing.yarnWaste += w.quantityKg;
-        map.set(colorName, existing);
-      });
-    });
-    return Array.from(map.entries()).map(([color, vals]) => ({ color, ...vals }));
-  })();
+  const looseWasteKg = dashboardData?.wastage.byType.find(w => w.code === 'YARN_WASTE')?.quantityKg || 0;
+  const lumsWasteKg = dashboardData?.wastage.byType.find(w => w.code === 'LUMPS')?.quantityKg || 0;
 
-  // Looms waste broken down by color — same pattern as extruderWasteByColor above.
-  const loomsWasteByColor = (() => {
-    const map = new Map<string, { loomsWaste: number }>();
-    FABRIC_COLORS.forEach((color) => map.set(color, { loomsWaste: 0 }));
-    (loomsData?.data ?? []).forEach((r) => {
-      (r.wastages ?? []).forEach((w) => {
-        if (w.wastageType.code !== 'LOOMS_WASTE') return;
-        const colorName = w.color?.name ?? r.color?.name ?? 'Unspecified';
-        const existing = map.get(colorName) ?? { loomsWaste: 0 };
-        existing.loomsWaste += w.quantityKg;
-        map.set(colorName, existing);
-      });
-    });
-    return Array.from(map.entries()).map(([color, vals]) => ({ color, ...vals }));
-  })();
+  const extruderWasteByColor = (dashboardData?.extruderProduction || []).map(r => ({ color: r.color.name, lums: r.lumsKg, yarnWaste: r.yarnWasteKg }));
+  const loomsWasteByColor = (dashboardData?.loomsProduction || []).map(r => ({ color: r.color.name, loomsWaste: r.waste }));
 
-  // Fabric Checking (FW) + Bit (BW) waste broken down by color — same pattern as above.
-  const fabricWasteByColor = (() => {
-    const map = new Map<string, { fabricWaste: number; bitWaste: number }>();
-    FABRIC_COLORS.forEach((color) => map.set(color, { fabricWaste: 0, bitWaste: 0 }));
-    (fabricCheckingData?.data ?? []).forEach((r) => {
-      (r.wastages ?? []).forEach((w) => {
-        if (w.wastageType.code !== 'FW' && w.wastageType.code !== 'BW') return;
-        const colorName = w.color?.name ?? r.color?.name ?? 'Unspecified';
-        const existing = map.get(colorName) ?? { fabricWaste: 0, bitWaste: 0 };
-        if (w.wastageType.code === 'FW') existing.fabricWaste += w.quantityKg;
-        else existing.bitWaste += w.quantityKg;
-        map.set(colorName, existing);
-      });
-    });
-    return Array.from(map.entries()).map(([color, vals]) => ({ color, ...vals }));
-  })();
+  const fabricByColorMap = new Map((dashboardData?.fabricProduction.byColor || []).map(r => [r.color.name, r]));
+  const fabricWasteByColor = FABRIC_COLORS.map(color => {
+    const r = fabricByColorMap.get(color);
+    return { color, fabricWaste: r?.fwWasteKg ?? 0, bitWaste: r?.bwWasteKg ?? 0 };
+  });
 
-  // Extruder production + waste combined, by color — used by the Production Summary
-  // Extruder card's per-color breakdown table.
-  const extruderSummaryByColor = (() => {
-    const map = new Map<string, { production: number; waste: number }>();
-    FABRIC_COLORS.forEach((color) => map.set(color, { production: 0, waste: 0 }));
-    (extruderData?.data ?? []).forEach((r) => {
-      const colorName = r.color?.name ?? 'Unspecified';
-      const existing = map.get(colorName) ?? { production: 0, waste: 0 };
-      existing.production += r.extruder?.yarnOutputKg ?? 0;
-      map.set(colorName, existing);
-    });
-    extruderWasteByColor.forEach((w) => {
-      const existing = map.get(w.color) ?? { production: 0, waste: 0 };
-      existing.waste += w.lums + w.yarnWaste;
-      map.set(w.color, existing);
-    });
-    return Array.from(map.entries()).map(([color, vals]) => ({
-      color,
-      production: vals.production,
-      waste: vals.waste,
-      total: vals.production + vals.waste,
-    }));
-  })();
+  const extruderSummaryByColor = (dashboardData?.extruderProduction || []).map(r => ({ ...r, color: r.color.name }));
   const extruderGrandTotal = extruderSummaryByColor.reduce((sum, row) => sum + row.production, 0);
 
-  // Looms production + waste combined, by color — same pattern as extruderSummaryByColor above.
-  const loomsSummaryByColor = (() => {
-    const map = new Map<string, { production: number; waste: number }>();
-    FABRIC_COLORS.forEach((color) => map.set(color, { production: 0, waste: 0 }));
-    (loomsData?.data ?? []).forEach((r) => {
-      const colorName = r.color?.name ?? 'Unspecified';
-      const existing = map.get(colorName) ?? { production: 0, waste: 0 };
-      existing.production += r.loom?.fabricOutputKg ?? 0;
-      map.set(colorName, existing);
-    });
-    loomsWasteByColor.forEach((w) => {
-      const existing = map.get(w.color) ?? { production: 0, waste: 0 };
-      existing.waste += w.loomsWaste;
-      map.set(w.color, existing);
-    });
-    return Array.from(map.entries()).map(([color, vals]) => ({
-      color,
-      production: vals.production,
-      waste: vals.waste,
-      total: vals.production + vals.waste,
-    }));
-  })();
+  const loomsSummaryByColor = (dashboardData?.loomsProduction || []).map(r => ({ ...r, color: r.color.name }));
   const loomsGrandTotal = loomsSummaryByColor.reduce((sum, row) => sum + row.production, 0);
 
-  // Fabric Checking production + waste combined, by color — same pattern as above.
-  const fabricSummaryByColor = (() => {
-    const map = new Map<string, { production: number; waste: number }>();
-    FABRIC_COLORS.forEach((color) => map.set(color, { production: 0, waste: 0 }));
-    (fabricCheckingData?.data ?? []).forEach((r) => {
-      const colorName = r.color?.name ?? 'Unspecified';
-      const existing = map.get(colorName) ?? { production: 0, waste: 0 };
-      existing.production += r.fabricCheck?.outputKg ?? 0;
-      map.set(colorName, existing);
-    });
-    fabricWasteByColor.forEach((w) => {
-      const existing = map.get(w.color) ?? { production: 0, waste: 0 };
-      existing.waste += w.fabricWaste + w.bitWaste;
-      map.set(w.color, existing);
-    });
-    return Array.from(map.entries()).map(([color, vals]) => ({
-      color,
-      production: vals.production,
-      waste: vals.waste,
-      total: vals.production + vals.waste,
-    }));
-  })();
-  const fabricGrandTotal = fabricSummaryByColor.reduce((sum, row) => sum + row.production, 0);
+  const fabricSummaryByColor = (dashboardData?.fabricProduction.byColor || []).map(r => ({
+    color: r.color.name,
+    production: r.production,
+    waste: r.fwWasteKg + r.bwWasteKg,
+    total: r.total,
+  }));
+  const fabricGrandTotal = dashboardData?.fabricProduction.overall.outputKg || 0;
 
   // Fabric Stock — no persisted "current stock" field exists anywhere in the API
   // (unlike HDPE/Chemical/Color inventory). Derived as everything Fabric Checking
@@ -199,21 +80,9 @@ export function DashboardDesign2() {
       return row;
     };
     FABRIC_COLORS.forEach((color) => getRow(color));
-    (fabricCheckingData?.data ?? []).forEach((r) => {
-      const color = r.color?.name;
-      const size = r.size?.name;
-      const output = r.fabricCheck?.outputKg ?? 0;
-      if (!color || !size) return;
-      const row = getRow(color);
-      row.stockBySize[size] = (row.stockBySize[size] ?? 0) + output;
-    });
-    (loadSentData?.data ?? []).forEach((r) => {
-      const color = r.color?.name;
-      const size = r.size?.name;
-      const delivered = getLoadSentWeight(r);
-      if (!color || !size) return;
-      const row = getRow(color);
-      row.stockBySize[size] = (row.stockBySize[size] ?? 0) - delivered;
+    (dashboardData?.stockBalance || []).forEach(r => {
+      const row = getRow(r.color.name);
+      row.stockBySize[r.size.name] = r.availableFabricStockKg;
     });
     return Array.from(byColor.values());
   })();
@@ -222,86 +91,26 @@ export function DashboardDesign2() {
     0,
   );
 
-  // KPI strip — Total Production, Avg Efficiency, Fabric Delivered, Pending Approvals,
-  // each compared against the previous calendar month using data already fetched above.
-  const totalProductionKg = (apiSummary?.extruder.outputKg ?? 0) + (apiSummary?.looms.outputKg ?? 0) + (apiSummary?.fabricChecking.outputKg ?? 0);
-  const prevTotalProductionKg = (prevApiSummary?.extruder.outputKg ?? 0) + (prevApiSummary?.looms.outputKg ?? 0) + (prevApiSummary?.fabricChecking.outputKg ?? 0);
+  const toInventoryItems = (items: { name: string; weightKg: number }[] | undefined) =>
+    (items || []).map(i => ({ name: i.name, weight: i.weightKg }));
+  const rawMaterials = { weight: dashboardData?.inventory.HDPE.totalWeightKg || 0, items: toInventoryItems(dashboardData?.inventory.HDPE.items) };
+  const chemicals = { weight: dashboardData?.inventory.CHEMICAL.totalWeightKg || 0, items: toInventoryItems(dashboardData?.inventory.CHEMICAL.items) };
+  const invColors = { weight: dashboardData?.inventory.COLOR.totalWeightKg || 0, items: toInventoryItems(dashboardData?.inventory.COLOR.items) };
 
-  const avgEfficiencyPct = ((apiSummary?.extruder.efficiencyPct ?? 0) + (apiSummary?.looms.efficiencyPct ?? 0) + (apiSummary?.fabricChecking.efficiencyPct ?? 0)) / 3;
-  const prevAvgEfficiencyPct = ((prevApiSummary?.extruder.efficiencyPct ?? 0) + (prevApiSummary?.looms.efficiencyPct ?? 0) + (prevApiSummary?.fabricChecking.efficiencyPct ?? 0)) / 3;
-
-  const prevMonthDeliveredKg = (loadSentData?.data ?? [])
-    .filter((r) => (r.productionDate ?? r.date ?? '').startsWith(prevMonthStr))
-    .reduce((sum, r) => sum + (r.fabricWeight ?? r.weightKg ?? 0), 0);
-
-  const sparkRows = [...rows].reverse().slice(-7);
-  const productionSparkline = sparkRows.map((r) => r.extruder.output + r.looms.output + r.fabric.output);
-  const efficiencySparkline = sparkRows.map((r) => {
-    const stages = [r.extruder, r.looms, r.fabric];
-    const effs = stages.map((s) => (s.input > 0 ? (s.output / s.input) * 100 : 0));
-    return effs.reduce((a, b) => a + b, 0) / effs.length;
+  const monthDeliveriesByColor = FABRIC_COLORS.map(color => {
+    const deliveries = (dashboardData?.loadSent.items || [])
+      .filter(item => item.color.name === color)
+      .map(item => ({
+        id: item.id,
+        date: item.productionDate,
+        size: item.size.name,
+        kg: item.loadSent?.fabricWeight ?? 0,
+      }))
+      .sort((a, b) => (a.date < b.date ? 1 : -1));
+    return { color, deliveries, total: deliveries.reduce((sum, d) => sum + d.kg, 0) };
   });
-  const deliveredByDayMap = new Map<string, number>();
-  (loadSentData?.data ?? []).forEach((r) => {
-    const d = (r.productionDate ?? r.date ?? '').slice(0, 10);
-    if (d) deliveredByDayMap.set(d, (deliveredByDayMap.get(d) ?? 0) + (r.fabricWeight ?? r.weightKg ?? 0));
-  });
-  const deliveredSparkline = Array.from(deliveredByDayMap.entries())
-    .sort(([a], [b]) => (a < b ? -1 : 1))
-    .slice(-7)
-    .map(([, kg]) => kg);
-
-  const prevPeriodLabel = `vs ${format(startOfMonth(prevMonthDate), 'MMM d')} – ${format(endOfMonth(prevMonthDate), 'MMM d')}`;
-
-  const inventoryRecords = inventoryData?.data ?? [];
-  const month = new Date().toISOString().slice(0, 7);
-  const monthRecords = inventoryRecords.filter(r => r.date.startsWith(month));
-
-  const getCategoryData = (type: InventoryType) => {
-    const categoryRecords = monthRecords.filter(r => r.type === type);
-    const weight = categoryRecords.reduce((sum, r) => sum + r.weightKg, 0);
-    const itemsMap = new Map<string, number>();
-    categoryRecords.forEach(r => {
-      if (r.name) itemsMap.set(r.name, (itemsMap.get(r.name) || 0) + r.weightKg);
-    });
-    const items = Array.from(itemsMap.entries()).map(([name, w]) => ({ name, weight: w }));
-    return { weight, items };
-  };
-
-  const rawMaterials = getCategoryData('HDPE');
-  const chemicals = getCategoryData('CHEMICAL');
-  const invColors = getCategoryData('COLOR');
-
-  const monthDeliveries = (loadSentData?.data ?? [])
-    .filter((r) => (r.productionDate ?? r.date ?? '').startsWith(month))
-    .map((r) => ({
-      id: r.id,
-      date: r.productionDate ?? r.date,
-      color: r.color?.name ?? '',
-      size: r.size?.name ?? '',
-      kg: getLoadSentWeight(r),
-      vehicleNo: r.loadSent?.vehicleNo ?? '--',
-    }))
-    .sort((a, b) => (a.date < b.date ? 1 : -1));
-
-  const selectedMonthDeliveryTotal = monthDeliveries.reduce((sum, d) => sum + d.kg, 0);
-
-  // Fabric Delivered grouped by color — one card per color, pre-seeded with
-  // FABRIC_COLORS so all 3 always render even with zero deliveries.
-  const monthDeliveriesByColor = (() => {
-    const map = new Map<string, typeof monthDeliveries>();
-    FABRIC_COLORS.forEach((color) => map.set(color, []));
-    monthDeliveries.forEach((d) => {
-      const existing = map.get(d.color) ?? [];
-      existing.push(d);
-      map.set(d.color, existing);
-    });
-    return Array.from(map.entries()).map(([color, deliveries]) => ({
-      color,
-      deliveries,
-      total: deliveries.reduce((sum, d) => sum + d.kg, 0),
-    }));
-  })();
+  const selectedMonthDeliveryTotal = dashboardData?.loadSent.totals.fabricWeightKg || 0;
+  const loadingLoadSent = isLoading;
 
   if (isLoading) {
     return (
@@ -353,40 +162,6 @@ export function DashboardDesign2() {
 
         {/* White content surface wrapping everything below the header */}
         <div className="">
-
-        {/* KPI Strip */}
-        {/* <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-2.5">
-          <KpiStatCard
-            icon={<Briefcase className="w-4 h-4 text-emerald-600" />}
-            label="Total Production (Kg)"
-            value={formatNum(totalProductionKg)}
-            changePct={pctChange(totalProductionKg, prevTotalProductionKg)}
-            periodLabel={prevPeriodLabel}
-            sparklineData={productionSparkline}
-          />
-          <KpiStatCard
-            icon={<Package className="w-4 h-4 text-emerald-600" />}
-            label="Fabric Stock (Kg)"
-            value={formatNum(totalFabricStockKg)}
-            footer="Fabric Checking output minus deliveries"
-          />
-          <KpiStatCard
-            icon={<Truck className="w-4 h-4 text-emerald-600" />}
-            label="Fabric Delivered (Kg)"
-            value={formatNum(selectedMonthDeliveryTotal)}
-            changePct={pctChange(selectedMonthDeliveryTotal, prevMonthDeliveredKg)}
-            periodLabel={prevPeriodLabel}
-            sparklineData={deliveredSparkline}
-          />
-          <KpiStatCard
-            icon={<ClipboardList className="w-4 h-4 text-emerald-600" />}
-            label="Avg. Efficiency"
-            value={`${avgEfficiencyPct.toFixed(1)}%`}
-            changePct={pctChange(avgEfficiencyPct, prevAvgEfficiencyPct)}
-            periodLabel={prevPeriodLabel}
-            sparklineData={efficiencySparkline}
-          />
-        </div> */}
 
           {/* Inventory Summary Mini Cards */}
         <div className="bg-white rounded-2xl border border-gray-400 shadow-sm p-2.5" style={{ fontFamily: "'Hanken Grotesk Variable', 'Hanken Grotesk', sans-serif" }}>
@@ -539,7 +314,7 @@ export function DashboardDesign2() {
           <Card className="bg-[#004D40]/5 border border-[#C5D8C2] rounded-[14px] hover:shadow-md transition-all flex flex-col gap-0 self-start py-0">
               <CardHeader className="flex flex-row items-center justify-between pb-1! pt-3 px-4 border-b border-[#C5D8C2]">
                 <CardTitle className="text-[17px] font-extrabold text-[#2F6B2F] flex items-center gap-3">
-                  Fabric Production
+                  Fabric Checking
                 </CardTitle>
                 <span className="text-[13px] font-bold text-[#2F6B2F]">Total : <span className="font-inter">{formatNum(fabricGrandTotal)}</span> kg</span>
               </CardHeader>
@@ -681,229 +456,7 @@ export function DashboardDesign2() {
       
 
      
-        {/* Trend + efficiency */}
-        {/* <div className="grid grid-cols-1 lg:grid-cols-2 gap-2.5">
-          <Card className="bg-white border border-slate-100 shadow-lg shadow-slate-200/50 rounded-3xl p-4 md:p-5 transition-shadow duration-300 hover:shadow-xl hover:shadow-slate-300/40 animate-in fade-in-0 slide-in-from-bottom-3 duration-700 delay-200 fill-mode-both">
-            <CardHeader className="p-0 mb-2">
-              <CardTitle className="text-[13px] font-bold text-slate-900">30-Day Output Trend</CardTitle>
-            </CardHeader>
-            <CardContent className="p-0 h-64">
-              <ResponsiveContainer width="100%" height="100%">
-                <AreaChart data={trend} margin={{ top: 8, right: 8, left: 0, bottom: 0 }}>
-                  <defs>
-                    <linearGradient id="fillExtruder" x1="0" y1="0" x2="0" y2="1">
-                      <stop offset="5%" stopColor={STAGE_COLOR.extruder} stopOpacity={0.3} />
-                      <stop offset="95%" stopColor={STAGE_COLOR.extruder} stopOpacity={0} />
-                    </linearGradient>
-                  </defs>
-                  <CartesianGrid stroke="#e1e0d9" vertical={false} />
-                  <XAxis dataKey="date" tick={{ fontSize: 10, fill: '#898781' }} axisLine={{ stroke: '#c3c2b7' }} tickLine={false} />
-                  <YAxis tick={{ fontSize: 10, fill: '#898781' }} axisLine={false} tickLine={false} width={48} />
-                  <Tooltip contentStyle={{ background: '#fff', border: '1px solid #e5e7eb', borderRadius: 12, fontSize: 12, boxShadow: '0 4px 16px rgba(15,23,42,0.08)' }} animationDuration={150} />
-                  <Legend wrapperStyle={{ fontSize: 11, color: '#64748b' }} />
-                  <Area type="monotone" dataKey="Extruder" stroke={STAGE_COLOR.extruder} strokeWidth={2} fill="url(#fillExtruder)" dot={{ r: 2, fill: STAGE_COLOR.extruder, strokeWidth: 0 }} activeDot={{ r: 4 }} {...CHART_ANIM} />
-                  <Area type="monotone" dataKey="Looms" stroke={STAGE_COLOR.looms} strokeWidth={2} fill="none" dot={{ r: 2, fill: STAGE_COLOR.looms, strokeWidth: 0 }} activeDot={{ r: 4 }} {...CHART_ANIM} />
-                  <Area type="monotone" dataKey="Fabric" stroke={STAGE_COLOR.fabric} strokeWidth={2} fill="none" dot={{ r: 2, fill: STAGE_COLOR.fabric, strokeWidth: 0 }} activeDot={{ r: 4 }} {...CHART_ANIM} />
-                </AreaChart>
-              </ResponsiveContainer>
-            </CardContent>
-          </Card>
 
-          <Card className="bg-white border border-slate-100 shadow-lg shadow-slate-200/50 rounded-3xl p-4 md:p-5 transition-shadow duration-300 hover:shadow-xl hover:shadow-slate-300/40 animate-in fade-in-0 slide-in-from-bottom-3 duration-700 delay-300 fill-mode-both">
-            <CardHeader className="p-0 mb-2">
-              <CardTitle className="text-[13px] font-bold text-slate-900">Weekly Process Details</CardTitle>
-            </CardHeader>
-            <CardContent className="p-0 h-64 flex items-center">
-              <ResponsiveContainer width="100%" height="100%">
-                <BarChart data={processDetailsMock} margin={{ top: 20, right: 0, left: -20, bottom: 0 }}>
-                  <CartesianGrid stroke="#e1e0d9" vertical={false} />
-                  <XAxis dataKey="name" tick={{ fontSize: 10, fill: '#898781' }} axisLine={{ stroke: '#c3c2b7' }} tickLine={false} />
-                  <YAxis tick={{ fontSize: 10, fill: '#898781' }} axisLine={false} tickLine={false} width={48} />
-                  <Tooltip cursor={{ fill: 'transparent' }} contentStyle={{ background: '#fff', border: '1px solid #e5e7eb', borderRadius: 12, fontSize: 12 }} animationDuration={150} />
-                  <Legend wrapperStyle={{ fontSize: 11, color: '#64748b' }} iconType="circle" />
-                  <Bar dataKey="Extruder" fill="#00A29A" radius={[2, 2, 0, 0]} />
-                  <Bar dataKey="Looms" fill="#003B73" radius={[2, 2, 0, 0]} />
-                  <Bar dataKey="Fabric" fill="#88D84D" radius={[2, 2, 0, 0]} />
-                </BarChart>
-              </ResponsiveContainer>
-            </CardContent>
-          </Card>
-        </div> */}
-
-        {/* Employees + Expenses (mock) */}
-        {/* <div className="grid grid-cols-1 lg:grid-cols-2 gap-2.5">
-          <Card className="bg-white border border-slate-100 shadow-lg shadow-slate-200/50 rounded-3xl p-4 md:p-5 transition-shadow duration-300 hover:shadow-xl hover:shadow-slate-300/40 animate-in fade-in-0 slide-in-from-bottom-3 duration-700 delay-[350ms] fill-mode-both">
-            <CardHeader className="p-0 mb-2 flex flex-row items-center justify-between">
-              <CardTitle className="text-[13px] font-bold text-slate-900 flex items-center gap-2">
-                <span className="w-8 h-8 rounded-lg bg-[#00897B] flex items-center justify-center shadow-sm">
-                  <Users className="w-4 h-4 text-white" />
-                </span>
-                Employees <span className="text-[10px] font-medium text-slate-400 normal-case">(illustrative)</span>
-              </CardTitle>
-              <div className="text-right">
-                <p className="text-[20px] font-extrabold text-slate-900 leading-none">
-                  78<span className="text-slate-400 font-medium text-lg">/84</span>
-                </p>
-                <p className="text-[10px] text-slate-400 font-medium mt-1 tracking-wide">Present Today</p>
-              </div>
-            </CardHeader>
-            <CardContent className="p-0 flex-1 flex flex-col justify-between">
-              <div className="h-44 w-full mt-3">
-                <ResponsiveContainer width="100%" height="100%">
-                  <AreaChart data={mockAttendanceTrend} margin={{ top: 15, right: 10, left: -25, bottom: 0 }}>
-                    <defs>
-                      <linearGradient id="fillAttendance" x1="0" y1="0" x2="0" y2="1">
-                        <stop offset="5%" stopColor="#00897B" stopOpacity={0.25} />
-                        <stop offset="95%" stopColor="#00897B" stopOpacity={0} />
-                      </linearGradient>
-                    </defs>
-                    <CartesianGrid stroke="#f1f5f9" strokeDasharray="3 3" vertical={false} />
-                    <XAxis dataKey="day" tick={{ fontSize: 10, fill: '#94a3b8' }} axisLine={false} tickLine={false} dy={5} />
-                    <YAxis tick={{ fontSize: 10, fill: '#94a3b8' }} axisLine={false} tickLine={false} width={40} domain={[60, 100]} ticks={[60, 68, 76, 84, 92, 100]} />
-                    <Tooltip contentStyle={{ background: '#fff', border: '1px solid #e5e7eb', borderRadius: 12, fontSize: 12 }} animationDuration={150} />
-                    <Area
-                      type="monotone"
-                      dataKey="present"
-                      stroke="#00897B"
-                      strokeWidth={2}
-                      fill="url(#fillAttendance)"
-                      dot={{ r: 4, fill: '#00897B', stroke: '#fff', strokeWidth: 2 }}
-                      activeDot={{ r: 6 }}
-                      label={{ position: 'top', fill: '#475569', fontSize: 10, fontWeight: 600, dy: -8 }}
-                      {...CHART_ANIM}
-                    />
-                  </AreaChart>
-                </ResponsiveContainer>
-              </div>
-              <div className="mt-4 flex bg-slate-50/70 rounded-xl p-3.5 items-center justify-between border border-slate-100">
-                <div className="flex items-center gap-3 w-1/2 justify-center">
-                  <div className="bg-[#00897B] p-2 rounded-lg shadow-sm"><Calendar className="text-white w-4 h-4" /></div>
-                  <div className="flex flex-col text-left">
-                    <p className="text-[#64748b] text-[10px] font-medium tracking-wide">Attendance Rate</p>
-                    <p className="text-[#00897B] font-extrabold text-[15px]">92.86%</p>
-                  </div>
-                </div>
-                <div className="h-10 w-px bg-slate-200" />
-                <div className="flex items-center gap-3 w-1/2 justify-center">
-                  <div className="bg-[#00897B]/10 p-2 rounded-lg"><Users className="text-[#00897B] w-4 h-4" /></div>
-                  <div className="flex flex-col text-left">
-                    <p className="text-[#64748b] text-[10px] font-medium tracking-wide">Total Employees</p>
-                    <p className="text-[#00897B] font-extrabold text-[15px]">84</p>
-                  </div>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-
-          <Card className="bg-white border border-slate-100 shadow-lg shadow-slate-200/50 rounded-3xl p-4 md:p-5 transition-shadow duration-300 hover:shadow-xl hover:shadow-slate-300/40 animate-in fade-in-0 slide-in-from-bottom-3 duration-700 delay-[400ms] fill-mode-both">
-            <CardHeader className="p-0 mb-3 flex flex-row items-center justify-between">
-              <CardTitle className="text-[13px] font-bold text-slate-900 flex items-center gap-2">
-                <span className="w-8 h-8 rounded-lg bg-[#F2BB13] flex items-center justify-center shadow-sm">
-                  <Wallet className="w-4 h-4 text-white" />
-                </span>
-                Expenses <span className="text-[10px] font-medium text-slate-400 normal-case">(illustrative)</span>
-              </CardTitle>
-              <button className="flex items-center gap-1.5 px-3 py-1.5 border border-slate-200 rounded-md text-[11px] font-medium text-slate-600 hover:bg-slate-50 transition-colors">
-                <Calendar className="w-3.5 h-3.5" />
-                This Month
-                <ChevronDown className="w-3 h-3 ml-1" />
-              </button>
-            </CardHeader>
-            <CardContent className="p-0 flex-1 flex flex-col justify-between">
-              <div className="flex items-center gap-0 h-52 w-full">
-                <div className="w-[65%] h-full flex items-center justify-center relative">
-                  <ResponsiveContainer width="100%" height="100%">
-                    <PieChart margin={{ top: 16, right: 16, bottom: 16, left: 16 }}>
-                      <Pie
-                        data={mockExpenseBreakdown}
-                        dataKey="amount"
-                        nameKey="category"
-                        cx="50%"
-                        cy="50%"
-                        outerRadius={72}
-                        stroke="#fff"
-                        strokeWidth={2}
-                        labelLine={{ stroke: '#94a3b8', strokeWidth: 1 }}
-                        label={({ cx, cy, midAngle = 0, outerRadius, percent = 0, name }) => {
-                          const RADIAN = Math.PI / 180;
-                          const radius = outerRadius + 22;
-                          const x = cx + radius * Math.cos(-midAngle * RADIAN);
-                          const y = cy + radius * Math.sin(-midAngle * RADIAN);
-                          const isLeft = x < cx;
-                          return (
-                            <g>
-                              <text
-                                x={x}
-                                y={y - 7}
-                                textAnchor={isLeft ? 'end' : 'start'}
-                                dominantBaseline="central"
-                                fontSize={12}
-                                fontWeight="800"
-                                fill="#1e293b"
-                              >
-                                {`${(percent * 100).toFixed(0)}%`}
-                              </text>
-                              <text
-                                x={x}
-                                y={y + 7}
-                                textAnchor={isLeft ? 'end' : 'start'}
-                                dominantBaseline="central"
-                                fontSize={10}
-                                fill="#64748b"
-                              >
-                                {name}
-                              </text>
-                            </g>
-                          );
-                        }}
-                        {...CHART_ANIM}
-                      >
-                        {mockExpenseBreakdown.map((entry, i) => (
-                          <Cell key={entry.category} fill={EXPENSE_COLORS[i % EXPENSE_COLORS.length]} />
-                        ))}
-                      </Pie>
-                      <Tooltip contentStyle={{ background: '#fff', border: '1px solid #e5e7eb', borderRadius: 12, fontSize: 12 }} formatter={(v) => formatCurrency(Number(v))} animationDuration={150} />
-                    </PieChart>
-                  </ResponsiveContainer>
-                </div>
-                <div className="w-[35%] flex flex-col justify-center pl-1">
-                  <div className="flex items-center justify-between border-b border-slate-200 pb-2 mb-3 text-[10px] font-extrabold text-slate-700 uppercase tracking-wider">
-                    <span>Category</span>
-                    <span className="text-right">Amount</span>
-                  </div>
-                  <div className="flex flex-col gap-2.5">
-                    {mockExpenseBreakdown.map((e, i) => (
-                      <div key={e.category} className="flex items-center justify-between text-[11px] group">
-                        <span className="flex items-center gap-2 text-slate-600 font-semibold group-hover:text-slate-900 transition-colors">
-                          <span className="w-2.5 h-2.5 rounded-full flex-shrink-0" style={{ background: EXPENSE_COLORS[i % EXPENSE_COLORS.length] }} />
-                          {e.category}
-                        </span>
-                        <span className="font-bold text-slate-800 tabular-nums text-[11px] text-right">{formatCurrency(e.amount)}</span>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              </div>
-              <div className="mt-4 flex bg-slate-50/70 rounded-xl p-3 items-center justify-between border border-slate-100">
-                <div className="flex items-center gap-3 w-[55%] justify-center">
-                  <div className="bg-[#2ebf91]/20 p-1.5 rounded-full"><IndianRupee className="text-[#208a68] w-4 h-4" /></div>
-                  <div>
-                    <p className="text-[#64748b] text-[10px] font-medium tracking-wide">Total Expenses</p>
-                    <p className="text-[#208a68] font-extrabold text-[15px]">₹2,57,500</p>
-                  </div>
-                </div>
-                <div className="h-8 w-px bg-slate-200" />
-                <div className="flex items-center gap-3 w-[45%] justify-center">
-                  <div className="bg-[#2ebf91]/10 p-1.5 rounded-md"><TrendingUp className="text-[#208a68] w-4 h-4" /></div>
-                  <div>
-                    <p className="text-[#64748b] text-[10px] font-medium tracking-wide">vs Last Month</p>
-                    <p className="text-[#208a68] font-extrabold text-[13px]">+8.42% ↗</p>
-                  </div>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-        </div> */}
         </div>
       </div>
     </div>

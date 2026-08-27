@@ -173,9 +173,9 @@ function EmployeeDirectoryTab() {
       };
 
       if (editingEmployee) {
-        await updateEmployee.mutateAsync({ id: editingEmployee.id, data: payload });
+        await updateEmployee.mutateAsync({ id: editingEmployee.id, data: payload as any });
       } else {
-        await createEmployee.mutateAsync(payload);
+        await createEmployee.mutateAsync(payload as any);
       }
       setIsFormOpen(false);
     } catch (err: any) {
