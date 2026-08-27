@@ -328,70 +328,70 @@ function EmployeeDirectoryTab() {
             </TableHeader>
             <TableBody>
               {filteredEmployees.map((emp) => (
-                  <TableRow
-                    key={emp.id}
-                    className="border-b border-emerald-50 last:border-b-0 hover:bg-emerald-50/30 transition-colors"
-                  >
-                    <TableCell className="pl-4 text-sm font-bold text-gray-700 whitespace-nowrap">
-                      {emp.employeeDetails?.customUserId || emp.id}
-                    </TableCell>
-                    <TableCell className="py-3 text-sm font-semibold text-gray-900 whitespace-nowrap">
-                      {emp.name || '-'}
-                    </TableCell>
-                    <TableCell className="text-sm text-gray-700 whitespace-nowrap">
-                      {emp.employeeDetails?.designation || '-'}
-                    </TableCell>
-                    <TableCell className="text-[13px] text-gray-700 whitespace-nowrap">
-                      {emp.mobile}
-                    </TableCell>
-                    <TableCell className="text-[13px] text-gray-600 font-mono whitespace-nowrap">
-                      {emp.employeeDetails?.aadhaarNumber || '-'}
-                    </TableCell>
-                    <TableCell className="text-[13px] text-gray-600 whitespace-nowrap">
-                      {formatDateDisplay(emp.employeeDetails?.joiningDate || '')}
-                    </TableCell>
-                    <TableCell className="text-sm text-gray-600 max-w-[240px] truncate" title={emp.employeeDetails?.address || ''}>
-                      {emp.employeeDetails?.address || '-'}
-                    </TableCell>
-                    <TableCell className="text-sm whitespace-nowrap">
-                      <span className="inline-flex items-center rounded-full px-2 py-0.5 text-[11px] font-medium bg-slate-100 text-slate-700 border border-slate-200">
-                        {emp.employeeDetails?.gender || '-'}
-                      </span>
-                    </TableCell>
-                    <TableCell className="text-center whitespace-nowrap">
-                      <span
-                        className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-[11px] font-semibold ${emp.isActive
-                          ? 'bg-emerald-50 text-[#004D40] border border-emerald-200'
-                          : 'bg-amber-50 text-amber-700 border border-amber-200'
-                          }`}
+                <TableRow
+                  key={emp.id}
+                  className="border-b border-emerald-50 last:border-b-0 hover:bg-emerald-50/30 transition-colors"
+                >
+                  <TableCell className="pl-4 text-sm font-bold text-gray-700 whitespace-nowrap">
+                    {emp.employeeDetails?.customUserId || emp.id}
+                  </TableCell>
+                  <TableCell className="py-3 text-sm font-semibold text-gray-900 whitespace-nowrap">
+                    {emp.name || '-'}
+                  </TableCell>
+                  <TableCell className="text-sm text-gray-700 whitespace-nowrap">
+                    {emp.employeeDetails?.designation || '-'}
+                  </TableCell>
+                  <TableCell className="text-[13px] text-gray-700 whitespace-nowrap">
+                    {emp.mobile}
+                  </TableCell>
+                  <TableCell className="text-[13px] text-gray-600 font-mono whitespace-nowrap">
+                    {emp.employeeDetails?.aadhaarNumber || '-'}
+                  </TableCell>
+                  <TableCell className="text-[13px] text-gray-600 whitespace-nowrap">
+                    {formatDateDisplay(emp.employeeDetails?.joiningDate || '')}
+                  </TableCell>
+                  <TableCell className="text-sm text-gray-600 max-w-[240px] truncate" title={emp.employeeDetails?.address || ''}>
+                    {emp.employeeDetails?.address || '-'}
+                  </TableCell>
+                  <TableCell className="text-sm whitespace-nowrap">
+                    <span className="inline-flex items-center rounded-full px-2 py-0.5 text-[11px] font-medium bg-slate-100 text-slate-700 border border-slate-200">
+                      {emp.employeeDetails?.gender || '-'}
+                    </span>
+                  </TableCell>
+                  <TableCell className="text-center whitespace-nowrap">
+                    <span
+                      className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-[11px] font-semibold ${emp.isActive
+                        ? 'bg-emerald-50 text-[#004D40] border border-emerald-200'
+                        : 'bg-amber-50 text-amber-700 border border-amber-200'
+                        }`}
+                    >
+                      {emp.isActive ? 'Active' : 'Inactive'}
+                    </span>
+                  </TableCell>
+                  <TableCell className="text-center pr-4">
+                    <div className="flex items-center justify-center gap-1.5">
+                      <Button
+                        variant="ghost"
+                        size="icon-sm"
+                        className="h-7 w-7 rounded-full bg-blue-50 text-blue-600 hover:bg-blue-100 cursor-pointer"
+                        aria-label="Edit employee"
+                        onClick={() => openEditModal(emp)}
                       >
-                        {emp.isActive ? 'Active' : 'Inactive'}
-                      </span>
-                    </TableCell>
-                    <TableCell className="text-center pr-4">
-                      <div className="flex items-center justify-center gap-1.5">
-                        <Button
-                          variant="ghost"
-                          size="icon-sm"
-                          className="h-7 w-7 rounded-full bg-blue-50 text-blue-600 hover:bg-blue-100 cursor-pointer"
-                          aria-label="Edit employee"
-                          onClick={() => openEditModal(emp)}
-                        >
-                          <Edit2 className="h-3.5 w-3.5" />
-                        </Button>
-                        <Button
-                          variant="ghost"
-                          size="icon-sm"
-                          className="h-7 w-7 rounded-full bg-red-50 text-red-600 hover:bg-red-100 cursor-pointer"
-                          aria-label="Delete employee"
-                          onClick={() => setDeleteTarget(emp)}
-                        >
-                          <Trash2 className="h-3.5 w-3.5" />
-                        </Button>
-                      </div>
-                    </TableCell>
-                  </TableRow>
-                ))
+                        <Edit2 className="h-3.5 w-3.5" />
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        size="icon-sm"
+                        className="h-7 w-7 rounded-full bg-red-50 text-red-600 hover:bg-red-100 cursor-pointer"
+                        aria-label="Delete employee"
+                        onClick={() => setDeleteTarget(emp)}
+                      >
+                        <Trash2 className="h-3.5 w-3.5" />
+                      </Button>
+                    </div>
+                  </TableCell>
+                </TableRow>
+              ))
               }
             </TableBody>
           </Table>
