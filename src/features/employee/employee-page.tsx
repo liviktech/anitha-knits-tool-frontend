@@ -18,73 +18,13 @@ export interface EmployeeRecord {
   aadharCard: string;
   dateOfJoining: string;
   residentialAddress: string;
-  gender: 'Male' | 'Female' | 'Other';
+  gender: 'MALE' | 'FEMALE' | 'OTHER';
   salary: number;
   status: 'Active' | 'Inactive';
 }
 
-const INITIAL_EMPLOYEES: EmployeeRecord[] = [
-  {
-    id: 'EMP-001',
-    name: 'Karthik Subramanian',
-    designation: 'Knitting Operator',
-    mobileNumber: '+91 98765 43210',
-    aadharCard: '4521 8890 1234',
-    dateOfJoining: '2024-01-15',
-    residentialAddress: '12/A, Factory Road, Rayapuram, Tiruppur',
-    gender: 'Male',
-    salary: 28000,
-    status: 'Active',
-  },
-  {
-    id: 'EMP-002',
-    name: 'Priya Ramesh',
-    designation: 'Quality Checker',
-    mobileNumber: '+91 98421 67890',
-    aadharCard: '5890 3341 9812',
-    dateOfJoining: '2024-03-01',
-    residentialAddress: '45, Knitting Colony, Avinashi Road, Tiruppur',
-    gender: 'Female',
-    salary: 24500,
-    status: 'Active',
-  },
-  {
-    id: 'EMP-003',
-    name: 'Muthukumar S.',
-    designation: 'Extruder Operator',
-    mobileNumber: '+91 97100 23456',
-    aadharCard: '6712 9044 1122',
-    dateOfJoining: '2023-11-10',
-    residentialAddress: '8/120, South Street, Palladam Road, Tiruppur',
-    gender: 'Male',
-    salary: 32000,
-    status: 'Active',
-  },
-  {
-    id: 'EMP-004',
-    name: 'Lakshmi Narayanan',
-    designation: 'Helper',
-    mobileNumber: '+91 99445 11223',
-    aadharCard: '2341 8901 7765',
-    dateOfJoining: '2024-05-20',
-    residentialAddress: '102, New Bus Stand Extension, Tiruppur',
-    gender: 'Female',
-    salary: 22000,
-    status: 'Active',
-  },
-  {
-    id: 'EMP-005',
-    name: 'Suresh Kumar',
-    designation: 'Supervisor',
-    mobileNumber: '+91 96554 88776',
-    aadharCard: '8910 4455 3321',
-    dateOfJoining: '2023-08-14',
-    residentialAddress: '22, Cotton Mill Line, Dharapuram Road, Tiruppur',
-    gender: 'Male',
-    salary: 26000,
-    status: 'Inactive',
-  },
-];
+import { useEmployees, useCreateEmployee, useUpdateEmployee, useDeleteEmployee } from './employee-queries';
+import type { Employee } from './employee-queries';
 
 function formatCurrency(num: number) {
   return new Intl.NumberFormat('en-IN', {
@@ -96,7 +36,7 @@ function formatCurrency(num: number) {
 
 function formatDateDisplay(isoDate: string) {
   if (!isoDate) return '-';
-  const [year, month, day] = isoDate.split('-');
+  const [year, month, day] = isoDate.split('T')[0].split('-');
   if (!year || !month || !day) return isoDate;
   const date = new Date(Number(year), Number(month) - 1, Number(day));
   return date.toLocaleDateString('en-IN', {
@@ -111,14 +51,18 @@ function todayIso() {
 }
 
 function EmployeeDirectoryTab() {
-  const [employees, setEmployees] = useState<EmployeeRecord[]>(INITIAL_EMPLOYEES);
+  const { data: employees = [] } = useEmployees();
+  const createEmployee = useCreateEmployee();
+  const updateEmployee = useUpdateEmployee();
+  const deleteEmployee = useDeleteEmployee();
+
   const [searchQuery, setSearchQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState<string>('ALL');
 
   // Modal states
   const [isFormOpen, setIsFormOpen] = useState(false);
-  const [editingEmployee, setEditingEmployee] = useState<EmployeeRecord | null>(null);
-  const [deleteTarget, setDeleteTarget] = useState<EmployeeRecord | null>(null);
+  const [editingEmployee, setEditingEmployee] = useState<Employee | null>(null);
+  const [deleteTarget, setDeleteTarget] = useState<Employee | null>(null);
 
   // Form input states
   const [formId, setFormId] = useState('');
@@ -128,19 +72,19 @@ function EmployeeDirectoryTab() {
   const [formAadhar, setFormAadhar] = useState('');
   const [formDoj, setFormDoj] = useState(todayIso());
   const [formAddress, setFormAddress] = useState('');
-  const [formGender, setFormGender] = useState<'Male' | 'Female' | 'Other'>('Male');
+  const [formGender, setFormGender] = useState<'MALE' | 'FEMALE' | 'OTHER'>('MALE');
   const [formSalary, setFormSalary] = useState('');
   const [formStatus, setFormStatus] = useState<'Active' | 'Inactive'>('Active');
   const [formError, setFormError] = useState<string | null>(null);
 
   // KPI Calculations
   const activeCount = useMemo(
-    () => employees.filter((e) => e.status === 'Active').length,
+    () => employees.filter((e) => e.isActive).length,
     [employees]
   );
 
   const totalPayroll = useMemo(
-    () => employees.filter((e) => e.status === 'Active').reduce((sum, e) => sum + e.salary, 0),
+    () => employees.filter((e) => e.isActive).reduce((sum, e) => sum + (e.employeeDetails?.salary || 0), 0),
     [employees]
   );
 
@@ -148,55 +92,57 @@ function EmployeeDirectoryTab() {
   const filteredEmployees = useMemo(() => {
     return employees.filter((emp) => {
       const q = searchQuery.toLowerCase();
+      const empId = emp.employeeDetails?.customUserId || emp.id;
       const matchesSearch =
-        emp.id.toLowerCase().includes(q) ||
-        emp.name.toLowerCase().includes(q) ||
-        emp.designation.toLowerCase().includes(q) ||
-        emp.mobileNumber.toLowerCase().includes(q) ||
-        emp.aadharCard.toLowerCase().includes(q) ||
-        emp.residentialAddress.toLowerCase().includes(q);
+        empId.toLowerCase().includes(q) ||
+        (emp.name || '').toLowerCase().includes(q) ||
+        (emp.employeeDetails?.designation || '').toLowerCase().includes(q) ||
+        emp.mobile.toLowerCase().includes(q) ||
+        (emp.employeeDetails?.aadhaarNumber || '').toLowerCase().includes(q) ||
+        (emp.employeeDetails?.address || '').toLowerCase().includes(q);
 
-      const matchesStatus = statusFilter === 'ALL' || emp.status === statusFilter;
+      const statusStr = emp.isActive ? 'Active' : 'Inactive';
+      const matchesStatus = statusFilter === 'ALL' || statusStr === statusFilter;
 
       return matchesSearch && matchesStatus;
     });
   }, [employees, searchQuery, statusFilter]);
 
   const openCreateModal = () => {
-    const nextNum = employees.length + 1;
-    const generatedId = `EMP-${String(nextNum).padStart(3, '0')}`;
     setEditingEmployee(null);
-    setFormId(generatedId);
+    setFormId('');
     setFormName('');
     setFormDesignation('');
     setFormMobile('');
     setFormAadhar('');
     setFormDoj(todayIso());
     setFormAddress('');
-    setFormGender('Male');
+    setFormGender('MALE');
     setFormSalary('');
     setFormStatus('Active');
     setFormError(null);
     setIsFormOpen(true);
   };
 
-  const openEditModal = (emp: EmployeeRecord) => {
+  const openEditModal = (emp: Employee) => {
     setEditingEmployee(emp);
-    setFormId(emp.id);
-    setFormName(emp.name);
-    setFormDesignation(emp.designation);
-    setFormMobile(emp.mobileNumber);
-    setFormAadhar(emp.aadharCard);
-    setFormDoj(emp.dateOfJoining);
-    setFormAddress(emp.residentialAddress);
-    setFormGender(emp.gender);
-    setFormSalary(String(emp.salary));
-    setFormStatus(emp.status);
+    setFormId(emp.employeeDetails?.customUserId || emp.id);
+    setFormName(emp.name || '');
+    setFormDesignation(emp.employeeDetails?.designation || '');
+    setFormMobile(emp.mobile);
+    setFormAadhar(emp.employeeDetails?.aadhaarNumber || '');
+    // Take YYYY-MM-DD from ISO string
+    const doj = emp.employeeDetails?.joiningDate ? emp.employeeDetails.joiningDate.split('T')[0] : todayIso();
+    setFormDoj(doj);
+    setFormAddress(emp.employeeDetails?.address || '');
+    setFormGender(emp.employeeDetails?.gender || 'MALE');
+    setFormSalary(emp.employeeDetails?.salary ? String(emp.employeeDetails.salary) : '');
+    setFormStatus(emp.isActive ? 'Active' : 'Inactive');
     setFormError(null);
     setIsFormOpen(true);
   };
 
-  const handleSaveEmployee = () => {
+  const handleSaveEmployee = async () => {
     if (!formName.trim()) {
       setFormError('Please enter employee name');
       return;
@@ -206,53 +152,45 @@ function EmployeeDirectoryTab() {
       return;
     }
     const parsedSalary = parseFloat(formSalary);
-    if (isNaN(parsedSalary) || parsedSalary < 0) {
+    if (formSalary && (isNaN(parsedSalary) || parsedSalary < 0)) {
       setFormError('Please enter a valid salary');
       return;
     }
 
-    if (editingEmployee) {
-      setEmployees((prev) =>
-        prev.map((emp) =>
-          emp.id === editingEmployee.id
-            ? {
-              ...emp,
-              name: formName.trim(),
-              designation: formDesignation.trim(),
-              mobileNumber: formMobile.trim(),
-              aadharCard: formAadhar.trim(),
-              dateOfJoining: formDoj,
-              residentialAddress: formAddress.trim(),
-              gender: formGender,
-              salary: parsedSalary,
-              status: formStatus,
-            }
-            : emp
-        )
-      );
-    } else {
-      const newEmp: EmployeeRecord = {
-        id: formId.trim() || `EMP-${Date.now().toString().slice(-3)}`,
+    try {
+      const payload = {
         name: formName.trim(),
-        designation: formDesignation.trim(),
-        mobileNumber: formMobile.trim(),
-        aadharCard: formAadhar.trim(),
-        dateOfJoining: formDoj,
-        residentialAddress: formAddress.trim(),
-        gender: formGender,
-        salary: parsedSalary,
-        status: formStatus,
+        mobile: formMobile.trim(),
+        isActive: formStatus === 'Active',
+        employeeDetails: {
+          designation: formDesignation.trim(),
+          address: formAddress.trim(),
+          gender: formGender,
+          salary: parsedSalary || undefined,
+          aadhaarNumber: formAadhar.trim(),
+          joiningDate: formDoj ? new Date(formDoj).toISOString() : undefined,
+        },
       };
-      setEmployees((prev) => [newEmp, ...prev]);
-    }
 
-    setIsFormOpen(false);
+      if (editingEmployee) {
+        await updateEmployee.mutateAsync({ id: editingEmployee.id, data: payload });
+      } else {
+        await createEmployee.mutateAsync(payload);
+      }
+      setIsFormOpen(false);
+    } catch (err: any) {
+      setFormError(err.message || 'Failed to save employee');
+    }
   };
 
-  const handleDeleteConfirm = () => {
+  const handleDeleteConfirm = async () => {
     if (!deleteTarget) return;
-    setEmployees((prev) => prev.filter((emp) => emp.id !== deleteTarget.id));
-    setDeleteTarget(null);
+    try {
+      await deleteEmployee.mutateAsync(deleteTarget.id);
+      setDeleteTarget(null);
+    } catch (err) {
+      console.error('Delete failed:', err);
+    }
   };
 
   return (
@@ -391,39 +329,39 @@ function EmployeeDirectoryTab() {
                     className="border-b border-emerald-50 last:border-b-0 hover:bg-emerald-50/30 transition-colors"
                   >
                     <TableCell className="pl-4 text-xs font-bold text-gray-700 whitespace-nowrap">
-                      {emp.id}
+                      {emp.employeeDetails?.customUserId || emp.id}
                     </TableCell>
                     <TableCell className="py-3 text-xs font-semibold text-gray-900 whitespace-nowrap">
-                      {emp.name}
+                      {emp.name || '-'}
                     </TableCell>
                     <TableCell className="text-xs text-gray-700 whitespace-nowrap">
-                      {emp.designation}
+                      {emp.employeeDetails?.designation || '-'}
                     </TableCell>
                     <TableCell className="text-xs text-gray-700 whitespace-nowrap">
-                      {emp.mobileNumber}
+                      {emp.mobile}
                     </TableCell>
                     <TableCell className="text-xs text-gray-600 font-mono whitespace-nowrap">
-                      {emp.aadharCard || '-'}
+                      {emp.employeeDetails?.aadhaarNumber || '-'}
                     </TableCell>
                     <TableCell className="text-xs text-gray-600 whitespace-nowrap">
-                      {formatDateDisplay(emp.dateOfJoining)}
+                      {formatDateDisplay(emp.employeeDetails?.joiningDate || '')}
                     </TableCell>
-                    <TableCell className="text-xs text-gray-600 max-w-[240px] truncate" title={emp.residentialAddress}>
-                      {emp.residentialAddress || '-'}
+                    <TableCell className="text-xs text-gray-600 max-w-[240px] truncate" title={emp.employeeDetails?.address || ''}>
+                      {emp.employeeDetails?.address || '-'}
                     </TableCell>
                     <TableCell className="text-xs whitespace-nowrap">
                       <span className="inline-flex items-center rounded-full px-2 py-0.5 text-[11px] font-medium bg-slate-100 text-slate-700 border border-slate-200">
-                        {emp.gender}
+                        {emp.employeeDetails?.gender || '-'}
                       </span>
                     </TableCell>
                     <TableCell className="text-center whitespace-nowrap">
                       <span
-                        className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-[11px] font-semibold ${emp.status === 'Active'
+                        className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-[11px] font-semibold ${emp.isActive
                             ? 'bg-emerald-50 text-[#004D40] border border-emerald-200'
                             : 'bg-amber-50 text-amber-700 border border-amber-200'
                           }`}
                       >
-                        {emp.status}
+                        {emp.isActive ? 'Active' : 'Inactive'}
                       </span>
                     </TableCell>
                     <TableCell className="text-center pr-4">
@@ -543,14 +481,14 @@ function EmployeeDirectoryTab() {
 
             <div className="flex flex-col gap-1.5">
               <Label htmlFor="emp-gender" className="text-xs font-semibold text-gray-700">Gender</Label>
-              <Select value={formGender} onValueChange={(val) => setFormGender(val as 'Male' | 'Female' | 'Other')}>
+              <Select value={formGender} onValueChange={(val) => setFormGender(val as 'MALE' | 'FEMALE' | 'OTHER')}>
                 <SelectTrigger id="emp-gender" className="w-full h-9 text-xs">
                   <SelectValue placeholder="Select gender" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="Male">Male</SelectItem>
-                  <SelectItem value="Female">Female</SelectItem>
-                  <SelectItem value="Other">Other</SelectItem>
+                  <SelectItem value="MALE">Male</SelectItem>
+                  <SelectItem value="FEMALE">Female</SelectItem>
+                  <SelectItem value="OTHER">Other</SelectItem>
                 </SelectContent>
               </Select>
             </div>
