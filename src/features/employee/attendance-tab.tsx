@@ -1,6 +1,5 @@
 import { useState, useMemo } from 'react';
-import { Search, Plus, Calendar, Edit2, Trash2, Eye, LayoutList, UserCheck, UserX, Clock } from 'lucide-react';
-import { DeleteConfirmDialog } from '@/components/shared/delete-confirm-dialog';
+import { Search, Plus, Edit2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
@@ -9,10 +8,6 @@ import { MarkAttendanceModal } from './mark-attendance-modal';
 import { EmployeeAttendanceDetailsModal } from './employee-attendance-details-modal';
 import { useEmployees } from './employee-queries';
 import { useAttendanceRecords, useUpsertAttendance } from './attendance-queries';
-function todayFormatted() {
-  const date = new Date();
-  return `Today, ${date.getDate()} ${date.toLocaleString('en-US', { month: 'short' })}`;
-}
 
 const MONTHS = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
 const YEARS = ['2024', '2025', '2026'];

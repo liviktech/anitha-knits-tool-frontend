@@ -1,4 +1,4 @@
-import { useState, type ReactNode } from 'react';
+import { useState, lazy, Suspense, type ReactNode } from 'react';
 import '@fontsource-variable/inter';
 import '@fontsource-variable/hanken-grotesk';
 import { BrowserRouter, Routes, Route, Navigate, NavLink, Link, useLocation, useNavigate } from 'react-router-dom';
@@ -8,14 +8,26 @@ import type { AuthUser, CompanyUserRole } from './features/auth/auth-service';
 import { Settings, User, Wallet, Menu, Package, LineChart, LogOut, LayoutDashboard } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet';
-import { DashboardModule } from './features/dashboard/dashboard-module';
-import { ProductionDetails } from './features/production/production-details';
-import { InventoryPage } from './features/inventory/inventory-page';
-import { LivikAdminShell } from './features/admin/livik-admin-shell';
-import { EmpExpensesPage } from './features/emp-expenses/emp-expenses-page';
-import { EmployeePage } from './features/employee/employee-page';
-import { AdminPanelPage } from './features/admin-panel/admin-panel-page';
+import { Loader } from '@/components/shared/loader';
 import threadIcon from '@/assets/thread.png';
+
+// Route-level code splitting — each feature module becomes its own chunk,
+// fetched on demand instead of bloating the single main bundle.
+const DashboardModule = lazy(() => import('./features/dashboard/dashboard-module').then((m) => ({ default: m.DashboardModule })));
+const ProductionDetails = lazy(() => import('./features/production/production-details').then((m) => ({ default: m.ProductionDetails })));
+const InventoryPage = lazy(() => import('./features/inventory/inventory-page').then((m) => ({ default: m.InventoryPage })));
+const LivikAdminShell = lazy(() => import('./features/admin/livik-admin-shell').then((m) => ({ default: m.LivikAdminShell })));
+const EmpExpensesPage = lazy(() => import('./features/emp-expenses/emp-expenses-page').then((m) => ({ default: m.EmpExpensesPage })));
+const EmployeePage = lazy(() => import('./features/employee/employee-page').then((m) => ({ default: m.EmployeePage })));
+const AdminPanelPage = lazy(() => import('./features/admin-panel/admin-panel-page').then((m) => ({ default: m.AdminPanelPage })));
+
+function PageLoader() {
+  return (
+    <div className="h-screen w-full flex items-center justify-center bg-white">
+      <Loader size="xl" className="text-[#004D40]" />
+    </div>
+  );
+}
 
 const navItems = [
   { to: '/dashboard', label: 'Dashboard', icon: LayoutDashboard },
@@ -181,27 +193,29 @@ function AppShell() {
 function App() {
   return (
     <BrowserRouter>
-      <Routes>
-        <Route path="/login" element={<LoginPage />} />
-        {/* Separate super-admin panel — its own shell/nav, deliberately not nested under AppShell.
-            Super admin's job here is onboarding companies, so this is their default landing spot. */}
-        <Route
-          path="/admin/*"
-          element={
-            <RequireRole kind="platform-admin">
-              <LivikAdminShell />
-            </RequireRole>
-          }
-        />
-        <Route
-          path="/*"
-          element={
-            <RequireRole kind="company-user">
-              <AppShell />
-            </RequireRole>
-          }
-        />
-      </Routes>
+      <Suspense fallback={<PageLoader />}>
+        <Routes>
+          <Route path="/login" element={<LoginPage />} />
+          {/* Separate super-admin panel — its own shell/nav, deliberately not nested under AppShell.
+              Super admin's job here is onboarding companies, so this is their default landing spot. */}
+          <Route
+            path="/admin/*"
+            element={
+              <RequireRole kind="platform-admin">
+                <LivikAdminShell />
+              </RequireRole>
+            }
+          />
+          <Route
+            path="/*"
+            element={
+              <RequireRole kind="company-user">
+                <AppShell />
+              </RequireRole>
+            }
+          />
+        </Routes>
+      </Suspense>
     </BrowserRouter>
   );
 }
