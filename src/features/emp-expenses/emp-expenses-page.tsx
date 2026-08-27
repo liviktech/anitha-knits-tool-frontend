@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import "@fontsource-variable/hanken-grotesk";
 import { useQueryClient } from "@tanstack/react-query";
 import {
   Plus,
@@ -247,7 +248,6 @@ export function EmpExpensesPage() {
     >
       <style>{`
         #emp-expenses-layout, #emp-expenses-layout * { font-family: 'Hanken Grotesk Variable', 'Hanken Grotesk', sans-serif !important; }
-        #emp-expenses-layout .font-inter { font-family: 'Inter Variable', 'Inter', sans-serif !important; }
       `}</style>
 
       {/* Unified Header */}
