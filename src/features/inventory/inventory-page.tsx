@@ -614,74 +614,74 @@ function StockSummaryCard({ onAdd, onEditDate, onDeleteDate }: { onAdd: (e: Reac
                   const dayChemicalTotal = dayRecords.filter(r => r.type === 'CHEMICAL').reduce((s, r) => s + r.weightKg, 0);
                   const dayColorTotal = dayRecords.filter(r => r.type === 'COLOR').reduce((s, r) => s + r.weightKg, 0);
                   return (
-                  <tr key={date} className="hover:bg-green-50/40 transition-colors group">
-                    <td className="border border-gray-200 px-3 py-1 font-bold text-gray-800 whitespace-nowrap text-sm">{formatDateDisplay(date)}</td>
-                    {hdpeNames.length > 0 && (
-                      <td className="border border-gray-200 px-3 py-1 text-center font-bold text-gray-800 text-sm bg-blue-50/30">
-                        {dayRecords.find(r => r.type === 'HDPE')?.DC_NUMBER || '-'}
-                      </td>
-                    )}
-                    {hdpeNames.map(name => {
-                      const val = getWeight(dayRecords, 'HDPE', name);
-                      return (
-                        <td key={name} className="border border-gray-200 px-3 py-1 text-center font-medium text-gray-800 text-sm">
-                          {val > 0 ? val.toFixed(2) : <span className="text-gray-500">0.00</span>}
+                    <tr key={date} className="hover:bg-green-50/40 transition-colors group">
+                      <td className="border border-gray-200 px-3 py-1 font-bold text-gray-800 whitespace-nowrap text-sm">{formatDateDisplay(date)}</td>
+                      {hdpeNames.length > 0 && (
+                        <td className="border border-gray-200 px-3 py-1 text-center font-bold text-gray-800 text-sm bg-blue-50/30">
+                          {dayRecords.find(r => r.type === 'HDPE')?.DC_NUMBER || '-'}
                         </td>
-                      );
-                    })}
-                    {hdpeNames.length > 0 && (
-                      <td className="border border-gray-200 px-3 py-1 text-center font-bold text-gray-800 text-sm bg-blue-50/30">
-                        {dayHdpeTotal > 0 ? dayHdpeTotal.toFixed(2) : <span className="text-gray-500">0.00</span>}
-                      </td>
-                    )}
-                    {chemicalNames.length > 0 && (
-                      <td className="border border-gray-200 px-3 py-1 text-center font-bold text-gray-800 text-sm bg-yellow-50/30">
-                        {dayRecords.find(r => r.type === 'CHEMICAL')?.DC_NUMBER || '-'}
-                      </td>
-                    )}
-                    {chemicalNames.map(name => {
-                      const val = getWeight(dayRecords, 'CHEMICAL', name);
-                      return (
-                        <td key={name} className="border border-gray-200 px-3 py-1 text-center font-medium text-gray-800 text-sm">
-                          {val > 0 ? val.toFixed(2) : <span className="text-gray-500">0.00</span>}
+                      )}
+                      {hdpeNames.map(name => {
+                        const val = getWeight(dayRecords, 'HDPE', name);
+                        return (
+                          <td key={name} className="border border-gray-200 px-3 py-1 text-center font-medium text-gray-800 text-sm">
+                            {val > 0 ? val.toFixed(2) : <span className="text-gray-500">0.00</span>}
+                          </td>
+                        );
+                      })}
+                      {hdpeNames.length > 0 && (
+                        <td className="border border-gray-200 px-3 py-1 text-center font-bold text-gray-800 text-sm bg-blue-50/30">
+                          {dayHdpeTotal > 0 ? dayHdpeTotal.toFixed(2) : <span className="text-gray-500">0.00</span>}
                         </td>
-                      );
-                    })}
-                    {chemicalNames.length > 0 && (
-                      <td className="border border-gray-200 px-3 py-1 text-center font-bold text-gray-800 text-sm bg-yellow-50/30">
-                        {dayChemicalTotal > 0 ? dayChemicalTotal.toFixed(2) : <span className="text-gray-500">0.00</span>}
-                      </td>
-                    )}
-                    {colorNames.length > 0 && (
-                      <td className="border border-gray-200 px-3 py-1 text-center font-bold text-gray-800 text-sm bg-green-50/30">
-                        {dayRecords.find(r => r.type === 'COLOR')?.DC_NUMBER || '-'}
-                      </td>
-                    )}
-                    {colorNames.map(name => {
-                      const val = getWeight(dayRecords, 'COLOR', name);
-                      return (
-                        <td key={name} className="border border-gray-200 px-3 py-1 text-center font-medium text-gray-800 text-sm">
-                          {val > 0 ? val.toFixed(2) : <span className="text-gray-500">0.00</span>}
+                      )}
+                      {chemicalNames.length > 0 && (
+                        <td className="border border-gray-200 px-3 py-1 text-center font-bold text-gray-800 text-sm bg-yellow-50/30">
+                          {dayRecords.find(r => r.type === 'CHEMICAL')?.DC_NUMBER || '-'}
                         </td>
-                      );
-                    })}
-                    {colorNames.length > 0 && (
-                      <td className="border border-gray-200 px-3 py-1 text-center font-bold text-gray-800 text-sm bg-green-50/30">
-                        {dayColorTotal > 0 ? dayColorTotal.toFixed(2) : <span className="text-gray-500">0.00</span>}
+                      )}
+                      {chemicalNames.map(name => {
+                        const val = getWeight(dayRecords, 'CHEMICAL', name);
+                        return (
+                          <td key={name} className="border border-gray-200 px-3 py-1 text-center font-medium text-gray-800 text-sm">
+                            {val > 0 ? val.toFixed(2) : <span className="text-gray-500">0.00</span>}
+                          </td>
+                        );
+                      })}
+                      {chemicalNames.length > 0 && (
+                        <td className="border border-gray-200 px-3 py-1 text-center font-bold text-gray-800 text-sm bg-yellow-50/30">
+                          {dayChemicalTotal > 0 ? dayChemicalTotal.toFixed(2) : <span className="text-gray-500">0.00</span>}
+                        </td>
+                      )}
+                      {colorNames.length > 0 && (
+                        <td className="border border-gray-200 px-3 py-1 text-center font-bold text-gray-800 text-sm bg-green-50/30">
+                          {dayRecords.find(r => r.type === 'COLOR')?.DC_NUMBER || '-'}
+                        </td>
+                      )}
+                      {colorNames.map(name => {
+                        const val = getWeight(dayRecords, 'COLOR', name);
+                        return (
+                          <td key={name} className="border border-gray-200 px-3 py-1 text-center font-medium text-gray-800 text-sm">
+                            {val > 0 ? val.toFixed(2) : <span className="text-gray-500">0.00</span>}
+                          </td>
+                        );
+                      })}
+                      {colorNames.length > 0 && (
+                        <td className="border border-gray-200 px-3 py-1 text-center font-bold text-gray-800 text-sm bg-green-50/30">
+                          {dayColorTotal > 0 ? dayColorTotal.toFixed(2) : <span className="text-gray-500">0.00</span>}
+                        </td>
+                      )}
+                      {totalCols === 0 && <td className="border border-gray-200 px-3 py-1"></td>}
+                      <td className="border border-gray-200 px-3 py-1 text-center">
+                        <div className="flex items-center justify-center gap-1">
+                          <Button variant="ghost" size="icon-sm" className="h-6 w-6 rounded-full text-blue-600 hover:bg-blue-50" onClick={() => onEditDate(date)}>
+                            <Edit2 className="h-3 w-3" />
+                          </Button>
+                          <Button variant="ghost" size="icon-sm" className="h-6 w-6 rounded-full text-red-600 hover:bg-red-50" onClick={() => onDeleteDate(date, dayRecords)}>
+                            <Trash2 className="h-3 w-3" />
+                          </Button>
+                        </div>
                       </td>
-                    )}
-                    {totalCols === 0 && <td className="border border-gray-200 px-3 py-1"></td>}
-                    <td className="border border-gray-200 px-3 py-1 text-center">
-                      <div className="flex items-center justify-center gap-1">
-                        <Button variant="ghost" size="icon-sm" className="h-6 w-6 rounded-full text-blue-600 hover:bg-blue-50" onClick={() => onEditDate(date)}>
-                          <Edit2 className="h-3 w-3" />
-                        </Button>
-                        <Button variant="ghost" size="icon-sm" className="h-6 w-6 rounded-full text-red-600 hover:bg-red-50" onClick={() => onDeleteDate(date, dayRecords)}>
-                          <Trash2 className="h-3 w-3" />
-                        </Button>
-                      </div>
-                    </td>
-                  </tr>
+                    </tr>
                   );
                 })
               )}
@@ -804,7 +804,7 @@ export function InventoryPage() {
 
       {/* Content Area */}
       <div className="flex-1 overflow-y-auto relative flex flex-col">
-        <div className="flex flex-col gap-6 p-4">
+        <div className="flex flex-col gap-2 p-2">
           {activeView === 'summary' && <InventorySummary />}
           {activeView === 'receive' && <InventoryReceiveTab onBack={() => setActiveView('summary')} />}
           {activeView === 'send' && <LoadSentTab onBack={() => setActiveView('summary')} />}

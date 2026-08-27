@@ -1,5 +1,10 @@
 import { useEffect, useState } from 'react';
-import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -13,7 +18,7 @@ interface AddConfigurationDialogProps {
   /** Present when editing an existing configuration instead of adding a new one. */
   initial?: ColorConsumptionStandardPayload | null;
   isPending?: boolean;
-  /** Server-side error surfaced by the calling mutation (e.g. a validation or conflict response). */
+  /** Server-side error surfaced by the calling mutation. */
   serverError?: string | null;
 }
 
@@ -39,9 +44,17 @@ function toFormStrings(payload: ColorConsumptionStandardPayload) {
   };
 }
 
-export function AddConfigurationDialog({ open, onOpenChange, onSubmit, initial, isPending = false, serverError }: AddConfigurationDialogProps) {
+export function AddConfigurationDialog({
+  open,
+  onOpenChange,
+  onSubmit,
+  initial,
+  isPending = false,
+  serverError,
+}: AddConfigurationDialogProps) {
   const [form, setForm] = useState(emptyForm);
   const [formError, setFormError] = useState<string | null>(null);
+
   const isEdit = !!initial;
 
   useEffect(() => {
@@ -51,15 +64,37 @@ export function AddConfigurationDialog({ open, onOpenChange, onSubmit, initial, 
     }
   }, [open, initial]);
 
-  const setField = (key: keyof typeof emptyForm) => (e: React.ChangeEvent<HTMLInputElement>) =>
-    setForm((prev) => ({ ...prev, [key]: e.target.value }));
+  const setField =
+    (key: keyof typeof emptyForm) =>
+      (e: React.ChangeEvent<HTMLInputElement>) => {
+        setForm((prev) => ({
+          ...prev,
+          [key]: e.target.value,
+        }));
+      };
 
   const handleSubmit = async () => {
-    const numericFields = ['hdpematerialbag', 'basisWeightKg', 'whiteKgBasis', 'blueKgBasis', 'greenKgBasis', 'chemicalWeight'] as const;
-    if (!form.date || numericFields.some((key) => form[key].trim() === '' || Number.isNaN(Number(form[key])))) {
+    const numericFields = [
+      'hdpematerialbag',
+      'basisWeightKg',
+      'whiteKgBasis',
+      'blueKgBasis',
+      'greenKgBasis',
+      'chemicalWeight',
+    ] as const;
+
+    if (
+      !form.date ||
+      numericFields.some(
+        (key) =>
+          form[key].trim() === '' ||
+          Number.isNaN(Number(form[key])),
+      )
+    ) {
       setFormError('Please fill in every field with a valid value.');
       return;
     }
+
     setFormError(null);
 
     const ok = await onSubmit({
@@ -71,79 +106,456 @@ export function AddConfigurationDialog({ open, onOpenChange, onSubmit, initial, 
       greenKgBasis: Number(form.greenKgBasis),
       chemicalWeight: Number(form.chemicalWeight),
     });
-    if (ok) onOpenChange(false);
+
+    if (ok) {
+      onOpenChange(false);
+    }
   };
 
   const displayError = formError ?? serverError;
 
   return (
-    <Dialog open={open} onOpenChange={(next) => { if (!isPending) onOpenChange(next); }}>
-      <DialogContent className="sm:max-w-md">
-        <DialogHeader>
-          <DialogTitle>{isEdit ? 'Edit Configuration' : 'Add Configuration'}</DialogTitle>
+    <Dialog
+      open={open}
+      onOpenChange={(next) => {
+        if (!isPending) {
+          onOpenChange(next);
+        }
+      }}
+    >
+      <DialogContent
+        className="
+          w-full
+          max-w-xl
+          overflow-hidden
+          rounded-xl
+          border
+          border-[#bfc9c3]
+          bg-[#ffffff]
+          p-0
+          shadow-lg
+          sm:max-w-xl
+        "
+      >
+        {/* ===================================================== */}
+        {/* HEADER                                                */}
+        {/* ===================================================== */}
+
+        <DialogHeader
+          className="
+            flex
+            flex-row
+            items-center
+            justify-between
+            border-b
+            border-[#bfc9c3]
+            bg-white
+            px-6
+            py-3
+          "
+        >
+          <DialogTitle
+            className="
+              text-[20px]
+              font-semibold
+              leading-[1.4]
+              text-[#191c1c]
+            "
+          >
+            {isEdit ? 'Edit Configuration' : 'Add Configuration'}
+          </DialogTitle>
+
+
         </DialogHeader>
 
-        <div className="flex flex-col gap-4">
-          <div className="grid grid-cols-2 gap-x-3 gap-y-3">
-            {/* Date */}
-            <div className="flex flex-col gap-1">
-              <Label htmlFor="config-date" className="text-sm font-semibold text-gray-600">Effective Date</Label>
-              <Input id="config-date" type="date" value={form.date} onChange={setField('date')} className="h-8 w-40 text-xs" />
+        {/* ===================================================== */}
+        {/* FORM BODY                                             */}
+        {/* ===================================================== */}
+
+        <div className="bg-[#f8faf9] px-6 py-6">
+          {/* First 4 fields */}
+          <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
+
+            {/* Effective Date */}
+            <div className="flex flex-col gap-2">
+              <Label
+                htmlFor="config-date"
+                className="
+                  text-[12px]
+                  font-medium
+                  leading-none
+                  text-[#404945]
+                "
+              >
+                Effective Date
+              </Label>
+
+              <Input
+                id="config-date"
+                type="date"
+                value={form.date}
+                onChange={setField('date')}
+                disabled={isPending}
+                className="
+                  h-10
+                  w-full
+                  rounded-lg
+                  border-[#bfc9c3]
+                  bg-white
+                  px-3
+                  text-[14px]
+                  font-normal
+                  text-[#191c1c]
+                  shadow-none
+                  transition-colors
+                  placeholder:text-[#404945]/50
+                  focus:border-[#002f23]
+                  focus:ring-1
+                  focus:ring-[#002f23]
+                "
+              />
             </div>
 
             {/* Chemical */}
-            <div className="flex flex-col gap-1">
-              <Label htmlFor="config-chemical" className="text-sm font-semibold text-gray-600">Chemical (kg)</Label>
-              <Input id="config-chemical" type="number" step="0.01" placeholder="Enter chemical weight" value={form.chemicalWeight} onChange={setField('chemicalWeight')} className="h-8 w-40 text-xs" />
+            <div className="flex flex-col gap-2">
+              <Label
+                htmlFor="config-chemical"
+                className="
+                  text-[12px]
+                  font-medium
+                  leading-none
+                  text-[#404945]
+                "
+              >
+                Chemical (kg)
+              </Label>
+
+              <Input
+                id="config-chemical"
+                type="number"
+                step="0.01"
+                placeholder="Enter chemical weight"
+                value={form.chemicalWeight}
+                onChange={setField('chemicalWeight')}
+                disabled={isPending}
+                className="
+                  h-10
+                  w-full
+                  rounded-lg
+                  border-[#bfc9c3]
+                  bg-white
+                  px-3
+                  text-[14px]
+                  font-normal
+                  text-[#191c1c]
+                  shadow-none
+                  transition-colors
+                  placeholder:text-[#404945]/50
+                  focus:border-[#002f23]
+                  focus:ring-1
+                  focus:ring-[#002f23]
+                "
+              />
+            </div>
+
+            {/* Bags */}
+            <div className="flex flex-col gap-2">
+              <Label
+                htmlFor="config-bags"
+                className="
+                  text-[12px]
+                  font-medium
+                  leading-none
+                  text-[#404945]
+                "
+              >
+                Bags
+              </Label>
+
+              <Input
+                id="config-bags"
+                type="number"
+                placeholder="Enter bag count"
+                value={form.hdpematerialbag}
+                onChange={setField('hdpematerialbag')}
+                disabled={isPending}
+                className="
+                  h-10
+                  w-full
+                  rounded-lg
+                  border-[#bfc9c3]
+                  bg-white
+                  px-3
+                  text-[14px]
+                  font-normal
+                  text-[#191c1c]
+                  shadow-none
+                  transition-colors
+                  placeholder:text-[#404945]/50
+                  focus:border-[#002f23]
+                  focus:ring-1
+                  focus:ring-[#002f23]
+                "
+              />
+            </div>
+
+            {/* HDPE Base */}
+            <div className="flex flex-col gap-2">
+              <Label
+                htmlFor="config-hdpe"
+                className="
+                  text-[12px]
+                  font-medium
+                  leading-none
+                  text-[#404945]
+                "
+              >
+                HDPE Base (kg)
+              </Label>
+
+              <Input
+                id="config-hdpe"
+                type="number"
+                step="0.01"
+                placeholder="Enter HDPE weight"
+                value={form.basisWeightKg}
+                onChange={setField('basisWeightKg')}
+                disabled={isPending}
+                className="
+                  h-10
+                  w-full
+                  rounded-lg
+                  border-[#bfc9c3]
+                  bg-white
+                  px-3
+                  text-[14px]
+                  font-normal
+                  text-[#191c1c]
+                  shadow-none
+                  transition-colors
+                  placeholder:text-[#404945]/50
+                  focus:border-[#002f23]
+                  focus:ring-1
+                  focus:ring-[#002f23]
+                "
+              />
             </div>
           </div>
 
-          {/* Bags + HDPE */}
-          <div className="grid grid-cols-2 gap-x-3 gap-y-3">
-            <div className="flex flex-col gap-1">
-              <Label htmlFor="config-bags" className="text-sm font-semibold text-gray-600">Bags</Label>
-              <Input id="config-bags" type="number" placeholder="Enter bag count" value={form.hdpematerialbag} onChange={setField('hdpematerialbag')} className="h-8 text-xs" />
+          {/* ================================================= */}
+          {/* COLOR WEIGHTS                                    */}
+          {/* ================================================= */}
+
+          <div className="mt-6 grid grid-cols-1 gap-6 md:grid-cols-3">
+
+            {/* White */}
+            <div className="flex flex-col gap-2">
+              <Label
+                htmlFor="config-white"
+                className="
+                  text-[12px]
+                  font-medium
+                  leading-none
+                  text-[#404945]
+                "
+              >
+                White (kg)
+              </Label>
+
+              <Input
+                id="config-white"
+                type="number"
+                step="0.01"
+                placeholder="Enter white weight"
+                value={form.whiteKgBasis}
+                onChange={setField('whiteKgBasis')}
+                disabled={isPending}
+                className="
+                  h-10
+                  w-full
+                  rounded-lg
+                  border-[#bfc9c3]
+                  bg-white
+                  px-3
+                  text-[14px]
+                  font-normal
+                  text-[#191c1c]
+                  shadow-none
+                  transition-colors
+                  placeholder:text-[#404945]/50
+                  focus:border-[#002f23]
+                  focus:ring-1
+                  focus:ring-[#002f23]
+                "
+              />
             </div>
 
-            <div className="flex flex-col gap-1">
-              <Label htmlFor="config-hdpe" className="text-sm font-semibold text-gray-600">HDPE Base (kg)</Label>
-              <Input id="config-hdpe" type="number" step="0.01" placeholder="Enter HDPE weight" value={form.basisWeightKg} onChange={setField('basisWeightKg')} className="h-8 text-xs" />
+            {/* Blue */}
+            <div className="flex flex-col gap-2">
+              <Label
+                htmlFor="config-blue"
+                className="
+                  text-[12px]
+                  font-medium
+                  leading-none
+                  text-[#404945]
+                "
+              >
+                Blue (kg)
+              </Label>
+
+              <Input
+                id="config-blue"
+                type="number"
+                step="0.01"
+                placeholder="Enter blue weight"
+                value={form.blueKgBasis}
+                onChange={setField('blueKgBasis')}
+                disabled={isPending}
+                className="
+                  h-10
+                  w-full
+                  rounded-lg
+                  border-[#bfc9c3]
+                  bg-white
+                  px-3
+                  text-[14px]
+                  font-normal
+                  text-[#191c1c]
+                  shadow-none
+                  transition-colors
+                  placeholder:text-[#404945]/50
+                  focus:border-[#002f23]
+                  focus:ring-1
+                  focus:ring-[#002f23]
+                "
+              />
+            </div>
+
+            {/* Green */}
+            <div className="flex flex-col gap-2">
+              <Label
+                htmlFor="config-green"
+                className="
+                  text-[12px]
+                  font-medium
+                  leading-none
+                  text-[#404945]
+                "
+              >
+                Green (kg)
+              </Label>
+
+              <Input
+                id="config-green"
+                type="number"
+                step="0.01"
+                placeholder="Enter green weight"
+                value={form.greenKgBasis}
+                onChange={setField('greenKgBasis')}
+                disabled={isPending}
+                className="
+                  h-10
+                  w-full
+                  rounded-lg
+                  border-[#bfc9c3]
+                  bg-white
+                  px-3
+                  text-[14px]
+                  font-normal
+                  text-[#191c1c]
+                  shadow-none
+                  transition-colors
+                  placeholder:text-[#404945]/50
+                  focus:border-[#002f23]
+                  focus:ring-1
+                  focus:ring-[#002f23]
+                "
+              />
             </div>
           </div>
 
-
-
-          {/* Colors */}
-          <div className="flex flex-col gap-2">
-            <div className="grid grid-cols-3 gap-x-3 gap-y-3">
-              <div className="flex flex-col gap-1">
-                <Label htmlFor="config-white" className="text-sm font-semibold text-gray-600">White (kg)</Label>
-                <Input id="config-white" type="number" step="0.01" placeholder="Enter white weight" value={form.whiteKgBasis} onChange={setField('whiteKgBasis')} className="h-8 text-xs" />
-              </div>
-
-              <div className="flex flex-col gap-1">
-                <Label htmlFor="config-blue" className="text-sm font-semibold text-gray-600">Blue (kg)</Label>
-                <Input id="config-blue" type="number" step="0.01" placeholder="Enter blue weight" value={form.blueKgBasis} onChange={setField('blueKgBasis')} className="h-8 text-xs" />
-              </div>
-
-              <div className="flex flex-col gap-1">
-                <Label htmlFor="config-green" className="text-sm font-semibold text-gray-600">Green (kg)</Label>
-                <Input id="config-green" type="number" step="0.01" placeholder="Enter green weight" value={form.greenKgBasis} onChange={setField('greenKgBasis')} className="h-8 text-xs" />
-              </div>
-            </div>
-          </div>
-
+          {/* Error */}
+          {displayError && (
+            <p className="mt-4 text-xs font-medium text-red-600">
+              {displayError}
+            </p>
+          )}
         </div>
 
-        {displayError && <p className="text-xs text-red-600">{displayError}</p>}
+        {/* ===================================================== */}
+        {/* FOOTER                                                */}
+        {/* ===================================================== */}
 
-        <DialogFooter>
-          <Button variant="outline" size="sm" onClick={() => onOpenChange(false)} disabled={isPending}>Cancel</Button>
-          <Button size="sm" className="bg-[#004D40] hover:bg-[#003D33]" onClick={handleSubmit} disabled={isPending}>
-            {isPending && <Loader size="sm" className="mr-2" />}
+        <div
+          className="
+    flex
+    w-full
+    items-center
+    justify-end
+    gap-3
+    border-t
+    border-[#bfc9c3]
+    bg-[#f2f4f3]
+    px-6
+    py-3
+  "
+        >
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            onClick={() => onOpenChange(false)}
+            disabled={isPending}
+            className="
+      h-9
+      rounded-lg
+      border-[#bfc9c3]
+      bg-transparent
+      px-4
+      text-[12px]
+      font-semibold
+      text-[#002f23]
+      shadow-none
+      hover:bg-[#e1e3e2]
+      hover:text-[#002f23]
+      focus:ring-2
+      focus:ring-[#002f23]
+    "
+          >
+            Cancel
+          </Button>
+
+          <Button
+            type="button"
+            size="sm"
+            onClick={handleSubmit}
+            disabled={isPending}
+            className="
+      h-9
+      rounded-lg
+      bg-[#004737]
+      px-4
+      text-[12px]
+      font-semibold
+      text-white
+      shadow-sm
+      hover:bg-[#002f23]
+      focus:ring-2
+      focus:ring-[#002f23]
+      focus:ring-offset-2
+    "
+          >
+            {isPending && (
+              <Loader
+                size="sm"
+                className="mr-2"
+              />
+            )}
+
             {isEdit ? 'Save Changes' : 'Add Configuration'}
           </Button>
-        </DialogFooter>
+        </div>
       </DialogContent>
     </Dialog>
   );

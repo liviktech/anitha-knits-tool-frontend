@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Search } from 'lucide-react';
+import { Search, Loader2 } from 'lucide-react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -27,6 +27,7 @@ export interface MarkAttendanceModalProps {
   onSave: (date: string, entries: DailyAttendanceEntry[]) => void;
   employees: AttendanceEmployeeOption[];
   defaultDate?: string;
+  isSaving?: boolean;
 }
 
 const STATUS_OPTIONS: { value: DailyStatus; label: string; activeClass: string }[] = [
@@ -36,7 +37,7 @@ const STATUS_OPTIONS: { value: DailyStatus; label: string; activeClass: string }
   { value: 'Company Holiday', label: 'Company Holiday', activeClass: 'bg-amber-100 text-amber-800 border-amber-300' },
 ];
 
-export function MarkAttendanceModal({ isOpen, onClose, onSave, employees, defaultDate }: MarkAttendanceModalProps) {
+export function MarkAttendanceModal({ isOpen, onClose, onSave, employees, defaultDate, isSaving }: MarkAttendanceModalProps) {
   const [date, setDate] = useState(defaultDate || new Date().toISOString().slice(0, 10));
   const [search, setSearch] = useState('');
   const [statusMap, setStatusMap] = useState<Record<string, DailyStatus>>({});
@@ -132,8 +133,9 @@ export function MarkAttendanceModal({ isOpen, onClose, onSave, employees, defaul
           <Button variant="outline" onClick={onClose} className="border-gray-200 text-gray-700 hover:bg-gray-50 rounded-lg">
             Cancel
           </Button>
-          <Button onClick={handleSubmit} className="bg-[#0B503B] hover:bg-[#083A2A] text-white rounded-lg">
+          <Button onClick={handleSubmit} disabled={isSaving} className="bg-[#0B503B] hover:bg-[#083A2A] text-white rounded-lg">
             Save Attendance
+            {isSaving && <Loader2 className="ml-2 h-4 w-4 animate-spin" />}
           </Button>
         </DialogFooter>
       </DialogContent>

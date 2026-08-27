@@ -1,5 +1,5 @@
 import { useState, useMemo } from 'react';
-import { Search, Plus, Calendar, Edit2 } from 'lucide-react';
+import { Search, Plus, Edit2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
@@ -8,10 +8,6 @@ import { MarkAttendanceModal } from './mark-attendance-modal';
 import { EmployeeAttendanceDetailsModal } from './employee-attendance-details-modal';
 import { useEmployees } from './employee-queries';
 import { useAttendanceRecords, useUpsertAttendance } from './attendance-queries';
-function todayFormatted() {
-  const date = new Date();
-  return `Today, ${date.getDate()} ${date.toLocaleString('en-US', { month: 'short' })}`;
-}
 
 const MONTHS = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
 const YEARS = ['2024', '2025', '2026'];
@@ -142,152 +138,164 @@ export function AttendanceTab() {
   }, [filteredRecords, selectedEmployee]);
 
   return (
-    <div className="flex flex-col gap-6">
+    <div className="flex flex-col gap-2 h-[calc(100%-3px)] flex-1 min-h-0">
       {/* Header section */}
-      <div className="flex items-center justify-between">
-        <h2 className="text-xl font-semibold text-gray-900">Attendance</h2>
-        <div className="flex items-center gap-2 rounded-full border border-gray-200 bg-white px-3 py-1.5 shadow-sm">
-          <span className="text-sm font-medium text-gray-700">{todayFormatted()}</span>
-          <Calendar className="h-4 w-4 text-gray-500" />
-        </div>
+      <div className="flex items-center justify-end">
       </div>
 
       {/* KPI Cards */}
-      <div className="grid grid-cols-3 gap-4">
-        <div className="rounded-xl bg-[#0B503B] p-5 text-center shadow-sm">
-          <div className="text-3xl font-bold text-white">{presentCount}</div>
-          <div className="mt-1 text-[11px] font-bold tracking-wider text-emerald-100 uppercase">Present</div>
-        </div>
-        <div className="rounded-xl bg-[#FDE8E6] p-5 text-center shadow-sm border border-red-100">
-          <div className="text-3xl font-bold text-[#C62828]">{absentCount}</div>
-          <div className="mt-1 text-[11px] font-bold tracking-wider text-[#C62828] uppercase">Absent</div>
-        </div>
-        <div className="rounded-xl bg-[#E6F0F9] p-5 text-center shadow-sm border border-blue-100">
-          <div className="text-3xl font-bold text-[#1565C0]">{halfDayCount}</div>
-          <div className="mt-1 text-[11px] font-bold tracking-wider text-[#1565C0] uppercase">Half-day</div>
-        </div>
-      </div>
-
-      {/* Filters and Table Actions */}
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <div className="flex flex-1 flex-wrap items-center gap-2">
-          <div className="relative flex-1 min-w-45 max-w-sm">
-            <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
-            <Input
-              placeholder="Search employee..."
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              className="pl-9 h-10 w-full rounded-lg border-gray-200 shadow-sm"
-            />
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-2" style={{ fontFamily: "'Hanken Grotesk Variable', 'Hanken Grotesk', sans-serif" }}>
+        <div className="bg-white rounded-xl border border-gray-400 shadow-sm p-4 relative overflow-hidden group/card hover:border-emerald-400 transition-colors flex flex-col h-full justify-center">
+          <div className="absolute top-0 right-0 p-2 opacity-5 group-hover/card:opacity-10 transition-opacity">
+            <img src="/present.png" alt="" className="w-18 h-18 object-contain" />
           </div>
-          <Select value={monthFilter} onValueChange={setMonthFilter}>
-            <SelectTrigger className="h-10 w-36 rounded-lg border-gray-200 shadow-sm">
-              <SelectValue placeholder="Month" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="ALL">All Months</SelectItem>
-              {MONTHS.map((m) => (
-                <SelectItem key={m} value={m}>{m}</SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-          <Select value={yearFilter} onValueChange={setYearFilter}>
-            <SelectTrigger className="h-10 w-28 rounded-lg border-gray-200 shadow-sm">
-              <SelectValue placeholder="Year" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="ALL">All Years</SelectItem>
-              {YEARS.map((y) => (
-                <SelectItem key={y} value={y}>{y}</SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-          <Select value={roleFilter} onValueChange={setRoleFilter}>
-            <SelectTrigger className="h-10 w-44 rounded-lg border-gray-200 shadow-sm">
-              <SelectValue placeholder="Role" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="ALL">All Roles</SelectItem>
-              {ROLES.map((r) => (
-                <SelectItem key={r} value={r}>{r}</SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
+          <div className="flex justify-between items-center relative z-10">
+            <div className="flex items-center gap-3">
+              <div><img src="/present.png" alt="Present" className="w-13 h-13 object-contain" /></div>
+              <h3 className="font-extrabold text-gray-800 text-lg">Present</h3>
+            </div>
+            <div className="text-lg font-bold text-gray-800 leading-none">{presentCount}</div>
+          </div>
         </div>
-        <Button
-          onClick={openAddModal}
-          className="h-10 gap-2 bg-[#0B503B] text-white hover:bg-[#083A2A] shadow-sm rounded-lg"
-        >
-          <Plus className="h-4 w-4" /> Add Attendance
-        </Button>
+
+        <div className="bg-white rounded-xl border border-gray-400 shadow-sm p-4 relative overflow-hidden group/card hover:border-red-400 transition-colors flex flex-col h-full justify-center">
+          <div className="absolute top-0 right-0 p-2 opacity-5 group-hover/card:opacity-10 transition-opacity">
+            <img src="/absent.png" alt="" className="w-18 h-18 object-contain" />
+          </div>
+          <div className="flex justify-between items-center relative z-10">
+            <div className="flex items-center gap-3">
+              <div><img src="/absent.png" alt="Absent" className="w-13 h-13 object-contain" /></div>
+              <h3 className="font-extrabold text-gray-800 text-lg">Absent</h3>
+            </div>
+            <div className="text-lg font-bold text-gray-800 leading-none">{absentCount}</div>
+          </div>
+        </div>
+
+        <div className="bg-white rounded-xl border border-gray-400 shadow-sm p-4 relative overflow-hidden group/card hover:border-blue-400 transition-colors flex flex-col h-full justify-center">
+          <div className="absolute top-0 right-0 p-2 opacity-5 group-hover/card:opacity-10 transition-opacity">
+            <img src="/halfday.png" alt="" className="w-18 h-18 object-contain" />
+          </div>
+          <div className="flex justify-between items-center relative z-10">
+            <div className="flex items-center gap-3">
+              <div><img src="/halfday.png" alt="Half-day" className="w-13 h-13 object-contain" /></div>
+              <h3 className="font-extrabold text-gray-800 text-lg">Half-day</h3>
+            </div>
+            <div className="text-lg font-bold text-gray-800 leading-none">{halfDayCount}</div>
+          </div>
+        </div>
       </div>
 
-      {/* Table */}
-      <div className="rounded-xl border border-gray-200 bg-white shadow-sm overflow-hidden">
-        <Table>
-          <TableHeader className="bg-[#F8F9FA]">
-            <TableRow className="hover:bg-transparent border-b border-gray-200">
-              <TableHead className="text-xs font-bold tracking-wider text-gray-500 py-4 px-5">
-                EMP ID
-              </TableHead>
-              <TableHead className="text-xs font-bold tracking-wider text-gray-500 py-4 px-5">
-                EMPLOYEE NAME
-              </TableHead>
-              <TableHead className="text-xs font-bold tracking-wider text-gray-500 py-4 px-5 w-[140px] text-center">
-                PRESENT DAYS
-              </TableHead>
-              <TableHead className="text-xs font-bold tracking-wider text-gray-500 py-4 px-5 w-[140px] text-center">
-                ABSENT DAYS
-              </TableHead>
-              <TableHead className="text-xs font-bold tracking-wider text-gray-500 py-4 px-5 w-[120px] text-center">
-                HALF DAYS
-              </TableHead>
-              <TableHead className="text-xs font-bold tracking-wider text-gray-500 py-4 px-5 w-[100px] text-right">
-                ACTIONS
-              </TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {isLoading ? (
-              <TableRow>
-                <TableCell colSpan={6} className="h-28 !text-center text-gray-500">
-                  Loading attendance records...
-                </TableCell>
+      {/* Main Table Container */}
+      <div className="rounded-xl border border-gray-400 bg-white shadow-sm overflow-hidden flex-1 flex flex-col min-h-0">
+        {/* Filters and Table Actions */}
+        <div className="border-b border-emerald-400 p-3 bg-white flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+          <div className="flex items-center gap-3"></div>
+          <div className="flex flex-wrap items-center gap-2 justify-end">
+            <div className="relative">
+              <Search className="w-3.5 h-3.5 absolute left-2.5 top-1/2 -translate-y-1/2 text-gray-500" />
+              <Input
+                placeholder="Search employee..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="h-8 w-44 sm:w-60 pl-8 bg-gray-50/50 border-gray-400 text-xs rounded-lg font-hanken"
+              />
+            </div>
+            <Select value={monthFilter} onValueChange={setMonthFilter}>
+              <SelectTrigger className="h-8 w-32 bg-gray-50/50 border-gray-400 text-sm rounded-lg font-hanken">
+                <SelectValue placeholder="Month" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="ALL">All Months</SelectItem>
+                {MONTHS.map((m) => (
+                  <SelectItem key={m} value={m}>{m}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            <Select value={yearFilter} onValueChange={setYearFilter}>
+              <SelectTrigger className="h-8 w-28 bg-gray-50/50 border-gray-400 text-sm rounded-lg font-hanken">
+                <SelectValue placeholder="Year" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="ALL">All Years</SelectItem>
+                {YEARS.map((y) => (
+                  <SelectItem key={y} value={y}>{y}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            <Select value={roleFilter} onValueChange={setRoleFilter}>
+              <SelectTrigger className="h-8 w-40 bg-gray-50/50 border-gray-400 text-sm rounded-lg font-hanken">
+                <SelectValue placeholder="Role" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="ALL">All Roles</SelectItem>
+                {ROLES.map((r) => (
+                  <SelectItem key={r} value={r}>{r}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            <Button
+              size="sm"
+              onClick={openAddModal}
+              className="h-8 gap-1 bg-[#004D40] text-white hover:bg-[#00332a] px-3.5 text-sm font-medium cursor-pointer font-hanken"
+            >
+              <Plus className="h-3.5 w-3.5" /> Add Attendance
+            </Button>
+          </div>
+        </div>
+
+        {/* Table */}
+        <div className="overflow-x-auto flex-1 flex flex-col">
+          <Table className="font-hanken">
+            <TableHeader className="bg-emerald-50/30">
+              <TableRow className="hover:bg-transparent border-b border-emerald-400">
+                <TableHead className="text-sm font-semibold tracking-wide text-gray-800 py-2 px-5 text-left w-[15%]">
+                  EMP ID
+                </TableHead>
+                <TableHead className="text-sm font-semibold tracking-wide text-gray-800 py-2 px-5 text-center w-[17%]">
+                  EMPLOYEE NAME
+                </TableHead>
+                <TableHead className="text-sm font-semibold tracking-wide text-gray-800 py-2 px-5 text-center w-[17%]">
+                  PRESENT DAYS
+                </TableHead>
+                <TableHead className="text-sm font-semibold tracking-wide text-gray-800 py-2 px-5 text-center w-[17%]">
+                  ABSENT DAYS
+                </TableHead>
+                <TableHead className="text-sm font-semibold tracking-wide text-gray-800 py-2 px-5 text-center w-[17%]">
+                  HALF DAYS
+                </TableHead>
+                <TableHead className="text-sm font-semibold tracking-wide text-gray-800 py-2 px-5 text-right w-[17%]">
+                  ACTIONS
+                </TableHead>
               </TableRow>
-            ) : summaryRows.length === 0 ? (
-              <TableRow>
-                <TableCell colSpan={6} className="h-28 !text-center text-gray-500">
-                  No attendance records found.
-                </TableCell>
-              </TableRow>
-            ) : (
-              summaryRows.map((row) => (
+            </TableHeader>
+            <TableBody>
+              {!isLoading && summaryRows.map((row) => (
                 <TableRow key={row.employeeId} className="border-b border-gray-100 hover:bg-gray-50/50">
-                  <TableCell className="py-3 px-5">
+                  <TableCell className="py-3 px-5 text-left">
                     <span className="text-sm font-semibold text-blue-600">
                       {row.employeeId}
                     </span>
                   </TableCell>
-                  <TableCell className="py-3 px-5">
-                    <div className="flex items-center gap-3">
-                      <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-gray-200 text-sm font-semibold text-gray-600">
+                  <TableCell className="py-3 px-5 text-center">
+                    <div className="flex items-center justify-center gap-3">
+                      <div className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-gray-200 text-xs font-semibold text-gray-600">
                         {row.employeeName.charAt(0)}
                       </div>
                       <span className="text-sm font-semibold text-gray-900">{row.employeeName}</span>
                     </div>
                   </TableCell>
                   <TableCell className="py-3 px-5 text-center">
-                    <span className="inline-flex items-center justify-center rounded-full bg-[#4ADE80] px-3 py-1 text-xs font-medium text-emerald-900">
+                    <span className="inline-flex items-center justify-center rounded-full text-green-700 px-3 py-1 text-sm font-medium text-emerald-900">
                       {row.present}
                     </span>
                   </TableCell>
                   <TableCell className="py-3 px-5 text-center">
-                    <span className="inline-flex items-center justify-center rounded-full bg-[#FECDD3] px-3 py-1 text-xs font-medium text-rose-900">
+                    <span className="inline-flex items-center justify-center rounded-full text-red-500 px-3 py-1 text-sm font-medium text-rose-900">
                       {row.absent}
                     </span>
                   </TableCell>
                   <TableCell className="py-3 px-5 text-center">
-                    <span className="inline-flex items-center justify-center rounded-full bg-[#BFDBFE] px-3 py-1 text-xs font-medium text-blue-900">
+                    <span className="inline-flex items-center justify-center rounded-full text-[#BFDBFE] px-3 py-1 text-sm font-medium text-blue-900">
                       {row.halfDay}
                     </span>
                   </TableCell>
@@ -300,9 +308,20 @@ export function AttendanceTab() {
                   </TableCell>
                 </TableRow>
               ))
-            )}
-          </TableBody>
-        </Table>
+              }
+            </TableBody>
+          </Table>
+          {isLoading && (
+            <div className="flex-1 flex items-center justify-center text-gray-500 text-md">
+              Loading attendance records...
+            </div>
+          )}
+          {!isLoading && summaryRows.length === 0 && (
+            <div className="flex-1 flex items-center justify-center text-gray-500 text-md">
+              No attendance records found.
+            </div>
+          )}
+        </div>
       </div>
 
       <MarkAttendanceModal
@@ -326,6 +345,7 @@ export function AttendanceTab() {
         }}
         employees={employeeOptions}
         defaultDate={selectedRecord?.date}
+        isSaving={upsertMutation.isPending}
       />
 
       <EmployeeAttendanceDetailsModal

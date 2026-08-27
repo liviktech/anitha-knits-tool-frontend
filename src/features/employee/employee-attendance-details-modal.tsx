@@ -119,8 +119,8 @@ export function EmployeeAttendanceDetailsModal({ isOpen, onClose, employeeId, em
               disabled={!hasChanges || isSaving}
               className="bg-[#0B503B] text-white hover:bg-[#083A2A] rounded-lg h-9"
             >
-              {isSaving ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}
               Save Changes
+              {isSaving && <Loader2 className="ml-2 h-4 w-4 animate-spin" />}
             </Button>
           )}
         </DialogFooter>
