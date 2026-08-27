@@ -1,43 +1,46 @@
-import { useState } from 'react';
-import { Search, SlidersHorizontal, Plus, Calendar, Edit2, Trash2 } from 'lucide-react';
-import { DeleteConfirmDialog } from '@/components/shared/delete-confirm-dialog';
+import { useState, useMemo } from 'react';
+import { Search, Plus, Calendar, Edit2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { MarkAttendanceModal } from './mark-attendance-modal';
-
+import { EmployeeAttendanceDetailsModal } from './employee-attendance-details-modal';
+import { useEmployees } from './employee-queries';
+import { useAttendanceRecords, useUpsertAttendance } from './attendance-queries';
 function todayFormatted() {
   const date = new Date();
   return `Today, ${date.getDate()} ${date.toLocaleString('en-US', { month: 'short' })}`;
 }
+
+const MONTHS = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
+const YEARS = ['2024', '2025', '2026'];
+const ROLES = ['Knitting Operator', 'Supervisor', 'Helper', 'Quality Checker'];
 
 export interface AttendanceRecord {
   id: string;
   date: string;
   employeeId: string;
   employeeName: string;
+  role: string;
   checkIn: string;
   checkOut: string;
   status: 'Present' | 'Absent' | 'Half-day' | 'Leave';
 }
 
-const INITIAL_ATTENDANCE: AttendanceRecord[] = [
-  { id: 'att-1', date: '2026-08-24', employeeId: 'EMP-1042', employeeName: 'Karthik S.', checkIn: '09:00 AM', checkOut: '06:15 PM', status: 'Present' },
-  { id: 'att-2', date: '2026-08-24', employeeId: 'EMP-1088', employeeName: 'Priya Ramesh', checkIn: '', checkOut: '', status: 'Absent' },
-  { id: 'att-3', date: '2026-08-24', employeeId: 'EMP-0931', employeeName: 'Muthukumar S.', checkIn: '09:15 AM', checkOut: '01:30 PM', status: 'Half-day' },
-  { id: 'att-4', date: '2026-08-24', employeeId: 'EMP-1102', employeeName: 'Lakshmi N.', checkIn: '08:45 AM', checkOut: '05:30 PM', status: 'Present' },
-];
-
 export function AttendanceTab() {
-  const [records, setRecords] = useState<AttendanceRecord[]>(INITIAL_ATTENDANCE);
   const [searchQuery, setSearchQuery] = useState('');
+  const [monthFilter, setMonthFilter] = useState('ALL');
+  const [yearFilter, setYearFilter] = useState('ALL');
+  const [roleFilter, setRoleFilter] = useState('ALL');
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [isDetailsModalOpen, setIsDetailsModalOpen] = useState(false);
+  const [selectedEmployee, setSelectedEmployee] = useState<{ id: string; name: string } | null>(null);
   const [selectedRecord, setSelectedRecord] = useState<AttendanceRecord | null>(null);
-  const [deleteTarget, setDeleteTarget] = useState<AttendanceRecord | null>(null);
 
-  const openViewModal = (record: AttendanceRecord) => {
-    setSelectedRecord(record);
-    setIsModalOpen(true);
+  const openDetailsModal = (row: { employeeId: string; employeeName: string }) => {
+    setSelectedEmployee({ id: row.employeeId, name: row.employeeName });
+    setIsDetailsModalOpen(true);
   };
 
   const openAddModal = () => {
@@ -45,21 +48,98 @@ export function AttendanceTab() {
     setIsModalOpen(true);
   };
 
-  const handleDelete = () => {
-    if (deleteTarget) {
-      setRecords(records.filter(r => r.id !== deleteTarget.id));
-      setDeleteTarget(null);
-    }
-  };
+  // We pass 'isActive=true' or just fetch all for employeeOptions
+  const { data: employeesData } = useEmployees('isActive=true');
+  const employeeOptions = useMemo(() => {
+    if (!employeesData) return [];
+    return employeesData.map((emp) => ({
+      id: emp.id,
+      name: emp.name || 'Unknown',
+      role: emp.employeeDetails?.designation || emp.role,
+      customUserId: emp.employeeDetails?.customUserId || emp.id,
+    }));
+  }, [employeesData]);
+
+  const { data: attendanceData, isLoading } = useAttendanceRecords();
+  const upsertMutation = useUpsertAttendance();
+
+  const records = useMemo<AttendanceRecord[]>(() => {
+    if (!attendanceData) return [];
+    return attendanceData.map((att) => {
+      // Map API status back to UI format
+      const statusMap: Record<string, string> = {
+        'PRESENT': 'Present',
+        'ABSENT': 'Absent',
+        'HALF_DAY': 'Half-day',
+        'COMPANY_HOLIDAY': 'Leave'
+      };
+
+      return {
+        id: att.id,
+        date: att.date,
+        employeeId: att.employee?.employeeDetails?.customUserId || att.employeeId,
+        employeeName: att.employee?.name || 'Unknown',
+        role: att.employee?.employeeDetails?.designation || 'Employee',
+        checkIn: '', // No longer used in schema
+        checkOut: '', // No longer used in schema
+        status: (statusMap[att.status] || 'Present') as 'Present' | 'Absent' | 'Half-day' | 'Leave',
+      };
+    });
+  }, [attendanceData]);
 
   const presentCount = records.filter(r => r.status === 'Present').length;
   const absentCount = records.filter(r => r.status === 'Absent').length;
   const halfDayCount = records.filter(r => r.status === 'Half-day').length;
 
-  const filteredRecords = records.filter(r =>
-    r.employeeName.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    r.employeeId.toLowerCase().includes(searchQuery.toLowerCase())
-  );
+  const filteredRecords = records.filter((r) => {
+    const [year, month] = r.date.split('-');
+    const matchesMonth = monthFilter === 'ALL' || MONTHS[Number(month) - 1] === monthFilter;
+    const matchesYear = yearFilter === 'ALL' || year === yearFilter;
+    return matchesMonth && matchesYear;
+  });
+
+  const summaryRows = useMemo(() => {
+    const map = new Map<string, { employeeId: string; rawId: string; employeeName: string; role: string; present: number; absent: number; halfDay: number }>();
+
+    // Initialize with all employees
+    employeeOptions.forEach((emp) => {
+      const key = emp.customUserId || emp.id;
+      map.set(key, {
+        employeeId: key,
+        rawId: emp.id,
+        employeeName: emp.name,
+        role: emp.role,
+        present: 0,
+        absent: 0,
+        halfDay: 0,
+      });
+    });
+
+    // Populate from filtered records
+    filteredRecords.forEach((r) => {
+      const existing = map.get(r.employeeId);
+      if (existing) {
+        if (r.status === 'Present') existing.present += 1;
+        if (r.status === 'Absent') existing.absent += 1;
+        if (r.status === 'Half-day') existing.halfDay += 1;
+      }
+    });
+
+    // Apply search and role filters
+    const q = searchQuery.toLowerCase();
+    const rows = Array.from(map.values()).filter(row => {
+      const matchesSearch = row.employeeName.toLowerCase().includes(q) || row.employeeId.toLowerCase().includes(q);
+      const matchesRole = roleFilter === 'ALL' || row.role === roleFilter;
+      return matchesSearch && matchesRole;
+    });
+
+    return rows;
+  }, [employeeOptions, filteredRecords, searchQuery, roleFilter]);
+
+  const detailsRecords = useMemo(() => {
+    if (!selectedEmployee) return [];
+    return filteredRecords.filter(r => r.employeeId === selectedEmployee.id);
+  }, [filteredRecords, selectedEmployee]);
 
   return (
     <div className="flex flex-col gap-6">
@@ -88,10 +168,10 @@ export function AttendanceTab() {
         </div>
       </div>
 
-      {/* Search and Table Actions */}
-      <div className="flex items-center justify-between gap-3">
-        <div className="flex flex-1 items-center gap-2">
-          <div className="relative flex-1 max-w-sm">
+      {/* Filters and Table Actions */}
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <div className="flex flex-1 flex-wrap items-center gap-2">
+          <div className="relative flex-1 min-w-45 max-w-sm">
             <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
             <Input
               placeholder="Search employee..."
@@ -100,9 +180,39 @@ export function AttendanceTab() {
               className="pl-9 h-10 w-full rounded-lg border-gray-200 shadow-sm"
             />
           </div>
-          <Button variant="outline" size="icon" className="h-10 w-10 shrink-0 border-gray-200 shadow-sm">
-            <SlidersHorizontal className="h-4 w-4 text-gray-600" />
-          </Button>
+          <Select value={monthFilter} onValueChange={setMonthFilter}>
+            <SelectTrigger className="h-10 w-36 rounded-lg border-gray-200 shadow-sm">
+              <SelectValue placeholder="Month" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="ALL">All Months</SelectItem>
+              {MONTHS.map((m) => (
+                <SelectItem key={m} value={m}>{m}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+          <Select value={yearFilter} onValueChange={setYearFilter}>
+            <SelectTrigger className="h-10 w-28 rounded-lg border-gray-200 shadow-sm">
+              <SelectValue placeholder="Year" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="ALL">All Years</SelectItem>
+              {YEARS.map((y) => (
+                <SelectItem key={y} value={y}>{y}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+          <Select value={roleFilter} onValueChange={setRoleFilter}>
+            <SelectTrigger className="h-10 w-44 rounded-lg border-gray-200 shadow-sm">
+              <SelectValue placeholder="Role" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="ALL">All Roles</SelectItem>
+              {ROLES.map((r) => (
+                <SelectItem key={r} value={r}>{r}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
         </div>
         <Button
           onClick={openAddModal}
@@ -123,14 +233,14 @@ export function AttendanceTab() {
               <TableHead className="text-xs font-bold tracking-wider text-gray-500 py-4 px-5">
                 EMPLOYEE NAME
               </TableHead>
-              <TableHead className="text-xs font-bold tracking-wider text-gray-500 py-4 px-5 w-[140px]">
-                CHECK-IN
+              <TableHead className="text-xs font-bold tracking-wider text-gray-500 py-4 px-5 w-[140px] text-center">
+                PRESENT DAYS
               </TableHead>
-              <TableHead className="text-xs font-bold tracking-wider text-gray-500 py-4 px-5 w-[140px]">
-                CHECK-OUT
+              <TableHead className="text-xs font-bold tracking-wider text-gray-500 py-4 px-5 w-[140px] text-center">
+                ABSENT DAYS
               </TableHead>
               <TableHead className="text-xs font-bold tracking-wider text-gray-500 py-4 px-5 w-[120px] text-center">
-                STATUS
+                HALF DAYS
               </TableHead>
               <TableHead className="text-xs font-bold tracking-wider text-gray-500 py-4 px-5 w-[100px] text-right">
                 ACTIONS
@@ -138,59 +248,53 @@ export function AttendanceTab() {
             </TableRow>
           </TableHeader>
           <TableBody>
-            {filteredRecords.length === 0 ? (
+            {isLoading ? (
               <TableRow>
-                <TableCell colSpan={6} className="h-28 text-center text-gray-500">
+                <TableCell colSpan={6} className="h-28 !text-center text-gray-500">
+                  Loading attendance records...
+                </TableCell>
+              </TableRow>
+            ) : summaryRows.length === 0 ? (
+              <TableRow>
+                <TableCell colSpan={6} className="h-28 !text-center text-gray-500">
                   No attendance records found.
                 </TableCell>
               </TableRow>
             ) : (
-              filteredRecords.map((rec) => (
-                <TableRow key={rec.id} className="border-b border-gray-100 hover:bg-gray-50/50">
+              summaryRows.map((row) => (
+                <TableRow key={row.employeeId} className="border-b border-gray-100 hover:bg-gray-50/50">
                   <TableCell className="py-3 px-5">
-                    <a
-                      href="#"
-                      onClick={(e) => { e.preventDefault(); openViewModal(rec); }}
-                      className="text-sm font-semibold text-blue-600 hover:underline"
-                    >
-                      {rec.employeeId}
-                    </a>
+                    <span className="text-sm font-semibold text-blue-600">
+                      {row.employeeId}
+                    </span>
                   </TableCell>
                   <TableCell className="py-3 px-5">
                     <div className="flex items-center gap-3">
                       <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-gray-200 text-sm font-semibold text-gray-600">
-                        {rec.employeeName.charAt(0)}
+                        {row.employeeName.charAt(0)}
                       </div>
-                      <span className="text-sm font-semibold text-gray-900">{rec.employeeName}</span>
+                      <span className="text-sm font-semibold text-gray-900">{row.employeeName}</span>
                     </div>
                   </TableCell>
-                  <TableCell className="py-3 px-5">
-                    <span className="text-sm text-gray-900">{rec.checkIn || <span className="italic text-gray-400">N/A</span>}</span>
-                  </TableCell>
-                  <TableCell className="py-3 px-5">
-                    <span className="text-sm text-gray-900">{rec.checkOut || <span className="italic text-gray-400">N/A</span>}</span>
+                  <TableCell className="py-3 px-5 text-center">
+                    <span className="inline-flex items-center justify-center rounded-full bg-[#4ADE80] px-3 py-1 text-xs font-medium text-emerald-900">
+                      {row.present}
+                    </span>
                   </TableCell>
                   <TableCell className="py-3 px-5 text-center">
-                    <span
-                      className={`inline-flex items-center justify-center rounded-full px-3 py-1 text-xs font-medium ${rec.status === 'Present'
-                          ? 'bg-[#4ADE80] text-emerald-900'
-                          : rec.status === 'Absent'
-                            ? 'bg-[#FECDD3] text-rose-900'
-                            : rec.status === 'Half-day'
-                              ? 'bg-[#BFDBFE] text-blue-900'
-                              : 'bg-gray-100 text-gray-800'
-                        }`}
-                    >
-                      {rec.status}
+                    <span className="inline-flex items-center justify-center rounded-full bg-[#FECDD3] px-3 py-1 text-xs font-medium text-rose-900">
+                      {row.absent}
+                    </span>
+                  </TableCell>
+                  <TableCell className="py-3 px-5 text-center">
+                    <span className="inline-flex items-center justify-center rounded-full bg-[#BFDBFE] px-3 py-1 text-xs font-medium text-blue-900">
+                      {row.halfDay}
                     </span>
                   </TableCell>
                   <TableCell className="py-3 px-5 text-right">
                     <div className="flex items-center justify-end gap-1.5">
-                      <Button variant="ghost" size="icon-sm" className="h-7 w-7 rounded-full bg-blue-50 text-blue-600 hover:bg-blue-100 cursor-pointer" aria-label="Edit attendance" onClick={() => openViewModal(rec)}>
+                      <Button variant="ghost" size="icon-sm" className="h-7 w-7 rounded-full bg-blue-50 text-blue-600 hover:bg-blue-100 cursor-pointer" aria-label="View attendance details" onClick={() => openDetailsModal(row)}>
                         <Edit2 className="h-3.5 w-3.5" />
-                      </Button>
-                      <Button variant="ghost" size="icon-sm" className="h-7 w-7 rounded-full bg-red-50 text-red-600 hover:bg-red-100 cursor-pointer" aria-label="Delete attendance" onClick={() => setDeleteTarget(rec)}>
-                        <Trash2 className="h-3.5 w-3.5" />
                       </Button>
                     </div>
                   </TableCell>
@@ -204,19 +308,53 @@ export function AttendanceTab() {
       <MarkAttendanceModal
         isOpen={isModalOpen}
         onClose={() => { setIsModalOpen(false); setSelectedRecord(null); }}
-        onSave={(data) => {
-          setRecords([{ id: `att-${Date.now()}`, ...data }, ...records]);
+        onSave={(date, entries) => {
+          const apiEntries = entries.map((e) => {
+            const apiStatusMap: Record<string, 'PRESENT' | 'ABSENT' | 'HALF_DAY' | 'COMPANY_HOLIDAY'> = {
+              'Present': 'PRESENT',
+              'Absent': 'ABSENT',
+              'Half-day': 'HALF_DAY',
+              'Company Holiday': 'COMPANY_HOLIDAY'
+            };
+            return {
+              employeeId: e.employeeId,
+              status: apiStatusMap[e.status] || 'PRESENT',
+              remarks: e.remarks,
+            };
+          });
+          upsertMutation.mutate({ date, records: apiEntries });
         }}
-        readOnly={!!selectedRecord}
-        initialData={selectedRecord}
+        employees={employeeOptions}
+        defaultDate={selectedRecord?.date}
       />
 
-      <DeleteConfirmDialog
-        open={!!deleteTarget}
-        onOpenChange={(open) => !open && setDeleteTarget(null)}
-        title="Delete Attendance Record"
-        description={`Are you sure you want to delete the attendance record for ${deleteTarget?.employeeName}? This action cannot be undone.`}
-        onConfirm={handleDelete}
+      <EmployeeAttendanceDetailsModal
+        isOpen={isDetailsModalOpen}
+        onClose={() => { setIsDetailsModalOpen(false); setSelectedEmployee(null); }}
+        employeeId={selectedEmployee?.id || ''}
+        employeeName={selectedEmployee?.name || ''}
+        records={detailsRecords}
+        onSave={async (updates) => {
+          const promises = updates.map(update => {
+            const apiStatusMap: Record<string, 'PRESENT' | 'ABSENT' | 'HALF_DAY' | 'COMPANY_HOLIDAY'> = {
+              'Present': 'PRESENT',
+              'Absent': 'ABSENT',
+              'Half-day': 'HALF_DAY',
+              'Leave': 'COMPANY_HOLIDAY'
+            };
+            return upsertMutation.mutateAsync({
+              date: update.date,
+              records: [{
+                employeeId: update.employeeId,
+                status: apiStatusMap[update.status] || 'PRESENT',
+                remarks: '',
+              }]
+            });
+          });
+          await Promise.all(promises);
+          setIsDetailsModalOpen(false);
+          setSelectedEmployee(null);
+        }}
       />
     </div>
   );

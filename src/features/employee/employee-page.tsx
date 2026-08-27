@@ -1,5 +1,5 @@
 import { useState, useMemo } from 'react';
-import { Plus, Edit2, Trash2, Search, Users, UserCheck, Banknote, User } from 'lucide-react';
+import { Plus, Edit2, Trash2, Search, Users, UserCheck, Banknote } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -18,73 +18,13 @@ export interface EmployeeRecord {
   aadharCard: string;
   dateOfJoining: string;
   residentialAddress: string;
-  gender: 'Male' | 'Female' | 'Other';
+  gender: 'MALE' | 'FEMALE' | 'OTHER';
   salary: number;
   status: 'Active' | 'Inactive';
 }
 
-const INITIAL_EMPLOYEES: EmployeeRecord[] = [
-  {
-    id: 'EMP-001',
-    name: 'Karthik Subramanian',
-    designation: 'Knitting Operator',
-    mobileNumber: '+91 98765 43210',
-    aadharCard: '4521 8890 1234',
-    dateOfJoining: '2024-01-15',
-    residentialAddress: '12/A, Factory Road, Rayapuram, Tiruppur',
-    gender: 'Male',
-    salary: 28000,
-    status: 'Active',
-  },
-  {
-    id: 'EMP-002',
-    name: 'Priya Ramesh',
-    designation: 'Quality Checker',
-    mobileNumber: '+91 98421 67890',
-    aadharCard: '5890 3341 9812',
-    dateOfJoining: '2024-03-01',
-    residentialAddress: '45, Knitting Colony, Avinashi Road, Tiruppur',
-    gender: 'Female',
-    salary: 24500,
-    status: 'Active',
-  },
-  {
-    id: 'EMP-003',
-    name: 'Muthukumar S.',
-    designation: 'Extruder Operator',
-    mobileNumber: '+91 97100 23456',
-    aadharCard: '6712 9044 1122',
-    dateOfJoining: '2023-11-10',
-    residentialAddress: '8/120, South Street, Palladam Road, Tiruppur',
-    gender: 'Male',
-    salary: 32000,
-    status: 'Active',
-  },
-  {
-    id: 'EMP-004',
-    name: 'Lakshmi Narayanan',
-    designation: 'Helper',
-    mobileNumber: '+91 99445 11223',
-    aadharCard: '2341 8901 7765',
-    dateOfJoining: '2024-05-20',
-    residentialAddress: '102, New Bus Stand Extension, Tiruppur',
-    gender: 'Female',
-    salary: 22000,
-    status: 'Active',
-  },
-  {
-    id: 'EMP-005',
-    name: 'Suresh Kumar',
-    designation: 'Supervisor',
-    mobileNumber: '+91 96554 88776',
-    aadharCard: '8910 4455 3321',
-    dateOfJoining: '2023-08-14',
-    residentialAddress: '22, Cotton Mill Line, Dharapuram Road, Tiruppur',
-    gender: 'Male',
-    salary: 26000,
-    status: 'Inactive',
-  },
-];
+import { useEmployees, useCreateEmployee, useUpdateEmployee, useDeleteEmployee } from './employee-queries';
+import type { Employee } from './employee-queries';
 
 function formatCurrency(num: number) {
   return new Intl.NumberFormat('en-IN', {
@@ -96,7 +36,7 @@ function formatCurrency(num: number) {
 
 function formatDateDisplay(isoDate: string) {
   if (!isoDate) return '-';
-  const [year, month, day] = isoDate.split('-');
+  const [year, month, day] = isoDate.split('T')[0].split('-');
   if (!year || !month || !day) return isoDate;
   const date = new Date(Number(year), Number(month) - 1, Number(day));
   return date.toLocaleDateString('en-IN', {
@@ -111,14 +51,18 @@ function todayIso() {
 }
 
 function EmployeeDirectoryTab() {
-  const [employees, setEmployees] = useState<EmployeeRecord[]>(INITIAL_EMPLOYEES);
+  const { data: employees = [] } = useEmployees();
+  const createEmployee = useCreateEmployee();
+  const updateEmployee = useUpdateEmployee();
+  const deleteEmployee = useDeleteEmployee();
+
   const [searchQuery, setSearchQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState<string>('ALL');
 
   // Modal states
   const [isFormOpen, setIsFormOpen] = useState(false);
-  const [editingEmployee, setEditingEmployee] = useState<EmployeeRecord | null>(null);
-  const [deleteTarget, setDeleteTarget] = useState<EmployeeRecord | null>(null);
+  const [editingEmployee, setEditingEmployee] = useState<Employee | null>(null);
+  const [deleteTarget, setDeleteTarget] = useState<Employee | null>(null);
 
   // Form input states
   const [formId, setFormId] = useState('');
@@ -128,19 +72,19 @@ function EmployeeDirectoryTab() {
   const [formAadhar, setFormAadhar] = useState('');
   const [formDoj, setFormDoj] = useState(todayIso());
   const [formAddress, setFormAddress] = useState('');
-  const [formGender, setFormGender] = useState<'Male' | 'Female' | 'Other'>('Male');
+  const [formGender, setFormGender] = useState<'MALE' | 'FEMALE' | 'OTHER'>('MALE');
   const [formSalary, setFormSalary] = useState('');
   const [formStatus, setFormStatus] = useState<'Active' | 'Inactive'>('Active');
   const [formError, setFormError] = useState<string | null>(null);
 
   // KPI Calculations
   const activeCount = useMemo(
-    () => employees.filter((e) => e.status === 'Active').length,
+    () => employees.filter((e) => e.isActive).length,
     [employees]
   );
 
   const totalPayroll = useMemo(
-    () => employees.filter((e) => e.status === 'Active').reduce((sum, e) => sum + e.salary, 0),
+    () => employees.filter((e) => e.isActive).reduce((sum, e) => sum + (e.employeeDetails?.salary || 0), 0),
     [employees]
   );
 
@@ -148,55 +92,57 @@ function EmployeeDirectoryTab() {
   const filteredEmployees = useMemo(() => {
     return employees.filter((emp) => {
       const q = searchQuery.toLowerCase();
+      const empId = emp.employeeDetails?.customUserId || emp.id;
       const matchesSearch =
-        emp.id.toLowerCase().includes(q) ||
-        emp.name.toLowerCase().includes(q) ||
-        emp.designation.toLowerCase().includes(q) ||
-        emp.mobileNumber.toLowerCase().includes(q) ||
-        emp.aadharCard.toLowerCase().includes(q) ||
-        emp.residentialAddress.toLowerCase().includes(q);
+        empId.toLowerCase().includes(q) ||
+        (emp.name || '').toLowerCase().includes(q) ||
+        (emp.employeeDetails?.designation || '').toLowerCase().includes(q) ||
+        emp.mobile.toLowerCase().includes(q) ||
+        (emp.employeeDetails?.aadhaarNumber || '').toLowerCase().includes(q) ||
+        (emp.employeeDetails?.address || '').toLowerCase().includes(q);
 
-      const matchesStatus = statusFilter === 'ALL' || emp.status === statusFilter;
+      const statusStr = emp.isActive ? 'Active' : 'Inactive';
+      const matchesStatus = statusFilter === 'ALL' || statusStr === statusFilter;
 
       return matchesSearch && matchesStatus;
     });
   }, [employees, searchQuery, statusFilter]);
 
   const openCreateModal = () => {
-    const nextNum = employees.length + 1;
-    const generatedId = `EMP-${String(nextNum).padStart(3, '0')}`;
     setEditingEmployee(null);
-    setFormId(generatedId);
+    setFormId('');
     setFormName('');
     setFormDesignation('');
     setFormMobile('');
     setFormAadhar('');
     setFormDoj(todayIso());
     setFormAddress('');
-    setFormGender('Male');
+    setFormGender('MALE');
     setFormSalary('');
     setFormStatus('Active');
     setFormError(null);
     setIsFormOpen(true);
   };
 
-  const openEditModal = (emp: EmployeeRecord) => {
+  const openEditModal = (emp: Employee) => {
     setEditingEmployee(emp);
-    setFormId(emp.id);
-    setFormName(emp.name);
-    setFormDesignation(emp.designation);
-    setFormMobile(emp.mobileNumber);
-    setFormAadhar(emp.aadharCard);
-    setFormDoj(emp.dateOfJoining);
-    setFormAddress(emp.residentialAddress);
-    setFormGender(emp.gender);
-    setFormSalary(String(emp.salary));
-    setFormStatus(emp.status);
+    setFormId(emp.employeeDetails?.customUserId || emp.id);
+    setFormName(emp.name || '');
+    setFormDesignation(emp.employeeDetails?.designation || '');
+    setFormMobile(emp.mobile);
+    setFormAadhar(emp.employeeDetails?.aadhaarNumber || '');
+    // Take YYYY-MM-DD from ISO string
+    const doj = emp.employeeDetails?.joiningDate ? emp.employeeDetails.joiningDate.split('T')[0] : todayIso();
+    setFormDoj(doj);
+    setFormAddress(emp.employeeDetails?.address || '');
+    setFormGender(emp.employeeDetails?.gender || 'MALE');
+    setFormSalary(emp.employeeDetails?.salary ? String(emp.employeeDetails.salary) : '');
+    setFormStatus(emp.isActive ? 'Active' : 'Inactive');
     setFormError(null);
     setIsFormOpen(true);
   };
 
-  const handleSaveEmployee = () => {
+  const handleSaveEmployee = async () => {
     if (!formName.trim()) {
       setFormError('Please enter employee name');
       return;
@@ -206,59 +152,51 @@ function EmployeeDirectoryTab() {
       return;
     }
     const parsedSalary = parseFloat(formSalary);
-    if (isNaN(parsedSalary) || parsedSalary < 0) {
+    if (formSalary && (isNaN(parsedSalary) || parsedSalary < 0)) {
       setFormError('Please enter a valid salary');
       return;
     }
 
-    if (editingEmployee) {
-      setEmployees((prev) =>
-        prev.map((emp) =>
-          emp.id === editingEmployee.id
-            ? {
-              ...emp,
-              name: formName.trim(),
-              designation: formDesignation.trim(),
-              mobileNumber: formMobile.trim(),
-              aadharCard: formAadhar.trim(),
-              dateOfJoining: formDoj,
-              residentialAddress: formAddress.trim(),
-              gender: formGender,
-              salary: parsedSalary,
-              status: formStatus,
-            }
-            : emp
-        )
-      );
-    } else {
-      const newEmp: EmployeeRecord = {
-        id: formId.trim() || `EMP-${Date.now().toString().slice(-3)}`,
+    try {
+      const payload = {
         name: formName.trim(),
-        designation: formDesignation.trim(),
-        mobileNumber: formMobile.trim(),
-        aadharCard: formAadhar.trim(),
-        dateOfJoining: formDoj,
-        residentialAddress: formAddress.trim(),
-        gender: formGender,
-        salary: parsedSalary,
-        status: formStatus,
+        mobile: formMobile.trim(),
+        isActive: formStatus === 'Active',
+        employeeDetails: {
+          designation: formDesignation.trim(),
+          address: formAddress.trim(),
+          gender: formGender,
+          salary: parsedSalary || undefined,
+          aadhaarNumber: formAadhar.trim(),
+          joiningDate: formDoj ? new Date(formDoj).toISOString() : undefined,
+        },
       };
-      setEmployees((prev) => [newEmp, ...prev]);
-    }
 
-    setIsFormOpen(false);
+      if (editingEmployee) {
+        await updateEmployee.mutateAsync({ id: editingEmployee.id, data: payload as any });
+      } else {
+        await createEmployee.mutateAsync(payload as any);
+      }
+      setIsFormOpen(false);
+    } catch (err: any) {
+      setFormError(err.message || 'Failed to save employee');
+    }
   };
 
-  const handleDeleteConfirm = () => {
+  const handleDeleteConfirm = async () => {
     if (!deleteTarget) return;
-    setEmployees((prev) => prev.filter((emp) => emp.id !== deleteTarget.id));
-    setDeleteTarget(null);
+    try {
+      await deleteEmployee.mutateAsync(deleteTarget.id);
+      setDeleteTarget(null);
+    } catch (err) {
+      console.error('Delete failed:', err);
+    }
   };
 
   return (
-    <div className="flex flex-col gap-6">
+    <div className="flex flex-col gap-2">
       {/* Top Stat KPI Cards */}
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
         <div className="rounded-xl border border-emerald-100 bg-white p-4 shadow-sm flex items-center justify-between">
           <div>
             <span className="text-xs font-semibold uppercase tracking-wider text-gray-500">Total Employees</span>
@@ -291,35 +229,27 @@ function EmployeeDirectoryTab() {
       </div>
 
       {/* Main Table Container */}
-      <div className="rounded-xl border border-emerald-200 bg-white shadow-sm overflow-hidden">
+      <div className="rounded-xl border border-gray-400 bg-white shadow-sm overflow-hidden">
         {/* Header Bar matching project module theme */}
-        <div className="border-b border-emerald-100 p-4 bg-white flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-          <div className="flex items-center gap-3">
-            <div className="flex h-8 w-8 items-center justify-center rounded border border-emerald-200 bg-emerald-50 text-[#004D40]">
-              <User className="h-4 w-4" />
-            </div>
-            <div>
-              <h2 className="font-bold text-gray-900 text-base">Employee Directory</h2>
-              <p className="text-xs text-gray-500">Manage worker profiles, contact info, and salary master data</p>
-            </div>
-          </div>
+        <div className="border-b border-emerald-400 p-3 bg-white flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+          <div className="flex items-center gap-3"></div>
 
-          <div className="flex flex-wrap items-center gap-2 sm:gap-3">
+          <div className="flex flex-wrap items-center gap-2 sm:gap-2">
             {/* Search Input */}
             <div className="relative">
-              <Search className="w-3.5 h-3.5 absolute left-2.5 top-1/2 -translate-y-1/2 text-gray-400" />
+              <Search className="w-3.5 h-3.5 absolute left-2.5 top-1/2 -translate-y-1/2 text-gray-500" />
               <Input
                 type="text"
-                placeholder="Search name, ID, mobile..."
+                placeholder="Search"
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                className="h-8 w-44 sm:w-60 pl-8 bg-gray-50/50 border-gray-200 text-xs rounded-lg focus-visible:ring-[#004D40]"
+                className="h-8 w-44 sm:w-60 pl-8 bg-gray-50/50 border-gray-400 text-xs rounded-lg font-hanken"
               />
             </div>
 
             {/* Status Dropdown Filter */}
             <Select value={statusFilter} onValueChange={setStatusFilter}>
-              <SelectTrigger className="h-8 w-32 bg-gray-50/50 border-gray-200 text-xs rounded-lg">
+              <SelectTrigger className="h-8 w-32 bg-gray-50/50 border-gray-400 text-sm rounded-lg font-hanken">
                 <SelectValue placeholder="Status" />
               </SelectTrigger>
               <SelectContent>
@@ -332,7 +262,7 @@ function EmployeeDirectoryTab() {
             {/* Add Employee Button */}
             <Button
               size="sm"
-              className="h-8 gap-1 rounded-full bg-[#004D40] text-white hover:bg-[#00332a] px-3.5 text-xs font-medium cursor-pointer"
+              className="h-8 gap-1 bg-[#004D40] text-white hover:bg-[#00332a] px-3.5 text-sm font-medium cursor-pointer font-hanken"
               onClick={openCreateModal}
             >
               <Plus className="h-3.5 w-3.5" /> Add Employee
@@ -342,37 +272,37 @@ function EmployeeDirectoryTab() {
 
         {/* Static Data Table with requested fields */}
         <div className="overflow-x-auto">
-          <Table>
+          <Table className="font-hanken">
             <TableHeader className="bg-emerald-50/30">
-              <TableRow className="hover:bg-transparent border-b border-emerald-100">
-                <TableHead className="text-2xs font-semibold uppercase tracking-wide text-gray-500 pl-4 w-[90px]">
+              <TableRow className="hover:bg-transparent border-b border-emerald-400">
+                <TableHead className="text-sm font-semibold tracking-wide text-gray-800 pl-4 w-[90px]">
                   ID
                 </TableHead>
-                <TableHead className="text-2xs font-semibold uppercase tracking-wide text-gray-500 min-w-[150px]">
+                <TableHead className="text-sm font-semibold tracking-wide text-gray-800 min-w-[150px]">
                   Name
                 </TableHead>
-                <TableHead className="text-2xs font-semibold uppercase tracking-wide text-gray-500 min-w-[150px]">
+                <TableHead className="text-sm font-semibold tracking-wide text-gray-800 min-w-[150px]">
                   Designation
                 </TableHead>
-                <TableHead className="text-2xs font-semibold uppercase tracking-wide text-gray-500 min-w-[130px]">
+                <TableHead className="text-sm font-semibold tracking-wide text-gray-800 min-w-[130px]">
                   Mobile Number
                 </TableHead>
-                <TableHead className="text-2xs font-semibold uppercase tracking-wide text-gray-500 min-w-[130px]">
+                <TableHead className="text-sm font-semibold tracking-wide text-gray-800 min-w-[130px]">
                   Aadhar Card
                 </TableHead>
-                <TableHead className="text-2xs font-semibold uppercase tracking-wide text-gray-500 min-w-[110px]">
+                <TableHead className="text-sm font-semibold tracking-wide text-gray-800 min-w-[110px]">
                   Date of Joining
                 </TableHead>
-                <TableHead className="text-2xs font-semibold uppercase tracking-wide text-gray-500 min-w-[200px]">
+                <TableHead className="text-sm font-semibold tracking-wide text-gray-800 min-w-[200px]">
                   Residential Address
                 </TableHead>
-                <TableHead className="text-2xs font-semibold uppercase tracking-wide text-gray-500 min-w-[80px]">
+                <TableHead className="text-sm font-semibold tracking-wide text-gray-800 min-w-[80px]">
                   Gender
                 </TableHead>
-                <TableHead className="text-center text-2xs font-semibold uppercase tracking-wide text-gray-500 min-w-[90px]">
+                <TableHead className="text-center text-sm font-semibold tracking-wide text-gray-800 min-w-[90px]">
                   Status
                 </TableHead>
-                <TableHead className="text-center text-2xs font-semibold uppercase tracking-wide text-gray-500 pr-4 w-[100px]">
+                <TableHead className="text-center text-sm font-semibold tracking-wide text-gray-800 pr-4 w-[100px]">
                   Actions
                 </TableHead>
               </TableRow>
@@ -380,7 +310,7 @@ function EmployeeDirectoryTab() {
             <TableBody>
               {filteredEmployees.length === 0 ? (
                 <TableRow>
-                  <TableCell colSpan={10} className="h-28 text-center text-gray-500 text-xs">
+                  <TableCell colSpan={10} className="h-28 !text-center text-gray-500 text-md">
                     No employees found matching your criteria.
                   </TableCell>
                 </TableRow>
@@ -390,40 +320,40 @@ function EmployeeDirectoryTab() {
                     key={emp.id}
                     className="border-b border-emerald-50 last:border-b-0 hover:bg-emerald-50/30 transition-colors"
                   >
-                    <TableCell className="pl-4 text-xs font-bold text-gray-700 whitespace-nowrap">
-                      {emp.id}
+                    <TableCell className="pl-4 text-sm font-bold text-gray-700 whitespace-nowrap">
+                      {emp.employeeDetails?.customUserId || emp.id}
                     </TableCell>
-                    <TableCell className="py-3 text-xs font-semibold text-gray-900 whitespace-nowrap">
-                      {emp.name}
+                    <TableCell className="py-3 text-sm font-semibold text-gray-900 whitespace-nowrap">
+                      {emp.name || '-'}
                     </TableCell>
-                    <TableCell className="text-xs text-gray-700 whitespace-nowrap">
-                      {emp.designation}
+                    <TableCell className="text-sm text-gray-700 whitespace-nowrap">
+                      {emp.employeeDetails?.designation || '-'}
                     </TableCell>
-                    <TableCell className="text-xs text-gray-700 whitespace-nowrap">
-                      {emp.mobileNumber}
+                    <TableCell className="text-[13px] text-gray-700 whitespace-nowrap">
+                      {emp.mobile}
                     </TableCell>
-                    <TableCell className="text-xs text-gray-600 font-mono whitespace-nowrap">
-                      {emp.aadharCard || '-'}
+                    <TableCell className="text-[13px] text-gray-600 font-mono whitespace-nowrap">
+                      {emp.employeeDetails?.aadhaarNumber || '-'}
                     </TableCell>
-                    <TableCell className="text-xs text-gray-600 whitespace-nowrap">
-                      {formatDateDisplay(emp.dateOfJoining)}
+                    <TableCell className="text-[13px] text-gray-600 whitespace-nowrap">
+                      {formatDateDisplay(emp.employeeDetails?.joiningDate || '')}
                     </TableCell>
-                    <TableCell className="text-xs text-gray-600 max-w-[240px] truncate" title={emp.residentialAddress}>
-                      {emp.residentialAddress || '-'}
+                    <TableCell className="text-sm text-gray-600 max-w-[240px] truncate" title={emp.employeeDetails?.address || ''}>
+                      {emp.employeeDetails?.address || '-'}
                     </TableCell>
-                    <TableCell className="text-xs whitespace-nowrap">
+                    <TableCell className="text-sm whitespace-nowrap">
                       <span className="inline-flex items-center rounded-full px-2 py-0.5 text-[11px] font-medium bg-slate-100 text-slate-700 border border-slate-200">
-                        {emp.gender}
+                        {emp.employeeDetails?.gender || '-'}
                       </span>
                     </TableCell>
                     <TableCell className="text-center whitespace-nowrap">
                       <span
-                        className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-[11px] font-semibold ${emp.status === 'Active'
-                            ? 'bg-emerald-50 text-[#004D40] border border-emerald-200'
-                            : 'bg-amber-50 text-amber-700 border border-amber-200'
+                        className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-[11px] font-semibold ${emp.isActive
+                          ? 'bg-emerald-50 text-[#004D40] border border-emerald-200'
+                          : 'bg-amber-50 text-amber-700 border border-amber-200'
                           }`}
                       >
-                        {emp.status}
+                        {emp.isActive ? 'Active' : 'Inactive'}
                       </span>
                     </TableCell>
                     <TableCell className="text-center pr-4">
@@ -456,10 +386,10 @@ function EmployeeDirectoryTab() {
         </div>
 
         {/* Table Footer */}
-        <div className="p-3 border-t border-emerald-100 bg-emerald-50/20 text-xs text-gray-500 flex justify-between items-center px-4">
+        <div className="p-3 border-t border-gray-400 bg-emerald-50/20 text-xs text-gray-700 flex justify-between items-center px-4">
           <span>Showing {filteredEmployees.length} of {employees.length} employees</span>
           <span className="font-semibold text-gray-700">
-            Active Payroll: {formatCurrency(totalPayroll)}
+            Active Payroll: <span className='text-green-600'>{formatCurrency(totalPayroll)}</span>
           </span>
         </div>
       </div>
@@ -543,14 +473,14 @@ function EmployeeDirectoryTab() {
 
             <div className="flex flex-col gap-1.5">
               <Label htmlFor="emp-gender" className="text-xs font-semibold text-gray-700">Gender</Label>
-              <Select value={formGender} onValueChange={(val) => setFormGender(val as 'Male' | 'Female' | 'Other')}>
+              <Select value={formGender} onValueChange={(val) => setFormGender(val as 'MALE' | 'FEMALE' | 'OTHER')}>
                 <SelectTrigger id="emp-gender" className="w-full h-9 text-xs">
                   <SelectValue placeholder="Select gender" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="Male">Male</SelectItem>
-                  <SelectItem value="Female">Female</SelectItem>
-                  <SelectItem value="Other">Other</SelectItem>
+                  <SelectItem value="MALE">Male</SelectItem>
+                  <SelectItem value="FEMALE">Female</SelectItem>
+                  <SelectItem value="OTHER">Other</SelectItem>
                 </SelectContent>
               </Select>
             </div>
@@ -623,21 +553,23 @@ function EmployeeDirectoryTab() {
 
 export function EmployeePage() {
   return (
-    <div className="flex flex-col gap-6 p-4">
-      <div>
-        <h1 className="text-2xl font-bold text-gray-900">Employees</h1>
-        <p className="text-sm text-gray-500">Manage worker profiles, contact info, and daily attendance</p>
+    <div className="flex flex-col h-full bg-[#004D40]/5 min-h-full flex-1">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between px-4 py-3 bg-[#F4F1E8] border-b-4 border-[#004D40] shrink-0">
+        <div>
+          <h1 className="font-hanken text-[20px] font-bold text-black leading-tight px-2">Employees</h1>
+          <p className="font-hanken text-[12.5px] text-gray-500 font-medium px-2">Manage worker profiles, contact info, and daily attendance</p>
+        </div>
       </div>
 
-      <Tabs defaultValue="directory">
-        <TabsList variant="underline">
-          <TabsTrigger value="directory">Directory</TabsTrigger>
-          <TabsTrigger value="attendance">Attendance</TabsTrigger>
+      <Tabs defaultValue="directory" className="flex-1 overflow-y-auto px-2 pb-1 gap-1">
+        <TabsList variant="underline" className="px-1 gap-1.5 h-auto">
+          <TabsTrigger value="directory" className="rounded-md border transition-all duration-200 py-1! px-3! bg-gray-100! text-gray-800! border-gray-400! data-[state=active]:bg-[#004D40]! data-[state=active]:text-white! data-[state=active]:border-[#004D40]!">Directory</TabsTrigger>
+          <TabsTrigger value="attendance" className="rounded-md border transition-all duration-200 py-1! px-3! bg-gray-100! text-gray-800! border-gray-400! data-[state=active]:bg-[#004D40]! data-[state=active]:text-white! data-[state=active]:border-[#004D40]!">Attendance</TabsTrigger>
         </TabsList>
-        <TabsContent value="directory" className="mt-4">
+        <TabsContent value="directory" className="mt-4 animate-in fade-in-0 duration-300">
           <EmployeeDirectoryTab />
         </TabsContent>
-        <TabsContent value="attendance" className="mt-4">
+        <TabsContent value="attendance" className="mt-4 animate-in fade-in-0 duration-300">
           <AttendanceTab />
         </TabsContent>
       </Tabs>

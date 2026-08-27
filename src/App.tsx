@@ -1,5 +1,6 @@
 import { useState, type ReactNode } from 'react';
 import '@fontsource-variable/inter';
+import '@fontsource-variable/hanken-grotesk';
 import { BrowserRouter, Routes, Route, Navigate, NavLink, Link, useLocation, useNavigate } from 'react-router-dom';
 import { LoginPage } from './features/auth/login-page';
 import { useAuth, defaultRouteFor } from './features/auth/auth-context';
@@ -54,7 +55,7 @@ function NavLinks({ onNavigate }: { onNavigate?: () => void }) {
   const currentNavItems = getNavItems(role);
 
   return (
-    <nav className="flex-1 px-2 py-4 space-y-1 font-['Hanken_Grotesk',sans-serif]">
+    <nav className="flex-1 px-2 py-4 space-y-1 font-inter">
       {currentNavItems.map((item) => {
         const Icon = item.icon;
 
@@ -64,11 +65,11 @@ function NavLinks({ onNavigate }: { onNavigate?: () => void }) {
             to={item.to}
             onClick={onNavigate}
             className={({ isActive }) =>
-              `w-full flex items-center gap-3 px-3 py-3 text-[13px] font-medium rounded-lg transition-colors ${isActive ? 'text-white font-semibold bg-white/10' : 'text-white/70 hover:bg-white/5 hover:text-white'
+              `w-full flex items-center gap-3 px-3 py-2.5 text-[13px] font-semibold rounded-lg transition-colors ${isActive ? 'text-white font-semibold bg-white/10' : 'text-white/70 hover:bg-white/5 hover:text-white'
               }`
             }
           >
-            <Icon className={`w-[22px] h-[22px] shrink-0 ${location.pathname.startsWith(item.to) ? 'text-white' : 'text-white/70'}`} strokeWidth={1.75} />
+            <Icon className={`w-[20px] h-[18px] shrink-0 ${location.pathname.startsWith(item.to) ? 'text-white' : 'text-white/70'}`} strokeWidth={1.75} />
             {item.label}
           </NavLink>
         );
@@ -93,12 +94,12 @@ function UserFooter() {
 
   return (
     <div className="flex items-center gap-3 px-1">
-      <div className="w-10 h-10 rounded-full bg-white/20 text-white flex items-center justify-center font-bold text-sm shrink-0">
+      <div className="w-10 h-10 rounded-full bg-white/20 text-white flex items-center justify-center font-inter font-bold text-sm shrink-0">
         {displayName.slice(0, 2).toUpperCase()}
       </div>
       <div className="flex flex-col flex-1 min-w-0">
-        <span className="text-[13.5px] font-bold text-white leading-tight truncate">{displayName}</span>
-        <span className="text-[11px] font-medium text-white/60 truncate">{roleLabel}</span>
+        <span className="text-sm font-inter font-bold text-white leading-tight truncate">{displayName}</span>
+        <span className="text-sm font-inter font-medium text-white/60 truncate">{roleLabel}</span>
       </div>
       <button
         type="button"
@@ -120,8 +121,8 @@ function AppShell() {
       {/* Laptop: persistent sidebar */}
       <aside className="hidden lg:flex w-50 shrink-0 flex-col overflow-y-auto">
         <Link to="/dashboard" className="flex items-center justify-center gap-2 py-6 px-4 cursor-pointer">
-          <img src={threadIcon} alt="" className="h-6 w-6 shrink-0 object-contain brightness-0 invert" />
-          <span className="text-[20px] font-serif font-bold text-white tracking-widest whitespace-nowrap">LK Knits</span>
+          <img src={threadIcon} alt="" className="h-8 w-8 shrink-0 object-contain brightness-0 invert" />
+          <span className="text-xl font-inter font-bold text-white tracking-widest whitespace-nowrap">LK KNITS</span>
         </Link>
         <NavLinks />
         <div className="p-2">
@@ -133,7 +134,7 @@ function AppShell() {
       <header className="flex items-center justify-between border-b bg-[#004D40] px-4 py-3 lg:hidden">
         <Link to="/dashboard" className="flex items-center gap-2 cursor-pointer">
           <img src={threadIcon} alt="" className="h-5 w-5 shrink-0 object-contain brightness-0 invert" />
-          <span className="text-[18px] font-serif font-bold text-white tracking-widest whitespace-nowrap">LK Knits</span>
+          <span className="text-[18px] font-['Hanken_Grotesk',sans-serif] font-bold text-white tracking-widest whitespace-nowrap">LK Knits</span>
         </Link>
         <Sheet open={mobileNavOpen} onOpenChange={setMobileNavOpen}>
           <Button variant="ghost" size="icon" className="text-white hover:bg-white/20 hover:text-white" onClick={() => setMobileNavOpen(true)}>
@@ -143,7 +144,7 @@ function AppShell() {
             <SheetHeader className="py-6 px-4">
               <SheetTitle className="flex items-center justify-center gap-2">
                 <img src={threadIcon} alt="" className="h-6 w-6 shrink-0 object-contain brightness-0 invert" />
-                <span className="text-[20px] font-serif font-bold text-white tracking-widest whitespace-nowrap">LK Knits</span>
+                <span className="text-[20px] font-['Hanken_Grotesk',sans-serif] font-bold text-white tracking-widest whitespace-nowrap">LK Knits</span>
               </SheetTitle>
             </SheetHeader>
             <NavLinks onNavigate={() => setMobileNavOpen(false)} />

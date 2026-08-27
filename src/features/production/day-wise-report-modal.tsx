@@ -65,7 +65,7 @@ export function DayWiseReportModal({ open, onOpenChange }: DayWiseReportModalPro
 
   const firstDay = useMemo(() => format(new Date(year, monthIndex, 1), 'yyyy-MM-dd'), [year, monthIndex]);
   const lastDay = useMemo(() => format(new Date(year, monthIndex + 1, 0), 'yyyy-MM-dd'), [year, monthIndex]);
-  const { data: loadSentData, isLoading: isLoadSentLoading } = useLoadSentRecords(`?date_from=${firstDay}&date_to=${lastDay}&limit=1000`);
+  const { data: loadSentData, isLoading: isLoadSentLoading } = useLoadSentRecords(`?date_from=${firstDay}&date_to=${lastDay}&limit=100`);
   const loadSentRecords = loadSentData?.data || [];
 
   const rows = useMemo(() => {
