@@ -194,9 +194,9 @@ function EmployeeDirectoryTab() {
   };
 
   return (
-    <div className="flex flex-col gap-6">
+    <div className="flex flex-col gap-2">
       {/* Top Stat KPI Cards */}
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
         <div className="rounded-xl border border-emerald-100 bg-white p-4 shadow-sm flex items-center justify-between">
           <div>
             <span className="text-xs font-semibold uppercase tracking-wider text-gray-500">Total Employees</span>
@@ -229,35 +229,27 @@ function EmployeeDirectoryTab() {
       </div>
 
       {/* Main Table Container */}
-      <div className="rounded-xl border border-emerald-200 bg-white shadow-sm overflow-hidden">
+      <div className="rounded-xl border border-gray-400 bg-white shadow-sm overflow-hidden">
         {/* Header Bar matching project module theme */}
-        <div className="border-b border-emerald-100 p-4 bg-white flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-          <div className="flex items-center gap-3">
-            <div className="flex h-8 w-8 items-center justify-center rounded border border-emerald-200 bg-emerald-50 text-[#004D40]">
-              <User className="h-4 w-4" />
-            </div>
-            <div>
-              <h2 className="font-bold text-gray-900 text-base">Employee Directory</h2>
-              <p className="text-xs text-gray-500">Manage worker profiles, contact info, and salary master data</p>
-            </div>
-          </div>
+        <div className="border-b border-emerald-400 p-3 bg-white flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+          <div className="flex items-center gap-3"></div>
 
-          <div className="flex flex-wrap items-center gap-2 sm:gap-3">
+          <div className="flex flex-wrap items-center gap-2 sm:gap-2">
             {/* Search Input */}
             <div className="relative">
-              <Search className="w-3.5 h-3.5 absolute left-2.5 top-1/2 -translate-y-1/2 text-gray-400" />
+              <Search className="w-3.5 h-3.5 absolute left-2.5 top-1/2 -translate-y-1/2 text-gray-500" />
               <Input
                 type="text"
-                placeholder="Search name, ID, mobile..."
+                placeholder="Search"
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                className="h-8 w-44 sm:w-60 pl-8 bg-gray-50/50 border-gray-200 text-xs rounded-lg focus-visible:ring-[#004D40]"
+                className="h-8 w-44 sm:w-60 pl-8 bg-gray-50/50 border-gray-400 text-xs rounded-lg font-hanken"
               />
             </div>
 
             {/* Status Dropdown Filter */}
             <Select value={statusFilter} onValueChange={setStatusFilter}>
-              <SelectTrigger className="h-8 w-32 bg-gray-50/50 border-gray-200 text-xs rounded-lg">
+              <SelectTrigger className="h-8 w-32 bg-gray-50/50 border-gray-400 text-sm rounded-lg font-hanken">
                 <SelectValue placeholder="Status" />
               </SelectTrigger>
               <SelectContent>
@@ -270,7 +262,7 @@ function EmployeeDirectoryTab() {
             {/* Add Employee Button */}
             <Button
               size="sm"
-              className="h-8 gap-1 rounded-full bg-[#004D40] text-white hover:bg-[#00332a] px-3.5 text-xs font-medium cursor-pointer"
+              className="h-8 gap-1 bg-[#004D40] text-white hover:bg-[#00332a] px-3.5 text-sm font-medium cursor-pointer font-hanken"
               onClick={openCreateModal}
             >
               <Plus className="h-3.5 w-3.5" /> Add Employee
@@ -280,37 +272,37 @@ function EmployeeDirectoryTab() {
 
         {/* Static Data Table with requested fields */}
         <div className="overflow-x-auto">
-          <Table>
+          <Table className="font-hanken">
             <TableHeader className="bg-emerald-50/30">
-              <TableRow className="hover:bg-transparent border-b border-emerald-100">
-                <TableHead className="text-2xs font-semibold uppercase tracking-wide text-gray-500 pl-4 w-[90px]">
+              <TableRow className="hover:bg-transparent border-b border-emerald-400">
+                <TableHead className="text-sm font-semibold tracking-wide text-gray-800 pl-4 w-[90px]">
                   ID
                 </TableHead>
-                <TableHead className="text-2xs font-semibold uppercase tracking-wide text-gray-500 min-w-[150px]">
+                <TableHead className="text-sm font-semibold tracking-wide text-gray-800 min-w-[150px]">
                   Name
                 </TableHead>
-                <TableHead className="text-2xs font-semibold uppercase tracking-wide text-gray-500 min-w-[150px]">
+                <TableHead className="text-sm font-semibold tracking-wide text-gray-800 min-w-[150px]">
                   Designation
                 </TableHead>
-                <TableHead className="text-2xs font-semibold uppercase tracking-wide text-gray-500 min-w-[130px]">
+                <TableHead className="text-sm font-semibold tracking-wide text-gray-800 min-w-[130px]">
                   Mobile Number
                 </TableHead>
-                <TableHead className="text-2xs font-semibold uppercase tracking-wide text-gray-500 min-w-[130px]">
+                <TableHead className="text-sm font-semibold tracking-wide text-gray-800 min-w-[130px]">
                   Aadhar Card
                 </TableHead>
-                <TableHead className="text-2xs font-semibold uppercase tracking-wide text-gray-500 min-w-[110px]">
+                <TableHead className="text-sm font-semibold tracking-wide text-gray-800 min-w-[110px]">
                   Date of Joining
                 </TableHead>
-                <TableHead className="text-2xs font-semibold uppercase tracking-wide text-gray-500 min-w-[200px]">
+                <TableHead className="text-sm font-semibold tracking-wide text-gray-800 min-w-[200px]">
                   Residential Address
                 </TableHead>
-                <TableHead className="text-2xs font-semibold uppercase tracking-wide text-gray-500 min-w-[80px]">
+                <TableHead className="text-sm font-semibold tracking-wide text-gray-800 min-w-[80px]">
                   Gender
                 </TableHead>
-                <TableHead className="text-center text-2xs font-semibold uppercase tracking-wide text-gray-500 min-w-[90px]">
+                <TableHead className="text-center text-sm font-semibold tracking-wide text-gray-800 min-w-[90px]">
                   Status
                 </TableHead>
-                <TableHead className="text-center text-2xs font-semibold uppercase tracking-wide text-gray-500 pr-4 w-[100px]">
+                <TableHead className="text-center text-sm font-semibold tracking-wide text-gray-800 pr-4 w-[100px]">
                   Actions
                 </TableHead>
               </TableRow>
@@ -318,7 +310,7 @@ function EmployeeDirectoryTab() {
             <TableBody>
               {filteredEmployees.length === 0 ? (
                 <TableRow>
-                  <TableCell colSpan={10} className="h-28 text-center text-gray-500 text-xs">
+                  <TableCell colSpan={10} className="h-28 text-center text-gray-500 text-md">
                     No employees found matching your criteria.
                   </TableCell>
                 </TableRow>
@@ -328,28 +320,28 @@ function EmployeeDirectoryTab() {
                     key={emp.id}
                     className="border-b border-emerald-50 last:border-b-0 hover:bg-emerald-50/30 transition-colors"
                   >
-                    <TableCell className="pl-4 text-xs font-bold text-gray-700 whitespace-nowrap">
+                    <TableCell className="pl-4 text-sm font-bold text-gray-700 whitespace-nowrap">
                       {emp.employeeDetails?.customUserId || emp.id}
                     </TableCell>
-                    <TableCell className="py-3 text-xs font-semibold text-gray-900 whitespace-nowrap">
+                    <TableCell className="py-3 text-sm font-semibold text-gray-900 whitespace-nowrap">
                       {emp.name || '-'}
                     </TableCell>
-                    <TableCell className="text-xs text-gray-700 whitespace-nowrap">
+                    <TableCell className="text-sm text-gray-700 whitespace-nowrap">
                       {emp.employeeDetails?.designation || '-'}
                     </TableCell>
-                    <TableCell className="text-xs text-gray-700 whitespace-nowrap">
+                    <TableCell className="text-[13px] text-gray-700 whitespace-nowrap">
                       {emp.mobile}
                     </TableCell>
-                    <TableCell className="text-xs text-gray-600 font-mono whitespace-nowrap">
+                    <TableCell className="text-[13px] text-gray-600 font-mono whitespace-nowrap">
                       {emp.employeeDetails?.aadhaarNumber || '-'}
                     </TableCell>
-                    <TableCell className="text-xs text-gray-600 whitespace-nowrap">
+                    <TableCell className="text-[13px] text-gray-600 whitespace-nowrap">
                       {formatDateDisplay(emp.employeeDetails?.joiningDate || '')}
                     </TableCell>
-                    <TableCell className="text-xs text-gray-600 max-w-[240px] truncate" title={emp.employeeDetails?.address || ''}>
+                    <TableCell className="text-sm text-gray-600 max-w-[240px] truncate" title={emp.employeeDetails?.address || ''}>
                       {emp.employeeDetails?.address || '-'}
                     </TableCell>
-                    <TableCell className="text-xs whitespace-nowrap">
+                    <TableCell className="text-sm whitespace-nowrap">
                       <span className="inline-flex items-center rounded-full px-2 py-0.5 text-[11px] font-medium bg-slate-100 text-slate-700 border border-slate-200">
                         {emp.employeeDetails?.gender || '-'}
                       </span>
@@ -357,8 +349,8 @@ function EmployeeDirectoryTab() {
                     <TableCell className="text-center whitespace-nowrap">
                       <span
                         className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-[11px] font-semibold ${emp.isActive
-                            ? 'bg-emerald-50 text-[#004D40] border border-emerald-200'
-                            : 'bg-amber-50 text-amber-700 border border-amber-200'
+                          ? 'bg-emerald-50 text-[#004D40] border border-emerald-200'
+                          : 'bg-amber-50 text-amber-700 border border-amber-200'
                           }`}
                       >
                         {emp.isActive ? 'Active' : 'Inactive'}
@@ -394,10 +386,10 @@ function EmployeeDirectoryTab() {
         </div>
 
         {/* Table Footer */}
-        <div className="p-3 border-t border-emerald-100 bg-emerald-50/20 text-xs text-gray-500 flex justify-between items-center px-4">
+        <div className="p-3 border-t border-gray-400 bg-emerald-50/20 text-xs text-gray-700 flex justify-between items-center px-4">
           <span>Showing {filteredEmployees.length} of {employees.length} employees</span>
           <span className="font-semibold text-gray-700">
-            Active Payroll: {formatCurrency(totalPayroll)}
+            Active Payroll: <span className='text-green-600'>{formatCurrency(totalPayroll)}</span>
           </span>
         </div>
       </div>
