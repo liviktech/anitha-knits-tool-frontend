@@ -44,8 +44,12 @@ const FABRIC_COLORS = ['Blue', 'Green', 'White'] as const;
 
 export function DashboardDesign2() {
   const currentMonthStr = format(new Date(), 'yyyy-MM');
+  const prevMonthDate = new Date();
+  prevMonthDate.setMonth(prevMonthDate.getMonth() - 1);
+  const prevMonthStr = format(prevMonthDate, 'yyyy-MM');
 
   const { apiSummary, isLoading } = useDayWiseProduction(currentMonthStr);
+  const { apiSummary: prevApiSummary } = useDayWiseProduction(prevMonthStr);
   const { data: inventoryData } = useInventoryRecords('?limit=100');
   const { data: loadSentData, isLoading: loadingLoadSent } = useLoadSentRecords('?limit=100');
   const { data: extruderData } = useExtruderProductions('?limit=100');
