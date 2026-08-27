@@ -1,195 +1,139 @@
 import { useState, useEffect } from 'react';
-import { Search, Calendar as CalendarIcon, Clock, Check } from 'lucide-react';
+import { Search } from 'lucide-react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
-import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+
+export interface AttendanceEmployeeOption {
+  id: string;
+  name: string;
+  role: string;
+  customUserId?: string;
+}
+
+export type DailyStatus = 'Present' | 'Absent' | 'Half-day' | 'Company Holiday';
+
+export interface DailyAttendanceEntry {
+  employeeId: string;
+  employeeName: string;
+  role: string;
+  status: DailyStatus;
+  remarks: string;
+}
 
 export interface MarkAttendanceModalProps {
   isOpen: boolean;
   onClose: () => void;
-  onSave: (data: any) => void;
-  readOnly?: boolean;
-  initialData?: any;
+  onSave: (date: string, entries: DailyAttendanceEntry[]) => void;
+  employees: AttendanceEmployeeOption[];
+  defaultDate?: string;
 }
 
-export function MarkAttendanceModal({ isOpen, onClose, onSave, readOnly = false, initialData = null }: MarkAttendanceModalProps) {
-  const [employeeId, setEmployeeId] = useState(initialData?.employeeId || '');
-  const [date, setDate] = useState(initialData?.date || '2023-10-27');
-  const [status, setStatus] = useState<'Present' | 'Absent' | 'Half-day'>(initialData?.status || 'Present');
-  const [checkIn, setCheckIn] = useState(initialData?.checkIn?.replace(' AM', '') || '09:00');
-  const [checkOut, setCheckOut] = useState(initialData?.checkOut?.replace(' PM', '') || '18:00');
-  const [remarks, setRemarks] = useState(initialData?.remarks || '');
+const STATUS_OPTIONS: { value: DailyStatus; label: string; activeClass: string }[] = [
+  { value: 'Present', label: 'Present', activeClass: 'bg-emerald-100 text-emerald-800 border-emerald-300' },
+  { value: 'Absent', label: 'Absent', activeClass: 'bg-red-100 text-red-800 border-red-300' },
+  { value: 'Half-day', label: 'Half Day', activeClass: 'bg-blue-100 text-blue-800 border-blue-300' },
+  { value: 'Company Holiday', label: 'Company Holiday', activeClass: 'bg-amber-100 text-amber-800 border-amber-300' },
+];
 
-  // Reset state when modal opens with new data
+export function MarkAttendanceModal({ isOpen, onClose, onSave, employees, defaultDate }: MarkAttendanceModalProps) {
+  const [date, setDate] = useState(defaultDate || new Date().toISOString().slice(0, 10));
+  const [search, setSearch] = useState('');
+  const [statusMap, setStatusMap] = useState<Record<string, DailyStatus>>({});
+  const [remarksMap, setRemarksMap] = useState<Record<string, string>>({});
+
   useEffect(() => {
     if (isOpen) {
-      setEmployeeId(initialData?.employeeId || '');
-      setDate(initialData?.date || '2023-10-27');
-      setStatus(initialData?.status || 'Present');
-      setCheckIn(initialData?.checkIn?.replace(' AM', '') || '09:00');
-      setCheckOut(initialData?.checkOut?.replace(' PM', '') || '18:00');
-      setRemarks(initialData?.remarks || '');
+      setDate(defaultDate || new Date().toISOString().slice(0, 10));
+      setSearch('');
+      setStatusMap({});
+      setRemarksMap({});
     }
-  }, [isOpen, initialData]);
+  }, [isOpen, defaultDate]);
+
+  const filtered = employees.filter(
+    (e) => e.name.toLowerCase().includes(search.toLowerCase()) || 
+           (e.customUserId || e.id).toLowerCase().includes(search.toLowerCase())
+  );
 
   const handleSubmit = () => {
-    onSave({
-      date,
-      employeeId,
-      employeeName: employeeId === 'EMP-042' ? 'Jane Doe' : 'Unknown Employee',
-      checkIn: checkIn ? `${checkIn} AM` : '', // Simplified AM/PM formatting for mockup
-      checkOut: checkOut ? `${checkOut} PM` : '',
-      status
-    });
+    const entries: DailyAttendanceEntry[] = employees
+      .filter((e) => statusMap[e.id])
+      .map((e) => ({ employeeId: e.id, employeeName: e.name, role: e.role, status: statusMap[e.id], remarks: remarksMap[e.id] || '' }));
+    onSave(date, entries);
     onClose();
   };
 
   return (
     <Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
-      <DialogContent className="sm:max-w-[425px] p-0 overflow-hidden gap-0 border-t-4 border-t-gray-300 rounded-2xl">
-        <div className="flex justify-center pt-3 pb-1 bg-white">
-          <div className="h-1.5 w-12 rounded-full bg-gray-300"></div>
-        </div>
+      <DialogContent className="sm:max-w-5xl p-0 overflow-hidden gap-0 rounded-2xl">
         <DialogHeader className="px-6 py-4 border-b border-gray-100 bg-white">
-          <DialogTitle className="text-xl font-semibold text-gray-900">Mark Attendance</DialogTitle>
+          <DialogTitle className="text-xl font-semibold text-gray-900">Mark Daily Attendance</DialogTitle>
         </DialogHeader>
 
-        <div className="flex flex-col gap-5 px-6 py-5 bg-[#FAFAFA]">
-          {/* Employee Select */}
-          <div className="flex flex-col gap-2">
-            <Label className="text-[11px] font-bold text-gray-600 tracking-wide uppercase">Employee</Label>
-            <div className="relative">
-              <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-500" />
-              <Select value={employeeId} onValueChange={setEmployeeId} disabled={readOnly}>
-                <SelectTrigger className="w-full pl-9 h-11 bg-white border-gray-200">
-                  <SelectValue placeholder="Search employee..." />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="EMP-042">Jane Doe (EMP-042)</SelectItem>
-                  <SelectItem value="EMP-1042">Karthik S. (EMP-1042)</SelectItem>
-                  <SelectItem value="EMP-1088">Priya Ramesh (EMP-1088)</SelectItem>
-                  <SelectItem value="EMP-0931">Muthukumar S. (EMP-0931)</SelectItem>
-                  <SelectItem value="EMP-1102">Lakshmi N. (EMP-1102)</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
+        <div className="flex flex-wrap items-center gap-3 px-6 py-4 border-b border-gray-100">
+          <Input type="date" value={date} onChange={(e) => setDate(e.target.value)} className="w-44 h-10" />
+          <div className="relative flex-1 min-w-45">
+            <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
+            <Input placeholder="Search employee..." value={search} onChange={(e) => setSearch(e.target.value)} className="pl-9 h-10" />
           </div>
-
-          {/* Date Picker */}
-          <div className="flex flex-col gap-2">
-            <Label className="text-[11px] font-bold text-gray-600 tracking-wide uppercase">Date</Label>
-            <div className="relative">
-              <CalendarIcon className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-500" />
-              <Input
-                type="date"
-                value={date}
-                onChange={(e) => setDate(e.target.value)}
-                disabled={readOnly}
-                className="pl-9 h-11 bg-white border-gray-200 block w-full"
-              />
-            </div>
-          </div>
-
-          {/* Status Toggle */}
-          <div className="flex flex-col gap-2">
-            <Label className="text-[11px] font-bold text-gray-600 tracking-wide uppercase">Status</Label>
-            <div className="flex gap-2">
-              <button
-                type="button"
-                onClick={() => !readOnly && setStatus('Present')}
-                disabled={readOnly}
-                className={`flex-1 rounded-md py-2.5 text-sm font-medium transition-colors border ${status === 'Present'
-                  ? 'bg-[#EAF3EE] text-[#0B503B] border-[#0B503B]'
-                  : 'bg-white text-gray-700 border-gray-200 hover:bg-gray-50'
-                  } ${readOnly ? 'opacity-70 cursor-not-allowed' : ''}`}
-              >
-                Present
-              </button>
-              <button
-                type="button"
-                onClick={() => !readOnly && setStatus('Absent')}
-                disabled={readOnly}
-                className={`flex-1 rounded-md py-2.5 text-sm font-medium transition-colors border ${status === 'Absent'
-                  ? 'bg-red-50 text-red-700 border-red-200'
-                  : 'bg-white text-gray-700 border-gray-200 hover:bg-gray-50'
-                  } ${readOnly ? 'opacity-70 cursor-not-allowed' : ''}`}
-              >
-                Absent
-              </button>
-              <button
-                type="button"
-                onClick={() => !readOnly && setStatus('Half-day')}
-                disabled={readOnly}
-                className={`flex-1 rounded-md py-2.5 text-sm font-medium transition-colors border ${status === 'Half-day'
-                  ? 'bg-blue-50 text-blue-700 border-blue-200'
-                  : 'bg-white text-gray-700 border-gray-200 hover:bg-gray-50'
-                  } ${readOnly ? 'opacity-70 cursor-not-allowed' : ''}`}
-              >
-                Half-day
-              </button>
-            </div>
-          </div>
-
-          {/* Check-in / Check-out */}
-          <div className="grid grid-cols-2 gap-4">
-            <div className="flex flex-col gap-2">
-              <Label className="text-[11px] font-bold text-gray-600 tracking-wide uppercase">Check-In</Label>
-              <div className="relative">
-                <Clock className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-500" />
-                <Input
-                  type="time"
-                  value={checkIn}
-                  onChange={(e) => setCheckIn(e.target.value)}
-                  disabled={readOnly}
-                  className="pl-9 h-11 bg-white border-gray-200 w-full"
-                />
-              </div>
-            </div>
-            <div className="flex flex-col gap-2">
-              <Label className="text-[11px] font-bold text-gray-600 tracking-wide uppercase">Check-Out</Label>
-              <div className="relative">
-                <Clock className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-500" />
-                <Input
-                  type="time"
-                  value={checkOut}
-                  onChange={(e) => setCheckOut(e.target.value)}
-                  disabled={readOnly}
-                  className="pl-9 h-11 bg-white border-gray-200 w-full"
-                />
-              </div>
-            </div>
-          </div>
-
-          {/* Remarks */}
-          <div className="flex flex-col gap-2">
-            <Label className="text-[11px] font-bold text-gray-600 tracking-wide uppercase">Remarks (Optional)</Label>
-            <textarea
-              placeholder="Add any notes here..."
-              value={remarks}
-              onChange={(e) => setRemarks(e.target.value)}
-              disabled={readOnly}
-              className={`w-full rounded-md border border-gray-200 bg-white px-3 py-3 text-sm placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-[#0B503B] focus:border-transparent resize-none h-24 ${readOnly ? 'opacity-70 cursor-not-allowed bg-gray-50' : ''}`}
-            />
-          </div>
+          {/* <Button variant="link" onClick={markAllPresent} className="text-blue-600 font-semibold whitespace-nowrap px-0">
+            Mark All Present
+          </Button> */}
         </div>
 
-        <DialogFooter className="flex flex-col gap-3 px-6 py-5 bg-white border-t border-gray-100 sm:flex-col sm:justify-start">
-          {!readOnly && (
-            <Button
-              onClick={handleSubmit}
-              className="w-full h-12 bg-[#0B503B] hover:bg-[#083A2A] text-white rounded-lg flex items-center justify-center gap-2"
-            >
-              <Check className="h-4 w-4" /> Mark Attendance
-            </Button>
-          )}
-          <Button
-            variant="outline"
-            onClick={onClose}
-            className="w-full h-12 border-gray-200 text-gray-700 hover:bg-gray-50 rounded-lg"
-          >
-            {readOnly ? 'Close' : 'Cancel'}
+        <div className="max-h-105 overflow-y-auto">
+          <table className="w-full text-sm">
+            <thead className="sticky top-0 bg-gray-50 text-xs font-bold uppercase tracking-wide text-gray-500">
+              <tr>
+                <th className="text-left px-6 py-3">Employee</th>
+                <th className="text-left px-6 py-3">Status</th>
+                <th className="text-left px-6 py-3">Remarks</th>
+              </tr>
+            </thead>
+            <tbody>
+              {filtered.map((emp) => (
+                <tr key={emp.id} className="border-t border-gray-100">
+                  <td className="px-6 py-3 align-top">
+                    <div className="font-semibold text-gray-900">{emp.name}</div>
+                    <div className="text-xs text-blue-600">{emp.customUserId || emp.id}</div>
+                  </td>
+                  <td className="px-6 py-3 align-top">
+                    <div className="flex flex-wrap gap-2">
+                      {STATUS_OPTIONS.map((opt) => (
+                        <button
+                          key={opt.value}
+                          type="button"
+                          onClick={() => setStatusMap((m) => ({ ...m, [emp.id]: opt.value }))}
+                          className={`rounded-full border px-3 py-1 text-xs font-medium transition-colors ${
+                            statusMap[emp.id] === opt.value ? opt.activeClass : 'bg-white text-gray-600 border-gray-200 hover:bg-gray-50'
+                          }`}
+                        >
+                          {opt.label}
+                        </button>
+                      ))}
+                    </div>
+                  </td>
+                  <td className="px-6 py-3 align-top">
+                    <Input
+                      placeholder="Optional remarks"
+                      value={remarksMap[emp.id] || ''}
+                      onChange={(e) => setRemarksMap((m) => ({ ...m, [emp.id]: e.target.value }))}
+                      className="h-9"
+                    />
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+
+        <DialogFooter className="flex flex-row justify-end gap-3 px-6 py-2 border-t border-gray-100 bg-white sm:justify-end m-1">
+          <Button variant="outline" onClick={onClose} className="border-gray-200 text-gray-700 hover:bg-gray-50 rounded-lg">
+            Cancel
+          </Button>
+          <Button onClick={handleSubmit} className="bg-[#0B503B] hover:bg-[#083A2A] text-white rounded-lg">
+            Save Attendance
           </Button>
         </DialogFooter>
       </DialogContent>
