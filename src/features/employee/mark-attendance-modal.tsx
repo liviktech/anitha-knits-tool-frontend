@@ -6,20 +6,49 @@ import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 
+export interface AttendanceEmployeeOption {
+  id: string;
+  name: string;
+  role: string;
+}
+
 export interface MarkAttendanceModalProps {
   isOpen: boolean;
   onClose: () => void;
   onSave: (data: any) => void;
   readOnly?: boolean;
   initialData?: any;
+  employees: AttendanceEmployeeOption[];
 }
 
-export function MarkAttendanceModal({ isOpen, onClose, onSave, readOnly = false, initialData = null }: MarkAttendanceModalProps) {
+// Converts a 24h "HH:MM" input value to a "hh:mm AM/PM" display string.
+function formatTime12h(time: string): string {
+  if (!time) return '';
+  const [hStr, mStr] = time.split(':');
+  let h = parseInt(hStr, 10);
+  const period = h >= 12 ? 'PM' : 'AM';
+  h = h % 12 || 12;
+  return `${String(h).padStart(2, '0')}:${mStr} ${period}`;
+}
+
+// Converts a "hh:mm AM/PM" display string back to a 24h "HH:MM" input value.
+function parseTime12h(time: string): string {
+  if (!time) return '';
+  const match = time.match(/^(\d{1,2}):(\d{2})\s*(AM|PM)$/i);
+  if (!match) return '';
+  let h = parseInt(match[1], 10);
+  const period = match[3].toUpperCase();
+  if (period === 'PM' && h !== 12) h += 12;
+  if (period === 'AM' && h === 12) h = 0;
+  return `${String(h).padStart(2, '0')}:${match[2]}`;
+}
+
+export function MarkAttendanceModal({ isOpen, onClose, onSave, readOnly = false, initialData = null, employees }: MarkAttendanceModalProps) {
   const [employeeId, setEmployeeId] = useState(initialData?.employeeId || '');
   const [date, setDate] = useState(initialData?.date || '2023-10-27');
   const [status, setStatus] = useState<'Present' | 'Absent' | 'Half-day'>(initialData?.status || 'Present');
-  const [checkIn, setCheckIn] = useState(initialData?.checkIn?.replace(' AM', '') || '09:00');
-  const [checkOut, setCheckOut] = useState(initialData?.checkOut?.replace(' PM', '') || '18:00');
+  const [checkIn, setCheckIn] = useState(parseTime12h(initialData?.checkIn) || '09:00');
+  const [checkOut, setCheckOut] = useState(parseTime12h(initialData?.checkOut) || '18:00');
   const [remarks, setRemarks] = useState(initialData?.remarks || '');
 
   // Reset state when modal opens with new data
@@ -28,19 +57,21 @@ export function MarkAttendanceModal({ isOpen, onClose, onSave, readOnly = false,
       setEmployeeId(initialData?.employeeId || '');
       setDate(initialData?.date || '2023-10-27');
       setStatus(initialData?.status || 'Present');
-      setCheckIn(initialData?.checkIn?.replace(' AM', '') || '09:00');
-      setCheckOut(initialData?.checkOut?.replace(' PM', '') || '18:00');
+      setCheckIn(parseTime12h(initialData?.checkIn) || '09:00');
+      setCheckOut(parseTime12h(initialData?.checkOut) || '18:00');
       setRemarks(initialData?.remarks || '');
     }
   }, [isOpen, initialData]);
 
   const handleSubmit = () => {
+    const employee = employees.find((e) => e.id === employeeId);
     onSave({
       date,
       employeeId,
-      employeeName: employeeId === 'EMP-042' ? 'Jane Doe' : 'Unknown Employee',
-      checkIn: checkIn ? `${checkIn} AM` : '', // Simplified AM/PM formatting for mockup
-      checkOut: checkOut ? `${checkOut} PM` : '',
+      employeeName: employee?.name ?? 'Unknown Employee',
+      role: employee?.role ?? '',
+      checkIn: status === 'Absent' ? '' : formatTime12h(checkIn),
+      checkOut: status === 'Absent' ? '' : formatTime12h(checkOut),
       status
     });
     onClose();
@@ -67,11 +98,9 @@ export function MarkAttendanceModal({ isOpen, onClose, onSave, readOnly = false,
                   <SelectValue placeholder="Search employee..." />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="EMP-042">Jane Doe (EMP-042)</SelectItem>
-                  <SelectItem value="EMP-1042">Karthik S. (EMP-1042)</SelectItem>
-                  <SelectItem value="EMP-1088">Priya Ramesh (EMP-1088)</SelectItem>
-                  <SelectItem value="EMP-0931">Muthukumar S. (EMP-0931)</SelectItem>
-                  <SelectItem value="EMP-1102">Lakshmi N. (EMP-1102)</SelectItem>
+                  {employees.map((emp) => (
+                    <SelectItem key={emp.id} value={emp.id}>{emp.name} ({emp.id})</SelectItem>
+                  ))}
                 </SelectContent>
               </Select>
             </div>

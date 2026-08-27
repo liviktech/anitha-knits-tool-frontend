@@ -561,21 +561,23 @@ function EmployeeDirectoryTab() {
 
 export function EmployeePage() {
   return (
-    <div className="flex flex-col gap-6 p-4">
-      <div>
-        <h1 className="text-2xl font-bold text-gray-900">Employees</h1>
-        <p className="text-sm text-gray-500">Manage worker profiles, contact info, and daily attendance</p>
+    <div className="flex flex-col h-full bg-[#004D40]/5 min-h-full flex-1">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between px-4 py-3 bg-[#F4F1E8] border-b-4 border-[#004D40] shrink-0">
+        <div>
+          <h1 className="font-hanken text-[20px] font-bold text-black leading-tight px-2">Employees</h1>
+          <p className="font-hanken text-[12.5px] text-gray-500 font-medium px-2">Manage worker profiles, contact info, and daily attendance</p>
+        </div>
       </div>
 
-      <Tabs defaultValue="directory">
-        <TabsList variant="underline">
-          <TabsTrigger value="directory">Directory</TabsTrigger>
-          <TabsTrigger value="attendance">Attendance</TabsTrigger>
+      <Tabs defaultValue="directory" className="flex-1 overflow-y-auto px-2 pb-1 gap-1">
+        <TabsList variant="underline" className="px-1 gap-1.5 h-auto">
+          <TabsTrigger value="directory" className="rounded-md border transition-all duration-200 py-1! px-3! bg-gray-100! text-gray-800! border-gray-400! data-[state=active]:bg-[#004D40]! data-[state=active]:text-white! data-[state=active]:border-[#004D40]!">Directory</TabsTrigger>
+          <TabsTrigger value="attendance" className="rounded-md border transition-all duration-200 py-1! px-3! bg-gray-100! text-gray-800! border-gray-400! data-[state=active]:bg-[#004D40]! data-[state=active]:text-white! data-[state=active]:border-[#004D40]!">Attendance</TabsTrigger>
         </TabsList>
-        <TabsContent value="directory" className="mt-4">
+        <TabsContent value="directory" className="mt-4 animate-in fade-in-0 duration-300">
           <EmployeeDirectoryTab />
         </TabsContent>
-        <TabsContent value="attendance" className="mt-4">
+        <TabsContent value="attendance" className="mt-4 animate-in fade-in-0 duration-300">
           <AttendanceTab />
         </TabsContent>
       </Tabs>
