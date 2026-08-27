@@ -8,6 +8,7 @@ export interface AttendanceEmployeeOption {
   id: string;
   name: string;
   role: string;
+  customUserId?: string;
 }
 
 export type DailyStatus = 'Present' | 'Absent' | 'Half-day' | 'Company Holiday';
@@ -51,7 +52,8 @@ export function MarkAttendanceModal({ isOpen, onClose, onSave, employees, defaul
   }, [isOpen, defaultDate]);
 
   const filtered = employees.filter(
-    (e) => e.name.toLowerCase().includes(search.toLowerCase()) || e.id.toLowerCase().includes(search.toLowerCase())
+    (e) => e.name.toLowerCase().includes(search.toLowerCase()) || 
+           (e.customUserId || e.id).toLowerCase().includes(search.toLowerCase())
   );
 
   const markAllPresent = () => {
@@ -70,7 +72,7 @@ export function MarkAttendanceModal({ isOpen, onClose, onSave, employees, defaul
 
   return (
     <Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
-      <DialogContent className="sm:max-w-3xl p-0 overflow-hidden gap-0 rounded-2xl">
+      <DialogContent className="sm:max-w-5xl p-0 overflow-hidden gap-0 rounded-2xl">
         <DialogHeader className="px-6 py-4 border-b border-gray-100 bg-white">
           <DialogTitle className="text-xl font-semibold text-gray-900">Mark Daily Attendance</DialogTitle>
         </DialogHeader>
@@ -81,9 +83,9 @@ export function MarkAttendanceModal({ isOpen, onClose, onSave, employees, defaul
             <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
             <Input placeholder="Search employee..." value={search} onChange={(e) => setSearch(e.target.value)} className="pl-9 h-10" />
           </div>
-          <Button variant="link" onClick={markAllPresent} className="text-blue-600 font-semibold whitespace-nowrap px-0">
+          {/* <Button variant="link" onClick={markAllPresent} className="text-blue-600 font-semibold whitespace-nowrap px-0">
             Mark All Present
-          </Button>
+          </Button> */}
         </div>
 
         <div className="max-h-105 overflow-y-auto">
@@ -100,7 +102,7 @@ export function MarkAttendanceModal({ isOpen, onClose, onSave, employees, defaul
                 <tr key={emp.id} className="border-t border-gray-100">
                   <td className="px-6 py-3 align-top">
                     <div className="font-semibold text-gray-900">{emp.name}</div>
-                    <div className="text-xs text-blue-600">{emp.id}</div>
+                    <div className="text-xs text-blue-600">{emp.customUserId || emp.id}</div>
                   </td>
                   <td className="px-6 py-3 align-top">
                     <div className="flex flex-wrap gap-2">
@@ -132,7 +134,7 @@ export function MarkAttendanceModal({ isOpen, onClose, onSave, employees, defaul
           </table>
         </div>
 
-        <DialogFooter className="flex flex-row justify-end gap-3 px-6 py-4 border-t border-gray-100 bg-white sm:justify-end">
+        <DialogFooter className="flex flex-row justify-end gap-3 px-6 py-2 border-t border-gray-100 bg-white sm:justify-end m-1">
           <Button variant="outline" onClick={onClose} className="border-gray-200 text-gray-700 hover:bg-gray-50 rounded-lg">
             Cancel
           </Button>

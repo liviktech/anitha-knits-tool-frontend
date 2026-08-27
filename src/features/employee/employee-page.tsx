@@ -310,7 +310,7 @@ function EmployeeDirectoryTab() {
             <TableBody>
               {filteredEmployees.length === 0 ? (
                 <TableRow>
-                  <TableCell colSpan={10} className="h-28 text-center text-gray-500 text-md">
+                  <TableCell colSpan={10} className="h-28 !text-center text-gray-500 text-md">
                     No employees found matching your criteria.
                   </TableCell>
                 </TableRow>
