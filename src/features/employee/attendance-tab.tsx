@@ -46,25 +46,16 @@ export function AttendanceTab() {
   const [roleFilter, setRoleFilter] = useState('ALL');
   const [summaryView, setSummaryView] = useState(true);
   const [isModalOpen, setIsModalOpen] = useState(false);
-  const [modalMode, setModalMode] = useState<'add' | 'edit' | 'view'>('add');
   const [selectedRecord, setSelectedRecord] = useState<AttendanceRecord | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<AttendanceRecord | null>(null);
 
-  const openViewModal = (record: AttendanceRecord) => {
-    setSelectedRecord(record);
-    setModalMode('view');
-    setIsModalOpen(true);
-  };
-
   const openEditModal = (record: AttendanceRecord) => {
     setSelectedRecord(record);
-    setModalMode('edit');
     setIsModalOpen(true);
   };
 
   const openAddModal = () => {
     setSelectedRecord(null);
-    setModalMode('add');
     setIsModalOpen(true);
   };
 
@@ -310,7 +301,7 @@ export function AttendanceTab() {
                   <TableCell className="py-3 px-5">
                     <a
                       href="#"
-                      onClick={(e) => { e.preventDefault(); openViewModal(rec); }}
+                      onClick={(e) => { e.preventDefault(); openEditModal(rec); }}
                       className="text-sm font-semibold text-blue-600 hover:underline"
                     >
                       {rec.employeeId}
@@ -365,16 +356,24 @@ export function AttendanceTab() {
       <MarkAttendanceModal
         isOpen={isModalOpen}
         onClose={() => { setIsModalOpen(false); setSelectedRecord(null); }}
-        onSave={(data) => {
-          if (modalMode === 'edit' && selectedRecord) {
-            setRecords(records.map((r) => (r.id === selectedRecord.id ? { ...r, ...data } : r)));
-          } else {
-            setRecords([{ id: `att-${Date.now()}`, ...data }, ...records]);
-          }
+        onSave={(date, entries) => {
+          setRecords((prev) => {
+            const untouched = prev.filter((r) => !(r.date === date && entries.some((e) => e.employeeId === r.employeeId)));
+            const marked: AttendanceRecord[] = entries.map((e) => ({
+              id: `att-${date}-${e.employeeId}`,
+              date,
+              employeeId: e.employeeId,
+              employeeName: e.employeeName,
+              role: e.role,
+              checkIn: '',
+              checkOut: '',
+              status: e.status === 'Company Holiday' ? 'Leave' : e.status,
+            }));
+            return [...marked, ...untouched];
+          });
         }}
-        readOnly={modalMode === 'view'}
-        initialData={selectedRecord}
         employees={employeeOptions}
+        defaultDate={selectedRecord?.date}
       />
 
       <DeleteConfirmDialog
