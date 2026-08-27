@@ -7,7 +7,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Loader } from '@/components/shared/loader';
 import { apiFetch, extractApiErrorMessage } from '@/lib/api-client';
 import { useLookups, findIdByName, type Lookups } from '@/features/extruder/extruder-queries';
-import { fabricCheckingKeys, type FabricCheckingCreatePayload } from '@/features/fabric/fabric-queries';
+import { fabricCheckingKeys, useKoraBalances, findKoraBalanceKg, type FabricCheckingCreatePayload } from '@/features/fabric/fabric-queries';
 import { dashboardProductionKey } from '@/features/production/day-wise-queries';
 import { themes } from '@/features/production/day-entry-sections';
 import { type FabricDraft, emptyFabricDraft, suggestFabricOutput } from '@/features/fabric/fabric-section';
@@ -25,9 +25,11 @@ export function FabricModalForm({ productionDate, initialData, isEditMode, onCan
   const queryClient = useQueryClient();
   const { data: lookupsData } = useLookups();
   const lookups: Lookups = lookupsData ?? { brands: [], colors: [], chemicals: [], sizes: [] };
+  const { data: koraBalanceData } = useKoraBalances();
   const theme = themes.fabric;
 
   const [draft, setDraft] = useState<FabricDraft>(initialData || { ...emptyFabricDraft });
+  const koraBalanceKg = findKoraBalanceKg(koraBalanceData?.data, draft.size, draft.color);
   const [outputManuallyEdited, setOutputManuallyEdited] = useState(!!initialData);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -113,8 +115,15 @@ export function FabricModalForm({ productionDate, initialData, isEditMode, onCan
         <h3 className={`text-xs font-semibold uppercase tracking-wider border-b pb-1.5 ${theme.headerText}`}>Production Details</h3>
         <div className="grid grid-cols-2 gap-4 pt-1">
           <div className="space-y-1.5">
-            <Label className="text-gray-600 text-xs font-semibold">Kora</Label>
-            <Input type="text" placeholder="Kora details" value={draft.kora} onChange={(e) => updateField('kora', e.target.value)} />
+            <Label className="text-gray-600 text-xs font-semibold">Kora Balance (kg)</Label>
+            <Input
+              type="text"
+              placeholder="Select size & color"
+              value={draft.size && draft.color ? (koraBalanceKg ?? 0).toFixed(2) : ''}
+              disabled
+              readOnly
+              className="bg-gray-100"
+            />
           </div>
           <div className="space-y-1.5">
             <Label className="text-gray-600 text-xs font-semibold">Fabric Production (kg)</Label>

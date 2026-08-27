@@ -56,3 +56,8 @@ export function useLoadSentRecords(query: string = '', enabled = true) {
     enabled,
   });
 }
+
+/** LoadSentRecord's weight can come back nested under `loadSent` or top-level, depending on the endpoint. */
+export function getLoadSentWeight(record: LoadSentRecord): number {
+  return record.loadSent?.fabricWeight ?? record.fabricWeight ?? 0;
+}

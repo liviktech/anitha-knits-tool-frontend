@@ -68,6 +68,42 @@ export function useFabricCheckingRecords(query: string = '', enabled: boolean = 
   });
 }
 
+/**
+ * Matches the real API's KoraBalanceEntry schema (see GET /kora-balance).
+ * Kora balance = fabric stock (Looms output − Fabric Checking input) per
+ * color+size variant — not a field stored on the fabric-checking record itself.
+ */
+export interface KoraBalanceEntry {
+  id: string;
+  color: MasterDataRef;
+  size: MasterDataRef;
+  balanceKg: number;
+  updatedAt: string;
+}
+
+export interface KoraBalanceListResponse {
+  success: boolean;
+  data: KoraBalanceEntry[];
+}
+
+export const koraBalanceKeys = {
+  all: ['kora-balance'] as const,
+};
+
+/** Lists the current kora balance for every color+size variant (not paginated — one call returns all). */
+export function useKoraBalances(enabled: boolean = true) {
+  return useQuery({
+    queryKey: koraBalanceKeys.all,
+    queryFn: () => fetchJson<KoraBalanceListResponse>('/kora-balance'),
+    enabled,
+  });
+}
+
+/** Looks up the current kora balance (kg) for a size+color variant by name. Undefined if the variant has no balance yet. */
+export function findKoraBalanceKg(balances: KoraBalanceEntry[] | undefined, sizeName: string, colorName: string): number | undefined {
+  return balances?.find((b) => b.size.name === sizeName && b.color.name === colorName)?.balanceKg;
+}
+
 export interface FabricCheckingSummary {
   input: number;
   checked: number;

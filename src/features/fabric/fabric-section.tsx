@@ -10,6 +10,8 @@ import { sumWastageByCode } from '@/lib/api-types';
 import {
   useFabricCheckingRecords,
   fabricCheckingKeys,
+  useKoraBalances,
+  findKoraBalanceKg,
   type FabricCheckingRecord,
   type FabricCheckingCreatePayload,
 } from '@/features/fabric/fabric-queries';
@@ -38,7 +40,9 @@ export function mapFabricItem(item: FabricCheckingRecord): FabricRow {
     id: item.id,
     size: item.size?.name ?? '',
     color: item.color?.name ?? '',
-    kora: (item.fabricCheck as any)?.kora ?? '',
+    // Kora is not a field on the record — it's the live color+size balance from
+    // GET /kora-balance, overlaid by callers via findKoraBalanceKg. Left blank here.
+    kora: '',
     input: item.fabricCheck?.fabricInputKg ?? 0,
     output: item.fabricCheck?.outputKg ?? (firstGrade + secondGrade),
     pieceCount: (item.fabricCheck as any)?.pieceCount ?? 0,
@@ -77,6 +81,8 @@ export const FabricSection = forwardRef<SectionRef, SectionProps>(({ productionD
   );
   const { data: lookupsData } = useLookups();
   const lookups: Lookups = lookupsData ?? { brands: [], colors: [], chemicals: [], sizes: [] };
+  const { data: koraBalanceData } = useKoraBalances(!hideExisting);
+  const koraBalances = koraBalanceData?.data;
 
   const [newRows, setNewRows] = useState<FabricDraft[]>([]);
   const [deleteTarget, setDeleteTarget] = useState<FabricRow | null>(null);
@@ -93,8 +99,9 @@ export const FabricSection = forwardRef<SectionRef, SectionProps>(({ productionD
       .filter((item) => !productionDate || item.productionDate.startsWith(productionDate))
       .filter((item) => !pendingIds.has(item.id))
       .map(mapFabricItem)
+      .map((row) => ({ ...row, kora: (findKoraBalanceKg(koraBalances, row.size, row.color) ?? 0).toFixed(2) }))
       .filter((row) => row.input > 0 || row.firstGrade > 0 || row.secondGrade > 0 || row.fwKg > 0 || row.bwKg > 0);
-  }, [data, productionDate, hideExisting, pendingIds]);
+  }, [data, productionDate, hideExisting, pendingIds, koraBalances]);
 
   const removeNewRow = (key: string) => {
     setNewRows((current) => current.filter((row) => row.key !== key));
@@ -233,8 +240,8 @@ export const FabricSection = forwardRef<SectionRef, SectionProps>(({ productionD
               <TableHead className={`text-center text-sm font-semibold  tracking-wide border border-black/10 ${theme.headerText}`}>Fabric Production (kg)</TableHead>
               <TableHead className={`text-center text-sm font-semibold  tracking-wide border border-black/10 ${theme.headerText}`}>Fabric Waste</TableHead>
               <TableHead className={`text-center text-sm font-semibold  tracking-wide border border-black/10 ${theme.headerText}`}>Bit Waste</TableHead>
-              <TableHead className={`text-center text-xs font-semibold  tracking-wide ${theme.headerText}`}>Fabric Stock (kg)</TableHead>
-              {!readOnly && <TableHead className={`!text-center text-sm font-semibold  tracking-wide ${theme.headerText}`}>Action</TableHead>}
+              <TableHead className={`text-center text-sm font-semibold  tracking-wide ${theme.headerText}`}>Fabric Stock (kg)</TableHead>
+              {!readOnly && <TableHead className={`!text-center text-sm font-semibold  tracking-wide border border-black/10 ${theme.headerText}`}>Action</TableHead>}
             </TableRow>
           </TableHeader>
           <TableBody>
@@ -272,13 +279,13 @@ export const FabricSection = forwardRef<SectionRef, SectionProps>(({ productionD
                   ))}
                 {rows.map((row) => (
                   <TableRow key={row.id}>
-                    <TableCell className="!text-center">{row.size}</TableCell>
-                    <TableCell className="w-37.5 min-w-37.5 text-center">{row.color}</TableCell>
-                    <TableCell className="text-center">{row.kora}</TableCell>
-                    <TableCell className="text-center">{row.input.toFixed(2)}</TableCell>
-                    <TableCell className="text-center">{row.fwKg.toFixed(2)}</TableCell>
-                    <TableCell className="text-center">{row.bwKg.toFixed(2)}</TableCell>
-                    <TableCell className="text-center">{row.output.toFixed(2)}</TableCell>
+                    <TableCell className="!text-center border border-black/10">{row.size}</TableCell>
+                    <TableCell className="w-37.5 min-w-37.5 text-center border border-black/10">{row.color}</TableCell>
+                    <TableCell className="text-center border border-black/10">{row.kora}</TableCell>
+                    <TableCell className="text-center border border-black/10">{row.input.toFixed(2)}</TableCell>
+                    <TableCell className="text-center border border-black/10">{row.fwKg.toFixed(2)}</TableCell>
+                    <TableCell className="text-center border border-black/10">{row.bwKg.toFixed(2)}</TableCell>
+                    <TableCell className="text-center border border-black/10">{row.output.toFixed(2)}</TableCell>
                     {!readOnly && (
                       <TableCell className="!text-center">
                         <div className="flex items-center justify-center gap-1.5">
