@@ -4,6 +4,10 @@ import { fetchJson } from './api-client';
 export interface LookupItem {
   id: string;
   name: string;
+  /** Server-generated (e.g. "CR001") — see the Raw Materials admin screen. */
+  itemCode: string;
+  createdAt: string;
+  updatedAt: string;
 }
 
 export interface Lookups {
@@ -21,8 +25,8 @@ export function useLookups() {
   return useQuery<Lookups>({
     queryKey: lookupsKeys.all,
     queryFn: async () => {
-      const res = await fetchJson<any>('/lookups');
-      return res.data ?? res;
+      const res = await fetchJson<Lookups | { data: Lookups }>('/lookups');
+      return 'data' in res ? res.data : res;
     },
   });
 }
