@@ -1,6 +1,6 @@
 import { Link } from 'react-router-dom';
 import '@fontsource-variable/hanken-grotesk';
-import { Calendar, RefreshCw, ArrowRight } from 'lucide-react';
+import { RefreshCw, ArrowRight } from 'lucide-react';
 import { format } from 'date-fns';
 import { Loader } from '@/components/shared/loader';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -146,9 +146,8 @@ export function DashboardDesign2() {
              {/* <p className="text-[12px] font-medium text-gray-600 leading-tight mt-0.5">Production overview</p> */}
           </div>
           <div className="flex flex-wrap items-center gap-2">
-            <div className="flex items-center gap-2 border border-gray-400 rounded-lg px-3 py-2 text-sm font-medium text-slate-700">
+            <div className="flex items-center gap-2 px-1 text-sm font-bold text-slate-700">
               <span>{format(new Date(), 'MMM d, yyyy')}</span>
-              <Calendar className="w-4 h-4 text-slate-400" />
             </div>
             <button className="flex items-center justify-center border border-gray-400 rounded-lg w-9 h-9 text-slate-500 hover:bg-slate-50 transition-colors" aria-label="Refresh">
               <RefreshCw className="w-4 h-4" />
