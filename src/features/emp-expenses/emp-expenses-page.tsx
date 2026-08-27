@@ -7,8 +7,6 @@ import {
   Trash2,
   Search,
   Wallet,
-  Receipt,
-  TrendingUp,
   ChevronLeft,
   ChevronRight,
 } from "lucide-react";
@@ -276,79 +274,56 @@ export function EmpExpensesPage() {
       {/* Content Area */}
       <div className="flex-1 overflow-y-auto relative flex flex-col">
         <div className="flex flex-col gap-2 p-2">
-          {/* Top Stat Summary Cards */}
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-1.5">
-            <div className="relative rounded-lg border border-gray-200 bg-white p-3 shadow-sm overflow-hidden transition-all duration-200 hover:shadow-md hover:-translate-y-0.5">
-              <div className="absolute inset-x-0 top-0 h-1 bg-cyan-500" />
-
-              {/* Content */}
-              <div className="pr-14">
-                <div className="flex items-center gap-1.5">
-                  <span className="text-[20px] font-bold text-gray-900">
-                    Total Expenses
-                  </span>
-                </div>
-
-                <div className="mt-2 text-[10px] font-semibold uppercase tracking-wide text-gray-400">
-                  Total Value
-                </div>
-
-                <div className="text-xl font-bold text-gray-900">
-                  {formatCurrency(totalAmount)}
-                </div>
+          {/* Top Stat Summary Cards — styled like Inventory tab's summary cards */}
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-2">
+            {/* Total Expenses Card */}
+            <div className="bg-white rounded-xl border border-gray-400 shadow-sm p-4 relative overflow-hidden group/card hover:border-blue-200 transition-colors flex flex-col">
+              <div className="absolute top-0 right-0 p-4 opacity-5 group-hover/card:opacity-10 transition-opacity">
+                <img src="/wallet.png" alt="" className="w-26 h-26 object-contain" />
               </div>
-
-              {/* Icon on the right */}
-              <div className="absolute right-3 top-1/2 -translate-y-1/2 h-10 w-10 flex items-center justify-center rounded-md border border-cyan-200 text-cyan-600">
-                <Wallet className="h-4 w-4" />
+              <div className="flex justify-between items-center mb-4 relative z-10">
+                <div className="flex items-center gap-2">
+                  <div><img src="/wallet.png" alt="Total Expenses" className="w-12 h-12 object-contain" /></div>
+                  <h3 className="font-extrabold text-gray-800 text-lg">Total Expenses</h3>
+                </div>
+                <div className="text-lg font-bold text-gray-800 leading-none">{formatCurrency(totalAmount)}</div>
+              </div>
+              <div className="mt-auto relative z-10 pt-2 border-t border-gray-50">
+                <span className="text-xs text-gray-400 italic">Total spend this month</span>
               </div>
             </div>
 
-            <div className="relative rounded-lg border border-gray-200 bg-white p-3 shadow-sm overflow-hidden transition-all duration-200 hover:shadow-md hover:-translate-y-0.5">
-              <div className="absolute inset-x-0 top-0 h-1 bg-orange-500" />
-              <div className="pr-14">
-                <div className="flex items-center gap-1.5">
-                  <span className="text-[20px] font-bold text-orange-600">
-                    Recorded Entries
-                  </span>
-                </div>
-
-                <div className="mt-2 text-[10px] font-semibold uppercase tracking-wide text-gray-400">
-                  Entries Count
-                </div>
-
-                <div className="text-xl font-bold text-gray-900">
-                  {monthEntryCount}
-                </div>
+            {/* Recorded Entries Card */}
+            <div className="bg-white rounded-xl border border-gray-400 shadow-sm p-4 relative overflow-hidden group/card hover:border-orange-200 transition-colors flex flex-col">
+              <div className="absolute top-0 right-0 p-4 opacity-5 group-hover/card:opacity-10 transition-opacity">
+                <img src="/record.png" alt="" className="w-26 h-26 object-contain" />
               </div>
-
-              {/* Square icon on the right */}
-              <div className="absolute right-3 top-1/2 -translate-y-1/2 h-10 w-10 flex items-center justify-center rounded-md border border-orange-200 text-orange-600">
-                <Receipt className="h-4 w-4" />
+              <div className="flex justify-between items-center mb-4 relative z-10">
+                <div className="flex items-center gap-2">
+                  <div><img src="/record.png" alt="Recorded Entries" className="w-12 h-12 object-contain" /></div>
+                  <h3 className="font-extrabold text-gray-800 text-lg">Recorded Entries</h3>
+                </div>
+                <div className="text-lg font-bold text-gray-800 leading-none">{monthEntryCount}</div>
+              </div>
+              <div className="mt-auto relative z-10 pt-2 border-t border-gray-50">
+                <span className="text-xs text-gray-400 italic">Expenses logged this month</span>
               </div>
             </div>
 
-            <div className="relative rounded-lg border border-gray-200 bg-white p-3 shadow-sm overflow-hidden transition-all duration-200 hover:shadow-md hover:-translate-y-0.5">
-              <div className="absolute inset-x-0 top-0 h-1 bg-rose-800" />
-              <div className="pr-14">
-                <div className="flex items-center gap-1.5">
-                  <span className="text-[20px] font-bold text-emerald-700">
-                    Average / Entry
-                  </span>
-                </div>
-
-                <div className="mt-2 text-[10px] font-semibold uppercase tracking-wide text-gray-400">
-                  Avg Amount
-                </div>
-
-                <div className="text-xl font-bold text-gray-900">
-                  {formatCurrency(avgAmount)}
-                </div>
+            {/* Average / Entry Card */}
+            <div className="bg-white rounded-xl border border-gray-400 shadow-sm p-4 relative overflow-hidden group/card hover:border-purple-200 transition-colors flex flex-col">
+              <div className="absolute top-0 right-0 p-4 opacity-5 group-hover/card:opacity-10 transition-opacity">
+                <img src="/entry.png" alt="" className="w-26 h-26 object-contain" />
               </div>
-
-              {/* Square icon on the right */}
-              <div className="absolute right-3 top-1/2 -translate-y-1/2 h-10 w-10 flex items-center justify-center rounded-md border border-emerald-200 text-emerald-700">
-                <TrendingUp className="h-4 w-4" />
+              <div className="flex justify-between items-center mb-4 relative z-10">
+                <div className="flex items-center gap-2">
+                  <div><img src="/entry.png" alt="Average per Entry" className="w-12 h-12 object-contain" /></div>
+                  <h3 className="font-extrabold text-gray-800 text-lg">Average / Entry</h3>
+                </div>
+                <div className="text-lg font-bold text-gray-800 leading-none">{formatCurrency(avgAmount)}</div>
+              </div>
+              <div className="mt-auto relative z-10 pt-2 border-t border-gray-50">
+                <span className="text-xs text-gray-400 italic">Average cost per expense</span>
               </div>
             </div>
           </div>
