@@ -1,7 +1,7 @@
 import { Link } from 'react-router-dom';
 import '@fontsource-variable/hanken-grotesk';
 import { Calendar, RefreshCw, ArrowRight, Layers } from 'lucide-react';
-import { format } from 'date-fns';
+import { format, startOfMonth, endOfMonth, subMonths } from 'date-fns';
 import loomsIcon from '@/assets/looms-icon.png';
 import { useLoadSentRecords, getLoadSentWeight } from '@/features/inventory/load-sent-queries';
 import { Loader } from '@/components/shared/loader';
@@ -44,11 +44,10 @@ const FABRIC_COLORS = ['Blue', 'Green', 'White'] as const;
 
 export function DashboardDesign2() {
   const currentMonthStr = format(new Date(), 'yyyy-MM');
-  const prevMonthDate = new Date();
-  prevMonthDate.setMonth(prevMonthDate.getMonth() - 1);
+  const prevMonthDate = subMonths(new Date(), 1);
   const prevMonthStr = format(prevMonthDate, 'yyyy-MM');
 
-  const { apiSummary, isLoading } = useDayWiseProduction(currentMonthStr);
+  const { rows, apiSummary, isLoading } = useDayWiseProduction(currentMonthStr);
   const { apiSummary: prevApiSummary } = useDayWiseProduction(prevMonthStr);
   const { data: inventoryData } = useInventoryRecords('?limit=100');
   const { data: loadSentData, isLoading: loadingLoadSent } = useLoadSentRecords('?limit=100');
@@ -287,19 +286,36 @@ export function DashboardDesign2() {
 
   const selectedMonthDeliveryTotal = monthDeliveries.reduce((sum, d) => sum + d.kg, 0);
 
+  // Fabric Delivered grouped by color — one card per color, pre-seeded with
+  // FABRIC_COLORS so all 3 always render even with zero deliveries.
+  const monthDeliveriesByColor = (() => {
+    const map = new Map<string, typeof monthDeliveries>();
+    FABRIC_COLORS.forEach((color) => map.set(color, []));
+    monthDeliveries.forEach((d) => {
+      const existing = map.get(d.color) ?? [];
+      existing.push(d);
+      map.set(d.color, existing);
+    });
+    return Array.from(map.entries()).map(([color, deliveries]) => ({
+      color,
+      deliveries,
+      total: deliveries.reduce((sum, d) => sum + d.kg, 0),
+    }));
+  })();
+
   if (isLoading) {
     return (
-      <div className="h-full flex items-center justify-center bg-white">
-        <div className="flex items-center gap-2 text-slate-500">
-          <Loader size="xl" />
-          Loading dashboard...
+      <div className="h-full flex items-center justify-center bg-white animate-in fade-in-0 duration-300">
+        <div className="flex flex-col items-center gap-3 text-slate-500">
+          <Loader size="xl" className="text-[#004D40]" />
+          <p className="text-sm font-medium animate-pulse">Loading dashboard...</p>
         </div>
       </div>
     );
   }
 
   return (
-    <div className="relative min-h-full overflow-hidden bg-white">
+    <div className="relative min-h-full overflow-hidden bg-white animate-in fade-in-0 slide-in-from-bottom-4 duration-500 fill-mode-both">
       <style>{`
         @keyframes dashFloatA { 0%, 100% { transform: translate3d(0,0,0) scale(1); } 50% { transform: translate3d(-18px,24px,0) scale(1.06); } }
         @keyframes dashFloatB { 0%, 100% { transform: translate3d(0,0,0) scale(1); } 50% { transform: translate3d(20px,-16px,0) scale(1.08); } }
@@ -566,7 +582,7 @@ export function DashboardDesign2() {
 
 
           {/* Fabric Stock (own horizontal section) */}
-      <div className="w-full py-2 border-b border-gray-300 pb-3">
+      <div className="w-full">
         {/* <p className="font-bold text-lg px-0.5 text-left">Fabric Stock Overview</p> */}
         <div className="py-2">
           <FabricStockCard rows={fabricStockByColor} total={totalFabricStockKg} />
@@ -576,8 +592,8 @@ export function DashboardDesign2() {
       {/* Fabric Delivered (own horizontal section, below Fabric Stock) */}
       <div className="w-full">
         {/* <p className="font-bold text-xl px-0.5 text-left">Fabric Delivered Overview</p> */}
-        <Card className="font-hanken w-full bg-white border border-gray-400 shadow-lg shadow-slate-200/50 rounded-3xl p-3 md:p-3 flex flex-col transition-shadow duration-300 hover:shadow-xl hover:shadow-slate-300/40 animate-in fade-in-0 slide-in-from-bottom-3 duration-700 fill-mode-both mt-2">
-          <CardHeader className="p-0 flex flex-row items-center justify-between border-b border-gray-400 pb-2">
+        <Card className="font-hanken w-full bg-white border border-gray-400 shadow-lg shadow-slate-200/50 rounded-3xl p-2 md:p-2 gap-2 flex flex-col transition-shadow duration-300 hover:shadow-xl hover:shadow-slate-300/40 animate-in fade-in-0 slide-in-from-bottom-3 duration-700 fill-mode-both">
+          <CardHeader className="p-0 flex flex-row items-center justify-between border-b border-gray-400 pt-0 pb-0!">
             <CardTitle className="flex items-center gap-2 px-2 text-[20px] font-bold text-[#004D40]">
               <div
                 className="w-6 h-6 bg-[#004D40]"
@@ -610,40 +626,51 @@ export function DashboardDesign2() {
               <div className="flex-1 flex items-center justify-center">
                 <p className="text-xs text-gray-400 italic">Loading delivered records...</p>
               </div>
-            ) : monthDeliveries.length === 0 ? (
-              <div className="flex-1 flex items-center justify-center">
-                <p className="text-xs text-gray-400 italic">No delivered records for this month.</p>
-              </div>
             ) : (
-              <div className="border border-gray-300 rounded-lg overflow-hidden mt-3">
-                <table className="w-full table-fixed text-[13px] text-left">
-                  <thead className="block w-full bg-slate-50 font-bold text-slate-500 uppercase text-[10px] tracking-wide">
-                    <tr className="table w-full table-fixed">
-                      <th className="px-3 py-2.5 w-24">Date</th>
-                      <th className="px-3 py-2.5">Color</th>
-                      <th className="px-3 py-2.5">Size</th>
-                      <th className="px-3 py-2.5">Quantity (Kg)</th>
-                      <th className="px-3 py-2.5">Vehicle No</th>
-                      <th className="px-3 py-2.5 w-28 text-right bg-slate-100">Status</th>
-                    </tr>
-                  </thead>
-                  {/* Shows the 5 most recent deliveries at a glance; anything beyond that
-                      scrolls within the body only, so the card doesn't grow unbounded. */}
-                  <tbody className="block w-full max-h-60 overflow-y-auto">
-                    {monthDeliveries.map((d, i) => (
-                      <tr key={d.id} className={`table w-full table-fixed ${i % 2 === 0 ? 'bg-white' : 'bg-slate-50/60'}`}>
-                        <td className="px-3 py-2.5 w-24 text-slate-600">{formatDateDMY(d.date)}</td>
-                        <td className={`px-3 py-2.5 font-semibold ${deliveryColorClass(d.color)}`}>{d.color}</td>
-                        <td className="px-3 py-2.5 text-slate-700">{d.size}</td>
-                        <td className="px-3 py-2.5 font-bold font-inter text-slate-900">{formatNum(d.kg)}</td>
-                        <td className="px-3 py-2.5 text-slate-600 font-inter">{d.vehicleNo}</td>
-                        <td className="px-3 py-2.5 w-28 text-right bg-slate-50">
-                          <span className="inline-block bg-emerald-50 text-emerald-700 text-xs font-medium px-3 py-1 rounded-full">Delivered</span>
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-2.5">
+                {monthDeliveriesByColor.map((row) => {
+                  const theme = fabricStockCardTheme(row.color);
+                  return (
+                    <Card key={row.color} className={`${theme.bg} border ${theme.border} rounded-[14px] hover:shadow-md transition-all flex flex-col gap-0 h-full py-0`}>
+                      <CardHeader className="flex flex-row items-center justify-between pb-2 pt-2 px-3">
+                        <CardTitle className={`text-[17px] font-bold flex items-center gap-2 ${deliveryColorClass(row.color)}`}>
+                          <span className={`w-3 h-3 rounded-full ${theme.swatch}`} />
+                          {row.color}
+                        </CardTitle>
+                        <span className={`text-[13px] font-bold ${deliveryColorClass(row.color)}`}>Total : <span className="font-inter">{formatNum(row.total)}</span> kg</span>
+                      </CardHeader>
+                      <CardContent className="px-2 pb-2 flex-1 flex flex-col">
+                        {row.deliveries.length === 0 ? (
+                          <div className="flex-1 flex items-center justify-center py-4">
+                            <p className="text-xs text-gray-400 italic">No deliveries recorded yet.</p>
+                          </div>
+                        ) : (
+                          <div className="w-full border border-gray-300 rounded-lg overflow-hidden bg-white">
+                            <table className="w-full table-fixed text-[13px] text-left">
+                              <thead className="block w-full bg-slate-50 font-bold text-slate-500 uppercase text-[10px] tracking-wide">
+                                <tr className="table w-full table-fixed">
+                                  <th className="px-3 py-2 w-24 whitespace-nowrap">Date</th>
+                                  <th className="px-3 py-2 text-center">Size</th>
+                                  <th className="px-3 py-2 w-24 text-right">Qty (Kg)</th>
+                                </tr>
+                              </thead>
+                              {/* Caps the visible list per card; anything beyond scrolls within the body only. */}
+                              <tbody className="block w-full max-h-40 overflow-y-auto">
+                                {row.deliveries.map((d, i) => (
+                                  <tr key={d.id} className={`table w-full table-fixed ${i % 2 === 0 ? 'bg-white' : 'bg-slate-50/60'}`}>
+                                    <td className="px-3 py-2 w-24 whitespace-nowrap text-slate-600">{formatDateDMY(d.date)}</td>
+                                    <td className="px-3 py-2 text-center text-slate-700">{d.size}</td>
+                                    <td className="px-3 py-2 w-24 text-right font-bold font-inter text-slate-900">{formatNum(d.kg)}</td>
+                                  </tr>
+                                ))}
+                              </tbody>
+                            </table>
+                          </div>
+                        )}
+                      </CardContent>
+                    </Card>
+                  );
+                })}
               </div>
             )}
           </CardContent>
@@ -892,7 +919,7 @@ function FabricStockCard({
 }) {
   return (
     <Card className="font-hanken bg-white border border-gray-400 shadow-lg shadow-slate-200/50 rounded-3xl p-2 md:p-2 gap-2 flex flex-col transition-shadow duration-300 hover:shadow-xl hover:shadow-slate-300/40 animate-in fade-in-0 slide-in-from-bottom-3 duration-700 fill-mode-both">
-      <CardHeader className="p-0 flex flex-row items-center justify-between border-b border-gray-400 pt-0 pb-0">
+      <CardHeader className="p-0 flex flex-row items-center justify-between border-b border-gray-400 pt-0 pb-0!">
         <CardTitle className="flex items-center gap-2 px-2 text-[20px] font-bold text-[#004D40]">
           <img src="/stock.png" alt="" className="w-6 h-6 object-contain" />
           Fabric Stock

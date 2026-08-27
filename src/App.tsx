@@ -1,5 +1,6 @@
 import { useState, type ReactNode } from 'react';
 import '@fontsource-variable/inter';
+import '@fontsource-variable/hanken-grotesk';
 import { BrowserRouter, Routes, Route, Navigate, NavLink, Link, useLocation, useNavigate } from 'react-router-dom';
 import { LoginPage } from './features/auth/login-page';
 import { useAuth, defaultRouteFor } from './features/auth/auth-context';
@@ -64,7 +65,7 @@ function NavLinks({ onNavigate }: { onNavigate?: () => void }) {
             to={item.to}
             onClick={onNavigate}
             className={({ isActive }) =>
-              `w-full flex items-center gap-3 px-3 py-3 text-[13px] font-medium rounded-lg transition-colors ${isActive ? 'text-white font-semibold bg-white/10' : 'text-white/70 hover:bg-white/5 hover:text-white'
+              `w-full flex items-center gap-3 px-3 py-2.5 text-[13.5px] font-semibold rounded-lg transition-colors ${isActive ? 'text-white font-semibold bg-white/10' : 'text-white/70 hover:bg-white/5 hover:text-white'
               }`
             }
           >
@@ -120,8 +121,8 @@ function AppShell() {
       {/* Laptop: persistent sidebar */}
       <aside className="hidden lg:flex w-50 shrink-0 flex-col overflow-y-auto">
         <Link to="/dashboard" className="flex items-center justify-center gap-2 py-6 px-4 cursor-pointer">
-          <img src={threadIcon} alt="" className="h-6 w-6 shrink-0 object-contain brightness-0 invert" />
-          <span className="text-[20px] font-serif font-bold text-white tracking-widest whitespace-nowrap">LK Knits</span>
+          <img src={threadIcon} alt="" className="h-7 w-7 shrink-0 object-contain brightness-0 invert" />
+          <span className="text-[20px] font-['Hanken_Grotesk',sans-serif] font-bold text-white tracking-widest whitespace-nowrap">LK KNITS</span>
         </Link>
         <NavLinks />
         <div className="p-2">
@@ -133,7 +134,7 @@ function AppShell() {
       <header className="flex items-center justify-between border-b bg-[#004D40] px-4 py-3 lg:hidden">
         <Link to="/dashboard" className="flex items-center gap-2 cursor-pointer">
           <img src={threadIcon} alt="" className="h-5 w-5 shrink-0 object-contain brightness-0 invert" />
-          <span className="text-[18px] font-serif font-bold text-white tracking-widest whitespace-nowrap">LK Knits</span>
+          <span className="text-[18px] font-['Hanken_Grotesk',sans-serif] font-bold text-white tracking-widest whitespace-nowrap">LK Knits</span>
         </Link>
         <Sheet open={mobileNavOpen} onOpenChange={setMobileNavOpen}>
           <Button variant="ghost" size="icon" className="text-white hover:bg-white/20 hover:text-white" onClick={() => setMobileNavOpen(true)}>
@@ -143,7 +144,7 @@ function AppShell() {
             <SheetHeader className="py-6 px-4">
               <SheetTitle className="flex items-center justify-center gap-2">
                 <img src={threadIcon} alt="" className="h-6 w-6 shrink-0 object-contain brightness-0 invert" />
-                <span className="text-[20px] font-serif font-bold text-white tracking-widest whitespace-nowrap">LK Knits</span>
+                <span className="text-[20px] font-['Hanken_Grotesk',sans-serif] font-bold text-white tracking-widest whitespace-nowrap">LK Knits</span>
               </SheetTitle>
             </SheetHeader>
             <NavLinks onNavigate={() => setMobileNavOpen(false)} />
