@@ -15,6 +15,7 @@ import {
   colorGramsPerBasis,
   type Lookups,
   type ExtruderCreatePayload,
+  type ExtruderUpdatePayload,
 } from '@/features/extruder/extruder-queries';
 import { dashboardProductionKey } from '@/features/production/day-wise-queries';
 import { themes } from '@/features/production/day-entry-sections';
@@ -68,7 +69,7 @@ function splitGroupTotals(group: ExtruderGroupDraft) {
 function brandBagFields(brand: ExtruderBrandDraft): Pick<ExtruderCreatePayload, 'bagCount' | 'bagWeightKg' | 'looseWeightKg' | 'totalWeightKg'> {
   const fields: Pick<ExtruderCreatePayload, 'bagCount' | 'bagWeightKg' | 'looseWeightKg' | 'totalWeightKg'> = {};
   const bagCount = parseInt(brand.bags, 10);
-  const bagWeightKg = parseFloat(brand.weightPerBag);
+  const bagWeightKg = parseFloat(brand.basisWeightKg);
   const looseWeightKg = parseFloat(brand.looseWeight);
   const totalWeightKg = parseFloat(brand.raw);
   if (!isNaN(bagCount) && bagCount > 0) fields.bagCount = bagCount;
@@ -91,7 +92,7 @@ const emptyBrandDraft = (): ExtruderBrandDraft => ({
   key: crypto.randomUUID(),
   brand: '',
   bags: '',
-  weightPerBag: '',
+  basisWeightKg: '',
   looseWeight: '',
   raw: '',
 });
@@ -121,22 +122,18 @@ export function ExtruderModalForm({ productionDate, initialData, isEditMode, onC
 
   const { data: standardData } = useColorConsumptionStandard();
   const standard = standardData?.data;
-  const bagWeightStandard = standard?.hdpematerialbag;
   const chemicalWeightStandard = standard ? parseFloat(standard.chemicalWeight) : undefined;
   const basisWeightKg = standard ? parseFloat(standard.basisWeightKg) : undefined;
-  const gramsPerBasisForColor = colorGramsPerBasis(standard, group.color);
+  const kgPerBasis = colorGramsPerBasis(standard, group.color); // actual API field is kg per basis unit
 
-  // Bag weight and chemical/colour weight are fixed company-wide standards,
-  // not per-entry inputs — derive them from the standard on every render
-  // rather than syncing them into draft state (which would need an effect
-  // to react to the standard loading asynchronously).
-  const bagWeightStr = bagWeightStandard !== undefined ? String(bagWeightStandard) : '';
+  // Bag weight displayed comes from basisWeightKg standard (e.g. 25 kg per bag).
+  // Total = (bags × bagWt) + looseWt
+  const bagWtStr = basisWeightKg !== undefined ? String(basisWeightKg) : '';
   const computedBrands = useMemo(
     () => group.brands.map((b) => {
-      const weightPerBag = bagWeightStandard !== undefined ? bagWeightStr : b.weightPerBag;
-      return { ...b, weightPerBag, raw: computeRaw(b.bags, weightPerBag, b.looseWeight) };
+      return { ...b, basisWeightKg: bagWtStr, raw: computeRaw(b.bags, bagWtStr, b.looseWeight) };
     }),
-    [group.brands, bagWeightStandard, bagWeightStr],
+    [group.brands, basisWeightKg, bagWtStr],
   );
 
   const totalRawKg = useMemo(
@@ -144,9 +141,17 @@ export function ExtruderModalForm({ productionDate, initialData, isEditMode, onC
     [computedBrands],
   );
   const standardColorConsumedKg = useMemo(() => {
-    if (gramsPerBasisForColor === undefined || !basisWeightKg) return undefined;
-    return roundKg((gramsPerBasisForColor / 1000) * (totalRawKg / basisWeightKg));
-  }, [gramsPerBasisForColor, basisWeightKg, totalRawKg]);
+    if (kgPerBasis === undefined || !basisWeightKg) return undefined;
+    // colorConsumedKg = kgPerBasis × (totalRawKg / basisWeightKg)
+    // e.g. 0.15 kg/basis × (81 kg / 25 kg/basis) = 0.486 kg
+    return roundKg(kgPerBasis * (totalRawKg / basisWeightKg));
+  }, [kgPerBasis, basisWeightKg, totalRawKg]);
+
+  // Chemical consumed scales the same way: chemicalWeight (kg/basis) × (totalRawKg / basisWeightKg)
+  const standardChemicalConsumedKg = useMemo(() => {
+    if (chemicalWeightStandard === undefined || !basisWeightKg) return undefined;
+    return roundKg(chemicalWeightStandard * (totalRawKg / basisWeightKg));
+  }, [chemicalWeightStandard, basisWeightKg, totalRawKg]);
 
   const updateGroupField = (field: keyof ExtruderGroupDraft, value: string) => {
     setGroup(prev => ({ ...prev, [field]: value }));
@@ -187,7 +192,7 @@ export function ExtruderModalForm({ productionDate, initialData, isEditMode, onC
       return;
     }
 
-    if ((chemicalWeightStandard ?? 0) <= 0 || (parseFloat(group.output) || 0) <= 0) {
+    if ((standardChemicalConsumedKg ?? 0) <= 0 || (parseFloat(group.output) || 0) <= 0) {
       setError('Chemical weight and total loom production must both be greater than 0.');
       return;
     }
@@ -196,10 +201,26 @@ export function ExtruderModalForm({ productionDate, initialData, isEditMode, onC
     try {
       const shares = splitGroupTotals({
         ...group,
-        chemicalKg: String(chemicalWeightStandard ?? 0),
+        chemicalKg: String(standardChemicalConsumedKg ?? 0),
         colorConsumedKg: String(standardColorConsumedKg ?? 0),
         brands: computedBrands,
       });
+
+      // Brand rows that existed on the original record but were removed from
+      // this group in the modal need to be deleted, not left behind.
+      const currentIds = new Set(computedBrands.map((b) => b.id).filter(Boolean));
+      const removedIds = (initialData?.brands ?? [])
+        .map((b) => b.id)
+        .filter((id): id is string => !!id && !currentIds.has(id));
+      for (const id of removedIds) {
+        const response = await apiFetch(`/production/extruder/${id}`, { method: 'DELETE' });
+        if (!response.ok) {
+          const msg = await extractApiErrorMessage(response, 'Failed to remove one or more extruder entries.');
+          setError(msg);
+          return;
+        }
+      }
+
       for (const [index, brandRow] of computedBrands.entries()) {
         const brandId = findIdByName(lookups.brands, brandRow.brand);
         if (!brandId) {
@@ -207,33 +228,58 @@ export function ExtruderModalForm({ productionDate, initialData, isEditMode, onC
           return;
         }
         const share = shares[index];
-        const payload: ExtruderCreatePayload = {
-          productionDate,
-          colorId,
-          sizeId,
-          brandId,
-          chemicalId,
-          rawMaterialKg: parseFloat(brandRow.raw) || 0,
-          // Chemical/output/wastage/colour-consumed are captured once per group in
-          // this form — split across each brand row in proportion to its share of
-          // the group's raw material, since the backend requires a positive value
-          // on every individual record.
-          chemicalKg: share.chemicalKg,
-          colorConsumedKg: share.colorConsumedKg > 0 ? share.colorConsumedKg : undefined,
-          yarnOutputKg: share.yarnOutputKg,
-          lumpsKg: share.lumpsKg,
-          yarnWasteKg: share.yarnWasteKg,
-          ...brandBagFields(brandRow),
-        };
-        const response = await apiFetch('/production/extruder', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(payload),
-        });
-        if (!response.ok) {
-          const msg = await extractApiErrorMessage(response, 'Failed to save extruder entry.');
-          setError(msg);
-          return;
+        // Chemical/output/wastage/colour-consumed are captured once per group in
+        // this form — split across each brand row in proportion to its share of
+        // the group's raw material, since the backend requires a positive value
+        // on every individual record.
+        if (brandRow.id) {
+          // Existing row — update it in place rather than creating a duplicate.
+          const payload: ExtruderUpdatePayload = {
+            brandId,
+            chemicalId,
+            rawMaterialKg: parseFloat(brandRow.raw) || 0,
+            chemicalKg: share.chemicalKg,
+            colorConsumedKg: share.colorConsumedKg > 0 ? share.colorConsumedKg : undefined,
+            yarnOutputKg: share.yarnOutputKg,
+            lumpsKg: share.lumpsKg,
+            yarnWasteKg: share.yarnWasteKg,
+            ...brandBagFields(brandRow),
+          };
+          const response = await apiFetch(`/production/extruder/${brandRow.id}`, {
+            method: 'PATCH',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(payload),
+          });
+          if (!response.ok) {
+            const msg = await extractApiErrorMessage(response, 'Failed to save extruder entry.');
+            setError(msg);
+            return;
+          }
+        } else {
+          const payload: ExtruderCreatePayload = {
+            productionDate,
+            colorId,
+            sizeId,
+            brandId,
+            chemicalId,
+            rawMaterialKg: parseFloat(brandRow.raw) || 0,
+            chemicalKg: share.chemicalKg,
+            colorConsumedKg: share.colorConsumedKg > 0 ? share.colorConsumedKg : undefined,
+            yarnOutputKg: share.yarnOutputKg,
+            lumpsKg: share.lumpsKg,
+            yarnWasteKg: share.yarnWasteKg,
+            ...brandBagFields(brandRow),
+          };
+          const response = await apiFetch('/production/extruder', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(payload),
+          });
+          if (!response.ok) {
+            const msg = await extractApiErrorMessage(response, 'Failed to save extruder entry.');
+            setError(msg);
+            return;
+          }
         }
       }
       // All brands saved — refresh the table
@@ -251,7 +297,7 @@ export function ExtruderModalForm({ productionDate, initialData, isEditMode, onC
     <div className="flex flex-col gap-2 px-1">
 
       {/* General Settings */}
-      <div className="flex gap-6">
+      <div className="flex gap-6 p-3 rounded-lg border border-gray-400">
         <div className="flex items-center gap-1 w-50">
           <Label className="text-gray-600 text-xs font-semibold uppercase tracking-wider shrink-0 w-10">Size</Label>
           <Select value={group.size} onValueChange={(v) => updateGroupField('size', v)} disabled={isEditMode}>
@@ -266,11 +312,11 @@ export function ExtruderModalForm({ productionDate, initialData, isEditMode, onC
             <SelectContent>{lookups.colors?.map((c) => <SelectItem key={c.id} value={c.name}>{c.name}</SelectItem>)}</SelectContent>
           </Select>
         </div>
-        
+
       </div>
 
       {/* HDPE Material */}
-      <div className="space-y-2 bg-gray-100 p-3 rounded-lg border border-gray-200">
+      <div className="space-y-2 p-3 rounded-lg border border-gray-400">
         <div className="border-b pb-1.5">
           <h3 className={`text-xs font-semibold uppercase tracking-wider ${theme.headerText}`}>HDPE Material</h3>
         </div>
@@ -290,7 +336,7 @@ export function ExtruderModalForm({ productionDate, initialData, isEditMode, onC
               </div>
               <div className="space-y-1 flex-1">
                 {idx === 0 && <Label className="text-xs text-gray-500">Bag Wt</Label>}
-                <Input type="number" placeholder="Bag Wt" disabled readOnly value={brandRow.weightPerBag} className="h-8 text-xs w-full bg-gray-100" />
+                <Input type="number" placeholder="Bag Wt" disabled readOnly value={brandRow.basisWeightKg} className="h-8 text-xs w-full bg-gray-100" />
               </div>
               <div className="space-y-1 flex-1">
                 {idx === 0 && <Label className="text-xs text-gray-500">Loose Wt</Label>}
@@ -322,7 +368,7 @@ export function ExtruderModalForm({ productionDate, initialData, isEditMode, onC
 
       <div className="grid grid-cols-2 gap-3">
         {/* Chemicals */}
-        <div className="space-y-2 bg-gray-100 p-3 rounded-lg border border-gray-200">
+        <div className="space-y-2 p-3 rounded-lg border border-gray-400">
           <h3 className={`text-xs font-semibold uppercase tracking-wider border-b pb-1.5 ${theme.headerText}`}>Chemicals & Colors</h3>
           <div className="space-y-2">
             <div className="space-y-1.5">
@@ -335,7 +381,7 @@ export function ExtruderModalForm({ productionDate, initialData, isEditMode, onC
             <div className="grid grid-cols-2 gap-2">
               <div className="space-y-1.5">
                 <Label className="text-gray-600 text-xs font-semibold">Chem Wt (kg)</Label>
-                <Input type="number" placeholder="0.00" className="h-8 text-xs bg-gray-100" value={chemicalWeightStandard !== undefined ? chemicalWeightStandard.toFixed(2) : ''} disabled readOnly />
+                <Input type="number" placeholder="0.00" className="h-8 text-xs bg-gray-100" value={standardChemicalConsumedKg !== undefined ? standardChemicalConsumedKg.toFixed(2) : ''} disabled readOnly />
               </div>
               <div className="space-y-1.5">
                 <Label className="text-gray-600 text-xs font-semibold">Color Wt (kg)</Label>
@@ -346,7 +392,7 @@ export function ExtruderModalForm({ productionDate, initialData, isEditMode, onC
         </div>
 
         {/* Wastage */}
-        <div className="space-y-2 bg-gray-50/50 p-3 rounded-lg border border-gray-100">
+        <div className="space-y-2 p-3 rounded-lg border border-gray-400">
           <h3 className={`text-xs font-semibold uppercase tracking-wider border-b pb-1.5 ${theme.headerText}`}>Wastage</h3>
           <div className="space-y-2 pt-0.5">
             <div className="space-y-1.5">
@@ -362,7 +408,7 @@ export function ExtruderModalForm({ productionDate, initialData, isEditMode, onC
       </div>
 
       {/* Loom Production */}
-      <div className="space-y-2 bg-green-50/30 p-3 rounded-lg border border-green-100">
+      <div className="space-y-2 bg-green-50/30 p-3 rounded-lg border border-green-300">
         <h3 className="text-xs font-semibold uppercase tracking-wider text-green-800 border-b border-green-200 pb-1.5">Loom Production</h3>
         <div className="flex items-center gap-4 pt-1 w-2/3">
           <Label className="text-green-800 text-xs font-semibold shrink-0">Total Loom Production (kg)</Label>

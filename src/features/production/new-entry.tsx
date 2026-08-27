@@ -31,7 +31,7 @@ export function NewEntry({ onClose, defaultDate, readOnly = false }: NewEntryPro
 
   const [date, setDate] = useState<Date>(defaultDate ? parseISO(defaultDate) : new Date());
   const productionDate = format(date, 'yyyy-MM-dd');
-  const [submitting, setSubmitting] = useState(false);
+  const [submitting] = useState(false);
   const [isInventoryMinimized, setIsInventoryMinimized] = useState(false);
 
   const [searchParams] = useSearchParams();
@@ -120,22 +120,6 @@ export function NewEntry({ onClose, defaultDate, readOnly = false }: NewEntryPro
   const totalChemical = lookups.chemicals.reduce((sum, c) => sum + parseFloat(getChemicalBalance(c.name) || '0'), 0).toFixed(2);
   const totalColor = lookups.colors.reduce((sum, c) => sum + parseFloat(getColorBalance(c.name) || '0'), 0).toFixed(2);
 
-  const handleSaveAll = async () => {
-    setSubmitting(true);
-    try {
-      await Promise.all([
-        extruderRef.current?.saveDraft(),
-        loomRef.current?.saveDraft(),
-        fabricRef.current?.saveDraft(),
-        fabricDeliveredRef.current?.saveDraft(),
-      ]);
-    } catch (e) {
-      console.error(e);
-    } finally {
-      setSubmitting(false);
-    }
-  };
-
   return (
     <div className="flex flex-col h-full bg-[#004D40]/5">
       <div className="flex-1 p-2 md:p-2 overflow-y-auto ">
@@ -221,9 +205,8 @@ export function NewEntry({ onClose, defaultDate, readOnly = false }: NewEntryPro
         {/* Forms Container */}
         <div className="flex flex-col gap-2.5">
           <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full flex-col gap-0">
-            <div className="flex justify-between items-end border-b border-gray-200">
-              <TabsList variant="folder" className="flex overflow-x-auto sm:overflow-visible">
-                <TabsTrigger value="extruder" className="data-[state=active]:!bg-[#D6EEF7] data-[state=active]:!text-[#0B5566] data-[state=active]:!border-b-[#D6EEF7]">EXtruder Production</TabsTrigger>
+            <div className="flex justify-between items-end border-b border-gray-200">              <TabsList variant="folder" className="flex overflow-x-auto sm:overflow-visible">
+                <TabsTrigger value="extruder" className="data-[state=active]:!bg-[#D6EEF7] data-[state=active]:!text-[#0B5566] data-[state=active]:!border-b-[#D6EEF7]">Extruder Production</TabsTrigger>
                 <TabsTrigger value="looms" className="data-[state=active]:!bg-[#FFF6BF] data-[state=active]:!text-[#7A6A00] data-[state=active]:!border-b-[#FFF6BF]">Looms Production</TabsTrigger>
                 <TabsTrigger value="fabric" className="data-[state=active]:!bg-[#DCEEDB] data-[state=active]:!text-[#2F6B2F] data-[state=active]:!border-b-[#DCEEDB]">Fabric Checking</TabsTrigger>
                 <TabsTrigger value="delivered" className="data-[state=active]:!bg-[#f2caa0] data-[state=active]:!text-[#61401E] data-[state=active]:!border-b-[#f2caa0]">Fabric Delivered</TabsTrigger>
@@ -263,10 +246,10 @@ export function NewEntry({ onClose, defaultDate, readOnly = false }: NewEntryPro
           {!readOnly ? (
             <Button
               size="sm"
-              className={`h-8 gap-1.5 shadow-sm hover:opacity-90 ${activeTab === 'extruder' ? `${themes.extruder.iconBg} ${themes.extruder.iconColor}` :
-                  activeTab === 'looms' ? `${themes.looms.iconBg} ${themes.looms.iconColor}` :
-                    activeTab === 'fabric' ? `${themes.fabric.iconBg} ${themes.fabric.iconColor}` :
-                      `${themes.fabricDelivered.iconBg} ${themes.fabricDelivered.iconColor}`
+              className={`h-8 gap-1.5 shadow-sm transition-colors duration-200 ${activeTab === 'extruder' ? `${themes.extruder.iconBg} ${themes.extruder.iconColor} ${themes.extruder.iconHoverBg} ${themes.extruder.iconHoverColor}` :
+                activeTab === 'looms' ? `${themes.looms.iconBg} ${themes.looms.iconColor} ${themes.looms.iconHoverBg} ${themes.looms.iconHoverColor}` :
+                  activeTab === 'fabric' ? `${themes.fabric.iconBg} ${themes.fabric.iconColor} ${themes.fabric.iconHoverBg} ${themes.fabric.iconHoverColor}` :
+                    `${themes.fabricDelivered.iconBg} ${themes.fabricDelivered.iconColor} ${themes.fabricDelivered.iconHoverBg} ${themes.fabricDelivered.iconHoverColor}`
                 }`}
               onClick={() => setIsAddModalOpen(true)}
             >
@@ -278,11 +261,11 @@ export function NewEntry({ onClose, defaultDate, readOnly = false }: NewEntryPro
             <Button variant="outline" onClick={onClose} className="border-gray-300 text-gray-700 bg-white" disabled={submitting}>
               Close
             </Button>
-            {!readOnly && (
+            {/* {!readOnly && (
               <Button onClick={handleSaveAll} className="bg-[#004D40] hover:bg-[#00332A] text-white" disabled={submitting}>
                 {submitting ? 'Saving All...' : 'Save'}
               </Button>
-            )}
+            )} */}
           </div>
         </div>
       </div>

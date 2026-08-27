@@ -3,14 +3,15 @@ import { useQueryClient } from '@tanstack/react-query';
 import { Plus, Edit2, Trash2, PackagePlus, PackageMinus, ArrowLeft, ChevronRight } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Loader } from '@/components/shared/loader';
 import { DeleteConfirmDialog } from '@/components/shared/delete-confirm-dialog';
 import { apiFetch } from '@/lib/api-client';
-import { useLookups, findIdByName } from '@/lib/lookups';
+import { useLookups } from '@/lib/lookups';
+import { formatDate, formatDateDisplay } from './inventory-utils';
+import { InventoryFormDialog } from './inventory-form-dialog';
+import { LoadSentFormDialog } from './load-sent-form-dialog';
 import {
   useInventoryRecords,
   inventoryKeys,
@@ -21,250 +22,14 @@ import {
 import {
   useLoadSentRecords,
   loadSentKeys,
+  getLoadSentWeight,
   type LoadSentRecord,
-  type LoadSentCreatePayload,
 } from './load-sent-queries';
 import { useFabricCheckingRecords } from '@/features/fabric/fabric-queries';
-
-function todayIso() {
-  return new Date().toISOString().slice(0, 10);
-}
-
-function formatDate(iso: string) {
-  return iso.slice(0, 10);
-}
-
-function formatDateDisplay(iso: string) {
-  if (!iso) return '';
-  const d = new Date(iso);
-  if (isNaN(d.getTime())) return iso;
-  return d.toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' }).replace(/ /g, ' ');
-}
-
-/** LoadSentRecord's weight can come back nested under `loadSent` or top-level, depending on the endpoint. */
-function getLoadSentWeight(record: LoadSentRecord): number {
-  return record.loadSent?.fabricWeight ?? record.fabricWeight ?? 0;
-}
 
 /* ---------------------------------------------------------------------- */
 /* Receive — backed by /api/v1/inventory                                   */
 /* ---------------------------------------------------------------------- */
-
-interface InventoryFormDialogProps {
-  onClose: () => void;
-  editDate?: string;
-  editRecords?: InventoryRecord[];
-}
-
-function InventoryFormDialog({ onClose, editDate, editRecords }: InventoryFormDialogProps) {
-  const queryClient = useQueryClient();
-  const { data: lookupsData } = useLookups();
-  const isEdit = !!editDate;
-
-  const [date, setDate] = useState(editDate || todayIso());
-  const [dcHdpe, setDcHdpe] = useState('');
-  const [dcChemical, setDcChemical] = useState('');
-  const [dcColor, setDcColor] = useState('');
-
-  const [weights, setWeights] = useState<Record<string, string>>(() => {
-    const init: Record<string, string> = {};
-    if (editRecords) {
-      for (const r of editRecords) {
-        if (r.name) init[`${r.type}-${r.name}`] = String(r.weightKg);
-      }
-    }
-    return init;
-  });
-
-  const [saving, setSaving] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-
-  const hdpeNames = (lookupsData?.brands ?? []).map(b => b.name).sort();
-  const chemicalNames = (lookupsData?.chemicals ?? []).map(c => c.name).sort();
-  const colorNames = (lookupsData?.colors ?? []).map(c => c.name).sort();
-
-  const handleWeightChange = (type: InventoryType, name: string, val: string) => {
-    setWeights(prev => ({ ...prev, [`${type}-${name}`]: val }));
-  };
-
-  const handleSubmit = async () => {
-    if (!date) {
-      setError('Date is required');
-      return;
-    }
-    setSaving(true);
-    setError(null);
-
-    try {
-      const promises: Promise<unknown>[] = [];
-      const types = [
-        { type: 'HDPE' as InventoryType, names: hdpeNames, dc: dcHdpe },
-        { type: 'CHEMICAL' as InventoryType, names: chemicalNames, dc: dcChemical },
-        { type: 'COLOR' as InventoryType, names: colorNames, dc: dcColor },
-      ];
-
-      // Validate: if any weight is entered for a type, DC must be provided
-      for (const t of types) {
-        const hasAnyWeight = t.names.some(name => {
-          const val = parseFloat(weights[`${t.type}-${name}`]);
-          return !isNaN(val) && val > 0;
-        });
-        if (hasAnyWeight && !t.dc.trim()) {
-          setError(`DC number is required for ${t.type === 'HDPE' ? 'HDPE' : t.type === 'CHEMICAL' ? 'Chemicals' : 'Colors'} when entering quantities.`);
-          setSaving(false);
-          return;
-        }
-      }
-
-      for (const t of types) {
-        for (const name of t.names) {
-          const key = `${t.type}-${name}`;
-          const valStr = weights[key];
-          const val = parseFloat(valStr);
-          const existing = editRecords?.find(r => r.type === t.type && r.name === name);
-
-          if (!isNaN(val) && val > 0) {
-            if (existing) {
-              if (existing.weightKg !== val) {
-                promises.push(apiFetch(`/inventory/${existing.id}`, {
-                  method: 'PATCH',
-                  headers: { 'Content-Type': 'application/json' },
-                  body: JSON.stringify({ weightKg: val, date }),
-                }));
-              }
-            } else {
-              let lookupId = '';
-              if (t.type === 'HDPE') lookupId = lookupsData?.brands.find(b => b.name === name)?.id || '';
-              if (t.type === 'CHEMICAL') lookupId = lookupsData?.chemicals.find(b => b.name === name)?.id || '';
-              if (t.type === 'COLOR') lookupId = lookupsData?.colors.find(b => b.name === name)?.id || '';
-
-              promises.push(apiFetch('/inventory', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                  date, type: t.type, quantityKg: val,
-                  DC: t.dc,
-                  ...(t.type === 'HDPE' && { brandId: lookupId }),
-                  ...(t.type === 'CHEMICAL' && { chemicalId: lookupId }),
-                  ...(t.type === 'COLOR' && { colorId: lookupId }),
-                }),
-              }));
-            }
-          } else if (existing) {
-            promises.push(apiFetch(`/inventory/${existing.id}`, { method: 'DELETE' }));
-          }
-        }
-      }
-
-      await Promise.all(promises);
-      await queryClient.invalidateQueries({ queryKey: inventoryKeys.all });
-      onClose();
-    } catch (e) {
-      console.error(e);
-      setError('Could not save records. Please try again.');
-    } finally {
-      setSaving(false);
-    }
-  };
-
-  return (
-    <Dialog open onOpenChange={(next) => !saving && !next && onClose()}>
-      <DialogContent className="max-w-[95vw] w-full lg:max-w-[1200px] overflow-hidden flex flex-col max-h-[90vh]">
-        <DialogHeader className="flex flex-row items-center justify-between space-y-0 pb-2 border-b border-gray-100">
-          <DialogTitle>{isEdit ? 'Edit Stock' : 'Add Received Stock'}</DialogTitle>
-          <div className="flex items-center gap-3 pr-8">
-            <Label htmlFor="inv-date" className="text-sm font-medium whitespace-nowrap text-gray-700">Date</Label>
-            <Input id="inv-date" type="date" value={date} onChange={(e) => setDate(e.target.value)} className="w-40 h-8 text-sm bg-white" />
-          </div>
-        </DialogHeader>
-
-        <div className="flex-1 overflow-auto flex flex-col py-2 px-1">
-          <div className="border border-gray-200 rounded-lg overflow-x-auto shadow-sm">
-            <table className="w-full text-xs border-collapse bg-white">
-              <thead>
-                <tr className="bg-gray-50 border-b border-gray-200">
-                  {hdpeNames.length > 0 && (
-                    <th colSpan={hdpeNames.length + 1} className="border-r border-gray-200 px-3 py-2 text-center font-bold text-blue-700 uppercase tracking-wide bg-blue-50/50">
-                      HDPE (KG)
-                    </th>
-                  )}
-                  {chemicalNames.length > 0 && (
-                    <th colSpan={chemicalNames.length + 1} className="border-r border-gray-200 px-3 py-2 text-center font-bold text-yellow-700 uppercase tracking-wide bg-yellow-50/50">
-                      CHEMICALS (KG)
-                    </th>
-                  )}
-                  {colorNames.length > 0 && (
-                    <th colSpan={colorNames.length + 1} className="px-3 py-2 text-center font-bold text-purple-700 uppercase tracking-wide bg-purple-50/50">
-                      COLORS (KG)
-                    </th>
-                  )}
-                </tr>
-                <tr className="bg-gray-50/80 border-b border-gray-200">
-                  {hdpeNames.length > 0 && <th className="border-r border-gray-200 px-3 py-2 text-center font-semibold text-blue-800 text-[10px] uppercase whitespace-nowrap">DC</th>}
-                  {hdpeNames.map(name => (
-                    <th key={name} className="border-r border-gray-200 px-3 py-2 text-center font-semibold text-blue-600 text-[10px] uppercase whitespace-nowrap">{name}</th>
-                  ))}
-                  {chemicalNames.length > 0 && <th className="border-r border-gray-200 px-3 py-2 text-center font-semibold text-yellow-800 text-[10px] uppercase whitespace-nowrap">DC</th>}
-                  {chemicalNames.map(name => (
-                    <th key={name} className="border-r border-gray-200 px-3 py-2 text-center font-semibold text-yellow-600 text-[10px] uppercase whitespace-nowrap">{name}</th>
-                  ))}
-                  {colorNames.length > 0 && <th className="border-r border-gray-200 px-3 py-2 text-center font-semibold text-purple-800 text-[10px] uppercase whitespace-nowrap">DC</th>}
-                  {colorNames.map(name => (
-                    <th key={name} className="border-r border-gray-200 px-3 py-2 text-center font-semibold text-purple-600 text-[10px] uppercase whitespace-nowrap">{name}</th>
-                  ))}
-                </tr>
-              </thead>
-              <tbody>
-                <tr>
-                  {hdpeNames.length > 0 && (
-                    <td className="border-r border-gray-200 p-2">
-                      <Input type="text" maxLength={8} placeholder="DC No" className="w-20 text-center h-8 text-xs font-bold bg-blue-50 border-blue-200 mx-auto" value={dcHdpe} onChange={(e) => setDcHdpe(e.target.value.slice(0, 8))} />
-                    </td>
-                  )}
-                  {hdpeNames.map(name => (
-                    <td key={name} className="border-r border-gray-200 p-2">
-                      <Input type="number" placeholder="0" className="w-20 text-center h-8 text-xs font-medium bg-blue-50/10 border-blue-100 mx-auto" value={weights[`HDPE-${name}`] || ''} onChange={(e) => handleWeightChange('HDPE', name, e.target.value)} />
-                    </td>
-                  ))}
-                  {chemicalNames.length > 0 && (
-                    <td className="border-r border-gray-200 p-2">
-                      <Input type="text" maxLength={8} placeholder="DC No" className="w-20 text-center h-8 text-xs font-bold bg-yellow-50 border-yellow-200 mx-auto" value={dcChemical} onChange={(e) => setDcChemical(e.target.value.slice(0, 8))} />
-                    </td>
-                  )}
-                  {chemicalNames.map(name => (
-                    <td key={name} className="border-r border-gray-200 p-2">
-                      <Input type="number" placeholder="0" className="w-20 text-center h-8 text-xs font-medium bg-yellow-50/10 border-yellow-100 mx-auto" value={weights[`CHEMICAL-${name}`] || ''} onChange={(e) => handleWeightChange('CHEMICAL', name, e.target.value)} />
-                    </td>
-                  ))}
-                  {colorNames.length > 0 && (
-                    <td className="border-r border-gray-200 p-2">
-                      <Input type="text" maxLength={8} placeholder="DC No" className="w-20 text-center h-8 text-xs font-bold bg-purple-50 border-purple-200 mx-auto" value={dcColor} onChange={(e) => setDcColor(e.target.value.slice(0, 8))} />
-                    </td>
-                  )}
-                  {colorNames.map(name => (
-                    <td key={name} className="border-r border-gray-200 p-2">
-                      <Input type="number" placeholder="0" className="w-20 text-center h-8 text-xs font-medium bg-purple-50/10 border-purple-100 mx-auto" value={weights[`COLOR-${name}`] || ''} onChange={(e) => handleWeightChange('COLOR', name, e.target.value)} />
-                    </td>
-                  ))}
-                </tr>
-              </tbody>
-            </table>
-          </div>
-          {error && <p className="text-sm text-red-600 font-medium">{error}</p>}
-        </div>
-
-        <DialogFooter className="mt-2 pt-4 border-t border-gray-100">
-          <Button variant="outline" onClick={onClose} disabled={saving}>Cancel</Button>
-          <Button onClick={handleSubmit} disabled={saving} className="bg-green-600 hover:bg-green-700 min-w-24">
-            {saving ? <Loader size="sm" className="mr-2" /> : null}
-            {isEdit ? 'Save Changes' : 'Create Entries'}
-          </Button>
-        </DialogFooter>
-      </DialogContent>
-    </Dialog>
-  );
-}
-
 
 function InventoryReceiveTab({ onBack }: { onBack: () => void }) {
   const queryClient = useQueryClient();
@@ -431,113 +196,8 @@ function InventoryReceiveTab({ onBack }: { onBack: () => void }) {
 }
 
 /* ---------------------------------------------------------------------- */
-/* Send Ã¢â‚¬â€ backed by /api/v1/load-sent                                      */
+/* Send — backed by /api/v1/load-sent */
 /* ---------------------------------------------------------------------- */
-
-interface LoadSentFormDialogProps {
-  onClose: () => void;
-  record: LoadSentRecord | null;
-}
-
-/** Mounted only while the dialog is open (see call site), so state can
- * initialize once from `record` at mount instead of syncing via an effect. */
-export function LoadSentFormDialog({ onClose, record }: LoadSentFormDialogProps) {
-  const queryClient = useQueryClient();
-  const { data: lookupsData } = useLookups();
-  const colors = lookupsData?.colors ?? [];
-  const sizes = lookupsData?.sizes ?? [];
-  const isEdit = !!record;
-
-  const [date, setDate] = useState(record ? formatDate(record.date) : todayIso());
-  const [color, setColor] = useState(record?.color?.name ?? '');
-  const [size, setSize] = useState(record?.size?.name ?? '');
-  const [weightKg, setWeightKg] = useState(record ? String(getLoadSentWeight(record)) : '');
-  const [saving, setSaving] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-
-  const handleSubmit = async () => {
-    const colorId = findIdByName(colors, color);
-    const sizeId = findIdByName(sizes, size);
-    if (!colorId || !sizeId || !weightKg) {
-      setError('Please fill in Color, Size, and Weight.');
-      return;
-    }
-    setSaving(true);
-    setError(null);
-    try {
-      const payload: LoadSentCreatePayload = {
-        productionDate: date,
-        colorId,
-        sizeId,
-        fabricWeight: parseFloat(weightKg) || 0,
-      };
-      const response = await apiFetch(isEdit ? `/load-sent/${record.id}` : '/load-sent', {
-        method: isEdit ? 'PATCH' : 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(payload),
-      });
-      if (!response.ok) throw new Error('Failed to save load sent record');
-
-      await queryClient.invalidateQueries({ queryKey: loadSentKeys.all });
-      onClose();
-    } catch (e) {
-      console.error('Error saving load sent record:', e);
-      setError('Could not save this record. Please try again.');
-    } finally {
-      setSaving(false);
-    }
-  };
-
-  return (
-    <Dialog open onOpenChange={(next) => !saving && !next && onClose()}>
-      <DialogContent className="sm:max-w-md">
-        <DialogHeader>
-          <DialogTitle>{isEdit ? 'Edit Sent Stock' : 'Add Sent Stock'}</DialogTitle>
-        </DialogHeader>
-        <div className="flex flex-col gap-4">
-          <div className="flex flex-col gap-1.5">
-            <Label htmlFor="ls-date">Date</Label>
-            <Input id="ls-date" type="date" value={date} onChange={(e) => setDate(e.target.value)} />
-          </div>
-          <div className="flex flex-col gap-1.5">
-            <Label htmlFor="ls-color">Color</Label>
-            <Select value={color || undefined} onValueChange={setColor}>
-              <SelectTrigger id="ls-color" className="w-full"><SelectValue placeholder="Select color" /></SelectTrigger>
-              <SelectContent>
-                {colors.map((c) => <SelectItem key={c.id} value={c.name}>{c.name}</SelectItem>)}
-              </SelectContent>
-            </Select>
-          </div>
-          <div className="flex flex-col gap-1.5">
-            <Label htmlFor="ls-size">Size</Label>
-            <Select value={size || undefined} onValueChange={setSize}>
-              <SelectTrigger id="ls-size" className="w-full"><SelectValue placeholder="Select size" /></SelectTrigger>
-              <SelectContent>
-                {sizes.map((s) => <SelectItem key={s.id} value={s.name}>{s.name}</SelectItem>)}
-              </SelectContent>
-            </Select>
-          </div>
-          {/* <div className="flex flex-col gap-1.5">
-            <Label htmlFor="ls-pieces">Piece Count</Label>
-            <Input id="ls-pieces" type="number" value={pieceCount} onChange={(e) => setPieceCount(e.target.value)} />
-          </div> */}
-          <div className="flex flex-col gap-1.5">
-            <Label htmlFor="ls-weight">Weight (kg)</Label>
-            <Input id="ls-weight" type="number" value={weightKg} onChange={(e) => setWeightKg(e.target.value)} />
-          </div>
-          {error && <p className="text-sm text-red-600">{error}</p>}
-        </div>
-        <DialogFooter>
-          <Button variant="outline" onClick={onClose} disabled={saving}>Cancel</Button>
-          <Button onClick={handleSubmit} disabled={saving}>
-            {saving && <Loader size="sm" className="mr-2" />}
-            {isEdit ? 'Save changes' : 'Add stock'}
-          </Button>
-        </DialogFooter>
-      </DialogContent>
-    </Dialog>
-  );
-}
 
 function LoadSentTab({ onBack }: { onBack: () => void }) {
   const queryClient = useQueryClient();
@@ -819,7 +479,7 @@ function StockSummaryCard({ onAdd, onEditDate, onDeleteDate }: { onAdd: (e: Reac
               <div className="absolute top-0 right-0 p-4 opacity-5 group-hover/card:opacity-10 transition-opacity">
                 <img src="/hdpe.png" alt="" className="w-26 h-26 object-contain" />
               </div>
-              <div className="flex justify-between items-start mb-4 relative z-10">
+              <div className="flex justify-between items-center mb-4 relative z-10">
                 <div className="flex items-center gap-2">
                   <div className=""><img src="/hdpe.png" alt="HDPE" className="w-12 h-12 object-contain" /></div>
                   <h3 className="font-extrabold text-gray-800 text-lg">HDPE Materials</h3>
@@ -830,9 +490,9 @@ function StockSummaryCard({ onAdd, onEditDate, onDeleteDate }: { onAdd: (e: Reac
                 {rawMaterials.items.length > 0 ? (
                   <div className="flex flex-wrap items-center gap-x-6 gap-y-3 mt-2">
                     {rawMaterials.items.map(item => (
-                      <div key={item.name} className="flex flex-col gap-0.5 text-xs">
-                        <span className="font-medium text-gray-500">{item.name}</span>
-                        <span className="font-bold text-gray-900">{item.weight.toFixed(2)}<span className="text-gray-400 font-normal text-[10px] ml-0.5">kg</span></span>
+                      <div key={item.name} className="flex flex-col gap-0.5">
+                        <span className="font-medium text-gray-500 text-xs">{item.name}</span>
+                        <span className="font-extrabold text-[#004D40] text-base">{item.weight.toFixed(2)}<span className="text-gray-500 font-normal text-xs ml-0.5">kg</span></span>
                       </div>
                     ))}
                   </div>
@@ -845,7 +505,7 @@ function StockSummaryCard({ onAdd, onEditDate, onDeleteDate }: { onAdd: (e: Reac
               <div className="absolute top-0 right-0 p-4 opacity-5 group-hover/card:opacity-10 transition-opacity">
                 <img src="/chemical.png" alt="" className="w-26 h-26 object-contain" />
               </div>
-              <div className="flex justify-between items-start mb-4 relative z-10">
+              <div className="flex justify-between items-center mb-4 relative z-10">
                 <div className="flex items-center gap-2">
                   <div className=""><img src="/chemical.png" alt="Chemicals" className="w-12 h-12 object-contain" /></div>
                   <h3 className="font-extrabold text-gray-800 text-lg">Chemicals</h3>
@@ -856,9 +516,9 @@ function StockSummaryCard({ onAdd, onEditDate, onDeleteDate }: { onAdd: (e: Reac
                 {chemicals.items.length > 0 ? (
                   <div className="flex flex-wrap items-center gap-x-6 gap-y-3 mt-2">
                     {chemicals.items.map(item => (
-                      <div key={item.name} className="flex flex-col gap-0.5 text-xs">
-                        <span className="font-medium text-gray-500">{item.name}</span>
-                        <span className="font-bold text-gray-900">{item.weight.toFixed(2)}<span className="text-gray-400 font-normal text-[10px] ml-0.5">kg</span></span>
+                      <div key={item.name} className="flex flex-col gap-0.5">
+                        <span className="font-medium text-gray-500 text-xs">{item.name}</span>
+                        <span className="font-extrabold text-[#004D40] text-base">{item.weight.toFixed(2)}<span className="text-gray-500 font-normal text-xs ml-0.5">kg</span></span>
                       </div>
                     ))}
                   </div>
@@ -871,7 +531,7 @@ function StockSummaryCard({ onAdd, onEditDate, onDeleteDate }: { onAdd: (e: Reac
               <div className="absolute top-0 right-0 p-4 opacity-5 group-hover/card:opacity-10 transition-opacity">
                 <img src="/color.png" alt="" className="w-26 h-26 object-contain" />
               </div>
-              <div className="flex justify-between items-start mb-4 relative z-10">
+              <div className="flex justify-between items-center mb-4 relative z-10">
                 <div className="flex items-center gap-2">
                   <div className=""><img src="/color.png" alt="Colors" className="w-12 h-12 object-contain" /></div>
                   <h3 className="font-extrabold text-gray-800 text-lg">Colors</h3>
@@ -882,9 +542,9 @@ function StockSummaryCard({ onAdd, onEditDate, onDeleteDate }: { onAdd: (e: Reac
                 {colors.items.length > 0 ? (
                   <div className="flex flex-wrap items-center gap-x-6 gap-y-3 mt-2">
                     {colors.items.map(item => (
-                      <div key={item.name} className="flex flex-col gap-0.5 text-xs">
-                        <span className="font-medium text-gray-500">{item.name}</span>
-                        <span className="font-bold text-gray-900">{item.weight.toFixed(2)}<span className="text-gray-400 font-normal text-[10px] ml-0.5">kg</span></span>
+                      <div key={item.name} className="flex flex-col gap-0.5">
+                        <span className="font-medium text-gray-500 text-xs">{item.name}</span>
+                        <span className="font-extrabold text-[#004D40] text-base">{item.weight.toFixed(2)}<span className="text-gray-500 font-normal text-xs ml-0.5">kg</span></span>
                       </div>
                     ))}
                   </div>
@@ -902,41 +562,44 @@ function StockSummaryCard({ onAdd, onEditDate, onDeleteDate }: { onAdd: (e: Reac
           <h3 className="font-semibold text-gray-700 text-sm">Day Wise Stock Received Details</h3>
         </div>
         <div className="overflow-x-auto">
-          <table className="w-full border-collapse text-xs">
+          <table className="w-full border-collapse text-sm">
             <thead>
               <tr className="bg-gray-50 border-b border-gray-200">
-                <th rowSpan={2} className="border border-gray-200 px-3 py-2 text-left font-semibold text-gray-500 uppercase tracking-wide text-[11px] whitespace-nowrap w-28">DATE</th>
+                <th rowSpan={2} className="border border-gray-200 px-3 py-2 text-left font-semibold text-gray-500 uppercase tracking-wide text-xs whitespace-nowrap w-28">DATE</th>
                 {hdpeNames.length > 0 && (
-                  <th colSpan={hdpeNames.length + 1} className="border border-gray-200 px-3 py-2 text-center font-bold text-teal-800 uppercase tracking-wide text-[11px] bg-blue-100">
+                  <th colSpan={hdpeNames.length + 2} className="border border-gray-200 px-3 py-2 text-center font-bold text-teal-800 uppercase tracking-wide text-xs bg-blue-100">
                     HDPE (KG)
                   </th>
                 )}
                 {chemicalNames.length > 0 && (
-                  <th colSpan={chemicalNames.length + 1} className="border border-gray-200 px-3 py-2 text-center font-bold text-yellow-800 uppercase tracking-wide text-[11px] bg-yellow-100">
+                  <th colSpan={chemicalNames.length + 2} className="border border-gray-200 px-3 py-2 text-center font-bold text-yellow-800 uppercase tracking-wide text-xs bg-yellow-100">
                     CHEMICALS (KG)
                   </th>
                 )}
                 {colorNames.length > 0 && (
-                  <th colSpan={colorNames.length + 1} className="border border-gray-200 px-3 py-2 text-center font-bold text-green-800 uppercase tracking-wide text-[11px] bg-green-100">
+                  <th colSpan={colorNames.length + 2} className="border border-gray-200 px-3 py-2 text-center font-bold text-green-800 uppercase tracking-wide text-xs bg-green-100">
                     COLORS (KG)
                   </th>
                 )}
                 {totalCols === 0 && <th className="border border-gray-200 px-3 py-1.5 text-gray-400"></th>}
-                <th rowSpan={2} className="border border-gray-200 px-3 py-2 text-center font-semibold text-gray-500 uppercase tracking-wide text-[11px] whitespace-nowrap w-20">ACTIONS</th>
+                <th rowSpan={2} className="border border-gray-200 px-3 py-2 text-center font-semibold text-gray-500 uppercase tracking-wide text-xs whitespace-nowrap w-20">ACTIONS</th>
               </tr>
               <tr className="bg-white border-b border-gray-200">
-                {hdpeNames.length > 0 && <th className="border border-gray-200 px-3 py-1.5 text-center font-bold text-gray-800 text-[11px] uppercase whitespace-nowrap bg-gray-50/50">DC NO</th>}
+                {hdpeNames.length > 0 && <th className="border border-gray-200 px-3 py-1.5 text-center font-bold text-gray-800 text-xs uppercase whitespace-nowrap bg-gray-50/50">DC NO</th>}
                 {hdpeNames.map(name => (
-                  <th key={name} className="border border-gray-200 px-3 py-1.5 text-center font-bold text-gray-800 text-[11px] uppercase whitespace-nowrap">{name}</th>
+                  <th key={name} className="border border-gray-200 px-3 py-1.5 text-center font-bold text-gray-800 text-xs uppercase whitespace-nowrap">{name}</th>
                 ))}
-                {chemicalNames.length > 0 && <th className="border border-gray-200 px-3 py-1.5 text-center font-bold text-gray-800 text-[11px] uppercase whitespace-nowrap bg-gray-50/50">DC NO</th>}
+                {hdpeNames.length > 0 && <th className="border border-gray-200 px-3 py-1.5 text-center font-bold text-teal-800 text-xs uppercase whitespace-nowrap bg-blue-50/70">Total</th>}
+                {chemicalNames.length > 0 && <th className="border border-gray-200 px-3 py-1.5 text-center font-bold text-gray-800 text-xs uppercase whitespace-nowrap bg-gray-50/50">DC NO</th>}
                 {chemicalNames.map(name => (
-                  <th key={name} className="border border-gray-200 px-3 py-1.5 text-center font-bold text-gray-800 text-[11px] uppercase whitespace-nowrap">{name}</th>
+                  <th key={name} className="border border-gray-200 px-3 py-1.5 text-center font-bold text-gray-800 text-xs uppercase whitespace-nowrap">{name}</th>
                 ))}
-                {colorNames.length > 0 && <th className="border border-gray-200 px-3 py-1.5 text-center font-bold text-gray-800 text-[11px] uppercase whitespace-nowrap bg-gray-50/50">DC NO</th>}
+                {chemicalNames.length > 0 && <th className="border border-gray-200 px-3 py-1.5 text-center font-bold text-yellow-800 text-xs uppercase whitespace-nowrap bg-yellow-50/70">Total</th>}
+                {colorNames.length > 0 && <th className="border border-gray-200 px-3 py-1.5 text-center font-bold text-gray-800 text-xs uppercase whitespace-nowrap bg-gray-50/50">DC NO</th>}
                 {colorNames.map(name => (
-                  <th key={name} className="border border-gray-200 px-3 py-1.5 text-center font-bold text-gray-800 text-[11px] uppercase whitespace-nowrap">{name}</th>
+                  <th key={name} className="border border-gray-200 px-3 py-1.5 text-center font-bold text-gray-800 text-xs uppercase whitespace-nowrap">{name}</th>
                 ))}
+                {colorNames.length > 0 && <th className="border border-gray-200 px-3 py-1.5 text-center font-bold text-green-800 text-xs uppercase whitespace-nowrap bg-green-50/70">Total</th>}
                 {totalCols === 0 && <th className="border border-gray-200"></th>}
               </tr>
             </thead>
@@ -946,48 +609,67 @@ function StockSummaryCard({ onAdd, onEditDate, onDeleteDate }: { onAdd: (e: Reac
                   <td colSpan={2 + totalCols || 3} className="text-center py-8 text-gray-400 text-sm">No stock received this month.</td>
                 </tr>
               ) : (
-                groupedByDate.map(([date, dayRecords]) => (
+                groupedByDate.map(([date, dayRecords]) => {
+                  const dayHdpeTotal = dayRecords.filter(r => r.type === 'HDPE').reduce((s, r) => s + r.weightKg, 0);
+                  const dayChemicalTotal = dayRecords.filter(r => r.type === 'CHEMICAL').reduce((s, r) => s + r.weightKg, 0);
+                  const dayColorTotal = dayRecords.filter(r => r.type === 'COLOR').reduce((s, r) => s + r.weightKg, 0);
+                  return (
                   <tr key={date} className="hover:bg-green-50/40 transition-colors group">
-                    <td className="border border-gray-200 px-3 py-1 font-bold text-teal-900 whitespace-nowrap text-sm">{formatDateDisplay(date)}</td>
+                    <td className="border border-gray-200 px-3 py-1 font-bold text-gray-800 whitespace-nowrap text-sm">{formatDateDisplay(date)}</td>
                     {hdpeNames.length > 0 && (
-                      <td className="border border-gray-200 px-3 py-1 text-center font-bold text-blue-900 text-[10px] bg-blue-50/30">
-                        {dayRecords.find(r => r.type === 'HDPE' && r.dcNumber)?.dcNumber || '-'}
+                      <td className="border border-gray-200 px-3 py-1 text-center font-bold text-gray-800 text-sm bg-blue-50/30">
+                        {dayRecords.find(r => r.type === 'HDPE')?.DC_NUMBER || '-'}
                       </td>
                     )}
                     {hdpeNames.map(name => {
                       const val = getWeight(dayRecords, 'HDPE', name);
                       return (
-                        <td key={name} className="border border-gray-200 px-3 py-1 text-center font-medium text-gray-800 text-xs">
+                        <td key={name} className="border border-gray-200 px-3 py-1 text-center font-medium text-gray-800 text-sm">
                           {val > 0 ? val.toFixed(2) : <span className="text-gray-500">0.00</span>}
                         </td>
                       );
                     })}
+                    {hdpeNames.length > 0 && (
+                      <td className="border border-gray-200 px-3 py-1 text-center font-bold text-gray-800 text-sm bg-blue-50/30">
+                        {dayHdpeTotal > 0 ? dayHdpeTotal.toFixed(2) : <span className="text-gray-500">0.00</span>}
+                      </td>
+                    )}
                     {chemicalNames.length > 0 && (
-                      <td className="border border-gray-200 px-3 py-1 text-center font-bold text-yellow-900 text-[10px] bg-yellow-50/30">
-                        {dayRecords.find(r => r.type === 'CHEMICAL' && r.dcNumber)?.dcNumber || '-'}
+                      <td className="border border-gray-200 px-3 py-1 text-center font-bold text-gray-800 text-sm bg-yellow-50/30">
+                        {dayRecords.find(r => r.type === 'CHEMICAL')?.DC_NUMBER || '-'}
                       </td>
                     )}
                     {chemicalNames.map(name => {
                       const val = getWeight(dayRecords, 'CHEMICAL', name);
                       return (
-                        <td key={name} className="border border-gray-200 px-3 py-1 text-center font-medium text-gray-800 text-xs">
+                        <td key={name} className="border border-gray-200 px-3 py-1 text-center font-medium text-gray-800 text-sm">
                           {val > 0 ? val.toFixed(2) : <span className="text-gray-500">0.00</span>}
                         </td>
                       );
                     })}
+                    {chemicalNames.length > 0 && (
+                      <td className="border border-gray-200 px-3 py-1 text-center font-bold text-gray-800 text-sm bg-yellow-50/30">
+                        {dayChemicalTotal > 0 ? dayChemicalTotal.toFixed(2) : <span className="text-gray-500">0.00</span>}
+                      </td>
+                    )}
                     {colorNames.length > 0 && (
-                      <td className="border border-gray-200 px-3 py-1 text-center font-bold text-green-900 text-[10px] bg-green-50/30">
-                        {dayRecords.find(r => r.type === 'COLOR' && r.dcNumber)?.dcNumber || '-'}
+                      <td className="border border-gray-200 px-3 py-1 text-center font-bold text-gray-800 text-sm bg-green-50/30">
+                        {dayRecords.find(r => r.type === 'COLOR')?.DC_NUMBER || '-'}
                       </td>
                     )}
                     {colorNames.map(name => {
                       const val = getWeight(dayRecords, 'COLOR', name);
                       return (
-                        <td key={name} className="border border-gray-200 px-3 py-1 text-center font-medium text-gray-800 text-xs">
+                        <td key={name} className="border border-gray-200 px-3 py-1 text-center font-medium text-gray-800 text-sm">
                           {val > 0 ? val.toFixed(2) : <span className="text-gray-500">0.00</span>}
                         </td>
                       );
                     })}
+                    {colorNames.length > 0 && (
+                      <td className="border border-gray-200 px-3 py-1 text-center font-bold text-gray-800 text-sm bg-green-50/30">
+                        {dayColorTotal > 0 ? dayColorTotal.toFixed(2) : <span className="text-gray-500">0.00</span>}
+                      </td>
+                    )}
                     {totalCols === 0 && <td className="border border-gray-200 px-3 py-1"></td>}
                     <td className="border border-gray-200 px-3 py-1 text-center">
                       <div className="flex items-center justify-center gap-1">
@@ -1000,23 +682,33 @@ function StockSummaryCard({ onAdd, onEditDate, onDeleteDate }: { onAdd: (e: Reac
                       </div>
                     </td>
                   </tr>
-                ))
+                  );
+                })
               )}
               {groupedByDate.length > 0 && (
                 <tr className="bg-white border-t-2 border-gray-300 font-bold">
-                  <td className="border border-gray-200 px-3 py-1.5 text-gray-800 uppercase text-[11px] tracking-wide font-bold">TOTAL</td>
+                  <td className="border border-gray-200 px-3 py-1.5 text-gray-800 uppercase text-sm tracking-wide font-bold">TOTAL</td>
                   {hdpeNames.length > 0 && <td className="border border-gray-200 px-3 py-1 bg-gray-50"></td>}
                   {hdpeTotals.map((val, i) => (
-                    <td key={i} className="border border-gray-200 px-3 py-1 text-center text-teal-600 text-xs font-bold">{val > 0 ? val.toFixed(2) : <span className="text-gray-500">0.00</span>}</td>
+                    <td key={i} className="border border-gray-200 px-3 py-1 text-center text-gray-800 text-sm font-bold">{val > 0 ? val.toFixed(2) : <span className="text-gray-500">0.00</span>}</td>
                   ))}
+                  {hdpeNames.length > 0 && (
+                    <td className="border border-gray-200 px-3 py-1 text-center text-gray-800 text-sm font-bold bg-blue-50/50">{rawMaterials.weight > 0 ? rawMaterials.weight.toFixed(2) : <span className="text-gray-500">0.00</span>}</td>
+                  )}
                   {chemicalNames.length > 0 && <td className="border border-gray-200 px-3 py-1 bg-gray-50"></td>}
                   {chemTotals.map((val, i) => (
-                    <td key={i} className="border border-gray-200 px-3 py-1 text-center text-teal-600 text-xs font-bold">{val > 0 ? val.toFixed(2) : <span className="text-gray-500">0.00</span>}</td>
+                    <td key={i} className="border border-gray-200 px-3 py-1 text-center text-gray-800 text-sm font-bold">{val > 0 ? val.toFixed(2) : <span className="text-gray-500">0.00</span>}</td>
                   ))}
+                  {chemicalNames.length > 0 && (
+                    <td className="border border-gray-200 px-3 py-1 text-center text-gray-800 text-sm font-bold bg-yellow-50/50">{chemicals.weight > 0 ? chemicals.weight.toFixed(2) : <span className="text-gray-500">0.00</span>}</td>
+                  )}
                   {colorNames.length > 0 && <td className="border border-gray-200 px-3 py-1 bg-gray-50"></td>}
                   {colorTotals.map((val, i) => (
-                    <td key={i} className="border border-gray-200 px-3 py-1 text-center text-teal-600 text-xs font-bold">{val > 0 ? val.toFixed(2) : <span className="text-gray-500">0.00</span>}</td>
+                    <td key={i} className="border border-gray-200 px-3 py-1 text-center text-gray-800 text-sm font-bold">{val > 0 ? val.toFixed(2) : <span className="text-gray-500">0.00</span>}</td>
                   ))}
+                  {colorNames.length > 0 && (
+                    <td className="border border-gray-200 px-3 py-1 text-center text-gray-800 text-sm font-bold bg-green-50/50">{colors.weight > 0 ? colors.weight.toFixed(2) : <span className="text-gray-500">0.00</span>}</td>
+                  )}
                   {totalCols === 0 && <td className="border border-gray-200 px-3 py-1"></td>}
                   <td className="border border-gray-200 px-3 py-1"></td>
                 </tr>

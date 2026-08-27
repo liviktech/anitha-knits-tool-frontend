@@ -232,11 +232,11 @@ export const LoomSection = forwardRef<SectionRef, SectionProps>(({ productionDat
                 {!readOnly &&
                   newRows.map((row) => (
                     <TableRow key={row.key} className="bg-orange-50/50">
-                      <TableCell className="!text-center"><span className="font-medium text-gray-700">{row.size || '-'}</span></TableCell>
-                      <TableCell className="w-37.5 min-w-37.5 text-center"><span className="font-medium text-gray-700">{row.color || '-'}</span></TableCell>
-                      <TableCell className="text-center">{parseFloat(row.input) > 0 ? parseFloat(row.input).toFixed(2) : '-'}</TableCell>
-                      <TableCell className="text-center">{parseFloat(row.loomsWasteKg) > 0 ? parseFloat(row.loomsWasteKg).toFixed(2) : '-'}</TableCell>
-                      <TableCell className="text-center">{parseFloat(row.output) > 0 ? parseFloat(row.output).toFixed(2) : '-'}</TableCell>
+                      <TableCell className="!text-center"><span className="font-medium text-gray-700 border border-black/10">{row.size || '-'}</span></TableCell>
+                      <TableCell className="w-37.5 min-w-37.5 text-center"><span className="font-medium text-gray-700 border border-black/10">{row.color || '-'}</span></TableCell>
+                      <TableCell className="text-center border border-black/10">{parseFloat(row.input) > 0 ? parseFloat(row.input).toFixed(2) : '-'}</TableCell>
+                      <TableCell className="text-center border border-black/10">{parseFloat(row.loomsWasteKg) > 0 ? parseFloat(row.loomsWasteKg).toFixed(2) : '-'}</TableCell>
+                      <TableCell className="text-center border border-black/10">{parseFloat(row.output) > 0 ? parseFloat(row.output).toFixed(2) : '-'}</TableCell>
                       <TableCell className="!text-center">
                         <div className="flex items-center justify-center gap-1.5">
                           <Button variant="ghost" size="icon-sm" disabled={saving} className="rounded-full bg-blue-50 text-blue-500 hover:bg-blue-100" onClick={() => onEditLoomGroup && onEditLoomGroup(row)}>
@@ -251,11 +251,11 @@ export const LoomSection = forwardRef<SectionRef, SectionProps>(({ productionDat
                   ))}
                 {rows.map((row) => (
                   <TableRow key={row.id}>
-                    <TableCell className="!text-center">{row.size}</TableCell>
-                    <TableCell className="w-37.5 min-w-37.5 text-center">{row.color}</TableCell>
-                    <TableCell className="text-center">{row.input.toFixed(2)}</TableCell>
-                    <TableCell className="text-center">{row.loomsWasteKg.toFixed(2)}</TableCell>
-                    <TableCell className="text-center">{row.output.toFixed(2)}</TableCell>
+                    <TableCell className="!text-center border border-black/10">{row.size}</TableCell>
+                    <TableCell className="w-37.5 min-w-37.5 text-center border border-black/10">{row.color}</TableCell>
+                    <TableCell className="text-center border border-black/10">{row.input.toFixed(2)}</TableCell>
+                    <TableCell className="text-center border border-black/10">{row.loomsWasteKg.toFixed(2)}</TableCell>
+                    <TableCell className="text-center border border-black/10">{row.output.toFixed(2)}</TableCell>
                     {!readOnly && (
                       <TableCell className="!text-center">
                         <div className="flex items-center justify-center gap-1.5">

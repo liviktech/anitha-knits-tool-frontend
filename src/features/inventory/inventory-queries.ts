@@ -22,7 +22,7 @@ export interface InventoryRecord {
   type: InventoryType;
   name: string;
   weightKg: number;
-  dcNumber?: string;
+  DC_NUMBER: string;
   brand: MasterDataRef | null;
   chemical: MasterDataRef | null;
   color: MasterDataRef | null;
@@ -63,6 +63,7 @@ export interface InventoryCreatePayload {
 export interface InventoryUpdatePayload {
   date?: string;
   weightKg?: number;
+  DC?: string;
 }
 
 export const inventoryKeys = {

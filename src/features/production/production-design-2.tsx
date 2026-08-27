@@ -4,7 +4,7 @@ import '@fontsource-variable/hanken-grotesk';
 import '@fontsource-variable/inter';
 import { parseISO, format } from 'date-fns';
 import { Trash2, Calendar, Plus, Download, Edit2, Edit, Layers, ChevronRight, CheckCircle2 } from 'lucide-react';
-import { LoadSentFormDialog } from '../inventory/inventory-page';
+import { LoadSentFormDialog } from '../inventory/load-sent-form-dialog';
 import { type LoadSentRecord } from '../inventory/load-sent-queries';
 import { Loader } from '@/components/shared/loader';
 import { DeleteConfirmDialog } from '@/components/shared/delete-confirm-dialog';
