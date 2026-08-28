@@ -394,12 +394,10 @@ function LoadSentTab({ onBack }: { onBack: () => void }) {
 
 /* ---------------------------------------------------------------------- */
 
-function StockSummaryCard({ onAdd, onEditDate, onDeleteDate }: { onAdd: (e: React.MouseEvent) => void; onEditDate: (date: string) => void; onDeleteDate: (date: string, records: InventoryRecord[]) => void }) {
-  const { data } = useInventoryRecords('?limit=100');
+function StockSummaryCard({ month, onEditDate, onDeleteDate }: { month: string; onEditDate: (date: string) => void; onDeleteDate: (date: string, records: InventoryRecord[]) => void }) {
+  const { data, isLoading } = useInventoryRecords('?limit=100');
   const { data: lookupsData } = useLookups();
   const records = data?.data ?? [];
-
-  const [month, setMonth] = useState(() => new Date().toISOString().slice(0, 7)); // YYYY-MM
 
   const monthRecords = records.filter(r => r.date.startsWith(month));
 
@@ -445,33 +443,10 @@ function StockSummaryCard({ onAdd, onEditDate, onDeleteDate }: { onAdd: (e: Reac
   const totalCols = hdpeNames.length + chemicalNames.length + colorNames.length;
 
   return (
-    <div className="flex flex-col gap-3">
+    <div className="flex flex-col gap-2">
       {/* === Top Summary Card === */}
-      <div className="rounded-xl border border-green-400 bg-white shadow-sm overflow-hidden">
-        {/* Header */}
-        <div className="p-2 border-b border-green-400 bg-gradient-to-br from-green-50 via-emerald-50/50 to-white relative overflow-hidden flex items-center justify-between">
-          <div className="absolute -right-8 -top-8 w-32 h-32 bg-green-400/5 rounded-full blur-2xl pointer-events-none"></div>
-          <div className="flex items-center gap-3 relative z-10">
-            <div className="flex h-10 w-10 items-center justify-center rounded-lg border border-green-200 bg-green-50 text-green-700 shadow-sm shrink-0">
-              <PackagePlus className="h-5 w-5" />
-            </div>
-            <div className="flex flex-col mr-2">
-              <h2 className="font-bold text-gray-900 text-lg leading-tight">Stock Received</h2>
-              <p className="text-xs text-gray-500">Warehouse In-flow</p>
-            </div>
-
-          </div>
-          <div className="flex items-center gap-3 relative z-10">
-            <Button size="sm" onClick={onAdd} className="bg-[#004D40] hover:bg-[#004D40] h-8 text-xs shadow-sm">
-              <Plus className="w-4 h-4 mr-1.5" /> Add Stock
-            </Button>
-            <Input type="month" value={month} onChange={e => setMonth(e.target.value)} className="h-9 text-sm w-36 bg-white/60 shadow-sm font-medium" />
-
-          </div>
-        </div>
-
         {/* Mini cards: HDPE, Chemicals, Colors */}
-        <div className="p-2 bg-gradient-to-br from-gray-50 to-green-50/20" style={{ fontFamily: "'Hanken Grotesk Variable', 'Hanken Grotesk', sans-serif" }}>
+  
           <div className="grid grid-cols-1 md:grid-cols-3 gap-2">
 
             {/* HDPE Card */}
@@ -553,8 +528,8 @@ function StockSummaryCard({ onAdd, onEditDate, onDeleteDate }: { onAdd: (e: Reac
             </div>
 
           </div>
-        </div>
-      </div>
+      
+      
 
       {/* === Day-wise Table Section === */}
       <div className="rounded-xl border border-gray-400 bg-white shadow-sm overflow-hidden">
@@ -604,7 +579,15 @@ function StockSummaryCard({ onAdd, onEditDate, onDeleteDate }: { onAdd: (e: Reac
               </tr>
             </thead>
             <tbody>
-              {groupedByDate.length === 0 ? (
+              {isLoading ? (
+                <tr>
+                  <td colSpan={2 + totalCols || 3} className="h-28 text-center">
+                    <div className="flex items-center justify-center gap-2 text-gray-500 text-sm">
+                      <Loader size="sm" /> Loading stock records...
+                    </div>
+                  </td>
+                </tr>
+              ) : groupedByDate.length === 0 ? (
                 <tr>
                   <td colSpan={2 + totalCols || 3} className="text-center py-8 text-gray-400 text-sm">No stock received this month.</td>
                 </tr>
@@ -615,7 +598,7 @@ function StockSummaryCard({ onAdd, onEditDate, onDeleteDate }: { onAdd: (e: Reac
                   const dayColorTotal = dayRecords.filter(r => r.type === 'COLOR').reduce((s, r) => s + r.weightKg, 0);
                   return (
                     <tr key={date} className="hover:bg-green-50/40 transition-colors group">
-                      <td className="border border-gray-200 px-3 py-1 font-bold text-gray-800 whitespace-nowrap text-sm">{formatDateDisplay(date)}</td>
+                      <td className="border border-gray-200 px-3 py-1 font-bold text-gray-800 whitespace-nowrap text-sm">{formatDateDisplay(date).replace(/,?\s*\d{4}$/, '')}</td>
                       {hdpeNames.length > 0 && (
                         <td className="border border-gray-200 px-3 py-1 text-center font-bold text-gray-800 text-sm bg-blue-50/30">
                           {dayRecords.find(r => r.type === 'HDPE')?.DC_NUMBER || '-'}
@@ -721,13 +704,8 @@ function StockSummaryCard({ onAdd, onEditDate, onDeleteDate }: { onAdd: (e: Reac
   );
 }
 
-function InventorySummary() {
+function InventorySummary({ month, onEditDate }: { month: string; onEditDate: (date: string) => void }) {
   const queryClient = useQueryClient();
-  const { data } = useInventoryRecords('?limit=100');
-  const allRecords = data?.data ?? [];
-
-  const [stockFormOpen, setStockFormOpen] = useState(false);
-  const [editTargetDate, setEditTargetDate] = useState<string | null>(null);
 
   const [deleteTarget, setDeleteTarget] = useState<{ date: string, records: InventoryRecord[] } | null>(null);
   const [deleting, setDeleting] = useState(false);
@@ -746,31 +724,13 @@ function InventorySummary() {
     }
   };
 
-  const openAdd = (e: React.MouseEvent) => {
-    e.stopPropagation();
-    setEditTargetDate(null);
-    setStockFormOpen(true);
-  };
-
-  const openEdit = (date: string) => {
-    setEditTargetDate(date);
-    setStockFormOpen(true);
-  };
-
   return (
     <div className="flex flex-col gap-6">
       <StockSummaryCard
-        onAdd={openAdd}
-        onEditDate={openEdit}
+        month={month}
+        onEditDate={onEditDate}
         onDeleteDate={(date, records) => setDeleteTarget({ date, records })}
       />
-      {stockFormOpen && (
-        <InventoryFormDialog
-          onClose={() => setStockFormOpen(false)}
-          editDate={editTargetDate ?? undefined}
-          editRecords={editTargetDate ? allRecords.filter(r => formatDate(r.date) === editTargetDate) : undefined}
-        />
-      )}
 
       <DeleteConfirmDialog
         open={!!deleteTarget}
@@ -786,6 +746,22 @@ function InventorySummary() {
 
 export function InventoryPage() {
   const [activeView, setActiveView] = useState<'summary' | 'receive' | 'send'>('summary');
+  const [month, setMonth] = useState(() => new Date().toISOString().slice(0, 7)); // YYYY-MM
+  const [stockFormOpen, setStockFormOpen] = useState(false);
+  const [editTargetDate, setEditTargetDate] = useState<string | null>(null);
+
+  const { data } = useInventoryRecords('?limit=100');
+  const allRecords = data?.data ?? [];
+
+  const openAdd = () => {
+    setEditTargetDate(null);
+    setStockFormOpen(true);
+  };
+
+  const openEdit = (date: string) => {
+    setEditTargetDate(date);
+    setStockFormOpen(true);
+  };
 
   return (
     <div id="inventory-layout" className="flex flex-col h-full bg-[#004D40]/5 min-h-full flex-1">
@@ -800,16 +776,41 @@ export function InventoryPage() {
           <h1 className="text-[20px] font-bold text-black leading-tight px-2">Inventory</h1>
           <p className="text-[12.5px] text-gray-500 font-medium px-2">Track stock received into and sent out of the warehouse</p>
         </div>
+        {activeView === 'summary' && (
+          <div className="flex flex-wrap items-center gap-3">
+            <Input
+              type="month"
+              value={month}
+              onChange={(e) => e.target.value && setMonth(e.target.value)}
+              className="h-9 w-40 bg-white border border-gray-400 rounded-md px-3 py-2 text-sm font-semibold text-[#003140] shadow-[0_1px_2px_rgba(0,0,0,0.05)] hover:bg-gray-50 focus-visible:ring-1 focus-visible:ring-[#004D40]"
+            />
+            <Button
+              className="flex items-center gap-2 bg-[#004D40] hover:bg-[#00382e] text-white rounded-md px-3 py-2 h-auto text-[12px] font-bold tracking-wide shadow-[0_1px_2px_rgba(0,45,35,0.2)]"
+              onClick={openAdd}
+            >
+              <Plus className="w-3 h-3" />
+              ADD STOCK
+            </Button>
+          </div>
+        )}
       </div>
 
       {/* Content Area */}
-      <div className="flex-1 overflow-y-auto relative flex flex-col">
+      <div className="flex-1 overflow-y-auto relative flex flex-col bg-[#004D40]/5">
         <div className="flex flex-col gap-2 p-2">
-          {activeView === 'summary' && <InventorySummary />}
+          {activeView === 'summary' && <InventorySummary month={month} onEditDate={openEdit} />}
           {activeView === 'receive' && <InventoryReceiveTab onBack={() => setActiveView('summary')} />}
           {activeView === 'send' && <LoadSentTab onBack={() => setActiveView('summary')} />}
         </div>
       </div>
+
+      {stockFormOpen && (
+        <InventoryFormDialog
+          onClose={() => setStockFormOpen(false)}
+          editDate={editTargetDate ?? undefined}
+          editRecords={editTargetDate ? allRecords.filter(r => formatDate(r.date) === editTargetDate) : undefined}
+        />
+      )}
     </div>
   );
 }

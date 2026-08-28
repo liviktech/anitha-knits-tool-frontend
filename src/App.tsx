@@ -138,7 +138,7 @@ function AppShell() {
     <div className="flex h-screen w-full flex-col bg-[#004D40] font-['Hanken_Grotesk',sans-serif] lg:flex-row lg:p-1 lg:gap-2">
       {/* Laptop: persistent sidebar */}
       <aside className="hidden lg:flex w-50 shrink-0 flex-col overflow-y-auto">
-        <Link to="/dashboard" className="flex items-center justify-center gap-2 py-4 px-4 cursor-pointer border-b border-[#F4F1E8]">
+        <Link to="/dashboard" className="flex items-center justify-center gap-2 py-4.5 px-4 cursor-pointer border-b border-[#F4F1E8]">
           <img src={threadIcon} alt="" className="h-8 w-8 shrink-0 object-contain brightness-0 invert" />
           <span className="text-xl font-inter font-bold text-white tracking-widest whitespace-nowrap">LK KNITS</span>
         </Link>

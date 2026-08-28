@@ -279,7 +279,7 @@ export function EmpExpensesPage() {
           </p>
         </div>
 
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-3">
           <Input
             type="month"
             value={selectedMonth}
@@ -288,6 +288,13 @@ export function EmpExpensesPage() {
             }}
             className="h-9 w-40 bg-white border border-gray-400 rounded-md px-3 py-2 text-sm font-semibold text-[#003140] shadow-[0_1px_2px_rgba(0,0,0,0.05)] hover:bg-gray-50 focus-visible:ring-1 focus-visible:ring-[#004D40]"
           />
+          <Button
+            className="flex items-center gap-2 bg-[#004D40] hover:bg-[#00382e] text-white rounded-md px-3 py-2 h-auto text-[12px] font-bold tracking-wide shadow-[0_1px_2px_rgba(0,45,35,0.2)]"
+            onClick={openCreateModal}
+          >
+            <Plus className="w-3 h-3" />
+            ADD EXPENSE
+          </Button>
         </div>
       </div>
 
@@ -357,15 +364,6 @@ export function EmpExpensesPage() {
                     className="h-8 w-44 sm:w-60 pl-8 bg-gray-50/50 border-gray-400 text-xs rounded-lg focus-visible:ring-[#004D40]"
                   />
                 </div>
-
-                {/* Add Expense Button - matching #004D40 theme */}
-                <Button
-                  size="sm"
-                  className="h-8 gap-1 bg-[#004D40] text-white hover:bg-[#00332a] px-3.5 text-sm font-medium cursor-pointer"
-                  onClick={openCreateModal}
-                >
-                  <Plus className="h-3.5 w-3.5" /> Add Expense
-                </Button>
               </div>
             </div>
 

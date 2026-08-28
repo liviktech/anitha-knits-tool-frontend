@@ -1,5 +1,5 @@
-import { useState, useMemo } from 'react';
-import { Plus, Edit2, Trash2, Search, Loader2, Calendar } from 'lucide-react';
+import { useState, useMemo, useRef, useEffect, forwardRef, useImperativeHandle } from 'react';
+import { Plus, Edit2, Trash2, Search, Loader2, Calendar, Wallet, Upload } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -8,7 +8,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { DeleteConfirmDialog } from '@/components/shared/delete-confirm-dialog';
-import { AttendanceTab } from './attendance-tab';
+import { AttendanceTab, type AttendanceTabRef } from './attendance-tab';
 
 export interface EmployeeRecord {
   id: string;
@@ -55,8 +55,68 @@ function todayFormatted() {
   return `Today, ${date.getDate()} ${date.toLocaleString('en-US', { month: 'short' })}`;
 }
 
-function EmployeeDirectoryTab() {
-  const { data: employees = [] } = useEmployees();
+function FileUploadField({
+  id,
+  label,
+  file,
+  accept,
+  onChange,
+}: {
+  id: string;
+  label: string;
+  file: File | null;
+  accept: string;
+  onChange: (file: File | null) => void;
+}) {
+  const [previewUrl, setPreviewUrl] = useState<string | null>(null);
+  const isImage = !!file && file.type.startsWith('image/');
+
+  useEffect(() => {
+    if (!isImage || !file) {
+      setPreviewUrl(null);
+      return;
+    }
+    const url = URL.createObjectURL(file);
+    setPreviewUrl(url);
+    return () => URL.revokeObjectURL(url);
+  }, [file, isImage]);
+
+  return (
+    <div className="flex flex-col gap-1.5">
+      <Label htmlFor={id} className="text-xs font-semibold text-gray-700">{label}</Label>
+      <label
+        htmlFor={id}
+        className="relative flex flex-col items-center justify-center gap-1 h-40 rounded-md border border-dashed border-gray-400 bg-gray-50/50 text-gray-500 hover:bg-gray-100 cursor-pointer text-center px-2 transition-colors overflow-hidden"
+      >
+        {previewUrl ? (
+          <>
+            <img src={previewUrl} alt={label} className="absolute inset-0 h-full w-full object-cover" />
+            <span className="absolute inset-x-0 bottom-0 truncate bg-black/60 px-1.5 py-0.5 text-2xs leading-tight text-white">{file!.name}</span>
+          </>
+        ) : (
+          <>
+            <Upload className="h-4 w-4" />
+            <span className="text-[11px] leading-tight break-all line-clamp-2">{file ? file.name : 'Click to upload'}</span>
+          </>
+        )}
+      </label>
+      <input
+        id={id}
+        type="file"
+        accept={accept}
+        className="hidden"
+        onChange={(e) => onChange(e.target.files?.[0] ?? null)}
+      />
+    </div>
+  );
+}
+
+export interface EmployeeDirectoryTabRef {
+  openCreateModal: () => void;
+}
+
+const EmployeeDirectoryTab = forwardRef<EmployeeDirectoryTabRef>((_props, ref) => {
+  const { data: employees = [], isLoading } = useEmployees();
   const createEmployee = useCreateEmployee();
   const updateEmployee = useUpdateEmployee();
   const deleteEmployee = useDeleteEmployee();
@@ -80,6 +140,8 @@ function EmployeeDirectoryTab() {
   const [formGender, setFormGender] = useState<'MALE' | 'FEMALE' | 'OTHER'>('MALE');
   const [formSalary, setFormSalary] = useState('');
   const [formStatus, setFormStatus] = useState<'Active' | 'Inactive'>('Active');
+  const [formPhoto, setFormPhoto] = useState<File | null>(null);
+  const [formAadharFile, setFormAadharFile] = useState<File | null>(null);
   const [formError, setFormError] = useState<string | null>(null);
   const [isSaving, setIsSaving] = useState(false);
 
@@ -126,9 +188,13 @@ function EmployeeDirectoryTab() {
     setFormGender('MALE');
     setFormSalary('');
     setFormStatus('Active');
+    setFormPhoto(null);
+    setFormAadharFile(null);
     setFormError(null);
     setIsFormOpen(true);
   };
+
+  useImperativeHandle(ref, () => ({ openCreateModal }));
 
   const openEditModal = (emp: Employee) => {
     setEditingEmployee(emp);
@@ -144,6 +210,8 @@ function EmployeeDirectoryTab() {
     setFormGender(emp.employeeDetails?.gender || 'MALE');
     setFormSalary(emp.employeeDetails?.salary ? String(emp.employeeDetails.salary) : '');
     setFormStatus(emp.isActive ? 'Active' : 'Inactive');
+    setFormPhoto(null);
+    setFormAadharFile(null);
     setFormError(null);
     setIsFormOpen(true);
   };
@@ -277,15 +345,6 @@ function EmployeeDirectoryTab() {
                 <SelectItem value="Inactive">Inactive</SelectItem>
               </SelectContent>
             </Select>
-
-            {/* Add Employee Button */}
-            <Button
-              size="sm"
-              className="h-8 gap-1 bg-[#004D40] text-white hover:bg-[#00332a] px-3.5 text-sm font-medium cursor-pointer font-hanken"
-              onClick={openCreateModal}
-            >
-              <Plus className="h-3.5 w-3.5" /> Add Employee
-            </Button>
           </div>
         </div>
 
@@ -395,7 +454,12 @@ function EmployeeDirectoryTab() {
               }
             </TableBody>
           </Table>
-          {filteredEmployees.length === 0 && (
+          {isLoading && (
+            <div className="flex-1 flex items-center justify-center gap-2 text-gray-500 text-md py-8">
+              <Loader2 className="h-4 w-4 animate-spin" /> Loading employees...
+            </div>
+          )}
+          {!isLoading && filteredEmployees.length === 0 && (
             <div className="flex-1 flex items-center justify-center text-gray-500 text-md">
               No employees found matching your criteria.
             </div>
@@ -413,22 +477,21 @@ function EmployeeDirectoryTab() {
 
       {/* Add / Edit Employee Dialog */}
       <Dialog open={isFormOpen} onOpenChange={setIsFormOpen}>
-        <DialogContent className="sm:max-w-lg border border-gray-400">
+        <DialogContent className="sm:max-w-2xl border border-gray-400">
           <DialogHeader className="-mx-4 -mt-4 mb-2 rounded-t-xl border-b border-gray-200 bg-[#A8DCAB] px-4 py-3">
             <DialogTitle className="text-lg font-bold text-black">
               {editingEmployee ? 'Edit Employee Record' : 'Add New Employee'}
             </DialogTitle>
           </DialogHeader>
 
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 py-2">
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 py-2">
             <div className="flex flex-col gap-1.5">
               <Label htmlFor="emp-id" className="text-xs font-semibold text-gray-700">Employee ID</Label>
               <Input
                 id="emp-id"
-                placeholder="e.g. EMP-006"
+                placeholder="Auto-generated"
                 value={formId}
-                onChange={(e) => setFormId(e.target.value)}
-                disabled={!!editingEmployee}
+                disabled
                 className="h-9 text-xs"
               />
             </div>
@@ -467,23 +530,24 @@ function EmployeeDirectoryTab() {
             </div>
 
             <div className="flex flex-col gap-1.5">
-              <Label htmlFor="emp-aadhar" className="text-xs font-semibold text-gray-700">Aadhar Card</Label>
-              <Input
-                id="emp-aadhar"
-                placeholder="e.g. 4521 8890 1234"
-                value={formAadhar}
-                onChange={(e) => setFormAadhar(e.target.value)}
-                className="h-9 text-xs"
-              />
-            </div>
-
-            <div className="flex flex-col gap-1.5">
               <Label htmlFor="emp-doj" className="text-xs font-semibold text-gray-700">Date of Joining</Label>
               <Input
                 id="emp-doj"
                 type="date"
                 value={formDoj}
                 onChange={(e) => setFormDoj(e.target.value)}
+                className="h-9 text-xs"
+              />
+            </div>
+
+            <div className="flex flex-col gap-1.5">
+              <Label htmlFor="emp-salary" className="text-xs font-semibold text-gray-700">Monthly Salary (₹)</Label>
+              <Input
+                id="emp-salary"
+                type="number"
+                placeholder="e.g. 25000"
+                value={formSalary}
+                onChange={(e) => setFormSalary(e.target.value)}
                 className="h-9 text-xs"
               />
             </div>
@@ -503,18 +567,6 @@ function EmployeeDirectoryTab() {
             </div>
 
             <div className="flex flex-col gap-1.5">
-              <Label htmlFor="emp-salary" className="text-xs font-semibold text-gray-700">Monthly Salary (₹)</Label>
-              <Input
-                id="emp-salary"
-                type="number"
-                placeholder="e.g. 25000"
-                value={formSalary}
-                onChange={(e) => setFormSalary(e.target.value)}
-                className="h-9 text-xs"
-              />
-            </div>
-
-            <div className="flex flex-col gap-1.5">
               <Label htmlFor="emp-status" className="text-xs font-semibold text-gray-700">Status</Label>
               <Select value={formStatus} onValueChange={(val) => setFormStatus(val as 'Active' | 'Inactive')}>
                 <SelectTrigger id="emp-status" className="w-full h-9 text-xs">
@@ -527,7 +579,18 @@ function EmployeeDirectoryTab() {
               </Select>
             </div>
 
-            <div className="sm:col-span-2 flex flex-col gap-1.5">
+            <div className="flex flex-col gap-1.5">
+              <Label htmlFor="emp-aadhar" className="text-xs font-semibold text-gray-700">Aadhar Card</Label>
+              <Input
+                id="emp-aadhar"
+                placeholder="e.g. 4521 8890 1234"
+                value={formAadhar}
+                onChange={(e) => setFormAadhar(e.target.value)}
+                className="h-9 text-xs"
+              />
+            </div>
+
+            <div className="sm:col-span-3 flex flex-col gap-1.5">
               <Label htmlFor="emp-address" className="text-xs font-semibold text-gray-700">Residential Address</Label>
               <Input
                 id="emp-address"
@@ -538,7 +601,31 @@ function EmployeeDirectoryTab() {
               />
             </div>
 
-            {formError && <p className="sm:col-span-2 text-xs text-red-600 font-medium">{formError}</p>}
+            {formError && <p className="sm:col-span-3 text-xs text-red-600 font-medium">{formError}</p>}
+
+            <div className="sm:col-span-3 flex flex-col gap-3 pt-2 border-t border-gray-200">
+              <h3 className="text-xs font-bold uppercase tracking-wide text-gray-700">Uploads</h3>
+              <div className="flex flex-row gap-4">
+                <div className="flex-1">
+                  <FileUploadField
+                    id="emp-photo"
+                    label="Employee Photo"
+                    file={formPhoto}
+                    accept="image/*"
+                    onChange={setFormPhoto}
+                  />
+                </div>
+                <div className="flex-1">
+                  <FileUploadField
+                    id="emp-aadhar-file"
+                    label="Aadhar Card Upload"
+                    file={formAadharFile}
+                    accept="image/*,.pdf"
+                    onChange={setFormAadharFile}
+                  />
+                </div>
+              </div>
+            </div>
           </div>
 
           <DialogFooter className="border-gray-200 bg-white">
@@ -567,10 +654,26 @@ function EmployeeDirectoryTab() {
       />
     </div>
   );
+});
+
+function PayrollTab() {
+  return (
+    <div className="rounded-xl border border-gray-400 bg-white shadow-sm overflow-hidden flex-1 flex flex-col min-h-0">
+      <div className="flex flex-col items-center justify-center gap-3 py-20 text-center">
+        <div className="flex h-12 w-12 items-center justify-center rounded-full bg-gray-100 text-gray-400">
+          <Wallet className="h-6 w-6" />
+        </div>
+        <h3 className="text-lg font-bold text-gray-700">Payroll — coming soon</h3>
+        <p className="max-w-sm text-sm text-gray-500">Salary computation and payslips will show up here once payroll is set up.</p>
+      </div>
+    </div>
+  );
 }
 
 export function EmployeePage() {
   const [activeTab, setActiveTab] = useState('directory');
+  const directoryRef = useRef<EmployeeDirectoryTabRef>(null);
+  const attendanceRef = useRef<AttendanceTabRef>(null);
 
   return (
     <div className="flex flex-col h-full bg-[#004D40]/5 min-h-full flex-1">
@@ -580,10 +683,28 @@ export function EmployeePage() {
           <p className="font-hanken text-[12.5px] text-gray-500 font-medium px-2">Manage worker profiles, contact info, and daily attendance</p>
         </div>
         {activeTab === 'attendance' && (
-          <div className="flex items-center gap-2 rounded-full border border-gray-200 bg-white px-3 py-1.5 shadow-sm pointer-events-none">
-            <span className="text-sm font-medium text-gray-700">{todayFormatted()}</span>
-            <Calendar className="h-4 w-4 text-gray-500" />
+          <div className="flex items-center gap-3">
+            <div className="flex items-center gap-2 rounded-full border border-gray-200 bg-white px-3 py-1.5 shadow-sm pointer-events-none">
+              <span className="text-sm font-medium text-gray-700">{todayFormatted()}</span>
+              <Calendar className="h-4 w-4 text-gray-500" />
+            </div>
+            <Button
+              className="flex items-center gap-2 bg-[#004D40] hover:bg-[#00382e] text-white rounded-md px-3 py-2 h-auto text-[12px] font-bold tracking-wide shadow-[0_1px_2px_rgba(0,45,35,0.2)]"
+              onClick={() => attendanceRef.current?.openAddModal()}
+            >
+              <Plus className="w-3 h-3" />
+              ADD ATTENDANCE
+            </Button>
           </div>
+        )}
+        {activeTab === 'directory' && (
+          <Button
+            className="flex items-center gap-2 bg-[#004D40] hover:bg-[#00382e] text-white rounded-md px-3 py-2 h-auto text-[12px] font-bold tracking-wide shadow-[0_1px_2px_rgba(0,45,35,0.2)]"
+            onClick={() => directoryRef.current?.openCreateModal()}
+          >
+            <Plus className="w-3 h-3" />
+            ADD EMPLOYEE
+          </Button>
         )}
       </div>
 
@@ -591,12 +712,16 @@ export function EmployeePage() {
         <TabsList variant="underline" className="px-1 gap-1.5 h-auto">
           <TabsTrigger value="directory" className="rounded-md border transition-all duration-200 py-1! px-3! bg-gray-100! text-gray-800! border-gray-400! data-[state=active]:bg-[#004D40]! data-[state=active]:text-white! data-[state=active]:border-[#004D40]!">Directory</TabsTrigger>
           <TabsTrigger value="attendance" className="rounded-md border transition-all duration-200 py-1! px-3! bg-gray-100! text-gray-800! border-gray-400! data-[state=active]:bg-[#004D40]! data-[state=active]:text-white! data-[state=active]:border-[#004D40]!">Attendance</TabsTrigger>
+          <TabsTrigger value="payroll" className="rounded-md border transition-all duration-200 py-1! px-3! bg-gray-100! text-gray-800! border-gray-400! data-[state=active]:bg-[#004D40]! data-[state=active]:text-white! data-[state=active]:border-[#004D40]!">Payroll</TabsTrigger>
         </TabsList>
         <TabsContent value="directory" className="mt-4 animate-in fade-in-0 duration-300">
-          <EmployeeDirectoryTab />
+          <EmployeeDirectoryTab ref={directoryRef} />
         </TabsContent>
         <TabsContent value="attendance" className="mt-4 animate-in fade-in-0 duration-300">
-          <AttendanceTab />
+          <AttendanceTab ref={attendanceRef} />
+        </TabsContent>
+        <TabsContent value="payroll" className="mt-4 animate-in fade-in-0 duration-300">
+          <PayrollTab />
         </TabsContent>
       </Tabs>
     </div>

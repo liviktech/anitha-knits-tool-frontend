@@ -1,5 +1,5 @@
-import { useState, useMemo } from 'react';
-import { Search, Plus, Edit2 } from 'lucide-react';
+import { useState, useMemo, forwardRef, useImperativeHandle } from 'react';
+import { Search, Edit2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
@@ -24,7 +24,11 @@ export interface AttendanceRecord {
   status: 'Present' | 'Absent' | 'Half-day' | 'Leave';
 }
 
-export function AttendanceTab() {
+export interface AttendanceTabRef {
+  openAddModal: () => void;
+}
+
+export const AttendanceTab = forwardRef<AttendanceTabRef>((_props, ref) => {
   const [searchQuery, setSearchQuery] = useState('');
   const [monthFilter, setMonthFilter] = useState('ALL');
   const [yearFilter, setYearFilter] = useState('ALL');
@@ -43,6 +47,8 @@ export function AttendanceTab() {
     setSelectedRecord(null);
     setIsModalOpen(true);
   };
+
+  useImperativeHandle(ref, () => ({ openAddModal }));
 
   // We pass 'isActive=true' or just fetch all for employeeOptions
   const { data: employeesData } = useEmployees('isActive=true');
@@ -233,13 +239,6 @@ export function AttendanceTab() {
                 ))}
               </SelectContent>
             </Select>
-            <Button
-              size="sm"
-              onClick={openAddModal}
-              className="h-8 gap-1 bg-[#004D40] text-white hover:bg-[#00332a] px-3.5 text-sm font-medium cursor-pointer font-hanken"
-            >
-              <Plus className="h-3.5 w-3.5" /> Add Attendance
-            </Button>
           </div>
         </div>
 
@@ -378,4 +377,4 @@ export function AttendanceTab() {
       />
     </div>
   );
-}
+});
