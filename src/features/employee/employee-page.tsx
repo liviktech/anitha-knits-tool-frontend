@@ -714,19 +714,7 @@ const EmployeeDirectoryTab = forwardRef<EmployeeDirectoryTabRef>((_props, ref) =
   );
 });
 
-function PayrollTab() {
-  return (
-    <div className="rounded-xl border border-gray-400 bg-white shadow-sm overflow-hidden flex-1 flex flex-col min-h-0">
-      <div className="flex flex-col items-center justify-center gap-3 py-20 text-center">
-        <div className="flex h-12 w-12 items-center justify-center rounded-full bg-gray-100 text-gray-400">
-          <Wallet className="h-6 w-6" />
-        </div>
-        <h3 className="text-lg font-bold text-gray-700">Payroll — coming soon</h3>
-        <p className="max-w-sm text-sm text-gray-500">Salary computation and payslips will show up here once payroll is set up.</p>
-      </div>
-    </div>
-  );
-}
+import { PayrollTab } from './payroll-tab';
 
 export function EmployeePage() {
   const [activeTab, setActiveTab] = useState('directory');
