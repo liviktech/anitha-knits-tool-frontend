@@ -296,7 +296,7 @@ export function ProductionConfigTab() {
         </div>
       </div>
 
-      <section className="-mt-2 overflow-hidden rounded-xl border border-gray-200 bg-white shadow-sm">
+      <section className="-mt-2 overflow-hidden rounded-xl border border-gray-400 bg-white shadow-sm">
 
         {/* Table */}
         <div className="overflow-x-auto">
@@ -304,44 +304,44 @@ export function ProductionConfigTab() {
           <table className="w-full min-w-[900px] border-collapse">
 
             <thead>
-              <tr className="border-b border-gray-100 bg-gray-50/70">
+              <tr className="border-b border-emerald-400 bg-emerald-50/30">
 
-                <th className="px-5 py-3 text-left text-[10px] font-bold uppercase tracking-wide text-gray-400">
+                <th className="px-5 py-3 text-left text-sm font-semibold tracking-wide text-gray-800">
                   Effective Date
                 </th>
 
-                <th className="px-4 py-3 text-left text-[10px] font-bold uppercase tracking-wide text-gray-400">
+                <th className="px-4 py-3 text-left text-sm font-semibold tracking-wide text-gray-800">
                   Bags
                 </th>
 
-                <th className="px-4 py-3 text-left text-[10px] font-bold uppercase tracking-wide text-gray-400">
+                <th className="px-4 py-3 text-left text-sm font-semibold tracking-wide text-gray-800">
                   HDPE
                 </th>
 
-                <th className="px-4 py-3 text-left text-[10px] font-bold uppercase tracking-wide text-gray-400">
+                <th className="px-4 py-3 text-left text-sm font-semibold tracking-wide text-gray-800">
                   White
                 </th>
 
-                <th className="px-4 py-3 text-left text-[10px] font-bold uppercase tracking-wide text-gray-400">
+                <th className="px-4 py-3 text-left text-sm font-semibold tracking-wide text-gray-800">
                   Blue
                 </th>
 
-                <th className="px-4 py-3 text-left text-[10px] font-bold uppercase tracking-wide text-gray-400">
+                <th className="px-4 py-3 text-left text-sm font-semibold tracking-wide text-gray-800">
                   Green
                 </th>
 
-                <th className="px-4 py-3 text-left text-[10px] font-bold uppercase tracking-wide text-gray-400">
+                <th className="px-4 py-3 text-left text-sm font-semibold tracking-wide text-gray-800">
                   Chemical
                 </th>
 
-                <th className="px-5 py-3 text-right text-[10px] font-bold uppercase tracking-wide text-gray-400">
+                <th className="px-5 py-3 text-right text-sm font-semibold tracking-wide text-gray-800">
                   Actions
                 </th>
 
               </tr>
             </thead>
 
-            <tbody className="divide-y divide-gray-100">
+            <tbody>
 
               {history.length === 0 && (
                 <tr>
@@ -356,7 +356,7 @@ export function ProductionConfigTab() {
                 return (
                   <tr
                     key={item.id}
-                    className="group transition-colors hover:bg-gray-50/70"
+                    className="group border-b border-emerald-100 last:border-b-0 transition-colors hover:bg-emerald-50/30"
                   >
 
                     {/* Date + LIVE */}
