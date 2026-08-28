@@ -4,6 +4,7 @@ import { Input } from '@/components/ui/input';
 import { FlaskConical, ListTree, Users } from 'lucide-react';
 import { ProductionConfigTab } from './production-config-tab';
 import { RawMaterialsTab } from './raw-materials-tab';
+import { RolesTab } from './roles-tab';
 
 export const BAG_WEIGHT_STORAGE_KEY = 'extruder_default_bag_weight';
 
@@ -71,7 +72,7 @@ export function AdminPanelPage() {
 
       {/* Content Area */}
       <div className="flex-1 overflow-y-auto relative flex flex-col">
-        <div className="p-6 max-w-7xl flex-1">
+        <div className="p-3 max-w-12xl flex-1">
           {activeTab === 'production-config' && <ProductionConfigTab />}
 
           {activeTab === 'raw-materials' && <RawMaterialsTab />}
@@ -109,20 +110,7 @@ export function AdminPanelPage() {
             </div>
           )}
 
-          {activeTab === 'roles' && (
-            <div className="bg-white border border-gray-200 rounded-xl shadow-sm p-12 flex flex-col items-center justify-center text-center">
-              <div className="w-12 h-12 bg-blue-50 rounded-full flex items-center justify-center mb-4">
-                <Users className="w-6 h-6 text-blue-500" />
-              </div>
-              <h2 className="text-lg font-bold text-gray-900 mb-2">Roles & Permissions</h2>
-              <p className="text-blue-600 font-semibold text-sm max-w-sm bg-blue-50 py-1.5 px-3 rounded-full mt-2">
-                Coming Soon
-              </p>
-              <p className="text-gray-500 text-sm mt-4">
-                Role management and permissions configuration will be available in a future update.
-              </p>
-            </div>
-          )}
+          {activeTab === 'roles' && <RolesTab />}
         </div>
       </div>
     </div>
