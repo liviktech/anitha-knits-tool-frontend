@@ -1,5 +1,5 @@
 import { useState, useMemo, useRef, useEffect, forwardRef, useImperativeHandle } from 'react';
-import { Plus, Edit2, Trash2, Search, Loader2, Calendar, Wallet, Upload } from 'lucide-react';
+import { Plus, Edit2, Trash2, Search, Loader2, Calendar, Wallet, Upload, UserRound } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -53,6 +53,15 @@ function todayIso() {
 function todayFormatted() {
   const date = new Date();
   return `Today, ${date.getDate()} ${date.toLocaleString('en-US', { month: 'short' })}`;
+}
+
+function ViewField({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="flex flex-col gap-1">
+      <Label className="text-xs font-semibold text-gray-500 uppercase tracking-wide">{label}</Label>
+      <p className="text-sm font-medium text-gray-900 wrap-break-word">{value}</p>
+    </div>
+  );
 }
 
 function FileUploadField({
@@ -128,6 +137,7 @@ const EmployeeDirectoryTab = forwardRef<EmployeeDirectoryTabRef>((_props, ref) =
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [editingEmployee, setEditingEmployee] = useState<Employee | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<Employee | null>(null);
+  const [viewTarget, setViewTarget] = useState<Employee | null>(null);
 
   // Form input states
   const [formId, setFormId] = useState('');
@@ -391,8 +401,14 @@ const EmployeeDirectoryTab = forwardRef<EmployeeDirectoryTabRef>((_props, ref) =
                   key={emp.id}
                   className="border-b border-emerald-50 last:border-b-0 hover:bg-emerald-50/30 transition-colors"
                 >
-                  <TableCell className="pl-4 text-sm font-bold text-gray-700 whitespace-nowrap">
-                    {emp.employeeDetails?.customUserId || emp.id}
+                  <TableCell className="pl-4 text-sm font-bold whitespace-nowrap">
+                    <button
+                      type="button"
+                      onClick={() => setViewTarget(emp)}
+                      className="text-blue-600 hover:text-blue-800 hover:underline cursor-pointer"
+                    >
+                      {emp.employeeDetails?.customUserId || emp.id}
+                    </button>
                   </TableCell>
                   <TableCell className="py-3 text-sm font-semibold text-gray-900 whitespace-nowrap">
                     {emp.name || '-'}
@@ -652,6 +668,48 @@ const EmployeeDirectoryTab = forwardRef<EmployeeDirectoryTabRef>((_props, ref) =
             : 'This action cannot be undone.'
         }
       />
+
+      {/* View Employee Dialog */}
+      <Dialog open={!!viewTarget} onOpenChange={(open) => !open && setViewTarget(null)}>
+        <DialogContent className="sm:max-w-lg border border-gray-400">
+          <DialogHeader className="-mx-4 -mt-4 mb-2 rounded-t-xl border-b border-gray-200 bg-[#A8DCAB] px-4 py-3">
+            <DialogTitle className="text-lg font-bold text-black">Employee Details</DialogTitle>
+          </DialogHeader>
+
+          {viewTarget && (
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 py-2">
+              <ViewField label="Employee ID" value={viewTarget.employeeDetails?.customUserId || viewTarget.id} />
+              <ViewField label="Full Name" value={viewTarget.name || '-'} />
+              <ViewField label="Designation" value={viewTarget.employeeDetails?.designation || '-'} />
+              <ViewField label="Mobile Number" value={viewTarget.mobile} />
+              <ViewField label="Date of Joining" value={formatDateDisplay(viewTarget.employeeDetails?.joiningDate || '')} />
+              <ViewField label="Monthly Salary (₹)" value={viewTarget.employeeDetails?.salary ? formatCurrency(viewTarget.employeeDetails.salary) : '-'} />
+              <ViewField label="Gender" value={viewTarget.employeeDetails?.gender || '-'} />
+              <ViewField label="Status" value={viewTarget.isActive ? 'Active' : 'Inactive'} />
+              <ViewField label="Aadhar Card" value={viewTarget.employeeDetails?.aadhaarNumber || '-'} />
+              <div className="sm:col-span-3">
+                <ViewField label="Residential Address" value={viewTarget.employeeDetails?.address || '-'} />
+              </div>
+            </div>
+          )}
+
+          <DialogFooter className="border-gray-200 bg-white">
+            <Button variant="outline" size="sm" onClick={() => setViewTarget(null)} className="h-8 text-xs">
+              Close
+            </Button>
+            <Button
+              size="sm"
+              className="h-8 bg-[#004D40] hover:bg-[#00332a] text-white text-xs font-medium px-4"
+              onClick={() => {
+                if (viewTarget) openEditModal(viewTarget);
+                setViewTarget(null);
+              }}
+            >
+              Edit
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 });
@@ -708,11 +766,20 @@ export function EmployeePage() {
         )}
       </div>
 
-      <Tabs value={activeTab} onValueChange={setActiveTab} className="flex-1 overflow-y-auto px-2 pb-1 gap-1">
-        <TabsList variant="underline" className="px-1 gap-1.5 h-auto">
-          <TabsTrigger value="directory" className="rounded-md border transition-all duration-200 py-1! px-3! bg-gray-100! text-gray-800! border-gray-400! data-[state=active]:bg-[#004D40]! data-[state=active]:text-white! data-[state=active]:border-[#004D40]!">Directory</TabsTrigger>
-          <TabsTrigger value="attendance" className="rounded-md border transition-all duration-200 py-1! px-3! bg-gray-100! text-gray-800! border-gray-400! data-[state=active]:bg-[#004D40]! data-[state=active]:text-white! data-[state=active]:border-[#004D40]!">Attendance</TabsTrigger>
-          <TabsTrigger value="payroll" className="rounded-md border transition-all duration-200 py-1! px-3! bg-gray-100! text-gray-800! border-gray-400! data-[state=active]:bg-[#004D40]! data-[state=active]:text-white! data-[state=active]:border-[#004D40]!">Payroll</TabsTrigger>
+      <Tabs value={activeTab} onValueChange={setActiveTab} className="flex-1 overflow-y-auto pb-1 gap-1">
+        <TabsList>
+          <TabsTrigger value="directory">
+            <UserRound className="h-4 w-4" strokeWidth={1.75} />
+            Directory
+          </TabsTrigger>
+          <TabsTrigger value="attendance">
+            <Calendar className="h-4 w-4" strokeWidth={1.75} />
+            Attendance
+          </TabsTrigger>
+          <TabsTrigger value="payroll">
+            <Wallet className="h-4 w-4" strokeWidth={1.75} />
+            Payroll
+          </TabsTrigger>
         </TabsList>
         <TabsContent value="directory" className="mt-4 animate-in fade-in-0 duration-300">
           <EmployeeDirectoryTab ref={directoryRef} />
