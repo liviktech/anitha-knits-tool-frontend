@@ -6,7 +6,6 @@ import {
   Edit2,
   Trash2,
   Search,
-  Wallet,
   ChevronLeft,
   ChevronRight,
 } from "lucide-react";
@@ -155,9 +154,8 @@ export function EmpExpensesPage() {
   // Month + search, server-filtered (same 100-row cap) — backs the table.
   // Paginated client-side over this bounded set so the footer's "Filtered
   // Total" can sum every matching row, not just the visible page.
-  const filteredQuery = `?date_from=${from}&date_to=${to}&limit=100${
-    searchQuery.trim() ? `&name=${encodeURIComponent(searchQuery.trim())}` : ""
-  }`;
+  const filteredQuery = `?date_from=${from}&date_to=${to}&limit=100${searchQuery.trim() ? `&name=${encodeURIComponent(searchQuery.trim())}` : ""
+    }`;
   const {
     data: filteredData,
     isLoading,
@@ -217,15 +215,15 @@ export function EmpExpensesPage() {
       };
       const response = editingExpense
         ? await apiFetch(`/expenses/${editingExpense.id}`, {
-            method: "PATCH",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify(payload),
-          })
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(payload),
+        })
         : await apiFetch("/expenses", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify(payload),
-          });
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(payload),
+        });
 
       if (!response.ok) {
         setFormError(
