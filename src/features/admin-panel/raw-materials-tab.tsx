@@ -76,7 +76,7 @@ export function RawMaterialsTab() {
   const lookups = lookupsQuery.data;
   const selectedMeta = CATEGORY_META.find((c) => c.key === selectedKey) ?? CATEGORY_META[0];
   const selectedItems = lookups?.[selectedKey] ?? [];
-  const totalItems = lookups ? lookups.brands.length + lookups.colors.length + lookups.chemicals.length + lookups.sizes.length : 0;
+  // const totalItems = lookups ? lookups.brands.length + lookups.colors.length + lookups.chemicals.length + lookups.sizes.length : 0;
 
   const handleOpenAdd = () => {
     setEditingItem(null);
@@ -134,29 +134,6 @@ export function RawMaterialsTab() {
 
   return (
     <div className="flex flex-col gap-5">
-
-      {/* ========================================================= */}
-      {/* PAGE SUMMARY                                             */}
-      {/* ========================================================= */}
-
-      <div className="flex flex-col gap-4  p-4 shadow-sm sm:flex-row sm:items-center sm:justify-between">
-        <div className="flex items-center gap-4">
-          <div className="flex h-12 w-12 items-center justify-center rounded-lg border border-gray-100 bg-gray-50">
-            <Boxes className="h-8 w-8 text-[#004D40]" />
-          </div>
-          <div>
-            <h2 className="text-[18px] font-bold text-gray-900">Raw Materials Management</h2>
-            <p className="mt-0.5 text-[14px] font-medium text-gray-400">
-              Manage categories and configure material properties.
-            </p>
-          </div>
-        </div>
-
-        <div className="text-right">
-          <span className="block text-[10px] font-bold uppercase tracking-wide text-gray-400">Total Items</span>
-          <span className="text-[20px] font-bold text-gray-900">{totalItems}</span>
-        </div>
-      </div>
 
       {/* ========================================================= */}
       {/* CATEGORY CARDS                                           */}
@@ -241,9 +218,9 @@ export function RawMaterialsTab() {
       {/* DETAIL VIEW                                              */}
       {/* ========================================================= */}
 
-      <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
+      <div className="grid grid-cols-1 items-start gap-4 lg:grid-cols-3">
 
-        <section className="overflow-hidden rounded-xl border border-gray-200 bg-white shadow-sm lg:col-span-2">
+        <section className="overflow-hidden rounded-xl border border-gray-400 bg-white shadow-sm lg:col-span-2">
 
           <div className="flex flex-col gap-4 border-b border-gray-100 bg-[#F8FAF9] px-5 py-3.5 md:flex-row md:items-center md:justify-between">
             <div className="flex items-center gap-3">
@@ -269,15 +246,15 @@ export function RawMaterialsTab() {
           <div className="overflow-x-auto">
             <table className="w-full min-w-[560px] border-collapse">
               <thead>
-                <tr className="border-b border-gray-100 bg-gray-50/70">
-                  <th className="px-5 py-3 text-left text-[10px] font-bold uppercase tracking-wide text-gray-400">Item Code</th>
-                  <th className="px-4 py-3 text-left text-[10px] font-bold uppercase tracking-wide text-gray-400">Name</th>
-                  <th className="px-4 py-3 text-right text-[10px] font-bold uppercase tracking-wide text-gray-400">Last Updated</th>
-                  <th className="px-5 py-3 text-right text-[10px] font-bold uppercase tracking-wide text-gray-400">Actions</th>
+                <tr className="border-b border-emerald-400 bg-emerald-50/30">
+                  <th className="px-5 py-3 text-left text-sm font-semibold tracking-wide text-gray-800">Item Code</th>
+                  <th className="px-4 py-3 text-left text-sm font-semibold tracking-wide text-gray-800">Name</th>
+                  <th className="px-4 py-3 text-right text-sm font-semibold tracking-wide text-gray-800">Last Updated</th>
+                  <th className="px-5 py-3 text-right text-sm font-semibold tracking-wide text-gray-800">Actions</th>
                 </tr>
               </thead>
 
-              <tbody className="divide-y divide-gray-100">
+              <tbody>
                 {selectedItems.length === 0 ? (
                   <tr>
                     <td colSpan={4} className="px-5 py-6 text-center text-[13px] text-gray-400">
@@ -286,7 +263,7 @@ export function RawMaterialsTab() {
                   </tr>
                 ) : (
                   selectedItems.map((item) => (
-                    <tr key={item.id} className="group transition-colors hover:bg-gray-50/70">
+                    <tr key={item.id} className="group border-b border-emerald-200 last:border-b-0 transition-colors hover:bg-emerald-50/30">
                       <td className="px-5 py-1.5 text-[13px] font-medium text-gray-900">
                         {item.itemCode}
                       </td>
@@ -309,7 +286,7 @@ export function RawMaterialsTab() {
             </table>
           </div>
 
-          <div className="flex items-center justify-between border-t border-gray-100 bg-white px-5 py-3 text-[12px] text-gray-500">
+          <div className="flex items-center justify-between border-t border-gray-400 bg-emerald-50/20 px-5 py-3 text-xs text-gray-700">
             <span>Showing {selectedItems.length} of {selectedItems.length} items</span>
           </div>
 

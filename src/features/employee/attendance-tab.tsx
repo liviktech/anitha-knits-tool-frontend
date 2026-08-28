@@ -144,7 +144,7 @@ export const AttendanceTab = forwardRef<AttendanceTabRef>((_props, ref) => {
   }, [filteredRecords, selectedEmployee]);
 
   return (
-    <div className="flex flex-col gap-2 h-[calc(100%-3px)] flex-1 min-h-0">
+    <div className="flex flex-col gap-2 h-[calc(100%-3px)] flex-1 min-h-0 p-2">
       {/* Header section */}
       <div className="flex items-center justify-end">
       </div>

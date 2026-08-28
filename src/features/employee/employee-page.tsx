@@ -1,10 +1,11 @@
 import { useState, useMemo, useRef, useEffect, forwardRef, useImperativeHandle } from 'react';
-import { Plus, Edit2, Trash2, Search, Loader2, Calendar, Wallet, Upload } from 'lucide-react';
+import { Plus, Edit2, Trash2, Search, Loader2, Calendar, Wallet, Upload, UserRound } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { motion } from 'framer-motion';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { DeleteConfirmDialog } from '@/components/shared/delete-confirm-dialog';
@@ -56,6 +57,14 @@ function todayFormatted() {
 }
 
 const MAX_UPLOAD_SIZE_BYTES = 3 * 1024 * 1024;
+function ViewField({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="flex flex-col gap-1">
+      <Label className="text-xs font-semibold text-gray-500 uppercase tracking-wide">{label}</Label>
+      <p className="text-sm font-medium text-gray-900 wrap-break-word">{value}</p>
+    </div>
+  );
+}
 
 function FileUploadField({
   id,
@@ -172,6 +181,7 @@ const EmployeeDirectoryTab = forwardRef<EmployeeDirectoryTabRef>((_props, ref) =
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [editingEmployee, setEditingEmployee] = useState<Employee | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<Employee | null>(null);
+  const [viewTarget, setViewTarget] = useState<Employee | null>(null);
 
   // Form input states
   const [formId, setFormId] = useState('');
@@ -319,7 +329,7 @@ const EmployeeDirectoryTab = forwardRef<EmployeeDirectoryTabRef>((_props, ref) =
   };
 
   return (
-    <div className="flex flex-col gap-2 h-[calc(100%-3px)] flex-1 min-h-0">
+    <div className="flex flex-col gap-2 h-[calc(100%-3px)] flex-1 min-h-0 p-2">
       {/* Top Stat KPI Cards */}
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-2" style={{ fontFamily: "'Hanken Grotesk Variable', 'Hanken Grotesk', sans-serif" }}>
         <div className="bg-white rounded-xl border border-gray-400 shadow-sm p-4 relative overflow-hidden group/card hover:border-emerald-300 transition-colors flex flex-col h-full justify-center">
@@ -438,8 +448,14 @@ const EmployeeDirectoryTab = forwardRef<EmployeeDirectoryTabRef>((_props, ref) =
                   key={emp.id}
                   className="border-b border-emerald-50 last:border-b-0 hover:bg-emerald-50/30 transition-colors"
                 >
-                  <TableCell className="pl-4 text-sm font-bold text-gray-700 whitespace-nowrap">
-                    {emp.employeeDetails?.customUserId || emp.id}
+                  <TableCell className="pl-4 text-sm font-bold whitespace-nowrap">
+                    <button
+                      type="button"
+                      onClick={() => setViewTarget(emp)}
+                      className="text-blue-600 hover:text-blue-800 hover:underline cursor-pointer"
+                    >
+                      {emp.employeeDetails?.customUserId || emp.id}
+                    </button>
                   </TableCell>
                   <TableCell className="py-3 text-sm font-semibold text-gray-900 whitespace-nowrap">
                     {emp.name || '-'}
@@ -703,23 +719,53 @@ const EmployeeDirectoryTab = forwardRef<EmployeeDirectoryTabRef>((_props, ref) =
             : 'This action cannot be undone.'
         }
       />
+
+      {/* View Employee Dialog */}
+      <Dialog open={!!viewTarget} onOpenChange={(open) => !open && setViewTarget(null)}>
+        <DialogContent className="sm:max-w-lg border border-gray-400">
+          <DialogHeader className="-mx-4 -mt-4 mb-2 rounded-t-xl border-b border-gray-200 bg-[#A8DCAB] px-4 py-3">
+            <DialogTitle className="text-lg font-bold text-black">Employee Details</DialogTitle>
+          </DialogHeader>
+
+          {viewTarget && (
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 py-2">
+              <ViewField label="Employee ID" value={viewTarget.employeeDetails?.customUserId || viewTarget.id} />
+              <ViewField label="Full Name" value={viewTarget.name || '-'} />
+              <ViewField label="Designation" value={viewTarget.employeeDetails?.designation || '-'} />
+              <ViewField label="Mobile Number" value={viewTarget.mobile} />
+              <ViewField label="Date of Joining" value={formatDateDisplay(viewTarget.employeeDetails?.joiningDate || '')} />
+              <ViewField label="Monthly Salary (₹)" value={viewTarget.employeeDetails?.salary ? formatCurrency(viewTarget.employeeDetails.salary) : '-'} />
+              <ViewField label="Gender" value={viewTarget.employeeDetails?.gender || '-'} />
+              <ViewField label="Status" value={viewTarget.isActive ? 'Active' : 'Inactive'} />
+              <ViewField label="Aadhar Card" value={viewTarget.employeeDetails?.aadhaarNumber || '-'} />
+              <div className="sm:col-span-3">
+                <ViewField label="Residential Address" value={viewTarget.employeeDetails?.address || '-'} />
+              </div>
+            </div>
+          )}
+
+          <DialogFooter className="border-gray-200 bg-white">
+            <Button variant="outline" size="sm" onClick={() => setViewTarget(null)} className="h-8 text-xs">
+              Close
+            </Button>
+            <Button
+              size="sm"
+              className="h-8 bg-[#004D40] hover:bg-[#00332a] text-white text-xs font-medium px-4"
+              onClick={() => {
+                if (viewTarget) openEditModal(viewTarget);
+                setViewTarget(null);
+              }}
+            >
+              Edit
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 });
 
-function PayrollTab() {
-  return (
-    <div className="rounded-xl border border-gray-400 bg-white shadow-sm overflow-hidden flex-1 flex flex-col min-h-0">
-      <div className="flex flex-col items-center justify-center gap-3 py-20 text-center">
-        <div className="flex h-12 w-12 items-center justify-center rounded-full bg-gray-100 text-gray-400">
-          <Wallet className="h-6 w-6" />
-        </div>
-        <h3 className="text-lg font-bold text-gray-700">Payroll — coming soon</h3>
-        <p className="max-w-sm text-sm text-gray-500">Salary computation and payslips will show up here once payroll is set up.</p>
-      </div>
-    </div>
-  );
-}
+import { PayrollTab } from './payroll-tab';
 
 export function EmployeePage() {
   const [activeTab, setActiveTab] = useState('directory');
@@ -728,7 +774,7 @@ export function EmployeePage() {
 
   return (
     <div className="flex flex-col h-full bg-[#004D40]/5 min-h-full flex-1">
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between px-4 py-3 bg-[#F4F1E8] border-b-4 border-[#004D40] shrink-0">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between px-4 py-3 bg-[#F4F1E8] border-b border-[#004D40] shrink-0">
         <div>
           <h1 className="font-hanken text-[20px] font-bold text-black leading-tight px-2">Employees</h1>
           <p className="font-hanken text-[12.5px] text-gray-500 font-medium px-2">Manage worker profiles, contact info, and daily attendance</p>
@@ -759,19 +805,57 @@ export function EmployeePage() {
         )}
       </div>
 
-      <Tabs value={activeTab} onValueChange={setActiveTab} className="flex-1 overflow-y-auto px-2 pb-1 gap-1">
-        <TabsList variant="underline" className="px-1 gap-1.5 h-auto">
-          <TabsTrigger value="directory" className="rounded-md border transition-all duration-200 py-1! px-3! bg-gray-100! text-gray-800! border-gray-400! data-[state=active]:bg-[#004D40]! data-[state=active]:text-white! data-[state=active]:border-[#004D40]!">Directory</TabsTrigger>
-          <TabsTrigger value="attendance" className="rounded-md border transition-all duration-200 py-1! px-3! bg-gray-100! text-gray-800! border-gray-400! data-[state=active]:bg-[#004D40]! data-[state=active]:text-white! data-[state=active]:border-[#004D40]!">Attendance</TabsTrigger>
-          <TabsTrigger value="payroll" className="rounded-md border transition-all duration-200 py-1! px-3! bg-gray-100! text-gray-800! border-gray-400! data-[state=active]:bg-[#004D40]! data-[state=active]:text-white! data-[state=active]:border-[#004D40]!">Payroll</TabsTrigger>
-        </TabsList>
-        <TabsContent value="directory" className="mt-4 animate-in fade-in-0 duration-300">
+      <Tabs value={activeTab} onValueChange={setActiveTab} className="flex-1 overflow-y-auto pb-1 gap-1">
+        <div className="pt-2 px-2">
+          <TabsList>
+            <TabsTrigger value="directory" className="relative">
+              {activeTab === 'directory' && (
+                <motion.div
+                  layoutId="activeTabPill"
+                  className="absolute inset-0 bg-[#004D40] rounded-md z-0"
+                  transition={{ type: 'spring', bounce: 0.2, duration: 0.6 }}
+                />
+              )}
+              <span className="relative z-10 flex items-center gap-1">
+                <UserRound className="h-4 w-4" strokeWidth={1.75} />
+                Directory
+              </span>
+            </TabsTrigger>
+            <TabsTrigger value="attendance" className="relative">
+              {activeTab === 'attendance' && (
+                <motion.div
+                  layoutId="activeTabPill"
+                  className="absolute inset-0 bg-[#004D40] rounded-md z-0"
+                  transition={{ type: 'spring', bounce: 0.2, duration: 0.6 }}
+                />
+              )}
+              <span className="relative z-10 flex items-center gap-1">
+                <Calendar className="h-4 w-4" strokeWidth={1.75} />
+                Attendance
+              </span>
+            </TabsTrigger>
+            <TabsTrigger value="payroll" className="relative">
+              {activeTab === 'payroll' && (
+                <motion.div
+                  layoutId="activeTabPill"
+                  className="absolute inset-0 bg-[#004D40] rounded-md z-0"
+                  transition={{ type: 'spring', bounce: 0.2, duration: 0.6 }}
+                />
+              )}
+              <span className="relative z-10 flex items-center gap-1">
+                <Wallet className="h-4 w-4" strokeWidth={1.75} />
+                Payroll
+              </span>
+            </TabsTrigger>
+          </TabsList>
+        </div>
+        <TabsContent value="directory" className="mt-0 animate-in fade-in-0 duration-300">
           <EmployeeDirectoryTab ref={directoryRef} />
         </TabsContent>
-        <TabsContent value="attendance" className="mt-4 animate-in fade-in-0 duration-300">
+        <TabsContent value="attendance" className="mt-0 animate-in fade-in-0 duration-300">
           <AttendanceTab ref={attendanceRef} />
         </TabsContent>
-        <TabsContent value="payroll" className="mt-4 animate-in fade-in-0 duration-300">
+        <TabsContent value="payroll" className="mt-0 animate-in fade-in-0 duration-300">
           <PayrollTab />
         </TabsContent>
       </Tabs>

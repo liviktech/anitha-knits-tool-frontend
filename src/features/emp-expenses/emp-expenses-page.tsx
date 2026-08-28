@@ -267,7 +267,7 @@ export function EmpExpensesPage() {
       `}</style>
 
       {/* Unified Header */}
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between px-4 py-3 bg-[#F4F1E8] border-b border-gray-100 shrink-0">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between px-4 py-3 bg-[#F4F1E8] border-b border-[#004D40] shrink-0">
         <div>
           <h1 className="text-[20px] font-bold text-black leading-tight px-2">
             Expenses Summary
