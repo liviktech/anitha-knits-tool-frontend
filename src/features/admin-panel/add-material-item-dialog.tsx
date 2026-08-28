@@ -51,9 +51,9 @@ export function AddMaterialItemDialog({
 
   return (
     <Dialog open={open} onOpenChange={(next) => { if (!isPending) onOpenChange(next); }}>
-      <DialogContent className="sm:max-w-sm">
-        <DialogHeader>
-          <DialogTitle>{isEdit ? `Edit ${categoryLabel}` : `Add ${categoryLabel}`}</DialogTitle>
+      <DialogContent className="sm:max-w-sm border border-gray-400">
+        <DialogHeader className="-mx-4 -mt-4 mb-2 rounded-t-xl border-b border-gray-200 bg-[#A8DCAB] px-4 py-3">
+          <DialogTitle className="text-black">{isEdit ? `Edit ${categoryLabel}` : `Add ${categoryLabel}`}</DialogTitle>
         </DialogHeader>
 
         <div className="flex flex-col gap-1">
@@ -69,11 +69,11 @@ export function AddMaterialItemDialog({
 
         {displayError && <p className="text-xs text-red-600">{displayError}</p>}
 
-        <DialogFooter>
+        <DialogFooter className="border-gray-200 bg-white">
           <Button variant="outline" size="sm" onClick={() => onOpenChange(false)} disabled={isPending}>Cancel</Button>
-          <Button size="sm" className="bg-[#004D40] hover:bg-[#003D33]" onClick={handleSubmit} disabled={isPending}>
+          <Button size="sm" className="bg-[#004D40] hover:bg-[#00332a]" onClick={handleSubmit} disabled={isPending}>
             {isPending && <Loader size="sm" className="mr-2" />}
-            {isEdit ? 'Save Changes' : `Add ${categoryLabel}`}
+            {isEdit ? 'Update' : 'Add'}
           </Button>
         </DialogFooter>
       </DialogContent>

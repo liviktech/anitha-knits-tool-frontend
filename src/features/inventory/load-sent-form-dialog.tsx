@@ -74,11 +74,9 @@ export function LoadSentFormDialog({ onClose, record }: LoadSentFormDialogProps)
 
   return (
     <Dialog open onOpenChange={(next) => !saving && !next && onClose()}>
-      <DialogContent className={`sm:max-w-md p-0 overflow-hidden border-2 ${theme.border} gap-2`}>
-        <DialogHeader className={`p-3 pb-2 border-b border-gray-200 ${theme.headerBg}`}>
-          <DialogTitle className={`text-lg font-extrabold tracking-wider ${theme.headerText}`}>
-            {isEdit ? 'Edit Sent Stock' : 'Add Sent Stock'}
-          </DialogTitle>
+      <DialogContent className="sm:max-w-md border border-gray-400">
+        <DialogHeader className="-mx-4 -mt-4 mb-2 rounded-t-xl border-b border-gray-200 bg-[#A8DCAB] px-4 py-3">
+          <DialogTitle className="text-black">{isEdit ? 'Edit Sent Stock' : 'Add Sent Stock'}</DialogTitle>
         </DialogHeader>
         <div className="flex flex-col gap-4 p-2">
           <div className="flex gap-4">
@@ -115,11 +113,11 @@ export function LoadSentFormDialog({ onClose, record }: LoadSentFormDialogProps)
             <p className="text-sm text-red-600 bg-red-50 border border-red-200 rounded-md px-3 py-2">{error}</p>
           )}
         </div>
-        <DialogFooter className="p-2 border-t border-gray-200">
-          <Button variant="outline" onClick={onClose} disabled={saving} className="border-gray-300 text-gray-700">Cancel</Button>
-          <Button onClick={handleSubmit} disabled={saving} className={`${theme.iconBg} ${theme.iconColor} hover:opacity-90`}>
+        <DialogFooter className="border-gray-200 bg-white">
+          <Button variant="outline" onClick={onClose} disabled={saving}>Cancel</Button>
+          <Button onClick={handleSubmit} disabled={saving} className="bg-[#004D40] hover:bg-[#00332a] text-white">
             {saving && <Loader size="sm" className="mr-2" />}
-            {isEdit ? 'Save changes' : 'Add stock'}
+            {isEdit ? 'Update' : 'Add'}
           </Button>
         </DialogFooter>
       </DialogContent>

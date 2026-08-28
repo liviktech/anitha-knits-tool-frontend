@@ -413,9 +413,9 @@ function EmployeeDirectoryTab() {
 
       {/* Add / Edit Employee Dialog */}
       <Dialog open={isFormOpen} onOpenChange={setIsFormOpen}>
-        <DialogContent className="sm:max-w-lg">
-          <DialogHeader>
-            <DialogTitle className="text-lg font-bold text-gray-900">
+        <DialogContent className="sm:max-w-lg border border-gray-400">
+          <DialogHeader className="-mx-4 -mt-4 mb-2 rounded-t-xl border-b border-gray-200 bg-[#A8DCAB] px-4 py-3">
+            <DialogTitle className="text-lg font-bold text-black">
               {editingEmployee ? 'Edit Employee Record' : 'Add New Employee'}
             </DialogTitle>
           </DialogHeader>
@@ -541,12 +541,12 @@ function EmployeeDirectoryTab() {
             {formError && <p className="sm:col-span-2 text-xs text-red-600 font-medium">{formError}</p>}
           </div>
 
-          <DialogFooter>
+          <DialogFooter className="border-gray-200 bg-white">
             <Button variant="outline" size="sm" onClick={() => setIsFormOpen(false)} className="h-8 text-xs">
               Cancel
             </Button>
             <Button size="sm" onClick={handleSaveEmployee} disabled={isSaving} className="h-8 bg-[#004D40] hover:bg-[#00332a] text-white text-xs font-medium px-4">
-              {editingEmployee ? 'Save Changes' : 'Add Employee'}
+              {editingEmployee ? 'Update' : 'Add'}
               {isSaving && <Loader2 className="ml-2 h-3.5 w-3.5 animate-spin" />}
             </Button>
           </DialogFooter>

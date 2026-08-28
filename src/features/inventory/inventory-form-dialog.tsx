@@ -132,11 +132,11 @@ export function InventoryFormDialog({ onClose, editDate, editRecords }: Inventor
 
   return (
     <Dialog open onOpenChange={(next) => !saving && !next && onClose()}>
-      <DialogContent className="max-w-[100vw] w-full lg:max-w-[1400px] overflow-hidden flex flex-col max-h-[90vh]">
-        <DialogHeader className="flex flex-row items-center justify-between space-y-0 pb-2 border-b border-gray-100">
-          <DialogTitle>{isEdit ? 'Edit Stock' : 'Add Received Stock'}</DialogTitle>
+      <DialogContent className="max-w-[100vw] w-full lg:max-w-[1400px] overflow-hidden flex flex-col max-h-[90vh] border border-gray-400">
+        <DialogHeader className="flex flex-row items-center justify-between space-y-0 -mx-4 -mt-4 mb-2 rounded-t-xl border-b border-gray-200 bg-[#A8DCAB] px-4 py-3">
+          <DialogTitle className="text-black">{isEdit ? 'Edit Stock' : 'Add Received Stock'}</DialogTitle>
           <div className="flex items-center gap-3 pr-8">
-            <Label htmlFor="inv-date" className="text-sm font-medium whitespace-nowrap text-gray-700">Date</Label>
+            <Label htmlFor="inv-date" className="text-sm font-medium whitespace-nowrap text-black">Date</Label>
             <Input id="inv-date" type="date" value={date} onChange={(e) => setDate(e.target.value)} className="w-40 h-8 text-sm bg-white" />
           </div>
         </DialogHeader>
@@ -216,11 +216,11 @@ export function InventoryFormDialog({ onClose, editDate, editRecords }: Inventor
           {error && <p className="text-sm text-red-600 font-medium">{error}</p>}
         </div>
 
-        <DialogFooter className="mt-2 pt-4 border-t border-gray-100">
+        <DialogFooter className="mt-2 border-gray-200 bg-white">
           <Button variant="outline" onClick={onClose} disabled={saving}>Cancel</Button>
-          <Button onClick={handleSubmit} disabled={saving} className="bg-green-600 hover:bg-green-700 min-w-24">
+          <Button onClick={handleSubmit} disabled={saving} className="bg-[#004D40] hover:bg-[#00332a] text-white min-w-24">
             {saving ? <Loader size="sm" className="mr-2" /> : null}
-            {isEdit ? 'Save Changes' : 'Create Entries'}
+            {isEdit ? 'Update' : 'Add'}
           </Button>
         </DialogFooter>
       </DialogContent>
