@@ -8,7 +8,6 @@ import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from '
 import { Loader } from '@/components/shared/loader';
 import { apiFetch } from '@/lib/api-client';
 import { useLookups, findIdByName } from '@/lib/lookups';
-import { themes } from '@/features/production/day-entry-sections';
 import { todayIso, formatDate } from './inventory-utils';
 import {
   loadSentKeys,
@@ -30,7 +29,6 @@ export function LoadSentFormDialog({ onClose, record }: LoadSentFormDialogProps)
   const colors = lookupsData?.colors ?? [];
   const sizes = lookupsData?.sizes ?? [];
   const isEdit = !!record;
-  const theme = themes.fabricDelivered;
 
   const [date, setDate] = useState(record ? formatDate(record.date ?? record.productionDate) : todayIso());
   const [color, setColor] = useState(record?.color?.name ?? '');

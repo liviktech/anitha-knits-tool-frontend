@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Search, Plus, Wallet, FileText, Banknote, Calendar, ChevronDown, Loader2 } from 'lucide-react';
+import { Search, Wallet, FileText, Banknote, Calendar, Loader2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';

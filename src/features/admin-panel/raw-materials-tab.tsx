@@ -76,7 +76,7 @@ export function RawMaterialsTab() {
   const lookups = lookupsQuery.data;
   const selectedMeta = CATEGORY_META.find((c) => c.key === selectedKey) ?? CATEGORY_META[0];
   const selectedItems = lookups?.[selectedKey] ?? [];
-  const totalItems = lookups ? lookups.brands.length + lookups.colors.length + lookups.chemicals.length + lookups.sizes.length : 0;
+  // const totalItems = lookups ? lookups.brands.length + lookups.colors.length + lookups.chemicals.length + lookups.sizes.length : 0;
 
   const handleOpenAdd = () => {
     setEditingItem(null);

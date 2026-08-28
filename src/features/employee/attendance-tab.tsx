@@ -1,5 +1,5 @@
 import { useState, useMemo, forwardRef, useImperativeHandle } from 'react';
-import { Search, Edit2, Loader2 } from 'lucide-react';
+import { Search, Edit2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';

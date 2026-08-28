@@ -56,6 +56,7 @@ function todayFormatted() {
   return `Today, ${date.getDate()} ${date.toLocaleString('en-US', { month: 'short' })}`;
 }
 
+const MAX_UPLOAD_SIZE_BYTES = 3 * 1024 * 1024;
 function ViewField({ label, value }: { label: string; value: string }) {
   return (
     <div className="flex flex-col gap-1">
@@ -70,15 +71,20 @@ function FileUploadField({
   label,
   file,
   accept,
+  existingUrl,
+  isAllowedType,
   onChange,
 }: {
   id: string;
   label: string;
   file: File | null;
   accept: string;
+  existingUrl?: string | null;
+  isAllowedType: (mimetype: string) => boolean;
   onChange: (file: File | null) => void;
 }) {
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
+  const [validationError, setValidationError] = useState<string | null>(null);
   const isImage = !!file && file.type.startsWith('image/');
 
   useEffect(() => {
@@ -91,6 +97,24 @@ function FileUploadField({
     return () => URL.revokeObjectURL(url);
   }, [file, isImage]);
 
+  const handleFileSelected = (selected: File | null) => {
+    if (!selected) {
+      setValidationError(null);
+      onChange(null);
+      return;
+    }
+    if (!isAllowedType(selected.type)) {
+      setValidationError('Unsupported file type.');
+      return;
+    }
+    if (selected.size > MAX_UPLOAD_SIZE_BYTES) {
+      setValidationError('File exceeds the 3MB size limit.');
+      return;
+    }
+    setValidationError(null);
+    onChange(selected);
+  };
+
   return (
     <div className="flex flex-col gap-1.5">
       <Label htmlFor={id} className="text-xs font-semibold text-gray-700">{label}</Label>
@@ -98,15 +122,33 @@ function FileUploadField({
         htmlFor={id}
         className="relative flex flex-col items-center justify-center gap-1 h-40 rounded-md border border-dashed border-gray-400 bg-gray-50/50 text-gray-500 hover:bg-gray-100 cursor-pointer text-center px-2 transition-colors overflow-hidden"
       >
-        {previewUrl ? (
+        {file && previewUrl ? (
           <>
             <img src={previewUrl} alt={label} className="absolute inset-0 h-full w-full object-cover" />
-            <span className="absolute inset-x-0 bottom-0 truncate bg-black/60 px-1.5 py-0.5 text-2xs leading-tight text-white">{file!.name}</span>
+            <span className="absolute inset-x-0 bottom-0 truncate bg-black/60 px-1.5 py-0.5 text-2xs leading-tight text-white">{file.name}</span>
+          </>
+        ) : file ? (
+          <>
+            <Upload className="h-4 w-4" />
+            <span className="text-[11px] leading-tight break-all line-clamp-2">{file.name}</span>
+          </>
+        ) : existingUrl ? (
+          <>
+            <Upload className="h-4 w-4" />
+            <span className="text-[11px] leading-tight break-all line-clamp-2">Uploaded — click to replace</span>
+            <a
+              href={existingUrl}
+              target="_blank"
+              rel="noreferrer"
+              className="text-[10px] underline text-emerald-700 hover:text-emerald-800"
+            >
+              View current file
+            </a>
           </>
         ) : (
           <>
             <Upload className="h-4 w-4" />
-            <span className="text-[11px] leading-tight break-all line-clamp-2">{file ? file.name : 'Click to upload'}</span>
+            <span className="text-[11px] leading-tight break-all line-clamp-2">Click to upload</span>
           </>
         )}
       </label>
@@ -115,8 +157,9 @@ function FileUploadField({
         type="file"
         accept={accept}
         className="hidden"
-        onChange={(e) => onChange(e.target.files?.[0] ?? null)}
+        onChange={(e) => handleFileSelected(e.target.files?.[0] ?? null)}
       />
+      {validationError && <p className="text-[11px] text-red-600 font-medium">{validationError}</p>}
     </div>
   );
 }
@@ -281,9 +324,12 @@ const EmployeeDirectoryTab = forwardRef<EmployeeDirectoryTabRef>((_props, ref) =
       };
 
       if (editingEmployee) {
-        await updateEmployee.mutateAsync({ id: editingEmployee.id, data: payload as any });
+        await updateEmployee.mutateAsync({
+          id: editingEmployee.id,
+          data: { ...payload, photo: formPhoto, aadhaarFile: formAadharFile },
+        });
       } else {
-        await createEmployee.mutateAsync(payload as any);
+        await createEmployee.mutateAsync({ ...payload, photo: formPhoto, aadhaarFile: formAadharFile });
       }
       setIsFormOpen(false);
     } catch (err) {
@@ -666,6 +712,8 @@ const EmployeeDirectoryTab = forwardRef<EmployeeDirectoryTabRef>((_props, ref) =
                     label="Employee Photo"
                     file={formPhoto}
                     accept="image/*"
+                    existingUrl={editingEmployee?.employeeDetails?.photoUrl}
+                    isAllowedType={(mimetype) => mimetype.startsWith('image/')}
                     onChange={setFormPhoto}
                   />
                 </div>
@@ -675,6 +723,8 @@ const EmployeeDirectoryTab = forwardRef<EmployeeDirectoryTabRef>((_props, ref) =
                     label="Aadhar Card Upload"
                     file={formAadharFile}
                     accept="image/*,.pdf"
+                    existingUrl={editingEmployee?.employeeDetails?.aadhaarDocumentUrl}
+                    isAllowedType={(mimetype) => mimetype.startsWith('image/') || mimetype === 'application/pdf'}
                     onChange={setFormAadharFile}
                   />
                 </div>
@@ -804,45 +854,45 @@ export function EmployeePage() {
       <Tabs value={activeTab} onValueChange={setActiveTab} className="flex-1 overflow-y-auto pb-1 gap-1">
         <div className="pt-2 px-2">
           <TabsList>
-          <TabsTrigger value="directory" className="relative">
-            {activeTab === 'directory' && (
-              <motion.div
-                layoutId="activeTabPill"
-                className="absolute inset-0 bg-[#004D40] rounded-md z-0"
-                transition={{ type: 'spring', bounce: 0.2, duration: 0.6 }}
-              />
-            )}
-            <span className="relative z-10 flex items-center gap-1">
-              <UserRound className="h-4 w-4" strokeWidth={1.75} />
-              Directory
-            </span>
-          </TabsTrigger>
-          <TabsTrigger value="attendance" className="relative">
-            {activeTab === 'attendance' && (
-              <motion.div
-                layoutId="activeTabPill"
-                className="absolute inset-0 bg-[#004D40] rounded-md z-0"
-                transition={{ type: 'spring', bounce: 0.2, duration: 0.6 }}
-              />
-            )}
-            <span className="relative z-10 flex items-center gap-1">
-              <Calendar className="h-4 w-4" strokeWidth={1.75} />
-              Attendance
-            </span>
-          </TabsTrigger>
-          <TabsTrigger value="payroll" className="relative">
-            {activeTab === 'payroll' && (
-              <motion.div
-                layoutId="activeTabPill"
-                className="absolute inset-0 bg-[#004D40] rounded-md z-0"
-                transition={{ type: 'spring', bounce: 0.2, duration: 0.6 }}
-              />
-            )}
-            <span className="relative z-10 flex items-center gap-1">
-              <Wallet className="h-4 w-4" strokeWidth={1.75} />
-              Payroll
-            </span>
-          </TabsTrigger>
+            <TabsTrigger value="directory" className="relative">
+              {activeTab === 'directory' && (
+                <motion.div
+                  layoutId="activeTabPill"
+                  className="absolute inset-0 bg-[#004D40] rounded-md z-0"
+                  transition={{ type: 'spring', bounce: 0.2, duration: 0.6 }}
+                />
+              )}
+              <span className="relative z-10 flex items-center gap-1">
+                <UserRound className="h-4 w-4" strokeWidth={1.75} />
+                Directory
+              </span>
+            </TabsTrigger>
+            <TabsTrigger value="attendance" className="relative">
+              {activeTab === 'attendance' && (
+                <motion.div
+                  layoutId="activeTabPill"
+                  className="absolute inset-0 bg-[#004D40] rounded-md z-0"
+                  transition={{ type: 'spring', bounce: 0.2, duration: 0.6 }}
+                />
+              )}
+              <span className="relative z-10 flex items-center gap-1">
+                <Calendar className="h-4 w-4" strokeWidth={1.75} />
+                Attendance
+              </span>
+            </TabsTrigger>
+            <TabsTrigger value="payroll" className="relative">
+              {activeTab === 'payroll' && (
+                <motion.div
+                  layoutId="activeTabPill"
+                  className="absolute inset-0 bg-[#004D40] rounded-md z-0"
+                  transition={{ type: 'spring', bounce: 0.2, duration: 0.6 }}
+                />
+              )}
+              <span className="relative z-10 flex items-center gap-1">
+                <Wallet className="h-4 w-4" strokeWidth={1.75} />
+                Payroll
+              </span>
+            </TabsTrigger>
           </TabsList>
         </div>
         <TabsContent value="directory" className="mt-0 animate-in fade-in-0 duration-300">
