@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Search, Plus, Wallet, FileText, Banknote, Calendar, ChevronDown } from 'lucide-react';
+import { Search, Plus, Wallet, FileText, Banknote, Calendar, ChevronDown, Loader2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
@@ -18,21 +18,23 @@ export function PayrollTab() {
   const [searchQuery, setSearchQuery] = useState('');
   const [isAdvanceModalOpen, setIsAdvanceModalOpen] = useState(false);
   const [isMarketValueModalOpen, setIsMarketValueModalOpen] = useState(false);
-  
+  const isLoading = false; // Placeholder for actual loading state
+
+
   // Advance Form State
   const [advanceType, setAdvanceType] = useState('single');
-  
+
   // Market Value Form State
   const [allocationType, setAllocationType] = useState('equal');
 
-  const filteredPayroll = mockPayrollData.filter(p => 
-    p.name.toLowerCase().includes(searchQuery.toLowerCase()) || 
+  const filteredPayroll = mockPayrollData.filter(p =>
+    p.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
     p.id.toLowerCase().includes(searchQuery.toLowerCase())
   );
 
   return (
-    <div className="flex flex-col gap-2 h-[calc(100%-3px)] flex-1 min-h-0">
-      
+    <div className="flex flex-col gap-2 h-[calc(100%-3px)] flex-1 min-h-0 p-2">
+
       {/* Top Stat Cards */}
       <div className="grid grid-cols-1 sm:grid-cols-4 gap-2" style={{ fontFamily: "'Hanken Grotesk Variable', 'Hanken Grotesk', sans-serif" }}>
         <div className="bg-white rounded-xl border border-gray-400 shadow-sm p-4 relative overflow-hidden group/card hover:border-emerald-300 transition-colors flex flex-col justify-center">
@@ -44,7 +46,7 @@ export function PayrollTab() {
             <div className="h-10 w-10 rounded-full bg-emerald-50 flex items-center justify-center"><Wallet className="w-5 h-5 text-emerald-600" /></div>
           </div>
         </div>
-        
+
         <div className="bg-white rounded-xl border border-gray-400 shadow-sm p-4 relative overflow-hidden group/card hover:border-amber-300 transition-colors flex flex-col justify-center">
           <div className="flex justify-between items-center relative z-10">
             <div>
@@ -54,7 +56,7 @@ export function PayrollTab() {
             <div className="h-10 w-10 rounded-full bg-amber-50 flex items-center justify-center"><Banknote className="w-5 h-5 text-amber-600" /></div>
           </div>
         </div>
-        
+
         <div className="bg-white rounded-xl border border-gray-400 shadow-sm p-4 relative overflow-hidden group/card hover:border-blue-300 transition-colors flex flex-col justify-center">
           <div className="flex justify-between items-center relative z-10">
             <div>
@@ -64,7 +66,7 @@ export function PayrollTab() {
             <div className="h-10 w-10 rounded-full bg-blue-50 flex items-center justify-center"><Banknote className="w-5 h-5 text-blue-600" /></div>
           </div>
         </div>
-        
+
         <div className="bg-white rounded-xl border border-gray-400 shadow-sm p-4 relative overflow-hidden group/card hover:border-purple-300 transition-colors flex flex-col justify-center">
           <div className="flex justify-between items-center relative z-10">
             <div>
@@ -132,6 +134,16 @@ export function PayrollTab() {
               ))}
             </TableBody>
           </Table>
+          {isLoading && (
+            <div className="flex-1 flex items-center justify-center gap-2 text-gray-500 text-md py-8">
+              <Loader2 className="h-4 w-4 animate-spin" /> Loading payroll data...
+            </div>
+          )}
+          {!isLoading && filteredPayroll.length === 0 && (
+            <div className="flex-1 flex items-center justify-center text-gray-500 text-md py-8">
+              No payroll data found matching your criteria.
+            </div>
+          )}
         </div>
       </div>
 
@@ -155,7 +167,7 @@ export function PayrollTab() {
                 </SelectContent>
               </Select>
             </div>
-            
+
             <div className="flex flex-col gap-1.5">
               <Label className="text-xs font-semibold text-gray-700">Advance Amount (₹)</Label>
               <Input type="number" placeholder="e.g. 5000" className="h-9 text-xs" />

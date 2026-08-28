@@ -1,5 +1,5 @@
 import { useState, useMemo, forwardRef, useImperativeHandle } from 'react';
-import { Search, Edit2 } from 'lucide-react';
+import { Search, Edit2, Loader2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
@@ -144,7 +144,7 @@ export const AttendanceTab = forwardRef<AttendanceTabRef>((_props, ref) => {
   }, [filteredRecords, selectedEmployee]);
 
   return (
-    <div className="flex flex-col gap-2 h-[calc(100%-3px)] flex-1 min-h-0">
+    <div className="flex flex-col gap-2 h-[calc(100%-3px)] flex-1 min-h-0 p-2">
       {/* Header section */}
       <div className="flex items-center justify-end">
       </div>
