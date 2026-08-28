@@ -32,7 +32,7 @@ export function NewEntry({ onClose, defaultDate, readOnly = false }: NewEntryPro
   const [date, setDate] = useState<Date>(defaultDate ? parseISO(defaultDate) : new Date());
   const productionDate = format(date, 'yyyy-MM-dd');
   const [submitting] = useState(false);
-  const [isInventoryMinimized, setIsInventoryMinimized] = useState(false);
+  const [isInventoryMinimized, setIsInventoryMinimized] = useState(true);
 
   const [searchParams] = useSearchParams();
   const [activeTab, setActiveTab] = useState<string>(searchParams.get('tab') || 'extruder');
@@ -63,10 +63,10 @@ export function NewEntry({ onClose, defaultDate, readOnly = false }: NewEntryPro
               <Button
                 variant="outline"
                 disabled={readOnly || submitting}
-                className="flex items-center bg-white border border-gray-400 rounded-md px-4 py-2 h-auto shadow-[0_1px_2px_rgba(0,0,0,0.05)] hover:bg-gray-50 disabled:opacity-100"
+                className="flex items-center bg-white border border-gray-400 rounded-md px-4 py-2 h-auto shadow-[0_1px_2px_rgba(0,0,0,0.05)] hover:bg-gray-50 disabled:opacity-100 cursor pointer"
               >
-                <span className="text-sm font-semibold text-gray-700 mr-3">{format(date, 'dd MMM, yyyy')}</span>
-                <CalendarIcon className="w-4 h-4 text-gray-400" />
+                <span className="text-sm font-semibold text-gray-800 mr-3">{format(date, 'dd MMM, yyyy')}</span>
+                <CalendarIcon className="w-4 h-4 text-gray-800" />
               </Button>
             </PopoverTrigger>
             <PopoverContent className="w-auto p-0" align="end">
@@ -80,6 +80,19 @@ export function NewEntry({ onClose, defaultDate, readOnly = false }: NewEntryPro
             </PopoverContent>
           </Popover>
         )}
+        {!readOnly && (
+          <Button
+            className={`flex items-center gap-2 rounded-md px-3 py-2 h-auto text-[12px] cursor-pointer font-bold tracking-wide shadow-[0_1px_2px_rgba(0,45,35,0.2)] transition-colors duration-200 ${activeTab === 'extruder' ? `${themes.extruder.iconBg} ${themes.extruder.iconColor} ${themes.extruder.iconHoverBg} ${themes.extruder.iconHoverColor}` :
+              activeTab === 'looms' ? `${themes.looms.iconBg} ${themes.looms.iconColor} ${themes.looms.iconHoverBg} ${themes.looms.iconHoverColor}` :
+                activeTab === 'fabric' ? `${themes.fabric.iconBg} ${themes.fabric.iconColor} ${themes.fabric.iconHoverBg} ${themes.fabric.iconHoverColor}` :
+                  `${themes.fabricDelivered.iconBg} ${themes.fabricDelivered.iconColor} ${themes.fabricDelivered.iconHoverBg} ${themes.fabricDelivered.iconHoverColor}`
+              }`}
+            onClick={() => setIsAddModalOpen(true)}
+          >
+            <Plus className="w-3 h-3" />
+            ADD ROW
+          </Button>
+        )}
       </div>
     );
 
@@ -89,7 +102,7 @@ export function NewEntry({ onClose, defaultDate, readOnly = false }: NewEntryPro
       setShowBackButton(false);
       setOnBackClick(undefined);
     };
-  }, [setHeaderRight, setShowBackButton, setOnBackClick, setHeaderTitle, onClose, date, readOnly, submitting]);
+  }, [setHeaderRight, setShowBackButton, setOnBackClick, setHeaderTitle, onClose, date, readOnly, submitting, activeTab]);
 
   // Most recent entry before the selected date — used to carry forward
   // Data for calculating live stock balances in create mode
@@ -242,32 +255,6 @@ export function NewEntry({ onClose, defaultDate, readOnly = false }: NewEntryPro
           </Tabs>
         </div>
 
-        <div className="mt-4 mb-8 flex justify-between items-center">
-          {!readOnly ? (
-            <Button
-              size="sm"
-              className={`h-8 gap-1.5 shadow-sm transition-colors duration-200 ${activeTab === 'extruder' ? `${themes.extruder.iconBg} ${themes.extruder.iconColor} ${themes.extruder.iconHoverBg} ${themes.extruder.iconHoverColor}` :
-                activeTab === 'looms' ? `${themes.looms.iconBg} ${themes.looms.iconColor} ${themes.looms.iconHoverBg} ${themes.looms.iconHoverColor}` :
-                  activeTab === 'fabric' ? `${themes.fabric.iconBg} ${themes.fabric.iconColor} ${themes.fabric.iconHoverBg} ${themes.fabric.iconHoverColor}` :
-                    `${themes.fabricDelivered.iconBg} ${themes.fabricDelivered.iconColor} ${themes.fabricDelivered.iconHoverBg} ${themes.fabricDelivered.iconHoverColor}`
-                }`}
-              onClick={() => setIsAddModalOpen(true)}
-            >
-              <Plus className="h-4 w-4" />
-              Add Row
-            </Button>
-          ) : <span />}
-          <div className="flex items-center gap-3">
-            <Button variant="outline" onClick={onClose} className="border-gray-300 text-gray-700 bg-white" disabled={submitting}>
-              Close
-            </Button>
-            {/* {!readOnly && (
-              <Button onClick={handleSaveAll} className="bg-[#004D40] hover:bg-[#00332A] text-white" disabled={submitting}>
-                {submitting ? 'Saving All...' : 'Save'}
-              </Button>
-            )} */}
-          </div>
-        </div>
       </div>
 
       <TabAddModal

@@ -57,11 +57,17 @@ export function FabricDeliveredModalForm({ productionDate, initialData, isEditMo
 
     setSaving(true);
     try {
-      const response = await apiFetch('/load-sent', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(payload),
-      });
+      const response = draft.id
+        ? await apiFetch(`/load-sent/${draft.id}`, {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload),
+        })
+        : await apiFetch('/load-sent', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload),
+        });
       if (!response.ok) {
         const msg = await extractApiErrorMessage(response, 'Failed to save fabric delivery entry.');
         setError(msg);

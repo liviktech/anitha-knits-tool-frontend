@@ -409,12 +409,12 @@ export const ExtruderSection = forwardRef<SectionRef, SectionProps>(({ productio
               <TableHead className={`!text-center text-sm font-semibold  tracking-wide ${theme.headerText} py-1 px-2  border border-black/10`}>Bag</TableHead>
               <TableHead className={`w-36 min-w-36 !text-center text-sm font-semibold  tracking-wide ${theme.headerText} py-1 px-2  border border-black/10`}>Brand</TableHead>
               <TableHead className={`!text-center text-sm font-semibold  tracking-wide ${theme.headerText} py-1 px-2  border border-black/10`}>Bag Weight</TableHead>
-              <TableHead className={`!text-center text-sm font-semibold  tracking-wide ${theme.headerText} py-1 px-2  border border-black/10`}>Loose Wt</TableHead>
+              <TableHead className={`!text-center text-sm font-semibold  tracking-wide ${theme.headerText} py-1 px-2  border border-black/10`}>Loose Weight</TableHead>
               <TableHead className={`!text-center text-sm font-semibold  tracking-wide ${theme.headerText}  border border-black/10`}>Total (kg)</TableHead>
               <TableHead className={`!text-center text-sm font-semibold  tracking-wide ${theme.headerText} py-1 px-2  border border-black/10`}>Chemical</TableHead>
-              <TableHead className={`!text-center text-sm font-semibold  tracking-wide ${theme.headerText}  border border-black/10`}>Chem Wt</TableHead>
+              <TableHead className={`!text-center text-sm font-semibold  tracking-wide ${theme.headerText}  border border-black/10`}>Chemical Weight</TableHead>
               <TableHead className={`!text-center text-sm font-semibold  tracking-wide ${theme.headerText} py-1 px-2  border border-black/10`}>Lumps</TableHead>
-              <TableHead className={`!text-center text-sm font-semibold  tracking-wide ${theme.headerText}  py-1 px-2 border border-black/10`}>Looms Waste</TableHead>
+              <TableHead className={`!text-center text-sm font-semibold  tracking-wide ${theme.headerText}  py-1 px-2 border border-black/10`}>Loom Waste</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>

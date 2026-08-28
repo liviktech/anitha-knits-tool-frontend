@@ -49,7 +49,7 @@ function ProductionLayout() {
                 variant="ghost"
                 size="icon"
                 onClick={() => (onBackClick ? onBackClick() : navigate('/production'))}
-                className="h-8 w-8 text-gray-500 hover:text-gray-900 hover:bg-white rounded-full bg-transparent"
+                className="h-8 w-8 text-gray-900 bg-white rounded-full border border-gray-300 hover:bg-gray-100 flex items-center justify-center"
               >
                 <ArrowLeft className="h-5 w-5" />
               </Button>

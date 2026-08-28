@@ -10,11 +10,6 @@ function formatNum(n: number): string {
   return n.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 }
 
-function formatDateDMY(dateStr: string): string {
-  const [y, m, d] = dateStr.slice(0, 10).split('-');
-  return y && m && d ? `${d}-${m}-${y}` : dateStr;
-}
-
 function deliveryColorClass(color: string): string {
   const normalizedColor = color.toLowerCase();
   if (normalizedColor === 'blue') return 'text-[#0088CC]';
@@ -251,11 +246,11 @@ export function DashboardDesign2() {
            <p className="font-bold text-xl px-0.5 text-left pb-3">Production Summary</p>
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-2.5">
           <Card className="bg-[#00897B]/5 border border-[#B8DCD0] rounded-[14px] hover:shadow-md transition-all flex flex-col gap-0 self-start py-0">
-              <CardHeader className="flex flex-row items-center justify-between pb-1! pt-3 px-4 border-b border-[#B8DCD0]">
+              <CardHeader className="flex flex-row items-center justify-between pb-3! pt-3 px-4">
                 <CardTitle className="text-[17px] font-extrabold text-[#0B5566] flex items-center gap-3">
                   Extruder Production
                 </CardTitle>
-                <span className="text-[13px] font-bold text-[#0B5566]">Total : <span className="font-inter">{formatNum(extruderGrandTotal)}</span> kg</span>
+                <span className="text-[14px] font-bold text-[#0B5566]">Total : <span className="font-inter">{formatNum(extruderGrandTotal)}</span> kg</span>
               </CardHeader>
               <CardContent className="px-2 pb-2 pt-0 flex flex-col">
                 {extruderSummaryByColor.length === 0 ? (
@@ -264,9 +259,7 @@ export function DashboardDesign2() {
                   </div>
                 ) : (
                   <div className="w-full">
-                    <div className="flex items-center justify-end px-3 py-1">
-                      <span className="text-[11px] font-bold text-gray-500 uppercase tracking-wide">Production</span>
-                    </div>
+                   
                     <div className="space-y-2">
                       {extruderSummaryByColor.map((row) => (
                         <div key={row.color} className="flex items-center justify-between border border-gray-400 rounded-md px-3 py-2 bg-white">
@@ -281,11 +274,11 @@ export function DashboardDesign2() {
           </Card>
 
           <Card className="bg-[#004D40]/5 border border-[#B8D8D5] rounded-[14px] hover:shadow-md transition-all flex flex-col gap-0 self-start py-0">
-              <CardHeader className="flex flex-row items-center justify-between pb-1! pt-3 px-4 border-b border-[#B8D8D5]">
+              <CardHeader className="flex flex-row items-center justify-between pb-1! pt-3 px-4">
                 <CardTitle className="text-[17px] font-extrabold text-[#7A6A00] flex items-center gap-3">
                   Looms Production
                 </CardTitle>
-                <span className="text-[13px] font-bold text-[#7A6A00]">Total : <span className="font-inter">{formatNum(loomsGrandTotal)}</span> kg</span>
+                <span className="text-[14px] font-bold text-[#7A6A00]">Total : <span className="font-inter">{formatNum(loomsGrandTotal)}</span> kg</span>
               </CardHeader>
               <CardContent className="px-2 pb-2 pt-0 flex flex-col">
                 {loomsSummaryByColor.length === 0 ? (
@@ -295,7 +288,6 @@ export function DashboardDesign2() {
                 ) : (
                   <div className="w-full">
                     <div className="flex items-center justify-end px-3 py-1">
-                      <span className="text-[11px] font-bold text-gray-500 uppercase tracking-wide">Production</span>
                     </div>
                     <div className="space-y-2">
                       {loomsSummaryByColor.map((row) => (
@@ -311,11 +303,11 @@ export function DashboardDesign2() {
           </Card>
 
           <Card className="bg-[#004D40]/5 border border-[#C5D8C2] rounded-[14px] hover:shadow-md transition-all flex flex-col gap-0 self-start py-0">
-              <CardHeader className="flex flex-row items-center justify-between pb-1! pt-3 px-4 border-b border-[#C5D8C2]">
+              <CardHeader className="flex flex-row items-center justify-between pb-1! pt-3 px-4">
                 <CardTitle className="text-[17px] font-extrabold text-[#2F6B2F] flex items-center gap-3">
                   Fabric Checking
                 </CardTitle>
-                <span className="text-[13px] font-bold text-[#2F6B2F]">Total : <span className="font-inter">{formatNum(fabricGrandTotal)}</span> kg</span>
+                <span className="text-[14px] font-bold text-[#2F6B2F]">Total : <span className="font-inter">{formatNum(fabricGrandTotal)}</span> kg</span>
               </CardHeader>
               <CardContent className="px-2 pb-2 pt-0 flex flex-col">
                 {fabricSummaryByColor.length === 0 ? (
@@ -325,7 +317,6 @@ export function DashboardDesign2() {
                 ) : (
                   <div className="w-full">
                     <div className="flex items-center justify-end px-3 py-1">
-                      <span className="text-[11px] font-bold text-gray-500 uppercase tracking-wide">Production</span>
                     </div>
                     <div className="space-y-2">
                       {fabricSummaryByColor.map((row) => (
@@ -368,8 +359,8 @@ export function DashboardDesign2() {
         {/* <p className="font-bold text-xl px-0.5 text-left">Fabric Delivered Overview</p> */}
         <Card className="font-hanken w-full bg-white border border-gray-400 shadow-lg shadow-slate-200/50 rounded-3xl p-2 md:p-2 gap-2 flex flex-col transition-shadow duration-300 hover:shadow-xl hover:shadow-slate-300/40 animate-in fade-in-0 slide-in-from-bottom-3 duration-700 fill-mode-both">
           <CardHeader className="p-0 flex flex-row items-center justify-between border-b border-gray-400 pt-0 pb-0!">
-            <CardTitle className="flex items-center gap-2 px-2 text-[20px] font-bold text-[#004D40]">
-              <div
+            <CardTitle className="font-hanken font-bold text-xl px-1">
+              {/* <div
                 className="w-6 h-6 bg-[#004D40]"
                 style={{
                   WebkitMaskImage: 'url(/delivery.png)',
@@ -381,18 +372,11 @@ export function DashboardDesign2() {
                   maskRepeat: 'no-repeat',
                   maskPosition: 'center',
                 }}
-              />
+              /> */}
               Fabric Delivered
             </CardTitle>
             <div className="flex items-center gap-3">
-              <span className="text-[17px] font-bold text-[#2F6B2F]">Total : <span className="font-inter">{formatNum(selectedMonthDeliveryTotal)}</span> kg</span>
-              <Link
-                to="/production/new-entry?tab=delivered"
-                className="flex items-center justify-center w-8 h-8 rounded-full border border-slate-200 text-slate-600 hover:bg-slate-50 transition-colors"
-                aria-label="Add fabric delivered entry"
-              >
-                <ArrowRight className="w-4 h-4" />
-              </Link>
+              <span className="text-[14px] font-bold text-[#2F6B2F] px-2">Total : <span className="font-inter">{formatNum(selectedMonthDeliveryTotal)}</span> kg</span>
             </div>
           </CardHeader>
           <CardContent className="p-0 flex-1 flex flex-col">
@@ -408,10 +392,9 @@ export function DashboardDesign2() {
                     <Card key={row.color} className={`${theme.bg} border ${theme.border} rounded-[14px] hover:shadow-md transition-all flex flex-col gap-0 h-full py-0`}>
                       <CardHeader className="flex flex-row items-center justify-between pb-2 pt-2 px-3">
                         <CardTitle className={`text-[17px] font-bold flex items-center gap-2 ${deliveryColorClass(row.color)}`}>
-                          <span className={`w-3 h-3 rounded-full ${theme.swatch}`} />
                           {row.color}
                         </CardTitle>
-                        <span className={`text-[13px] font-bold ${deliveryColorClass(row.color)}`}>Total : <span className="font-inter">{formatNum(row.total)}</span> kg</span>
+                        <span className={`text-[14px] font-bold ${deliveryColorClass(row.color)}`}>Total : <span className="font-inter">{formatNum(row.total)}</span> kg</span>
                       </CardHeader>
                       <CardContent className="px-2 pb-2 flex-1 flex flex-col">
                         {row.deliveries.length === 0 ? (
@@ -419,26 +402,13 @@ export function DashboardDesign2() {
                             <p className="text-xs text-gray-400 italic">No deliveries recorded yet.</p>
                           </div>
                         ) : (
-                          <div className="w-full border border-gray-300 rounded-lg overflow-hidden bg-white">
-                            <table className="w-full table-fixed text-[13px] text-left">
-                              <thead className="block w-full bg-slate-50 font-bold text-slate-500 uppercase text-[10px] tracking-wide">
-                                <tr className="table w-full table-fixed">
-                                  <th className="px-3 py-2 w-24 whitespace-nowrap">Date</th>
-                                  <th className="px-3 py-2 text-center">Size</th>
-                                  <th className="px-3 py-2 w-24 text-right">Qty (Kg)</th>
-                                </tr>
-                              </thead>
-                              {/* Caps the visible list per card; anything beyond scrolls within the body only. */}
-                              <tbody className="block w-full max-h-40 overflow-y-auto">
-                                {row.deliveries.map((d, i) => (
-                                  <tr key={d.id} className={`table w-full table-fixed ${i % 2 === 0 ? 'bg-white' : 'bg-slate-50/60'}`}>
-                                    <td className="px-3 py-2 w-24 whitespace-nowrap text-slate-600">{formatDateDMY(d.date)}</td>
-                                    <td className="px-3 py-2 text-center text-slate-700">{d.size}</td>
-                                    <td className="px-3 py-2 w-24 text-right font-bold font-inter text-slate-900">{formatNum(d.kg)}</td>
-                                  </tr>
-                                ))}
-                              </tbody>
-                            </table>
+                          <div className="w-full border border-gray-300 rounded-lg bg-white divide-y divide-gray-200 overflow-hidden">
+                            {row.deliveries.map((d) => (
+                              <div key={d.id} className="flex items-center justify-between px-3 py-2 text-[13px]">
+                                <span className="font-semibold text-gray-600">{d.size}</span>
+                                <span className="font-bold font-inter text-gray-900">{formatNum(d.kg)} kg</span>
+                              </div>
+                            ))}
                           </div>
                         )}
                       </CardContent>
@@ -472,19 +442,12 @@ function FabricStockCard({
   return (
     <Card className="font-hanken bg-white border border-gray-400 shadow-lg shadow-slate-200/50 rounded-3xl p-2 md:p-2 gap-2 flex flex-col transition-shadow duration-300 hover:shadow-xl hover:shadow-slate-300/40 animate-in fade-in-0 slide-in-from-bottom-3 duration-700 fill-mode-both">
       <CardHeader className="p-0 flex flex-row items-center justify-between border-b border-gray-400 pt-0 pb-0!">
-        <CardTitle className="flex items-center gap-2 px-2 text-[20px] font-bold text-[#004D40]">
-          <img src="/stock.png" alt="" className="w-6 h-6 object-contain" />
+        <CardTitle className="font-hanken font-bold text-xl px-1">
+          {/* <img src="/stock.png" alt="" className="w-6 h-6 object-contain" /> */}
           Fabric Stock
         </CardTitle>
         <div className="flex items-center gap-3">
-          <span className="text-[17px] font-bold text-[#2F6B2F]">Total : <span className="font-inter">{formatNum(total)}</span> kg</span>
-          <Link
-            to="/inventory"
-            className="flex items-center justify-center w-8 h-8 rounded-full border border-slate-200 text-slate-600 hover:bg-slate-50 transition-colors"
-            aria-label="Go to inventory"
-          >
-            <ArrowRight className="w-4 h-4" />
-          </Link>
+          <span className="text-[14px] font-bold text-[#2F6B2F] px-2">Total : <span className="font-inter">{formatNum(total)}</span> kg</span>
         </div>
       </CardHeader>
       <CardContent className="p-0 flex-1 flex flex-col">
@@ -502,10 +465,9 @@ function FabricStockCard({
                 <Card key={row.color} className={`${theme.bg} border ${theme.border} rounded-[14px] hover:shadow-md transition-all flex flex-col gap-0 h-full py-0`}>
                   <CardHeader className="flex flex-row items-center justify-between pb-2 pt-2 px-3">
                     <CardTitle className={`text-[17px] font-bold flex items-center gap-2 ${row.colorClass}`}>
-                      <span className={`w-3 h-3 rounded-full ${theme.swatch}`} />
                       {row.color}
                     </CardTitle>
-                    <span className={`text-[13px] font-bold ${row.colorClass}`}>Total : <span className="font-inter">{formatNum(rowTotal)}</span> kg</span>
+                    <span className={`text-[14px] font-bold ${row.colorClass}`}>Total : <span className="font-inter">{formatNum(rowTotal)}</span> kg</span>
                   </CardHeader>
                   <CardContent className="px-2 pb-2 flex-1 flex flex-col">
                     {!hasStock ? (
@@ -558,7 +520,7 @@ function WastageCard({
               {/* <div className="bg-[#0B5566] border text-white w-6 h-6 rounded-[4px] flex items-center justify-center text-xs font-bold shadow-sm">1</div> */}
               Extruder Wastage
             </CardTitle>
-            <span className="text-[13px] font-bold text-[#0B5566]">Total : <span className="font-inter">{formatNum(lums + looseWaste)}</span> kg</span>
+            <span className="text-[14px] font-bold text-[#0B5566]">Total : <span className="font-inter">{formatNum(lums + looseWaste)}</span> kg</span>
           </CardHeader>
           <CardContent className="px-2 pb-2 flex flex-col">
             {extruderWasteByColor.length === 0 ? (
@@ -594,13 +556,13 @@ function WastageCard({
       </Card>
 
       {/* Looms Wastage */}
-      <Card className="bg-[#004D40]/5 border border-[#B8D8D5] rounded-[14px] hover:shadow-md transition-all flex flex-col gap-0 self-start py-0">
+      <Card className="bg-[#004D40]/5 border border-[#B8D8D5] rounded-[14px] hover:shadow-md transition-all flex flex-col gap-0 py-0">
           <CardHeader className="flex flex-row items-center justify-between pb-1.5! pt-2 px-3 border-b border-[#B8D8D5]">
             <CardTitle className="text-[17px] font-extrabold text-[#7A6A00] flex items-center gap-3">
               {/* <div className="bg-[#7A6A00] border text-white w-6 h-6 rounded-[4px] flex items-center justify-center text-xs font-bold shadow-sm">2</div> */}
               Looms Wastage
             </CardTitle>
-            <span className="text-[13px] font-bold text-[#7A6A00]">Total : <span className="font-inter">{formatNum(loomsWasteTotal)}</span> kg</span>
+            <span className="text-[14px] font-bold text-[#7A6A00]">Total : <span className="font-inter">{formatNum(loomsWasteTotal)}</span> kg</span>
           </CardHeader>
           <CardContent className="px-2 pb-2 flex flex-col">
             {loomsWasteByColor.length === 0 ? (
@@ -635,7 +597,7 @@ function WastageCard({
               {/* <div className="bg-[#2F6B2F] border text-white w-6 h-6 rounded-[4px] flex items-center justify-center text-xs font-bold shadow-sm">3</div> */}
               Fabric Checking Wastage
             </CardTitle>
-            <span className="text-[13px] font-bold text-[#2F6B2F]">Total : <span className="font-inter">{formatNum(fabricWasteTotal)}</span> kg</span>
+            <span className="text-[14px] font-bold text-[#2F6B2F]">Total : <span className="font-inter">{formatNum(fabricWasteTotal)}</span> kg</span>
           </CardHeader>
           <CardContent className="px-2 pb-2 flex flex-col">
             {fabricWasteByColor.length === 0 ? (

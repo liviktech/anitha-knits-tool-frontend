@@ -151,9 +151,9 @@ function StageBlock({
         <div className={`w-10 h-10 rounded-full ${theme.circle} text-white font-bold text-[14px] flex items-center justify-center ring-4 ring-[#F3F5F4]`}>
           {number}
         </div>
-        <div className="w-11 h-11 rounded-xl bg-white border border-gray-100 shadow-sm flex items-center justify-center">
+        {/* <div className="w-11 h-11 rounded-xl bg-white border border-gray-100 shadow-sm flex items-center justify-center">
           {icon}
-        </div>
+        </div> */}
       </div>
 
       <div className="flex-1 flex flex-col gap-2 pb-5 min-w-0">
@@ -594,7 +594,7 @@ export function ProductionDesign2() {
             />
           </div>
           <Button
-            className="flex items-center gap-2 bg-[#004D40] hover:bg-[#00382e] text-white rounded-md px-3 py-2 h-auto text-[12px] font-bold tracking-wide shadow-[0_1px_2px_rgba(0,45,35,0.2)]"
+            className="flex items-center gap-2 bg-[#004D40] hover:bg-[#00382e] text-white rounded-md px-3 py-2 h-auto text-[12px] font-bold tracking-wide shadow-[0_1px_2px_rgba(0,45,35,0.2)] cursor-pointer"
             onClick={() => navigate('/production/new-entry')}
           >
             <Plus className="w-3 h-3" />
@@ -942,23 +942,23 @@ export function ProductionDesign2() {
 
                   {!loadingDayWise && dayWiseRows.length > 0 && (
                     <TableRow className="bg-white font-bold hover:bg-white border-t-2 border-gray-400">
-                      <TableCell className="!text-center border-r border-gray-400 text-gray-900 text-[14px] py-1 px-1.5">TOTAL</TableCell>
+                      <TableCell className="!text-center border-r border-gray-300 text-gray-900 text-[13px] py-1 px-1.5">TOTAL</TableCell>
                       {/* Extruder Total */}
                       <TableCell className="text-center text-[#00897B] text-[14px]">{formatNum(dayWiseTotals.extruder.input)}</TableCell>
                       <TableCell className="text-center text-[#00897B] text-[14px]">{formatNum(dayWiseTotals.extruder.wastage)}</TableCell>
-                      <TableCell className="text-center text-[#00897B] text-[14px] border-r border-gray-400">{formatNum(dayWiseTotals.extruder.output)}</TableCell>
+                      <TableCell className="text-center text-[#00897B] text-[14px] border-r border-gray-300">{formatNum(dayWiseTotals.extruder.output)}</TableCell>
                       {/* Looms Total */}
                       <TableCell className="text-center text-[#00897B] text-[14px]">{formatNum(dayWiseTotals.looms.input)}</TableCell>
                       <TableCell className="text-center text-[#00897B] text-[14px]">{formatNum(dayWiseTotals.looms.wastage)}</TableCell>
-                      <TableCell className="text-center text-[#00897B] text-[14px] border-r border-gray-400">{formatNum(dayWiseTotals.looms.output)}</TableCell>
+                      <TableCell className="text-center text-[#00897B] text-[14px] border-r border-gray-300">{formatNum(dayWiseTotals.looms.output)}</TableCell>
                       {/* Fabric Total */}
                       <TableCell className="text-center text-[#00897B] text-[14px]">{formatNum(dayWiseTotals.fabric.input)}</TableCell>
                       <TableCell className="text-center text-[#00897B] text-[14px]">{formatNum(dayWiseTotals.fabric.wastage)}</TableCell>
-                      <TableCell className="text-center text-[#00897B] text-[14px] border-r border-gray-400">{formatNum(dayWiseTotals.fabric.output)}</TableCell>
+                      <TableCell className="text-center text-[#00897B] text-[14px] border-r border-gray-300">{formatNum(dayWiseTotals.fabric.output)}</TableCell>
                       {/* Fabric Delivered Total */}
                       <TableCell className="text-center text-[#00897B] text-[14px]">-</TableCell>
                       <TableCell className="text-center text-[#00897B] text-[14px]">-</TableCell>
-                      <TableCell className="!text-center text-[#00897B] text-[14px] border-r border-gray-400">{formatNum(selectedMonthDeliveryTotal)}</TableCell>
+                      <TableCell className="!text-center text-[#00897B] text-[14px] border-r border-gray-300">{formatNum(selectedMonthDeliveryTotal)}</TableCell>
                       <TableCell></TableCell>
                     </TableRow>
                   )}
@@ -967,7 +967,7 @@ export function ProductionDesign2() {
             </div>
 
             {/* Pagination Footer */}
-            <div className="flex flex-wrap items-center justify-between gap-3 border-t border-gray-400 p-2 text-sm text-gray-500 bg-white">
+            <div className="flex flex-wrap items-center justify-between gap-3 border-t border-gray-300 p-2 text-sm text-gray-500 bg-white">
               <div className="font-medium text-gray-600 text-xs">
                 {dayWiseRows.length === 0
                   ? 'No entries'

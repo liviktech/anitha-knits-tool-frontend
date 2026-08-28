@@ -445,11 +445,11 @@ function StockSummaryCard({ onAdd, onEditDate, onDeleteDate }: { onAdd: (e: Reac
   const totalCols = hdpeNames.length + chemicalNames.length + colorNames.length;
 
   return (
-    <div className="flex flex-col gap-4">
+    <div className="flex flex-col gap-3">
       {/* === Top Summary Card === */}
-      <div className="rounded-xl border border-green-200 bg-white shadow-sm overflow-hidden">
+      <div className="rounded-xl border border-green-400 bg-white shadow-sm overflow-hidden">
         {/* Header */}
-        <div className="p-3 border-b border-green-200 bg-gradient-to-br from-green-50 via-emerald-50/50 to-white relative overflow-hidden flex items-center justify-between">
+        <div className="p-2 border-b border-green-400 bg-gradient-to-br from-green-50 via-emerald-50/50 to-white relative overflow-hidden flex items-center justify-between">
           <div className="absolute -right-8 -top-8 w-32 h-32 bg-green-400/5 rounded-full blur-2xl pointer-events-none"></div>
           <div className="flex items-center gap-3 relative z-10">
             <div className="flex h-10 w-10 items-center justify-center rounded-lg border border-green-200 bg-green-50 text-green-700 shadow-sm shrink-0">
@@ -462,7 +462,7 @@ function StockSummaryCard({ onAdd, onEditDate, onDeleteDate }: { onAdd: (e: Reac
 
           </div>
           <div className="flex items-center gap-3 relative z-10">
-            <Button size="sm" onClick={onAdd} className="bg-green-600 hover:bg-green-700 h-9 text-xs shadow-sm">
+            <Button size="sm" onClick={onAdd} className="bg-[#004D40] hover:bg-[#004D40] h-8 text-xs shadow-sm">
               <Plus className="w-4 h-4 mr-1.5" /> Add Stock
             </Button>
             <Input type="month" value={month} onChange={e => setMonth(e.target.value)} className="h-9 text-sm w-36 bg-white/60 shadow-sm font-medium" />
@@ -557,15 +557,15 @@ function StockSummaryCard({ onAdd, onEditDate, onDeleteDate }: { onAdd: (e: Reac
       </div>
 
       {/* === Day-wise Table Section === */}
-      <div className="rounded-xl border border-gray-200 bg-white shadow-sm overflow-hidden">
-        <div className="px-4 py-3 border-b border-gray-100 bg-gray-50/50">
-          <h3 className="font-semibold text-gray-700 text-sm">Day Wise Stock Received Details</h3>
+      <div className="rounded-xl border border-gray-400 bg-white shadow-sm overflow-hidden">
+        <div className="px-4 py-3 border-b border-gray-400 bg-gray-50">
+          <h3 className="font-bold text-[#004D40] text-lg">Day Wise Stock Received Details</h3>
         </div>
         <div className="overflow-x-auto">
           <table className="w-full border-collapse text-sm">
             <thead>
               <tr className="bg-gray-50 border-b border-gray-200">
-                <th rowSpan={2} className="border border-gray-200 px-3 py-2 text-left font-semibold text-gray-500 uppercase tracking-wide text-xs whitespace-nowrap w-28">DATE</th>
+                <th rowSpan={2} className="border border-gray-200 px-3 py-2 text-left font-semibold text-gray-700 uppercase tracking-wide text-xs whitespace-nowrap w-28">DATE</th>
                 {hdpeNames.length > 0 && (
                   <th colSpan={hdpeNames.length + 2} className="border border-gray-200 px-3 py-2 text-center font-bold text-teal-800 uppercase tracking-wide text-xs bg-blue-100">
                     HDPE (KG)
@@ -582,7 +582,7 @@ function StockSummaryCard({ onAdd, onEditDate, onDeleteDate }: { onAdd: (e: Reac
                   </th>
                 )}
                 {totalCols === 0 && <th className="border border-gray-200 px-3 py-1.5 text-gray-400"></th>}
-                <th rowSpan={2} className="border border-gray-200 px-3 py-2 text-center font-semibold text-gray-500 uppercase tracking-wide text-xs whitespace-nowrap w-20">ACTIONS</th>
+                <th rowSpan={2} className="border border-gray-200 px-3 py-2 text-center font-semibold text-gray-700 uppercase tracking-wide text-xs whitespace-nowrap w-20">ACTIONS</th>
               </tr>
               <tr className="bg-white border-b border-gray-200">
                 {hdpeNames.length > 0 && <th className="border border-gray-200 px-3 py-1.5 text-center font-bold text-gray-800 text-xs uppercase whitespace-nowrap bg-gray-50/50">DC NO</th>}

@@ -2,8 +2,8 @@ export function todayIso() {
   return new Date().toISOString().slice(0, 10);
 }
 
-export function formatDate(iso: string) {
-  return iso.slice(0, 10);
+export function formatDate(iso: string | undefined | null) {
+  return (iso ?? '').slice(0, 10);
 }
 
 export function formatDateDisplay(iso: string) {
