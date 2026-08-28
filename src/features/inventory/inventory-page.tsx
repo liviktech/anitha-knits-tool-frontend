@@ -445,91 +445,91 @@ function StockSummaryCard({ month, onEditDate, onDeleteDate }: { month: string; 
   return (
     <div className="flex flex-col gap-2">
       {/* === Top Summary Card === */}
-        {/* Mini cards: HDPE, Chemicals, Colors */}
-  
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-2">
+      {/* Mini cards: HDPE, Chemicals, Colors */}
 
-            {/* HDPE Card */}
-            <div className="bg-white rounded-xl border border-gray-400 shadow-sm p-4 relative overflow-hidden group/card hover:border-blue-200 transition-colors flex flex-col">
-              <div className="absolute top-0 right-0 p-4 opacity-5 group-hover/card:opacity-10 transition-opacity">
-                <img src="/hdpe.png" alt="" className="w-26 h-26 object-contain" />
-              </div>
-              <div className="flex justify-between items-center mb-4 relative z-10">
-                <div className="flex items-center gap-2">
-                  <div className=""><img src="/hdpe.png" alt="HDPE" className="w-12 h-12 object-contain" /></div>
-                  <h3 className="font-extrabold text-gray-800 text-lg">HDPE Materials</h3>
-                </div>
-                <div className="text-lg font-bold text-gray-800 leading-none">{rawMaterials.weight.toFixed(2)} <span className="text-xs font-medium text-gray-500">kg</span></div>
-              </div>
-              <div className="mt-auto relative z-10 pt-2 border-t border-gray-50">
-                {rawMaterials.items.length > 0 ? (
-                  <div className="flex flex-wrap items-center gap-x-6 gap-y-3 mt-2">
-                    {rawMaterials.items.map(item => (
-                      <div key={item.name} className="flex flex-col gap-0.5">
-                        <span className="font-medium text-gray-500 text-xs">{item.name}</span>
-                        <span className="font-extrabold text-[#004D40] text-base">{item.weight.toFixed(2)}<span className="text-gray-500 font-normal text-xs ml-0.5">kg</span></span>
-                      </div>
-                    ))}
-                  </div>
-                ) : <span className="text-xs text-gray-400 italic">No HDPE this month</span>}
-              </div>
-            </div>
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-2">
 
-            {/* Chemicals Card */}
-            <div className="bg-white rounded-xl border border-gray-400 shadow-sm p-4 relative overflow-hidden group/card hover:border-orange-200 transition-colors flex flex-col">
-              <div className="absolute top-0 right-0 p-4 opacity-5 group-hover/card:opacity-10 transition-opacity">
-                <img src="/chemical.png" alt="" className="w-26 h-26 object-contain" />
-              </div>
-              <div className="flex justify-between items-center mb-4 relative z-10">
-                <div className="flex items-center gap-2">
-                  <div className=""><img src="/chemical.png" alt="Chemicals" className="w-12 h-12 object-contain" /></div>
-                  <h3 className="font-extrabold text-gray-800 text-lg">Chemicals</h3>
-                </div>
-                <div className="text-lg font-bold text-gray-800 leading-none">{chemicals.weight.toFixed(2)} <span className="text-xs font-medium text-gray-500">kg</span></div>
-              </div>
-              <div className="mt-auto relative z-10 pt-2 border-t border-gray-50">
-                {chemicals.items.length > 0 ? (
-                  <div className="flex flex-wrap items-center gap-x-6 gap-y-3 mt-2">
-                    {chemicals.items.map(item => (
-                      <div key={item.name} className="flex flex-col gap-0.5">
-                        <span className="font-medium text-gray-500 text-xs">{item.name}</span>
-                        <span className="font-extrabold text-[#004D40] text-base">{item.weight.toFixed(2)}<span className="text-gray-500 font-normal text-xs ml-0.5">kg</span></span>
-                      </div>
-                    ))}
-                  </div>
-                ) : <span className="text-xs text-gray-400 italic">No chemicals this month</span>}
-              </div>
-            </div>
-
-            {/* Colors Card */}
-            <div className="bg-white rounded-xl border border-gray-400 shadow-sm p-4 relative overflow-hidden group/card hover:border-purple-200 transition-colors flex flex-col">
-              <div className="absolute top-0 right-0 p-4 opacity-5 group-hover/card:opacity-10 transition-opacity">
-                <img src="/color.png" alt="" className="w-26 h-26 object-contain" />
-              </div>
-              <div className="flex justify-between items-center mb-4 relative z-10">
-                <div className="flex items-center gap-2">
-                  <div className=""><img src="/color.png" alt="Colors" className="w-12 h-12 object-contain" /></div>
-                  <h3 className="font-extrabold text-gray-800 text-lg">Colors</h3>
-                </div>
-                <div className="text-lg font-bold text-gray-800 leading-none">{colors.weight.toFixed(2)} <span className="text-xs font-medium text-gray-500">kg</span></div>
-              </div>
-              <div className="mt-auto relative z-10 pt-2 border-t border-gray-50">
-                {colors.items.length > 0 ? (
-                  <div className="flex flex-wrap items-center gap-x-6 gap-y-3 mt-2">
-                    {colors.items.map(item => (
-                      <div key={item.name} className="flex flex-col gap-0.5">
-                        <span className="font-medium text-gray-500 text-xs">{item.name}</span>
-                        <span className="font-extrabold text-[#004D40] text-base">{item.weight.toFixed(2)}<span className="text-gray-500 font-normal text-xs ml-0.5">kg</span></span>
-                      </div>
-                    ))}
-                  </div>
-                ) : <span className="text-xs text-gray-400 italic">No colors this month</span>}
-              </div>
-            </div>
-
+        {/* HDPE Card */}
+        <div className="bg-white rounded-xl border border-gray-400 shadow-sm p-4 relative overflow-hidden group/card hover:border-blue-200 transition-colors flex flex-col">
+          <div className="absolute top-0 right-0 p-4 opacity-5 group-hover/card:opacity-10 transition-opacity">
+            <img src="/hdpe.png" alt="" className="w-26 h-26 object-contain" />
           </div>
-      
-      
+          <div className="flex justify-between items-center mb-4 relative z-10">
+            <div className="flex items-center gap-2">
+              <div className=""><img src="/hdpe.png" alt="HDPE" className="w-12 h-12 object-contain" /></div>
+              <h3 className="font-extrabold text-gray-800 text-lg">HDPE Materials</h3>
+            </div>
+            <div className="text-lg font-bold text-gray-800 leading-none">{rawMaterials.weight.toFixed(2)} <span className="text-xs font-medium text-gray-500">kg</span></div>
+          </div>
+          <div className="mt-auto relative z-10 pt-2 border-t border-gray-50">
+            {rawMaterials.items.length > 0 ? (
+              <div className="flex flex-wrap items-center gap-x-6 gap-y-3 mt-2">
+                {rawMaterials.items.map(item => (
+                  <div key={item.name} className="flex flex-col gap-0.5">
+                    <span className="font-medium text-gray-500 text-xs">{item.name}</span>
+                    <span className="font-extrabold text-[#004D40] text-base">{item.weight.toFixed(2)}<span className="text-gray-500 font-normal text-xs ml-0.5">kg</span></span>
+                  </div>
+                ))}
+              </div>
+            ) : <span className="text-xs text-gray-400 italic">No HDPE this month</span>}
+          </div>
+        </div>
+
+        {/* Chemicals Card */}
+        <div className="bg-white rounded-xl border border-gray-400 shadow-sm p-4 relative overflow-hidden group/card hover:border-orange-200 transition-colors flex flex-col">
+          <div className="absolute top-0 right-0 p-4 opacity-5 group-hover/card:opacity-10 transition-opacity">
+            <img src="/chemical.png" alt="" className="w-26 h-26 object-contain" />
+          </div>
+          <div className="flex justify-between items-center mb-4 relative z-10">
+            <div className="flex items-center gap-2">
+              <div className=""><img src="/chemical.png" alt="Chemicals" className="w-12 h-12 object-contain" /></div>
+              <h3 className="font-extrabold text-gray-800 text-lg">Chemicals</h3>
+            </div>
+            <div className="text-lg font-bold text-gray-800 leading-none">{chemicals.weight.toFixed(2)} <span className="text-xs font-medium text-gray-500">kg</span></div>
+          </div>
+          <div className="mt-auto relative z-10 pt-2 border-t border-gray-50">
+            {chemicals.items.length > 0 ? (
+              <div className="flex flex-wrap items-center gap-x-6 gap-y-3 mt-2">
+                {chemicals.items.map(item => (
+                  <div key={item.name} className="flex flex-col gap-0.5">
+                    <span className="font-medium text-gray-500 text-xs">{item.name}</span>
+                    <span className="font-extrabold text-[#004D40] text-base">{item.weight.toFixed(2)}<span className="text-gray-500 font-normal text-xs ml-0.5">kg</span></span>
+                  </div>
+                ))}
+              </div>
+            ) : <span className="text-xs text-gray-400 italic">No chemicals this month</span>}
+          </div>
+        </div>
+
+        {/* Colors Card */}
+        <div className="bg-white rounded-xl border border-gray-400 shadow-sm p-4 relative overflow-hidden group/card hover:border-purple-200 transition-colors flex flex-col">
+          <div className="absolute top-0 right-0 p-4 opacity-5 group-hover/card:opacity-10 transition-opacity">
+            <img src="/color.png" alt="" className="w-26 h-26 object-contain" />
+          </div>
+          <div className="flex justify-between items-center mb-4 relative z-10">
+            <div className="flex items-center gap-2">
+              <div className=""><img src="/color.png" alt="Colors" className="w-12 h-12 object-contain" /></div>
+              <h3 className="font-extrabold text-gray-800 text-lg">Colors</h3>
+            </div>
+            <div className="text-lg font-bold text-gray-800 leading-none">{colors.weight.toFixed(2)} <span className="text-xs font-medium text-gray-500">kg</span></div>
+          </div>
+          <div className="mt-auto relative z-10 pt-2 border-t border-gray-50">
+            {colors.items.length > 0 ? (
+              <div className="flex flex-wrap items-center gap-x-6 gap-y-3 mt-2">
+                {colors.items.map(item => (
+                  <div key={item.name} className="flex flex-col gap-0.5">
+                    <span className="font-medium text-gray-500 text-xs">{item.name}</span>
+                    <span className="font-extrabold text-[#004D40] text-base">{item.weight.toFixed(2)}<span className="text-gray-500 font-normal text-xs ml-0.5">kg</span></span>
+                  </div>
+                ))}
+              </div>
+            ) : <span className="text-xs text-gray-400 italic">No colors this month</span>}
+          </div>
+        </div>
+
+      </div>
+
+
 
       {/* === Day-wise Table Section === */}
       <div className="rounded-xl border border-gray-400 bg-white shadow-sm overflow-hidden">
@@ -771,7 +771,7 @@ export function InventoryPage() {
       `}</style>
 
       {/* Unified Header */}
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between px-4 py-3 bg-[#F4F1E8] border-b border-gray-100 shrink-0">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between px-4 py-3 bg-[#F4F1E8] border-b border-[#004D40] shrink-0">
         <div>
           <h1 className="text-[20px] font-bold text-black leading-tight px-2">Inventory</h1>
           <p className="text-[12.5px] text-gray-500 font-medium px-2">Track stock received into and sent out of the warehouse</p>
