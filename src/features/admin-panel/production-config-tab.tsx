@@ -137,7 +137,7 @@ export function ProductionConfigTab() {
           <div className="pointer-events-none absolute right-0 top-0 h-full w-64 bg-gradient-to-l from-[#004D40]/[0.035] to-transparent" />
 
           {/* Header */}
-          <div className="relative flex items-center justify-between border-b border-gray-100 px-5 py-3">
+          <div className="relative flex items-center justify-between border-b border-gray-300 px-5 py-3">
 
             <div className="flex items-center gap-3">
 
