@@ -14,6 +14,13 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import {
   Table,
   TableBody,
   TableCell,
@@ -77,6 +84,14 @@ function monthRange(monthStr: string): { from: string; to: string } {
 
 const PAGE_SIZE = 10;
 
+const EXPENSE_NAME_SUGGESTIONS = [
+  "Electricity Charges",
+  "Water Charges",
+  "Machine Maintenance",
+  "Transportation",
+  "Office Supplies",
+];
+
 function getPageNumbers(
   current: number,
   total: number,
@@ -115,6 +130,7 @@ export function EmpExpensesPage() {
   // Form input states
   const [formDate, setFormDate] = useState(todayIso());
   const [formName, setFormName] = useState("");
+  const [expenseNameOption, setExpenseNameOption] = useState("");
   const [formAmount, setFormAmount] = useState("");
   const [formError, setFormError] = useState<string | null>(null);
 
@@ -161,6 +177,7 @@ export function EmpExpensesPage() {
     setEditingExpense(null);
     setFormDate(todayIso());
     setFormName("");
+    setExpenseNameOption("");
     setFormAmount("");
     setFormError(null);
     setIsFormOpen(true);
@@ -170,6 +187,9 @@ export function EmpExpensesPage() {
     setEditingExpense(expense);
     setFormDate(expense.date.slice(0, 10));
     setFormName(expense.expenseName);
+    setExpenseNameOption(
+      EXPENSE_NAME_SUGGESTIONS.includes(expense.expenseName) ? expense.expenseName : "OTHER",
+    );
     setFormAmount(String(expense.amount));
     setFormError(null);
     setIsFormOpen(true);
@@ -323,14 +343,7 @@ export function EmpExpensesPage() {
           <div className="rounded-xl border border-gray-400 bg-white shadow-sm overflow-hidden">
             {/* Header Bar */}
             <div className="border-b border-emerald-400 p-3 bg-white flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-              <div className="flex items-center gap-2">
-                <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md border border-emerald-200 bg-emerald-50 text-[#004D40]">
-                  <Wallet className="h-3.5 w-3.5" />
-                </div>
-                <h2 className="text-[17px] font-bold text-gray-900">
-                  Expense Log
-                </h2>
-              </div>
+              <div className="flex items-center gap-3"></div>
 
               <div className="flex flex-wrap items-center gap-2">
                 {/* Search Input */}
@@ -361,19 +374,19 @@ export function EmpExpensesPage() {
               <Table>
                 <TableHeader className="bg-emerald-50/30">
                   <TableRow className="hover:bg-transparent border-b border-emerald-400">
-                    <TableHead className="text-sm font-semibold tracking-wide text-gray-800 pl-4 w-[100px]">
+                    <TableHead className="text-sm font-semibold tracking-wide text-gray-800 pl-4 w-[100px] border-r border-gray-300">
                       Expense ID
                     </TableHead>
 
-                    <TableHead className="text-sm font-semibold tracking-wide text-gray-800 w-[130px]">
+                    <TableHead className="text-sm font-semibold tracking-wide text-gray-800 w-[130px] border-r border-gray-300">
                       Date
                     </TableHead>
 
-                    <TableHead className="text-sm font-semibold tracking-wide text-gray-800">
+                    <TableHead className="text-sm font-semibold tracking-wide text-gray-800 border-r border-gray-300">
                       Expense Name
                     </TableHead>
 
-                    <TableHead className="text-right text-sm font-semibold tracking-wide text-gray-800 pr-6 w-[150px]">
+                    <TableHead className="text-right text-sm font-semibold tracking-wide text-gray-800 pr-6 w-[150px] border-r border-gray-300">
                       Amount
                     </TableHead>
 
@@ -430,16 +443,16 @@ export function EmpExpensesPage() {
                         key={expense.id}
                         className="border-b border-emerald-50 last:border-b-0 hover:bg-emerald-50/30 transition-colors"
                       >
-                        <TableCell className="pl-4 text-sm font-bold text-gray-700 whitespace-nowrap">
+                        <TableCell className="pl-4 text-sm font-bold text-gray-700 whitespace-nowrap border-r border-gray-200">
                           {expense.expenseId}
                         </TableCell>
-                        <TableCell className="text-[13px] text-gray-600 whitespace-nowrap">
+                        <TableCell className="text-[13px] text-gray-600 whitespace-nowrap border-r border-gray-200">
                           {formatDateDisplay(expense.date)}
                         </TableCell>
-                        <TableCell className="py-3 text-sm font-semibold text-gray-900 whitespace-nowrap">
+                        <TableCell className="py-3 text-sm font-semibold text-gray-900 whitespace-nowrap border-r border-gray-200">
                           {expense.expenseName}
                         </TableCell>
-                        <TableCell className="text-right pr-6 font-bold text-gray-600 text-sm whitespace-nowrap">
+                        <TableCell className="text-right pr-6 font-bold text-gray-600 text-sm whitespace-nowrap border-r border-gray-200">
                           {formatCurrency(expense.amount)}
                         </TableCell>
                         <TableCell className="text-center pr-4">
@@ -543,9 +556,9 @@ export function EmpExpensesPage() {
             open={isFormOpen}
             onOpenChange={(next) => !isSaving && setIsFormOpen(next)}
           >
-            <DialogContent className="sm:max-w-md">
-              <DialogHeader>
-                <DialogTitle className="text-lg font-bold text-gray-900">
+            <DialogContent className="sm:max-w-md border border-gray-400">
+              <DialogHeader className="-mx-4 -mt-4 mb-2 rounded-t-xl border-b border-gray-200 bg-[#A8DCAB] px-4 py-3">
+                <DialogTitle className="text-lg font-bold text-black">
                   {editingExpense ? "Edit Expense" : "Add Expense"}
                 </DialogTitle>
               </DialogHeader>
@@ -574,13 +587,34 @@ export function EmpExpensesPage() {
                   >
                     Expense Name
                   </Label>
-                  <Input
-                    id="exp-name"
-                    placeholder="e.g. Loom Shed Electricity Bill"
-                    value={formName}
-                    onChange={(e) => setFormName(e.target.value)}
-                    className="h-9 text-xs"
-                  />
+                  <Select
+                    value={expenseNameOption || undefined}
+                    onValueChange={(val) => {
+                      setExpenseNameOption(val);
+                      setFormName(val === "OTHER" ? "" : val);
+                    }}
+                  >
+                    <SelectTrigger id="exp-name" className="w-full h-9 text-xs">
+                      <SelectValue placeholder="Select expense name" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {EXPENSE_NAME_SUGGESTIONS.map((name) => (
+                        <SelectItem key={name} value={name}>
+                          {name}
+                        </SelectItem>
+                      ))}
+                      <SelectItem value="OTHER">Other</SelectItem>
+                    </SelectContent>
+                  </Select>
+                  {expenseNameOption === "OTHER" && (
+                    <Input
+                      id="exp-name-custom"
+                      placeholder="Enter custom expense name"
+                      value={formName}
+                      onChange={(e) => setFormName(e.target.value)}
+                      className="h-9 text-xs mt-1.5"
+                    />
+                  )}
                 </div>
 
                 <div className="flex flex-col gap-1.5">
@@ -607,7 +641,7 @@ export function EmpExpensesPage() {
                 )}
               </div>
 
-              <DialogFooter>
+              <DialogFooter className="border-gray-200 bg-white">
                 <Button
                   variant="outline"
                   size="sm"
@@ -624,7 +658,7 @@ export function EmpExpensesPage() {
                   className="h-8 bg-[#004D40] hover:bg-[#00332a] text-white text-xs font-medium px-4"
                 >
                   {isSaving && <Loader size="sm" className="mr-1.5" />}
-                  {editingExpense ? "Save Changes" : "Add Expense"}
+                  {editingExpense ? "Update" : "Add"}
                 </Button>
               </DialogFooter>
             </DialogContent>

@@ -72,9 +72,9 @@ export function LoadSentFormDialog({ onClose, record }: LoadSentFormDialogProps)
 
   return (
     <Dialog open onOpenChange={(next) => !saving && !next && onClose()}>
-      <DialogContent className="sm:max-w-md">
-        <DialogHeader>
-          <DialogTitle>{isEdit ? 'Edit Sent Stock' : 'Add Sent Stock'}</DialogTitle>
+      <DialogContent className="sm:max-w-md border border-gray-400">
+        <DialogHeader className="-mx-4 -mt-4 mb-2 rounded-t-xl border-b border-gray-200 bg-[#A8DCAB] px-4 py-3">
+          <DialogTitle className="text-black">{isEdit ? 'Edit Sent Stock' : 'Add Sent Stock'}</DialogTitle>
         </DialogHeader>
         <div className="flex flex-col gap-4">
           <div className="flex flex-col gap-1.5">
@@ -105,11 +105,11 @@ export function LoadSentFormDialog({ onClose, record }: LoadSentFormDialogProps)
           </div>
           {error && <p className="text-sm text-red-600">{error}</p>}
         </div>
-        <DialogFooter>
+        <DialogFooter className="border-gray-200 bg-white">
           <Button variant="outline" onClick={onClose} disabled={saving}>Cancel</Button>
-          <Button onClick={handleSubmit} disabled={saving}>
+          <Button onClick={handleSubmit} disabled={saving} className="bg-[#004D40] hover:bg-[#00332a] text-white">
             {saving && <Loader size="sm" className="mr-2" />}
-            {isEdit ? 'Save changes' : 'Add stock'}
+            {isEdit ? 'Update' : 'Add'}
           </Button>
         </DialogFooter>
       </DialogContent>

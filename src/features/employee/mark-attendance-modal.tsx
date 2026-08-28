@@ -67,9 +67,9 @@ export function MarkAttendanceModal({ isOpen, onClose, onSave, employees, defaul
 
   return (
     <Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
-      <DialogContent className="sm:max-w-5xl p-0 overflow-hidden gap-0 rounded-2xl">
-        <DialogHeader className="px-6 py-4 border-b border-gray-100 bg-white">
-          <DialogTitle className="text-xl font-semibold text-gray-900">Mark Daily Attendance</DialogTitle>
+      <DialogContent className="sm:max-w-5xl p-0 overflow-hidden gap-0 rounded-2xl border border-gray-400">
+        <DialogHeader className="px-6 py-4 border-b border-gray-200 bg-[#A8DCAB]">
+          <DialogTitle className="text-xl font-semibold text-black">Mark Daily Attendance</DialogTitle>
         </DialogHeader>
 
         <div className="flex flex-wrap items-center gap-3 px-6 py-4 border-b border-gray-100">
@@ -129,12 +129,12 @@ export function MarkAttendanceModal({ isOpen, onClose, onSave, employees, defaul
           </table>
         </div>
 
-        <DialogFooter className="flex flex-row justify-end gap-3 px-6 py-2 border-t border-gray-100 bg-white sm:justify-end m-1">
+        <DialogFooter className="flex flex-row justify-end gap-3 px-6 py-2 border-t border-gray-200 bg-white sm:justify-end m-1">
           <Button variant="outline" onClick={onClose} className="border-gray-200 text-gray-700 hover:bg-gray-50 rounded-lg">
             Cancel
           </Button>
-          <Button onClick={handleSubmit} disabled={isSaving} className="bg-[#0B503B] hover:bg-[#083A2A] text-white rounded-lg">
-            Save Attendance
+          <Button onClick={handleSubmit} disabled={isSaving} className="bg-[#004D40] hover:bg-[#00332a] text-white rounded-lg">
+            Add
             {isSaving && <Loader2 className="ml-2 h-4 w-4 animate-spin" />}
           </Button>
         </DialogFooter>

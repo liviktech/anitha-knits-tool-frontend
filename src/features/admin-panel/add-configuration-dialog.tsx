@@ -130,7 +130,7 @@ export function AddConfigurationDialog({
           overflow-hidden
           rounded-xl
           border
-          border-[#bfc9c3]
+          border-gray-400
           bg-[#ffffff]
           p-0
           shadow-lg
@@ -148,8 +148,8 @@ export function AddConfigurationDialog({
             items-center
             justify-between
             border-b
-            border-[#bfc9c3]
-            bg-white
+            border-gray-200
+            bg-[#A8DCAB]
             px-6
             py-3
           "
@@ -159,7 +159,7 @@ export function AddConfigurationDialog({
               text-[20px]
               font-semibold
               leading-[1.4]
-              text-[#191c1c]
+              text-black
             "
           >
             {isEdit ? 'Edit Configuration' : 'Add Configuration'}
@@ -495,8 +495,8 @@ export function AddConfigurationDialog({
     justify-end
     gap-3
     border-t
-    border-[#bfc9c3]
-    bg-[#f2f4f3]
+    border-gray-200
+    bg-white
     px-6
     py-3
   "
@@ -534,13 +534,13 @@ export function AddConfigurationDialog({
             className="
       h-9
       rounded-lg
-      bg-[#004737]
+      bg-[#004D40]
       px-4
       text-[12px]
       font-semibold
       text-white
       shadow-sm
-      hover:bg-[#002f23]
+      hover:bg-[#00332a]
       focus:ring-2
       focus:ring-[#002f23]
       focus:ring-offset-2
@@ -553,7 +553,7 @@ export function AddConfigurationDialog({
               />
             )}
 
-            {isEdit ? 'Save Changes' : 'Add Configuration'}
+            {isEdit ? 'Update' : 'Add'}
           </Button>
         </div>
       </DialogContent>
