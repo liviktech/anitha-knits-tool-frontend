@@ -25,6 +25,8 @@ export interface Employee {
   createdAt: string;
   updatedAt: string;
   employeeDetails?: EmployeeDetails | null;
+  roleAccessId?: string | null;
+  roleAccess?: { id: string; roleName: string } | null;
 }
 
 export interface ListEmployeesResponse {

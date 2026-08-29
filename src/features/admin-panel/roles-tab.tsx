@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
+import { useQueryClient } from '@tanstack/react-query';
 import {
   Award,
   ChevronLeft,
@@ -7,7 +8,6 @@ import {
   Layers,
   Plus,
   Search,
-  Shield,
   ShieldCheck,
   Trash2,
   Users,
@@ -18,104 +18,27 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { DeleteConfirmDialog } from '@/components/shared/delete-confirm-dialog';
-
-/* ============================================================= */
-/* STATIC DATA (no API integration — everything lives in memory) */
-/* ============================================================= */
-
-interface RightRecord {
-  id: string;
-  module: string;
-  displayName: string;
-  rightName: string;
-  createdAt: string;
-}
-
-interface RoleRecord {
-  id: string;
-  name: string;
-  description: string;
-  rightIds: string[];
-  createdAt: string;
-}
-
-const INITIAL_RIGHTS: RightRecord[] = [
-  { id: 'cmpapwcvm0', module: 'Admin', displayName: 'Admin Control Roles', rightName: 'admin_control_roles', createdAt: '2026-05-18' },
-  { id: 'cmpapwd2o0', module: 'Admin', displayName: 'Admin Module', rightName: 'admin_module_access', createdAt: '2026-05-18' },
-  { id: 'cmpapwd9j0', module: 'Admin', displayName: 'Admin View Customers', rightName: 'admin_view_customers', createdAt: '2026-05-18' },
-  { id: 'cmpapwdiy0', module: 'Admin', displayName: 'Admin View Dashboard', rightName: 'admin_view_dashboard', createdAt: '2026-05-18' },
-  { id: 'cmpapwdri0', module: 'Admin', displayName: 'Admin View Roles', rightName: 'admin_view_roles', createdAt: '2026-05-18' },
-  { id: 'cmpapwco20', module: 'Admin', displayName: 'Admin Control Customers', rightName: 'admin_control_customers', createdAt: '2026-05-18' },
-  { id: 'cmpapwh330', module: 'Asset', displayName: 'Asset Control All', rightName: 'asset_control_all', createdAt: '2026-05-18' },
-  { id: 'cmpapwdzx0', module: 'Asset', displayName: 'Asset Control All Assets', rightName: 'asset_control_assets', createdAt: '2026-05-18' },
-  { id: 'cmpapwe4t0', module: 'Production', displayName: 'Production View Details', rightName: 'production_view_details', createdAt: '2026-05-19' },
-  { id: 'cmpapweb10', module: 'Production', displayName: 'Production Control Entries', rightName: 'production_control_entries', createdAt: '2026-05-19' },
-  { id: 'cmpapwehq0', module: 'Inventory', displayName: 'Inventory View Stock', rightName: 'inventory_view_stock', createdAt: '2026-05-19' },
-  { id: 'cmpapwep90', module: 'Inventory', displayName: 'Inventory Control Stock', rightName: 'inventory_control_stock', createdAt: '2026-05-19' },
-  { id: 'cmpapwewc0', module: 'Employees', displayName: 'Employees View List', rightName: 'employees_view_list', createdAt: '2026-05-20' },
-  { id: 'cmpapwf2z0', module: 'Employees', displayName: 'Employees Control Records', rightName: 'employees_control_records', createdAt: '2026-05-20' },
-  { id: 'cmpapwf9g0', module: 'Expenses', displayName: 'Expenses View Ledger', rightName: 'expenses_view_ledger', createdAt: '2026-05-20' },
-  { id: 'cmpapwfg10', module: 'Expenses', displayName: 'Expenses Control Ledger', rightName: 'expenses_control_ledger', createdAt: '2026-05-20' },
-];
-
-const INITIAL_ROLES: RoleRecord[] = [
-  {
-    id: 'cmrz8k2p91',
-    name: 'Super Admin',
-    description: 'Unrestricted access to every module, including admin configuration and roles.',
-    rightIds: INITIAL_RIGHTS.map((r) => r.id),
-    createdAt: '2026-05-18',
-  },
-  {
-    id: 'cmqw3n7d42',
-    name: 'Production Manager',
-    description: 'Manages production entries and views inventory and dashboard data.',
-    rightIds: ['cmpapwdiy0', 'cmpapwe4t0', 'cmpapweb10', 'cmpapwehq0'],
-    createdAt: '2026-05-19',
-  },
-  {
-    id: 'cmt5j9f183',
-    name: 'Inventory Staff',
-    description: 'Handles day-to-day stock updates and views the admin dashboard.',
-    rightIds: ['cmpapwdiy0', 'cmpapwehq0', 'cmpapwep90'],
-    createdAt: '2026-05-19',
-  },
-  {
-    id: 'cmvb2h6k74',
-    name: 'Accountant',
-    description: 'Manages the expenses ledger and views employee and customer records.',
-    rightIds: ['cmpapwdiy0', 'cmpapwd9j0', 'cmpapwf9g0', 'cmpapwfg10'],
-    createdAt: '2026-05-20',
-  },
-  {
-    id: 'cmyx8q4m15',
-    name: 'Viewer',
-    description: 'Read-only access to the admin dashboard for reporting purposes.',
-    rightIds: ['cmpapwdiy0'],
-    createdAt: '2026-05-20',
-  },
-];
-
-interface EmployeeRecord {
-  id: string;
-  name: string;
-  department: string;
-}
-
-const EMPLOYEES: EmployeeRecord[] = [
-  { id: 'emp001', name: 'Aarav Sharma', department: 'Administration' },
-  { id: 'emp002', name: 'Priya Nair', department: 'Production' },
-  { id: 'emp003', name: 'Rohit Verma', department: 'Inventory' },
-  { id: 'emp004', name: 'Sneha Iyer', department: 'Human Resources' },
-  { id: 'emp005', name: 'Karthik Reddy', department: 'Finance' },
-  { id: 'emp006', name: 'Meera Pillai', department: 'Production' },
-  { id: 'emp007', name: 'Arjun Menon', department: 'Inventory' },
-  { id: 'emp008', name: 'Divya Krishnan', department: 'Administration' },
-];
-
-function generateId() {
-  return `cm${Math.random().toString(36).slice(2, 11)}`;
-}
+import { Loader } from '@/components/shared/loader';
+import { useEmployees, type Employee } from '@/features/employee/employee-queries';
+import {
+  createTabRecord,
+  tabKeys,
+  useCreateRight,
+  useCreateRoleAccess,
+  useDeleteRight,
+  useDeleteRoleAccess,
+  useModules,
+  useRights,
+  useRoleAccesses,
+  useTabs,
+  useUpdateRight,
+  useUpdateRoleAccess,
+  useAssignRoleAccess,
+  type ModuleRecord,
+  type RightRecord,
+  type RoleAccessRecord,
+  type TabRecord,
+} from './roles-tab-queries';
 
 function formatDate(iso: string) {
   const d = new Date(iso);
@@ -124,9 +47,10 @@ function formatDate(iso: string) {
 }
 
 const PAGE_SIZE = 5;
+const THIRTY_DAYS_MS = 30 * 24 * 60 * 60 * 1000;
 
 /* ============================================================= */
-/* PAGINATION BAR (client-side — table data is static/in-memory) */
+/* PAGINATION BAR (client-side pagination over the fetched list) */
 /* ============================================================= */
 
 interface PaginationBarProps {
@@ -191,37 +115,92 @@ interface RightFormDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   initial: RightRecord | null;
-  modules: string[];
-  onSubmit: (data: { module: string; displayName: string; rightName: string }) => void;
+  modules: ModuleRecord[];
+  tabs: TabRecord[];
+  onSubmit: (data: { moduleId: string; tabId: string | null; displayName: string; rightName: string }) => Promise<boolean>;
+  isPending: boolean;
+  serverError?: string | null;
 }
 
-function RightFormDialog({ open, onOpenChange, initial, modules, onSubmit }: RightFormDialogProps) {
-  const [module, setModule] = useState('');
+/** Sentinel Select value for "no specific tab" — Radix Select doesn't allow an empty-string item value. */
+const NO_TAB_VALUE = '__none__';
+
+function RightFormDialog({ open, onOpenChange, initial, modules, tabs, onSubmit, isPending, serverError }: RightFormDialogProps) {
+  const queryClient = useQueryClient();
+  const [moduleId, setModuleId] = useState('');
+  const [tabId, setTabId] = useState<string | null>(null);
   const [displayName, setDisplayName] = useState('');
   const [rightName, setRightName] = useState('');
-  const [error, setError] = useState<string | null>(null);
+  const [formError, setFormError] = useState<string | null>(null);
+  const [isAddingTab, setIsAddingTab] = useState(false);
+  const [newTabName, setNewTabName] = useState('');
+  const [isCreatingTab, setIsCreatingTab] = useState(false);
+  const [tabCreateError, setTabCreateError] = useState<string | null>(null);
   const isEdit = initial != null;
 
   useEffect(() => {
     if (open) {
-      setModule(initial?.module ?? '');
+      setModuleId(initial?.moduleId ?? '');
+      setTabId(initial?.tabId ?? null);
       setDisplayName(initial?.displayName ?? '');
       setRightName(initial?.rightName ?? '');
-      setError(null);
+      setFormError(null);
+      setIsAddingTab(false);
+      setNewTabName('');
+      setTabCreateError(null);
     }
   }, [open, initial]);
 
-  const handleSubmit = () => {
-    if (!module.trim() || !displayName.trim() || !rightName.trim()) {
-      setError('Please fill in all fields.');
-      return;
-    }
-    onSubmit({ module: module.trim(), displayName: displayName.trim(), rightName: rightName.trim().replace(/\s+/g, '_').toLowerCase() });
-    onOpenChange(false);
+  const tabsForModule = useMemo(() => tabs.filter((t) => t.moduleId === moduleId), [tabs, moduleId]);
+
+  const handleModuleChange = (value: string) => {
+    setModuleId(value);
+    if (!tabs.some((t) => t.id === tabId && t.moduleId === value)) setTabId(null);
+    setIsAddingTab(false);
+    setNewTabName('');
+    setTabCreateError(null);
   };
 
+  const handleCreateTab = async () => {
+    if (!moduleId || !newTabName.trim()) return;
+    setIsCreatingTab(true);
+    setTabCreateError(null);
+    try {
+      const created = await createTabRecord({
+        moduleId,
+        tabCode: newTabName.trim().replace(/\s+/g, '_').toLowerCase(),
+        tabName: newTabName.trim(),
+      });
+      await queryClient.invalidateQueries({ queryKey: tabKeys.all });
+      setTabId(created.id);
+      setNewTabName('');
+      setIsAddingTab(false);
+    } catch (err) {
+      setTabCreateError(err instanceof Error ? err.message : 'Failed to create tab.');
+    } finally {
+      setIsCreatingTab(false);
+    }
+  };
+
+  const handleSubmit = async () => {
+    if (!moduleId || !displayName.trim() || !rightName.trim()) {
+      setFormError('Please fill in all fields.');
+      return;
+    }
+    setFormError(null);
+    const ok = await onSubmit({
+      moduleId,
+      tabId,
+      displayName: displayName.trim(),
+      rightName: rightName.trim().replace(/\s+/g, '_').toLowerCase(),
+    });
+    if (ok) onOpenChange(false);
+  };
+
+  const displayError = formError ?? serverError;
+
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
+    <Dialog open={open} onOpenChange={(next) => { if (!isPending) onOpenChange(next); }}>
       <DialogContent className="sm:max-w-sm">
         <DialogHeader>
           <DialogTitle>{isEdit ? 'Edit Right' : 'Add Right'}</DialogTitle>
@@ -229,18 +208,95 @@ function RightFormDialog({ open, onOpenChange, initial, modules, onSubmit }: Rig
 
         <div className="flex flex-col gap-3">
           <div className="flex flex-col gap-1">
-            <Label htmlFor="right-module" className="text-sm font-semibold text-gray-600">Module</Label>
-            <Input
-              id="right-module"
-              list="right-module-options"
-              placeholder="e.g. Admin"
-              value={module}
-              onChange={(e) => setModule(e.target.value)}
-              className="h-8 text-sm"
-            />
-            <datalist id="right-module-options">
-              {modules.map((m) => <option key={m} value={m} />)}
-            </datalist>
+            <Label className="text-sm font-semibold text-gray-600">Module</Label>
+            <Select value={moduleId} onValueChange={handleModuleChange}>
+              <SelectTrigger className="h-9 w-full text-[14px]">
+                <SelectValue placeholder="Select a module" />
+              </SelectTrigger>
+              <SelectContent>
+                {modules.map((m) => (
+                  <SelectItem key={m.id} value={m.id}>{m.moduleName}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+
+          <div className="flex flex-col gap-1">
+            <Label className="text-sm font-semibold text-gray-600">Tab <span className="font-normal text-gray-400">(optional — leave unset for whole-module access)</span></Label>
+
+            {!moduleId && (
+              <Select disabled>
+                <SelectTrigger className="h-9 w-full text-[14px]">
+                  <SelectValue placeholder="Select a module first" />
+                </SelectTrigger>
+                <SelectContent />
+              </Select>
+            )}
+
+            {moduleId && !isAddingTab && tabsForModule.length > 0 && (
+              <Select value={tabId ?? NO_TAB_VALUE} onValueChange={(v) => setTabId(v === NO_TAB_VALUE ? null : v)}>
+                <SelectTrigger className="h-9 w-full text-[14px]">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value={NO_TAB_VALUE}>No specific tab (whole module)</SelectItem>
+                  {tabsForModule.map((t) => (
+                    <SelectItem key={t.id} value={t.id}>{t.tabName}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            )}
+
+            {moduleId && !isAddingTab && tabsForModule.length === 0 && (
+              <p className="text-[13px] text-gray-500">
+                No tabs configured for this module — this right will grant access to the whole module.
+              </p>
+            )}
+
+            {moduleId && !isAddingTab && (
+              <button
+                type="button"
+                onClick={() => setIsAddingTab(true)}
+                className="mt-1 self-start text-[12px] font-semibold text-[#004D40] hover:underline"
+              >
+                + Add a new tab
+              </button>
+            )}
+
+            {moduleId && isAddingTab && (
+              <div className="flex flex-col gap-1.5 rounded-lg border border-gray-200 bg-gray-50 p-2">
+                <Input
+                  placeholder="e.g. Reports"
+                  value={newTabName}
+                  onChange={(e) => setNewTabName(e.target.value)}
+                  className="h-8 text-sm"
+                  autoFocus
+                />
+                {tabCreateError && <p className="text-xs text-red-600">{tabCreateError}</p>}
+                <div className="flex justify-end gap-1.5">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    className="h-7 text-xs"
+                    disabled={isCreatingTab}
+                    onClick={() => { setIsAddingTab(false); setNewTabName(''); setTabCreateError(null); }}
+                  >
+                    Cancel
+                  </Button>
+                  <Button
+                    type="button"
+                    size="sm"
+                    className="h-7 bg-[#004D40] text-xs hover:bg-[#003D33]"
+                    disabled={isCreatingTab || !newTabName.trim()}
+                    onClick={handleCreateTab}
+                  >
+                    {isCreatingTab && <Loader size="sm" className="mr-1.5" />}
+                    Create Tab
+                  </Button>
+                </div>
+              </div>
+            )}
           </div>
 
           <div className="flex flex-col gap-1">
@@ -266,11 +322,12 @@ function RightFormDialog({ open, onOpenChange, initial, modules, onSubmit }: Rig
           </div>
         </div>
 
-        {error && <p className="text-sm text-red-600">{error}</p>}
+        {displayError && <p className="text-sm text-red-600">{displayError}</p>}
 
         <DialogFooter>
-          <Button variant="outline" size="sm" onClick={() => onOpenChange(false)}>Cancel</Button>
-          <Button size="sm" className="bg-[#004D40] hover:bg-[#003D33]" onClick={handleSubmit}>
+          <Button variant="outline" size="sm" onClick={() => onOpenChange(false)} disabled={isPending}>Cancel</Button>
+          <Button size="sm" className="bg-[#004D40] hover:bg-[#003D33]" onClick={handleSubmit} disabled={isPending}>
+            {isPending && <Loader size="sm" className="mr-2" />}
             {isEdit ? 'Save Changes' : 'Add Right'}
           </Button>
         </DialogFooter>
@@ -286,52 +343,58 @@ function RightFormDialog({ open, onOpenChange, initial, modules, onSubmit }: Rig
 interface RoleFormDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  initial: RoleRecord | null;
+  initial: RoleAccessRecord | null;
   rights: RightRecord[];
-  onSubmit: (data: { name: string; description: string; rightIds: string[] }) => void;
+  onSubmit: (data: { roleName: string; description: string; rightIds: string[] }) => Promise<boolean>;
+  isPending: boolean;
+  serverError?: string | null;
 }
 
-function RoleFormDialog({ open, onOpenChange, initial, rights, onSubmit }: RoleFormDialogProps) {
-  const [name, setName] = useState('');
+function RoleFormDialog({ open, onOpenChange, initial, rights, onSubmit, isPending, serverError }: RoleFormDialogProps) {
+  const [roleName, setRoleName] = useState('');
   const [description, setDescription] = useState('');
   const [rightIds, setRightIds] = useState<string[]>([]);
-  const [error, setError] = useState<string | null>(null);
+  const [formError, setFormError] = useState<string | null>(null);
   const isEdit = initial != null;
 
   useEffect(() => {
     if (open) {
-      setName(initial?.name ?? '');
+      setRoleName(initial?.roleName ?? '');
       setDescription(initial?.description ?? '');
       setRightIds(initial?.rightIds ?? []);
-      setError(null);
+      setFormError(null);
     }
   }, [open, initial]);
 
-  const rightsByModule = useMemo(() => {
+  const rightsByGroup = useMemo(() => {
     const groups = new Map<string, RightRecord[]>();
     rights.forEach((r) => {
-      const list = groups.get(r.module) ?? [];
+      const key = r.tabName ? `${r.moduleName} › ${r.tabName}` : r.moduleName;
+      const list = groups.get(key) ?? [];
       list.push(r);
-      groups.set(r.module, list);
+      groups.set(key, list);
     });
-    return Array.from(groups.entries());
+    return Array.from(groups.entries()).sort(([a], [b]) => a.localeCompare(b));
   }, [rights]);
 
   const toggleRight = (id: string) => {
     setRightIds((prev) => (prev.includes(id) ? prev.filter((r) => r !== id) : [...prev, id]));
   };
 
-  const handleSubmit = () => {
-    if (!name.trim()) {
-      setError('Please enter a role name.');
+  const handleSubmit = async () => {
+    if (!roleName.trim()) {
+      setFormError('Please enter a role name.');
       return;
     }
-    onSubmit({ name: name.trim(), description: description.trim(), rightIds });
-    onOpenChange(false);
+    setFormError(null);
+    const ok = await onSubmit({ roleName: roleName.trim(), description: description.trim(), rightIds });
+    if (ok) onOpenChange(false);
   };
 
+  const displayError = formError ?? serverError;
+
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
+    <Dialog open={open} onOpenChange={(next) => { if (!isPending) onOpenChange(next); }}>
       <DialogContent className="sm:max-w-md">
         <DialogHeader>
           <DialogTitle>{isEdit ? 'Edit Role' : 'Add Role'}</DialogTitle>
@@ -343,8 +406,8 @@ function RoleFormDialog({ open, onOpenChange, initial, rights, onSubmit }: RoleF
             <Input
               id="role-name"
               placeholder="e.g. Production Manager"
-              value={name}
-              onChange={(e) => setName(e.target.value)}
+              value={roleName}
+              onChange={(e) => setRoleName(e.target.value)}
               className="h-8 text-sm"
             />
           </div>
@@ -363,31 +426,36 @@ function RoleFormDialog({ open, onOpenChange, initial, rights, onSubmit }: RoleF
           <div className="flex flex-col gap-1">
             <Label className="text-sm font-semibold text-gray-600">Assigned Rights</Label>
             <div className="flex max-h-56 flex-col gap-3 overflow-y-auto rounded-lg border border-gray-200 p-3">
-              {rightsByModule.map(([module, moduleRights]) => (
-                <div key={module} className="flex flex-col gap-1.5">
-                  <span className="text-[12px] font-bold uppercase tracking-wide text-gray-400">{module}</span>
-                  {moduleRights.map((r) => (
-                    <label key={r.id} className="flex items-center gap-2 text-sm text-gray-700">
-                      <input
-                        type="checkbox"
-                        checked={rightIds.includes(r.id)}
-                        onChange={() => toggleRight(r.id)}
-                        className="h-3.5 w-3.5 rounded border-gray-300 text-[#004D40] focus:ring-[#004D40]"
-                      />
-                      {r.displayName}
-                    </label>
-                  ))}
-                </div>
-              ))}
+              {rightsByGroup.length === 0 ? (
+                <p className="text-center text-[13px] text-gray-400">No rights configured yet.</p>
+              ) : (
+                rightsByGroup.map(([group, groupRights]) => (
+                  <div key={group} className="flex flex-col gap-1.5">
+                    <span className="text-[12px] font-bold uppercase tracking-wide text-gray-400">{group}</span>
+                    {groupRights.map((r) => (
+                      <label key={r.id} className="flex items-center gap-2 text-sm text-gray-700">
+                        <input
+                          type="checkbox"
+                          checked={rightIds.includes(r.id)}
+                          onChange={() => toggleRight(r.id)}
+                          className="h-3.5 w-3.5 rounded border-gray-300 text-[#004D40] focus:ring-[#004D40]"
+                        />
+                        {r.displayName}
+                      </label>
+                    ))}
+                  </div>
+                ))
+              )}
             </div>
           </div>
         </div>
 
-        {error && <p className="text-sm text-red-600">{error}</p>}
+        {displayError && <p className="text-sm text-red-600">{displayError}</p>}
 
         <DialogFooter>
-          <Button variant="outline" size="sm" onClick={() => onOpenChange(false)}>Cancel</Button>
-          <Button size="sm" className="bg-[#004D40] hover:bg-[#003D33]" onClick={handleSubmit}>
+          <Button variant="outline" size="sm" onClick={() => onOpenChange(false)} disabled={isPending}>Cancel</Button>
+          <Button size="sm" className="bg-[#004D40] hover:bg-[#003D33]" onClick={handleSubmit} disabled={isPending}>
+            {isPending && <Loader size="sm" className="mr-2" />}
             {isEdit ? 'Save Changes' : 'Add Role'}
           </Button>
         </DialogFooter>
@@ -403,53 +471,58 @@ function RoleFormDialog({ open, onOpenChange, initial, rights, onSubmit }: RoleF
 interface AssignRoleDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  roles: RoleRecord[];
-  employees: EmployeeRecord[];
-  assignments: Record<string, string>;
-  onSubmit: (roleId: string, employeeIds: string[]) => void;
+  roles: RoleAccessRecord[];
+  employees: Employee[];
+  onSubmit: (roleAccessId: string, employeeIds: string[]) => Promise<boolean>;
+  isPending: boolean;
+  serverError?: string | null;
 }
 
-function AssignRoleDialog({ open, onOpenChange, roles, employees, assignments, onSubmit }: AssignRoleDialogProps) {
+function AssignRoleDialog({ open, onOpenChange, roles, employees, onSubmit, isPending, serverError }: AssignRoleDialogProps) {
   const [roleId, setRoleId] = useState('');
   const [employeeSearch, setEmployeeSearch] = useState('');
   const [selectedEmployeeIds, setSelectedEmployeeIds] = useState<string[]>([]);
-  const [error, setError] = useState<string | null>(null);
+  const [formError, setFormError] = useState<string | null>(null);
 
   useEffect(() => {
     if (open) {
       setRoleId('');
       setEmployeeSearch('');
       setSelectedEmployeeIds([]);
-      setError(null);
+      setFormError(null);
     }
   }, [open]);
 
   const filteredEmployees = useMemo(() => {
     const q = employeeSearch.trim().toLowerCase();
     if (!q) return employees;
-    return employees.filter((e) => e.name.toLowerCase().includes(q) || e.department.toLowerCase().includes(q));
+    return employees.filter((e) =>
+      (e.name ?? '').toLowerCase().includes(q)
+      || (e.employeeDetails?.designation ?? '').toLowerCase().includes(q));
   }, [employees, employeeSearch]);
 
   const toggleEmployee = (id: string) => {
     setSelectedEmployeeIds((prev) => (prev.includes(id) ? prev.filter((e) => e !== id) : [...prev, id]));
   };
 
-  const handleSubmit = () => {
+  const handleSubmit = async () => {
     if (!roleId) {
-      setError('Please select a role.');
+      setFormError('Please select a role.');
       return;
     }
     if (selectedEmployeeIds.length === 0) {
-      setError('Please select at least one employee.');
+      setFormError('Please select at least one employee.');
       return;
     }
-    setError(null);
-    onSubmit(roleId, selectedEmployeeIds);
-    onOpenChange(false);
+    setFormError(null);
+    const ok = await onSubmit(roleId, selectedEmployeeIds);
+    if (ok) onOpenChange(false);
   };
 
+  const displayError = formError ?? serverError;
+
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
+    <Dialog open={open} onOpenChange={(next) => { if (!isPending) onOpenChange(next); }}>
       <DialogContent className="sm:max-w-md">
         <DialogHeader>
           <DialogTitle>Assign Role</DialogTitle>
@@ -464,7 +537,7 @@ function AssignRoleDialog({ open, onOpenChange, roles, employees, assignments, o
               </SelectTrigger>
               <SelectContent>
                 {roles.map((role) => (
-                  <SelectItem key={role.id} value={role.id}>{role.name}</SelectItem>
+                  <SelectItem key={role.id} value={role.id}>{role.roleName}</SelectItem>
                 ))}
               </SelectContent>
             </Select>
@@ -482,42 +555,41 @@ function AssignRoleDialog({ open, onOpenChange, roles, employees, assignments, o
               {filteredEmployees.length === 0 ? (
                 <p className="px-2 py-3 text-center text-[14px] text-gray-400">No employees found.</p>
               ) : (
-                filteredEmployees.map((employee) => {
-                  const currentRoleId = assignments[employee.id];
-                  const currentRole = currentRoleId ? roles.find((r) => r.id === currentRoleId) : null;
-                  return (
-                    <label
-                      key={employee.id}
-                      className="flex items-center justify-between gap-2 rounded-md px-2 py-1.5 text-[14px] text-gray-700 hover:bg-gray-50"
-                    >
-                      <span className="flex items-center gap-2">
-                        <input
-                          type="checkbox"
-                          checked={selectedEmployeeIds.includes(employee.id)}
-                          onChange={() => toggleEmployee(employee.id)}
-                          className="h-3.5 w-3.5 rounded border-gray-300 text-[#004D40] focus:ring-[#004D40]"
-                        />
-                        <span className="font-medium text-gray-900">{employee.name}</span>
-                        <span className="text-[12px] text-gray-400">{employee.department}</span>
-                      </span>
-                      {currentRole && (
-                        <span className="shrink-0 rounded-full bg-gray-100 px-2 py-0.5 text-[11px] font-semibold text-gray-500">
-                          {currentRole.name}
-                        </span>
+                filteredEmployees.map((employee) => (
+                  <label
+                    key={employee.id}
+                    className="flex items-center justify-between gap-2 rounded-md px-2 py-1.5 text-[14px] text-gray-700 hover:bg-gray-50"
+                  >
+                    <span className="flex items-center gap-2">
+                      <input
+                        type="checkbox"
+                        checked={selectedEmployeeIds.includes(employee.id)}
+                        onChange={() => toggleEmployee(employee.id)}
+                        className="h-3.5 w-3.5 rounded border-gray-300 text-[#004D40] focus:ring-[#004D40]"
+                      />
+                      <span className="font-medium text-gray-900">{employee.name}</span>
+                      {employee.employeeDetails?.designation && (
+                        <span className="text-[12px] text-gray-400">{employee.employeeDetails.designation}</span>
                       )}
-                    </label>
-                  );
-                })
+                    </span>
+                    {employee.roleAccess && (
+                      <span className="shrink-0 rounded-full bg-gray-100 px-2 py-0.5 text-[11px] font-semibold text-gray-500">
+                        {employee.roleAccess.roleName}
+                      </span>
+                    )}
+                  </label>
+                ))
               )}
             </div>
           </div>
         </div>
 
-        {error && <p className="text-sm text-red-600">{error}</p>}
+        {displayError && <p className="text-sm text-red-600">{displayError}</p>}
 
         <DialogFooter>
-          <Button variant="outline" size="sm" onClick={() => onOpenChange(false)}>Cancel</Button>
-          <Button size="sm" className="bg-[#004D40] hover:bg-[#003D33]" onClick={handleSubmit}>
+          <Button variant="outline" size="sm" onClick={() => onOpenChange(false)} disabled={isPending}>Cancel</Button>
+          <Button size="sm" className="bg-[#004D40] hover:bg-[#003D33]" onClick={handleSubmit} disabled={isPending}>
+            {isPending && <Loader size="sm" className="mr-2" />}
             Assign Role
           </Button>
         </DialogFooter>
@@ -533,8 +605,20 @@ function AssignRoleDialog({ open, onOpenChange, roles, employees, assignments, o
 export function RolesTab() {
   const [subTab, setSubTab] = useState<'roles' | 'rights'>('roles');
 
-  const [roles, setRoles] = useState<RoleRecord[]>(INITIAL_ROLES);
-  const [rights, setRights] = useState<RightRecord[]>(INITIAL_RIGHTS);
+  const modulesQuery = useModules();
+  const tabsQuery = useTabs();
+  const rightsQuery = useRights();
+  const roleAccessQuery = useRoleAccesses();
+  const employeesQuery = useEmployees('limit=100');
+
+  const createRight = useCreateRight();
+  const updateRight = useUpdateRight();
+  const deleteRight = useDeleteRight();
+
+  const createRoleAccess = useCreateRoleAccess();
+  const updateRoleAccess = useUpdateRoleAccess();
+  const deleteRoleAccess = useDeleteRoleAccess();
+  const assignRoleAccess = useAssignRoleAccess();
 
   const [roleSearch, setRoleSearch] = useState('');
   const [rightSearch, setRightSearch] = useState('');
@@ -544,37 +628,59 @@ export function RolesTab() {
   const [rightsPage, setRightsPage] = useState(1);
 
   const [isRoleDialogOpen, setIsRoleDialogOpen] = useState(false);
-  const [editingRole, setEditingRole] = useState<RoleRecord | null>(null);
-  const [deleteRoleTarget, setDeleteRoleTarget] = useState<RoleRecord | null>(null);
+  const [editingRole, setEditingRole] = useState<RoleAccessRecord | null>(null);
+  const [deleteRoleTarget, setDeleteRoleTarget] = useState<RoleAccessRecord | null>(null);
 
   const [isAssignDialogOpen, setIsAssignDialogOpen] = useState(false);
-  const [assignments, setAssignments] = useState<Record<string, string>>({});
 
   const [isRightDialogOpen, setIsRightDialogOpen] = useState(false);
   const [editingRight, setEditingRight] = useState<RightRecord | null>(null);
   const [deleteRightTarget, setDeleteRightTarget] = useState<RightRecord | null>(null);
 
-  const modules = useMemo(() => Array.from(new Set(rights.map((r) => r.module))).sort(), [rights]);
+  const modules = modulesQuery.data ?? [];
+  const tabs = tabsQuery.data ?? [];
+  const rights = rightsQuery.data ?? [];
+  const roles = roleAccessQuery.data ?? [];
+  const employees = employeesQuery.data ?? [];
 
-  const topRole = useMemo(
-    () => roles.reduce((max, r) => (r.rightIds.length > max.rightIds.length ? r : max), roles[0]),
-    [roles],
-  );
+  const roleEmployeeCounts = useMemo(() => {
+    const counts = new Map<string, number>();
+    employees.forEach((e) => {
+      if (e.roleAccessId) counts.set(e.roleAccessId, (counts.get(e.roleAccessId) ?? 0) + 1);
+    });
+    return counts;
+  }, [employees]);
+
+  const mostActiveRole = useMemo(() => {
+    if (roles.length === 0) return null;
+    return roles.reduce((best, r) => {
+      const count = roleEmployeeCounts.get(r.id) ?? 0;
+      const bestCount = roleEmployeeCounts.get(best.id) ?? 0;
+      return count > bestCount ? r : best;
+    }, roles[0]);
+  }, [roles, roleEmployeeCounts]);
+
+  const recentActivityCount = useMemo(() => {
+    const cutoff = Date.now() - THIRTY_DAYS_MS;
+    const countRecent = (items: { createdAt: string }[]) => items.filter((i) => new Date(i.createdAt).getTime() >= cutoff).length;
+    return countRecent(roles) + countRecent(rights);
+  }, [roles, rights]);
 
   const filteredRoles = useMemo(() => {
     const q = roleSearch.trim().toLowerCase();
     if (!q) return roles;
-    return roles.filter((r) => r.name.toLowerCase().includes(q) || r.description.toLowerCase().includes(q));
+    return roles.filter((r) => r.roleName.toLowerCase().includes(q) || (r.description ?? '').toLowerCase().includes(q));
   }, [roles, roleSearch]);
 
   const filteredRights = useMemo(() => {
     const q = rightSearch.trim().toLowerCase();
     return rights.filter((r) => {
-      const matchesModule = moduleFilter === 'all' || r.module === moduleFilter;
+      const matchesModule = moduleFilter === 'all' || r.moduleId === moduleFilter;
       const matchesSearch = !q
         || r.displayName.toLowerCase().includes(q)
         || r.rightName.toLowerCase().includes(q)
-        || r.module.toLowerCase().includes(q);
+        || r.moduleName.toLowerCase().includes(q)
+        || (r.tabName ?? '').toLowerCase().includes(q);
       return matchesModule && matchesSearch;
     });
   }, [rights, rightSearch, moduleFilter]);
@@ -594,42 +700,68 @@ export function RolesTab() {
   const handleModuleFilterChange = (value: string) => { setModuleFilter(value); setRightsPage(1); };
 
   const handleOpenAddRole = () => { setEditingRole(null); setIsRoleDialogOpen(true); };
-  const handleOpenEditRole = (role: RoleRecord) => { setEditingRole(role); setIsRoleDialogOpen(true); };
-  const handleAssignSubmit = (roleId: string, employeeIds: string[]) => {
-    setAssignments((prev) => {
-      const next = { ...prev };
-      employeeIds.forEach((employeeId) => { next[employeeId] = roleId; });
-      return next;
-    });
-  };
-  const handleRoleSubmit = (data: { name: string; description: string; rightIds: string[] }) => {
-    if (editingRole) {
-      setRoles((prev) => prev.map((r) => (r.id === editingRole.id ? { ...r, ...data } : r)));
-    } else {
-      setRoles((prev) => [...prev, { id: generateId(), createdAt: new Date().toISOString(), ...data }]);
-    }
-  };
-  const handleConfirmDeleteRole = () => {
+  const handleOpenEditRole = (role: RoleAccessRecord) => { setEditingRole(role); setIsRoleDialogOpen(true); };
+
+  const handleAssignSubmit = (roleAccessId: string, employeeIds: string[]) =>
+    assignRoleAccess.mutate({ roleAccessId, employeeIds });
+
+  const handleRoleSubmit = (data: { roleName: string; description: string; rightIds: string[] }) =>
+    editingRole
+      ? updateRoleAccess.mutate({ id: editingRole.id, ...data })
+      : createRoleAccess.mutate(data);
+
+  const handleConfirmDeleteRole = async () => {
     if (!deleteRoleTarget) return;
-    setRoles((prev) => prev.filter((r) => r.id !== deleteRoleTarget.id));
-    setDeleteRoleTarget(null);
+    const ok = await deleteRoleAccess.mutate(deleteRoleTarget.id);
+    if (ok) setDeleteRoleTarget(null);
   };
 
   const handleOpenAddRight = () => { setEditingRight(null); setIsRightDialogOpen(true); };
   const handleOpenEditRight = (right: RightRecord) => { setEditingRight(right); setIsRightDialogOpen(true); };
-  const handleRightSubmit = (data: { module: string; displayName: string; rightName: string }) => {
-    if (editingRight) {
-      setRights((prev) => prev.map((r) => (r.id === editingRight.id ? { ...r, ...data } : r)));
-    } else {
-      setRights((prev) => [...prev, { id: generateId(), createdAt: new Date().toISOString(), ...data }]);
-    }
-  };
-  const handleConfirmDeleteRight = () => {
+
+  const handleRightSubmit = (data: { moduleId: string; tabId: string | null; displayName: string; rightName: string }) =>
+    editingRight
+      ? updateRight.mutate({ id: editingRight.id, ...data })
+      : createRight.mutate(data);
+
+  const handleConfirmDeleteRight = async () => {
     if (!deleteRightTarget) return;
-    setRights((prev) => prev.filter((r) => r.id !== deleteRightTarget.id));
-    setRoles((prev) => prev.map((r) => ({ ...r, rightIds: r.rightIds.filter((id) => id !== deleteRightTarget.id) })));
-    setDeleteRightTarget(null);
+    const ok = await deleteRight.mutate(deleteRightTarget.id);
+    if (ok) setDeleteRightTarget(null);
   };
+
+  const isLoading = modulesQuery.isLoading || tabsQuery.isLoading || rightsQuery.isLoading || roleAccessQuery.isLoading || employeesQuery.isLoading;
+  const isError = modulesQuery.isError || tabsQuery.isError || rightsQuery.isError || roleAccessQuery.isError || employeesQuery.isError;
+
+  if (isLoading) {
+    return (
+      <div className="flex items-center justify-center rounded-xl border border-gray-200 bg-white py-16">
+        <Loader size="xl" className="text-[#004D40]" />
+      </div>
+    );
+  }
+
+  if (isError) {
+    return (
+      <div className="flex flex-col items-center gap-3 rounded-xl border border-gray-200 bg-white py-16 text-center">
+        <p className="text-sm font-semibold text-gray-900">Unable to load roles &amp; rights.</p>
+        <p className="text-xs text-gray-500">Please try again.</p>
+        <button
+          type="button"
+          onClick={() => {
+            modulesQuery.refetch();
+            tabsQuery.refetch();
+            rightsQuery.refetch();
+            roleAccessQuery.refetch();
+            employeesQuery.refetch();
+          }}
+          className="rounded-lg bg-[#004D40] px-4 py-2 text-xs font-semibold text-white transition-colors hover:bg-[#003D33]"
+        >
+          Retry
+        </button>
+      </div>
+    );
+  }
 
   return (
     <div className="flex flex-col gap-4 overflow-hidden py-1 px-3">
@@ -694,7 +826,7 @@ export function RolesTab() {
               Most Active
             </span>
             <span className="block truncate text-[16px] font-bold leading-tight text-gray-900">
-              HR Admin
+              {mostActiveRole ? mostActiveRole.roleName : '—'}
             </span>
           </div>
         </div>
@@ -708,7 +840,7 @@ export function RolesTab() {
               Recent Activity
             </span>
             <span className="block text-[16px] font-bold leading-tight text-gray-900">
-              +2 <span className="font-medium text-gray-500">this month</span>
+              +{recentActivityCount} <span className="font-medium text-gray-500">this month</span>
             </span>
           </div>
         </div>
@@ -774,7 +906,7 @@ export function RolesTab() {
                         className="group cursor-pointer border-l-2 border-transparent transition-colors hover:border-[#004D40] hover:bg-gray-50/60"
                       >
                         <td className="px-4 py-3 font-mono text-[12px] font-medium text-[#004D40]">{role.id.slice(0, 6)}</td>
-                        <td className="px-3 py-3 text-[14px] font-medium text-gray-900">{role.name}</td>
+                        <td className="px-3 py-3 text-[14px] font-medium text-gray-900">{role.roleName}</td>
                         <td className="px-3 py-3">
                           <span className="inline-flex min-w-6 items-center justify-center rounded-full bg-[#004D40]/10 px-2 py-0.5 text-[12px] font-semibold text-[#004D40]">
                             {role.rightIds.length}
@@ -843,7 +975,7 @@ export function RolesTab() {
                 <SelectContent>
                   <SelectItem value="all">All Modules</SelectItem>
                   {modules.map((m) => (
-                    <SelectItem key={m} value={m}>{m}</SelectItem>
+                    <SelectItem key={m.id} value={m.id}>{m.moduleName}</SelectItem>
                   ))}
                 </SelectContent>
               </Select>
@@ -864,7 +996,7 @@ export function RolesTab() {
                 <thead>
                   <tr className="border-b border-gray-100 bg-gray-50/70">
                     <th className="px-5 py-3 text-left text-[12px] font-bold uppercase tracking-wide text-gray-400">Right ID</th>
-                    <th className="px-4 py-3 text-left text-[12px] font-bold uppercase tracking-wide text-gray-400">Module</th>
+                    <th className="px-4 py-3 text-left text-[12px] font-bold uppercase tracking-wide text-gray-400">Module / Tab</th>
                     <th className="px-4 py-3 text-left text-[12px] font-bold uppercase tracking-wide text-gray-400">Display Name</th>
                     <th className="px-4 py-3 text-left text-[12px] font-bold uppercase tracking-wide text-gray-400">Right Name</th>
                     <th className="px-4 py-3 text-left text-[12px] font-bold uppercase tracking-wide text-gray-400">Created At</th>
@@ -882,8 +1014,11 @@ export function RolesTab() {
                         key={right.id}
                         className="group cursor-pointer border-l-2 border-transparent transition-colors hover:border-[#004D40] hover:bg-gray-50/70"
                       >
-                        <td className="px-5 py-3 font-mono text-[12px] font-medium text-[#004D40]">{right.id}</td>
-                        <td className="px-4 py-3 text-[14px] text-gray-700">{right.module}</td>
+                        <td className="px-5 py-3 font-mono text-[12px] font-medium text-[#004D40]">{right.id.slice(0, 8)}</td>
+                        <td className="px-4 py-3 text-[14px] text-gray-700">
+                          {right.moduleName}
+                          {right.tabName && <> <span className="text-gray-400">/</span> {right.tabName}</>}
+                        </td>
                         <td className="px-4 py-3 text-[14px] font-semibold text-gray-900">{right.displayName}</td>
                         <td className="px-4 py-3 font-mono text-[12px] text-gray-500">{right.rightName}</td>
                         <td className="px-4 py-3 text-[12px] text-gray-500">{formatDate(right.createdAt)}</td>
@@ -916,43 +1051,51 @@ export function RolesTab() {
 
       <RoleFormDialog
         open={isRoleDialogOpen}
-        onOpenChange={setIsRoleDialogOpen}
+        onOpenChange={(next) => { setIsRoleDialogOpen(next); if (!next) { createRoleAccess.resetError(); updateRoleAccess.resetError(); } }}
         initial={editingRole}
         rights={rights}
         onSubmit={handleRoleSubmit}
+        isPending={editingRole ? updateRoleAccess.isPending : createRoleAccess.isPending}
+        serverError={editingRole ? updateRoleAccess.error : createRoleAccess.error}
       />
 
       <DeleteConfirmDialog
         open={!!deleteRoleTarget}
-        onOpenChange={(next) => { if (!next) setDeleteRoleTarget(null); }}
+        onOpenChange={(next) => { if (!next) { setDeleteRoleTarget(null); deleteRoleAccess.resetError(); } }}
         onConfirm={handleConfirmDeleteRole}
+        isPending={deleteRoleAccess.isPending}
         title="Delete this role?"
-        description={deleteRoleTarget ? `"${deleteRoleTarget.name}" will be removed — this action cannot be undone.` : undefined}
+        description={deleteRoleAccess.error ?? (deleteRoleTarget ? `"${deleteRoleTarget.roleName}" will be removed — this action cannot be undone.` : undefined)}
       />
 
       <AssignRoleDialog
         open={isAssignDialogOpen}
-        onOpenChange={setIsAssignDialogOpen}
+        onOpenChange={(next) => { setIsAssignDialogOpen(next); if (!next) assignRoleAccess.resetError(); }}
         roles={roles}
-        employees={EMPLOYEES}
-        assignments={assignments}
+        employees={employees}
         onSubmit={handleAssignSubmit}
+        isPending={assignRoleAccess.isPending}
+        serverError={assignRoleAccess.error}
       />
 
       <RightFormDialog
         open={isRightDialogOpen}
-        onOpenChange={setIsRightDialogOpen}
+        onOpenChange={(next) => { setIsRightDialogOpen(next); if (!next) { createRight.resetError(); updateRight.resetError(); } }}
         initial={editingRight}
         modules={modules}
+        tabs={tabs}
         onSubmit={handleRightSubmit}
+        isPending={editingRight ? updateRight.isPending : createRight.isPending}
+        serverError={editingRight ? updateRight.error : createRight.error}
       />
 
       <DeleteConfirmDialog
         open={!!deleteRightTarget}
-        onOpenChange={(next) => { if (!next) setDeleteRightTarget(null); }}
+        onOpenChange={(next) => { if (!next) { setDeleteRightTarget(null); deleteRight.resetError(); } }}
         onConfirm={handleConfirmDeleteRight}
+        isPending={deleteRight.isPending}
         title="Delete this right?"
-        description={deleteRightTarget ? `"${deleteRightTarget.displayName}" will be removed from all roles — this action cannot be undone.` : undefined}
+        description={deleteRight.error ?? (deleteRightTarget ? `"${deleteRightTarget.displayName}" will be removed from all roles — this action cannot be undone.` : undefined)}
       />
 
     </div>

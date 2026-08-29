@@ -4,7 +4,8 @@ import '@fontsource-variable/hanken-grotesk';
 import { BrowserRouter, Routes, Route, Navigate, NavLink, Link, useLocation, useNavigate } from 'react-router-dom';
 import { LoginPage } from './features/auth/login-page';
 import { useAuth, defaultRouteFor } from './features/auth/auth-context';
-import type { AuthUser, CompanyUserRole } from './features/auth/auth-service';
+import type { AuthUser, CompanyUserProfile } from './features/auth/auth-service';
+import { hasModuleAccess } from '@/lib/access';
 import { Settings, User, Wallet, Menu, Package, LineChart, LogOut, LayoutDashboard } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet';
@@ -30,21 +31,33 @@ function PageLoader() {
   );
 }
 
+// moduleCode matches the seeded Module.moduleCode values (see defaultAccessCatalog.ts on the
+// backend) — this is how a nav item is matched against a user's resolved RoleAccess grants.
 const navItems = [
-  { to: '/dashboard', label: 'Dashboard', icon: LayoutDashboard },
-  { to: '/production', label: 'Production Details', icon: LineChart },
-  { to: '/inventory', label: 'Inventory', icon: Package },
-  { to: '/employees', label: 'Employees', icon: User },
-  { to: '/expenses', label: 'Expenses', icon: Wallet },
-  { to: '/admin-panel', label: 'Admin Panel', icon: Settings },
+  { to: '/dashboard', label: 'Dashboard', icon: LayoutDashboard, moduleCode: 'dashboard' },
+  { to: '/production', label: 'Production Details', icon: LineChart, moduleCode: 'productiondetails' },
+  { to: '/inventory', label: 'Inventory', icon: Package, moduleCode: 'inventory' },
+  { to: '/employees', label: 'Employees', icon: User, moduleCode: 'employees' },
+  { to: '/expenses', label: 'Expenses', icon: Wallet, moduleCode: 'expenses' },
+  { to: '/admin-panel', label: 'Admin Panel', icon: Settings, moduleCode: 'admin_panel' },
 ];
 
-function getNavItems(role?: CompanyUserRole) {
-  if (role === 'SUPERVISOR') {
-    return navItems.filter(item => item.to === '/dashboard');
+function getNavItems(user: CompanyUserProfile | undefined) {
+  if (!user) return [];
+  if (!user.access) {
+    // No RoleAccess assigned yet — fall back to the legacy SUPERVISOR default so existing
+    // behavior doesn't change until an admin actively assigns this role rights.
+    if (user.role === 'SUPERVISOR') return navItems.filter((item) => item.moduleCode === 'dashboard');
+    return navItems;
   }
+  return navItems.filter((item) => user.access!.moduleCodes.includes(item.moduleCode));
+}
 
-  return navItems;
+/** First nav item `user` actually has access to, or null if none (used as a safe redirect target). */
+function firstAccessiblePath(user: AuthUser | null): string | null {
+  if (!user || user.kind !== 'company-user') return null;
+  const allowed = getNavItems(user);
+  return allowed[0]?.to ?? null;
 }
 
 function RequireRole({ kind, children }: { kind: AuthUser['kind']; children: ReactNode }) {
@@ -60,12 +73,27 @@ function RequireRole({ kind, children }: { kind: AuthUser['kind']; children: Rea
   return <>{children}</>;
 }
 
+/** Route-level enforcement mirroring the nav's own filtering — blocks typing a hidden module's URL directly. */
+function RequireModule({ moduleCode, children }: { moduleCode: string; children: ReactNode }) {
+  const { user } = useAuth();
+
+  if (hasModuleAccess(user, moduleCode)) return <>{children}</>;
+
+  const fallback = firstAccessiblePath(user);
+  if (fallback) return <Navigate to={fallback} replace />;
+
+  return (
+    <div className="flex h-full items-center justify-center p-8 text-center text-sm text-gray-500">
+      You don&apos;t have access to any module yet. Contact your admin to request access.
+    </div>
+  );
+}
+
 
 function NavLinks({ onNavigate }: { onNavigate?: () => void }) {
   const { user } = useAuth();
   const location = useLocation();
-  const role = user?.kind === 'company-user' ? user.role : undefined;
-  const currentNavItems = getNavItems(role);
+  const currentNavItems = getNavItems(user?.kind === 'company-user' ? user : undefined);
 
   return (
     <nav className="flex-1 px-2 py-4 space-y-1 font-inter">
@@ -184,12 +212,12 @@ function AppShell() {
       <main className="flex-1 overflow-auto bg-white rounded-t-[24px] lg:rounded-[32px] shadow-xl relative z-10">
         <Routes>
           <Route path="/" element={<Navigate to="/dashboard" replace />} />
-          <Route path="/dashboard/*" element={<DashboardModule />} />
-          <Route path="/production/*" element={<ProductionDetails />} />
-          <Route path="/inventory" element={<InventoryPage />} />
-          <Route path="/employees/*" element={<EmployeePage />} />
-          <Route path="/expenses/*" element={<EmpExpensesPage />} />
-          <Route path="/admin-panel" element={<AdminPanelPage />} />
+          <Route path="/dashboard/*" element={<RequireModule moduleCode="dashboard"><DashboardModule /></RequireModule>} />
+          <Route path="/production/*" element={<RequireModule moduleCode="productiondetails"><ProductionDetails /></RequireModule>} />
+          <Route path="/inventory" element={<RequireModule moduleCode="inventory"><InventoryPage /></RequireModule>} />
+          <Route path="/employees/*" element={<RequireModule moduleCode="employees"><EmployeePage /></RequireModule>} />
+          <Route path="/expenses/*" element={<RequireModule moduleCode="expenses"><EmpExpensesPage /></RequireModule>} />
+          <Route path="/admin-panel" element={<RequireModule moduleCode="admin_panel"><AdminPanelPage /></RequireModule>} />
         </Routes>
       </main>
     </div>

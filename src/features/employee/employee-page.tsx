@@ -10,6 +10,8 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { DeleteConfirmDialog } from '@/components/shared/delete-confirm-dialog';
 import { AttendanceTab, type AttendanceTabRef } from './attendance-tab';
+import { useAuth } from '@/features/auth/auth-context';
+import { hasTabAccess } from '@/lib/access';
 
 export interface EmployeeRecord {
   id: string;
@@ -767,10 +769,41 @@ const EmployeeDirectoryTab = forwardRef<EmployeeDirectoryTabRef>((_props, ref) =
 
 import { PayrollTab } from './payroll-tab';
 
+const EMPLOYEE_TABS = [
+  { value: 'directory', tabCode: 'directory' },
+  { value: 'attendance', tabCode: 'attendance' },
+  { value: 'payroll', tabCode: 'payroll' },
+] as const;
+
 export function EmployeePage() {
+  const { user } = useAuth();
+  const visibleTabs = useMemo<string[]>(
+    () => EMPLOYEE_TABS.filter((t) => hasTabAccess(user, 'employees', t.tabCode)).map((t) => t.value),
+    [user],
+  );
+  const canSeeDirectory = visibleTabs.includes('directory');
+  const canSeeAttendance = visibleTabs.includes('attendance');
+  const canSeePayroll = visibleTabs.includes('payroll');
+
   const [activeTab, setActiveTab] = useState('directory');
   const directoryRef = useRef<EmployeeDirectoryTabRef>(null);
   const attendanceRef = useRef<AttendanceTabRef>(null);
+
+  // Keep activeTab pointed at a tab this user can actually see — matters when their
+  // RoleAccess doesn't grant "directory" (today's default) or changes mid-session.
+  useEffect(() => {
+    if (visibleTabs.length > 0 && !visibleTabs.includes(activeTab)) {
+      setActiveTab(visibleTabs[0]);
+    }
+  }, [visibleTabs, activeTab]);
+
+  if (visibleTabs.length === 0) {
+    return (
+      <div className="flex h-full items-center justify-center p-8 text-center text-sm text-gray-500">
+        You don&apos;t have access to any Employees tab yet. Contact your admin to request access.
+      </div>
+    );
+  }
 
   return (
     <div className="flex flex-col h-full bg-[#004D40]/5 min-h-full flex-1">
@@ -779,7 +812,7 @@ export function EmployeePage() {
           <h1 className="font-hanken text-[20px] font-bold text-black leading-tight px-2">Employees</h1>
           <p className="font-hanken text-[12.5px] text-gray-500 font-medium px-2">Manage worker profiles, contact info, and daily attendance</p>
         </div>
-        {activeTab === 'attendance' && (
+        {activeTab === 'attendance' && canSeeAttendance && (
           <div className="flex items-center gap-3">
             <div className="flex items-center gap-2 rounded-full border border-gray-200 bg-white px-3 py-1.5 shadow-sm pointer-events-none">
               <span className="text-sm font-medium text-gray-700">{todayFormatted()}</span>
@@ -794,7 +827,7 @@ export function EmployeePage() {
             </Button>
           </div>
         )}
-        {activeTab === 'directory' && (
+        {activeTab === 'directory' && canSeeDirectory && (
           <Button
             className="flex items-center gap-2 bg-[#004D40] hover:bg-[#00382e] text-white rounded-md px-3 py-2 h-auto text-[12px] font-bold tracking-wide shadow-[0_1px_2px_rgba(0,45,35,0.2)]"
             onClick={() => directoryRef.current?.openCreateModal()}
@@ -808,56 +841,68 @@ export function EmployeePage() {
       <Tabs value={activeTab} onValueChange={setActiveTab} className="flex-1 overflow-y-auto pb-1 gap-1">
         <div className="pt-2 px-2">
           <TabsList>
-            <TabsTrigger value="directory" className="relative">
-              {activeTab === 'directory' && (
-                <motion.div
-                  layoutId="activeTabPill"
-                  className="absolute inset-0 bg-[#004D40] rounded-md z-0"
-                  transition={{ type: 'spring', bounce: 0.2, duration: 0.6 }}
-                />
-              )}
-              <span className="relative z-10 flex items-center gap-1">
-                <UserRound className="h-4 w-4" strokeWidth={1.75} />
-                Directory
-              </span>
-            </TabsTrigger>
-            <TabsTrigger value="attendance" className="relative">
-              {activeTab === 'attendance' && (
-                <motion.div
-                  layoutId="activeTabPill"
-                  className="absolute inset-0 bg-[#004D40] rounded-md z-0"
-                  transition={{ type: 'spring', bounce: 0.2, duration: 0.6 }}
-                />
-              )}
-              <span className="relative z-10 flex items-center gap-1">
-                <Calendar className="h-4 w-4" strokeWidth={1.75} />
-                Attendance
-              </span>
-            </TabsTrigger>
-            <TabsTrigger value="payroll" className="relative">
-              {activeTab === 'payroll' && (
-                <motion.div
-                  layoutId="activeTabPill"
-                  className="absolute inset-0 bg-[#004D40] rounded-md z-0"
-                  transition={{ type: 'spring', bounce: 0.2, duration: 0.6 }}
-                />
-              )}
-              <span className="relative z-10 flex items-center gap-1">
-                <Wallet className="h-4 w-4" strokeWidth={1.75} />
-                Payroll
-              </span>
-            </TabsTrigger>
+            {canSeeDirectory && (
+              <TabsTrigger value="directory" className="relative">
+                {activeTab === 'directory' && (
+                  <motion.div
+                    layoutId="activeTabPill"
+                    className="absolute inset-0 bg-[#004D40] rounded-md z-0"
+                    transition={{ type: 'spring', bounce: 0.2, duration: 0.6 }}
+                  />
+                )}
+                <span className="relative z-10 flex items-center gap-1">
+                  <UserRound className="h-4 w-4" strokeWidth={1.75} />
+                  Directory
+                </span>
+              </TabsTrigger>
+            )}
+            {canSeeAttendance && (
+              <TabsTrigger value="attendance" className="relative">
+                {activeTab === 'attendance' && (
+                  <motion.div
+                    layoutId="activeTabPill"
+                    className="absolute inset-0 bg-[#004D40] rounded-md z-0"
+                    transition={{ type: 'spring', bounce: 0.2, duration: 0.6 }}
+                  />
+                )}
+                <span className="relative z-10 flex items-center gap-1">
+                  <Calendar className="h-4 w-4" strokeWidth={1.75} />
+                  Attendance
+                </span>
+              </TabsTrigger>
+            )}
+            {canSeePayroll && (
+              <TabsTrigger value="payroll" className="relative">
+                {activeTab === 'payroll' && (
+                  <motion.div
+                    layoutId="activeTabPill"
+                    className="absolute inset-0 bg-[#004D40] rounded-md z-0"
+                    transition={{ type: 'spring', bounce: 0.2, duration: 0.6 }}
+                  />
+                )}
+                <span className="relative z-10 flex items-center gap-1">
+                  <Wallet className="h-4 w-4" strokeWidth={1.75} />
+                  Payroll
+                </span>
+              </TabsTrigger>
+            )}
           </TabsList>
         </div>
-        <TabsContent value="directory" className="mt-0 animate-in fade-in-0 duration-300">
-          <EmployeeDirectoryTab ref={directoryRef} />
-        </TabsContent>
-        <TabsContent value="attendance" className="mt-0 animate-in fade-in-0 duration-300">
-          <AttendanceTab ref={attendanceRef} />
-        </TabsContent>
-        <TabsContent value="payroll" className="mt-0 animate-in fade-in-0 duration-300">
-          <PayrollTab />
-        </TabsContent>
+        {canSeeDirectory && (
+          <TabsContent value="directory" className="mt-0 animate-in fade-in-0 duration-300">
+            <EmployeeDirectoryTab ref={directoryRef} />
+          </TabsContent>
+        )}
+        {canSeeAttendance && (
+          <TabsContent value="attendance" className="mt-0 animate-in fade-in-0 duration-300">
+            <AttendanceTab ref={attendanceRef} />
+          </TabsContent>
+        )}
+        {canSeePayroll && (
+          <TabsContent value="payroll" className="mt-0 animate-in fade-in-0 duration-300">
+            <PayrollTab />
+          </TabsContent>
+        )}
       </Tabs>
     </div>
   );

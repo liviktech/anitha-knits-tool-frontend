@@ -1,4 +1,4 @@
-import { apiUrl } from '@/lib/api-client';
+import { apiUrl, fetchJson } from '@/lib/api-client';
 
 export type PlatformAdminRole = 'SUPER_ADMIN';
 export type CompanyUserRole = 'ADMIN' | 'MANAGER' | 'SUPERVISOR' | 'EMPLOYEE';
@@ -11,6 +11,22 @@ export interface PlatformAdminProfile {
   role: PlatformAdminRole;
 }
 
+export interface AccessGrant {
+  moduleCode: string;
+  /** null = this grant covers the whole module, not one specific tab. */
+  tabCode: string | null;
+}
+
+/**
+ * What this user can see, resolved from their assigned RoleAccess.
+ * `null` = unrestricted (sees every module/tab) — always true for ADMIN, and also true for
+ * any other role with no RoleAccess assigned yet.
+ */
+export interface UserAccess {
+  grants: AccessGrant[];
+  moduleCodes: string[];
+}
+
 export interface CompanyUserProfile {
   kind: 'company-user';
   id: string;
@@ -19,6 +35,7 @@ export interface CompanyUserProfile {
   role: CompanyUserRole;
   companyId: string;
   company: { id: string; name: string; companyCode: string };
+  access: UserAccess | null;
 }
 
 export type AuthUser = PlatformAdminProfile | CompanyUserProfile;
@@ -58,10 +75,35 @@ export async function login(mobile: string, password: string): Promise<AuthUser>
     );
     return { kind: 'platform-admin', ...admin };
   } catch {
-    const { user, company } = await postJson<{
-      user: Omit<CompanyUserProfile, 'kind' | 'company'>;
+    const { user, company, access } = await postJson<{
+      user: Omit<CompanyUserProfile, 'kind' | 'company' | 'access'>;
       company: CompanyUserProfile['company'];
+      access: UserAccess | null;
     }>('/company/auth/login', { mobile, password });
-    return { kind: 'company-user', ...user, company };
+    return { kind: 'company-user', ...user, company, access };
+  }
+}
+
+/**
+ * Re-resolves the current session's profile + access from the server (GET /me) — used to pick
+ * up a RoleAccess change an admin made after this session's last login, without re-authenticating.
+ * Returns null if the session cookie is missing/expired (apiFetch's own 401 handling already
+ * logs the user out in that case via the 'auth:session-expired' event).
+ */
+export async function fetchCurrentUser(): Promise<CompanyUserProfile | null> {
+  try {
+    const { data } = await fetchJson<{
+      data: {
+        user: Omit<CompanyUserProfile, 'kind' | 'company' | 'access'>;
+        company: CompanyUserProfile['company'];
+        access: UserAccess | null;
+      };
+    }>('/company/auth/me');
+    return { kind: 'company-user', ...data.user, company: data.company, access: data.access };
+  } catch (err) {
+    // Swallowed deliberately (offline, expired session, etc. are all fine to ignore here) —
+    // logged so a genuine bug doesn't look identical to "nothing happened" in devtools.
+    console.error('fetchCurrentUser failed:', err);
+    return null;
   }
 }
