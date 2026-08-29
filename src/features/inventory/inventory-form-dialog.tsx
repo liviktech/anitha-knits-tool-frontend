@@ -148,17 +148,17 @@ export function InventoryFormDialog({ onClose, editDate, editRecords }: Inventor
                 <tr className="bg-gray-50 border-b border-gray-200">
                   {hdpeNames.length > 0 && (
                     <th colSpan={hdpeNames.length + 1} className="border-r border-gray-200 px-3 py-2 text-center font-bold text-blue-700 uppercase tracking-wide bg-blue-50/50">
-                      HDPE (KG)
+                      HDPE
                     </th>
                   )}
                   {chemicalNames.length > 0 && (
                     <th colSpan={chemicalNames.length + 1} className="border-r border-gray-200 px-3 py-2 text-center font-bold text-yellow-700 uppercase tracking-wide bg-yellow-50/50">
-                      CHEMICALS (KG)
+                      CHEMICALS
                     </th>
                   )}
                   {colorNames.length > 0 && (
                     <th colSpan={colorNames.length + 1} className="px-3 py-2 text-center font-bold text-purple-700 uppercase tracking-wide bg-purple-50/50">
-                      COLORS (KG)
+                      COLORS
                     </th>
                   )}
                 </tr>
@@ -216,12 +216,15 @@ export function InventoryFormDialog({ onClose, editDate, editRecords }: Inventor
           {error && <p className="text-sm text-red-600 font-medium">{error}</p>}
         </div>
 
-        <DialogFooter className="mt-2 border-gray-200 bg-white">
-          <Button variant="outline" onClick={onClose} disabled={saving}>Cancel</Button>
-          <Button onClick={handleSubmit} disabled={saving} className="bg-[#004D40] hover:bg-[#00332a] text-white min-w-24">
-            {saving ? <Loader size="sm" className="mr-2" /> : null}
-            {isEdit ? 'Update' : 'Add'}
-          </Button>
+        <DialogFooter className="mt-2 border-gray-200 bg-white sm:justify-between items-center">
+          <p className="text-xs font-medium text-gray-600">All weights are measured in Kilogram (KG)</p>
+          <div className="flex items-center gap-2">
+            <Button variant="outline" onClick={onClose} disabled={saving}>Cancel</Button>
+            <Button onClick={handleSubmit} disabled={saving} className="bg-[#004D40] hover:bg-[#00332a] text-white min-w-24">
+              {saving ? <Loader size="sm" className="mr-2" /> : null}
+              {isEdit ? 'Update' : 'Add'}
+            </Button>
+          </div>
         </DialogFooter>
       </DialogContent>
     </Dialog>

@@ -3,6 +3,7 @@ import { useQueryClient } from '@tanstack/react-query';
 import { Button } from '@/components/ui/button';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Loader } from '@/components/shared/loader';
+import { TableNoteFooter } from '@/components/shared/table-note-footer';
 import { Trash2, Edit2 } from 'lucide-react';
 import { DeleteConfirmDialog } from '@/components/shared/delete-confirm-dialog';
 import { apiFetch, extractApiErrorMessage } from '@/lib/api-client';
@@ -399,8 +400,8 @@ export const ExtruderSection = forwardRef<SectionRef, SectionProps>(({ productio
 
               <TableHead colSpan={5} className={`!text-center text-sm font-semibold  tracking-wide ${theme.headerText} border border-black/10 py-1 px-2`}>HDPE Material</TableHead>
               <TableHead colSpan={2} className={`!text-center text-sm font-semibold  tracking-wide ${theme.headerText} border border-black/10 py-1 px-2`}>Chemicals</TableHead>
-              <TableHead colSpan={2} className={`!text-center text-sm font-semibold  tracking-wide ${theme.headerText} border border-black/10 py-1 px-2`}>Waste (kg)</TableHead>
-              <TableHead rowSpan={2} className={`align-middle !text-center text-sm font-semibold  tracking-wide ${theme.headerText} border border-black/10 py-1 px-2 w-32 min-w-32`}>Loom Production (kg)</TableHead>
+              <TableHead colSpan={2} className={`!text-center text-sm font-semibold  tracking-wide ${theme.headerText} border border-black/10 py-1 px-2`}>Waste</TableHead>
+              <TableHead rowSpan={2} className={`align-middle !text-center text-sm font-semibold  tracking-wide ${theme.headerText} border border-black/10 py-1 px-2 w-32 min-w-32`}>Loom Production</TableHead>
               {!readOnly && <TableHead rowSpan={2} className={`align-middle !text-center text-sm font-semibold  tracking-wide ${theme.headerText} py-1 px-2`}>Action</TableHead>}
             </TableRow>
             <TableRow className="hover:!bg-transparent border-b-0">
@@ -410,7 +411,7 @@ export const ExtruderSection = forwardRef<SectionRef, SectionProps>(({ productio
               <TableHead className={`w-36 min-w-36 !text-center text-sm font-semibold  tracking-wide ${theme.headerText} py-1 px-2  border border-black/10`}>Brand</TableHead>
               <TableHead className={`!text-center text-sm font-semibold  tracking-wide ${theme.headerText} py-1 px-2  border border-black/10`}>Bag Weight</TableHead>
               <TableHead className={`!text-center text-sm font-semibold  tracking-wide ${theme.headerText} py-1 px-2  border border-black/10`}>Loose Weight</TableHead>
-              <TableHead className={`!text-center text-sm font-semibold  tracking-wide ${theme.headerText}  border border-black/10`}>Total (kg)</TableHead>
+              <TableHead className={`!text-center text-sm font-semibold  tracking-wide ${theme.headerText}  border border-black/10`}>Total</TableHead>
               <TableHead className={`!text-center text-sm font-semibold  tracking-wide ${theme.headerText} py-1 px-2  border border-black/10`}>Chemical</TableHead>
               <TableHead className={`!text-center text-sm font-semibold  tracking-wide ${theme.headerText}  border border-black/10`}>Chemical Weight</TableHead>
               <TableHead className={`!text-center text-sm font-semibold  tracking-wide ${theme.headerText} py-1 px-2  border border-black/10`}>Lumps</TableHead>
@@ -445,6 +446,8 @@ export const ExtruderSection = forwardRef<SectionRef, SectionProps>(({ productio
           </TableBody>
         </Table>
       </div>
+
+      <TableNoteFooter />
 
       <DeleteConfirmDialog
         open={!!deleteTarget}

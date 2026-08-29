@@ -190,7 +190,10 @@ export function NewEntry({ onClose, defaultDate, readOnly = false }: NewEntryPro
               </div>
               <div className="flex flex-col sm:px-4 pt-3 sm:pt-0 border-t sm:border-t-0 border-gray-200">
                 <div className="flex justify-between items-center border-b border-gray-200 pb-2">
-                  <label className="text-[11px] font-bold uppercase tracking-wide text-gray-500">Chemical Balance</label>
+                  <label className="flex items-center gap-1.5 text-[11px] font-bold uppercase tracking-wide text-gray-500">
+                    <img src="/chem.png" alt="" className="h-8 w-8 object-contain" />
+                    Chemical Balance
+                  </label>
                   <span className={`text-[12px] font-bold text-gray-900 transition-opacity duration-300 ${isInventoryMinimized ? 'opacity-100' : 'opacity-0'}`}>
                     {totalChemical} kg
                   </span>
@@ -210,7 +213,10 @@ export function NewEntry({ onClose, defaultDate, readOnly = false }: NewEntryPro
               </div>
               <div className="flex flex-col sm:pl-4 pt-3 sm:pt-0 border-t sm:border-t-0 border-gray-200">
                 <div className="flex justify-between items-center border-b border-gray-200 pb-2">
-                  <label className="text-[11px] font-bold uppercase tracking-wide text-gray-500">Color Balance</label>
+                  <label className="flex items-center gap-1.5 text-[11px] font-bold uppercase tracking-wide text-gray-500">
+                    <img src="/colour.png" alt="" className="h-8 w-8 object-contain" />
+                    Color Balance
+                  </label>
                   <span className={`text-[12px] font-bold text-gray-900 transition-opacity duration-300 ${isInventoryMinimized ? 'opacity-100' : 'opacity-0'}`}>
                     {totalColor} kg
                   </span>

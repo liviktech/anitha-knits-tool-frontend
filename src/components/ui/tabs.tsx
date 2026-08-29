@@ -32,7 +32,7 @@ const tabsListVariants = cva(
         /** Premium bordered strip with underline bar on the active tab. */
         underline: "w-full justify-start gap-6 rounded-none border-b border-slate-200 bg-transparent p-0 shadow-none group-data-horizontal/tabs:h-auto",
         /** Folder-style tabs that mingle with content. */
-        folder: "w-full justify-start gap-0 -space-x-px rounded-none bg-transparent p-0 shadow-none group-data-horizontal/tabs:h-auto mb-[-1px] relative z-10",
+        folder: "w-full justify-start gap-0 -space-x-px rounded-none bg-transparent p-0 shadow-none group-data-horizontal/tabs:h-auto mb-[-1px] mx-0 relative z-10",
       },
     },
     defaultVariants: {
