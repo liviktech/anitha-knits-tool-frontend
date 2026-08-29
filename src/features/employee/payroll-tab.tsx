@@ -33,7 +33,7 @@ export function PayrollTab() {
   );
 
   return (
-    <div className="flex flex-col gap-2 h-[calc(100%-3px)] flex-1 min-h-0 p-2">
+    <div className="flex flex-col gap-2 h-[calc(100%-3px)] flex-1 min-h-0 p-2 font-hanken">
 
       {/* Top Stat Cards */}
       <div className="grid grid-cols-1 sm:grid-cols-4 gap-2" style={{ fontFamily: "'Hanken Grotesk Variable', 'Hanken Grotesk', sans-serif" }}>
@@ -80,7 +80,7 @@ export function PayrollTab() {
 
       {/* Main Table Container */}
       <div className="rounded-xl border border-gray-400 bg-white shadow-sm overflow-hidden flex-1 flex flex-col min-h-0">
-        <div className="border-b border-emerald-400 p-3 bg-white flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+        <div className="border-b border-emerald-400 p-3 bg-white flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-end">
           <div className="relative">
             <Search className="w-3.5 h-3.5 absolute left-2.5 top-1/2 -translate-y-1/2 text-gray-500" />
             <Input
@@ -93,14 +93,11 @@ export function PayrollTab() {
           </div>
 
           <div className="flex items-center gap-2">
-            <Button size="sm" variant="outline" className="h-8 text-xs font-semibold" onClick={() => setIsAdvanceModalOpen(true)}>
+            <Button size="sm" variant="outline" className="h-8 text-sm font-semibold" onClick={() => setIsAdvanceModalOpen(true)}>
               <Banknote className="w-3.5 h-3.5 mr-1" /> Give Advance
             </Button>
-            <Button size="sm" variant="outline" className="h-8 text-xs font-semibold" onClick={() => setIsMarketValueModalOpen(true)}>
+            <Button size="sm" variant="outline" className="h-8 text-sm font-semibold" onClick={() => setIsMarketValueModalOpen(true)}>
               <Wallet className="w-3.5 h-3.5 mr-1" /> Distribute Market Value
-            </Button>
-            <Button size="sm" className="h-8 bg-[#004D40] hover:bg-[#00332a] text-xs font-bold text-white shadow-sm">
-              <FileText className="w-3.5 h-3.5 mr-1" /> Generate Payroll
             </Button>
           </div>
         </div>
@@ -109,26 +106,26 @@ export function PayrollTab() {
           <Table className="font-hanken">
             <TableHeader className="bg-emerald-50/30">
               <TableRow className="hover:bg-transparent border-b border-emerald-400">
-                <TableHead className="text-xs font-semibold tracking-wide text-gray-800 w-[100px] pl-4">Emp ID</TableHead>
-                <TableHead className="text-xs font-semibold tracking-wide text-gray-800">Name</TableHead>
-                <TableHead className="text-xs font-semibold tracking-wide text-gray-800 text-right">Base Salary</TableHead>
-                <TableHead className="text-xs font-semibold tracking-wide text-gray-800 text-center">Days Worked</TableHead>
-                <TableHead className="text-xs font-semibold tracking-wide text-gray-800 text-right">Gross Salary</TableHead>
-                <TableHead className="text-xs font-semibold tracking-wide text-gray-800 text-right text-amber-700">Advance Deducted</TableHead>
-                <TableHead className="text-xs font-semibold tracking-wide text-gray-800 text-right text-blue-700">Market Value Share</TableHead>
-                <TableHead className="text-xs font-extrabold tracking-wide text-gray-900 text-right pr-4">Net Payable</TableHead>
+                <TableHead className="text-sm font-semibold tracking-wide text-gray-800 w-[100px] pl-4">Emp ID</TableHead>
+                <TableHead className="text-sm font-semibold tracking-wide text-gray-800">Name</TableHead>
+                <TableHead className="text-sm font-semibold tracking-wide text-gray-800 text-right">Base Salary</TableHead>
+                <TableHead className="text-sm font-semibold tracking-wide text-gray-800 text-center">Days Worked</TableHead>
+                <TableHead className="text-sm font-semibold tracking-wide text-gray-800 text-right">Gross Salary</TableHead>
+                <TableHead className="text-sm font-semibold tracking-wide text-gray-800 text-right text-amber-700">Advance Deducted</TableHead>
+                <TableHead className="text-sm font-semibold tracking-wide text-gray-800 text-right text-blue-700">Market Value Share</TableHead>
+                <TableHead className="text-sm font-extrabold tracking-wide text-gray-900 text-right pr-4">Net Payable</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
               {filteredPayroll.map((row) => (
                 <TableRow key={row.id} className="border-b border-emerald-50 hover:bg-emerald-50/30 transition-colors">
-                  <TableCell className="pl-4 text-xs font-bold text-gray-900">{row.id}</TableCell>
-                  <TableCell className="text-xs font-semibold text-gray-800">{row.name}</TableCell>
-                  <TableCell className="text-xs text-right">₹{row.baseSalary.toLocaleString()}</TableCell>
-                  <TableCell className="text-xs text-center font-medium bg-gray-50/50">{row.daysWorked}</TableCell>
-                  <TableCell className="text-xs text-right font-semibold text-gray-700">₹{row.grossSalary.toLocaleString()}</TableCell>
-                  <TableCell className="text-xs text-right font-medium text-amber-700">- ₹{row.advanceDeduction.toLocaleString()}</TableCell>
-                  <TableCell className="text-xs text-right font-medium text-blue-700">+ ₹{row.marketValueBonus.toLocaleString()}</TableCell>
+                  <TableCell className="pl-4 text-sm font-bold text-gray-900">{row.id}</TableCell>
+                  <TableCell className="text-sm font-semibold text-gray-800">{row.name}</TableCell>
+                  <TableCell className="text-sm text-right">₹{row.baseSalary.toLocaleString()}</TableCell>
+                  <TableCell className="text-sm text-center font-medium bg-gray-50/50">{row.daysWorked}</TableCell>
+                  <TableCell className="text-sm text-right font-semibold text-gray-700">₹{row.grossSalary.toLocaleString()}</TableCell>
+                  <TableCell className="text-sm text-right font-medium text-amber-700">- ₹{row.advanceDeduction.toLocaleString()}</TableCell>
+                  <TableCell className="text-sm text-right font-medium text-blue-700">+ ₹{row.marketValueBonus.toLocaleString()}</TableCell>
                   <TableCell className="text-sm font-extrabold text-right pr-4 text-emerald-800">₹{row.netSalary.toLocaleString()}</TableCell>
                 </TableRow>
               ))}

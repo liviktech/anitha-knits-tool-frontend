@@ -1,5 +1,5 @@
 import { useState, useMemo, useRef, useEffect, forwardRef, useImperativeHandle } from 'react';
-import { Plus, Edit2, Trash2, Search, Loader2, Calendar, Wallet, Upload, UserRound } from 'lucide-react';
+import { Plus, Edit2, Trash2, Search, Loader2, Calendar, Wallet, Upload, UserRound, FileText } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -200,6 +200,32 @@ const EmployeeDirectoryTab = forwardRef<EmployeeDirectoryTabRef>((_props, ref) =
   const [formAadharFile, setFormAadharFile] = useState<File | null>(null);
   const [formError, setFormError] = useState<string | null>(null);
   const [isSaving, setIsSaving] = useState(false);
+  const [hasAttemptedSubmit, setHasAttemptedSubmit] = useState(false);
+
+  // Real-time validation
+  const fieldErrors = useMemo(() => {
+    const errs: Record<string, string> = {};
+    if (hasAttemptedSubmit && !formName.trim()) errs.name = "Name is required";
+    else if (formName !== '' && formName.trim().length < 3) errs.name = "Name must be at least 3 characters";
+
+    if (hasAttemptedSubmit && !formDesignation.trim()) errs.designation = "Designation is required";
+    else if (formDesignation !== '' && formDesignation.trim().length < 2) errs.designation = "Designation is too short";
+
+    if (hasAttemptedSubmit && !formMobile.trim()) errs.mobile = "Mobile number is required";
+    else if (formMobile !== '' && !/^\+?\d{10,12}$/.test(formMobile.replace(/\s/g, ''))) errs.mobile = "Invalid mobile number";
+
+    if (hasAttemptedSubmit && !formAadhar.trim()) errs.aadhar = "Aadhar number is required";
+    else if (formAadhar !== '' && !/^\d{12}$/.test(formAadhar.replace(/\s/g, ''))) errs.aadhar = "Aadhar must be exactly 12 digits";
+
+    if (hasAttemptedSubmit && !formAddress.trim()) errs.address = "Address is required";
+    else if (formAddress !== '' && formAddress.trim().length < 5) errs.address = "Address is too short";
+
+    const parsedSalary = parseFloat(formSalary);
+    if (hasAttemptedSubmit && (!formSalary || isNaN(parsedSalary) || parsedSalary < 0)) errs.salary = "Valid salary is required";
+
+    return errs;
+  }, [formName, formDesignation, formMobile, formAadhar, formAddress, formSalary, hasAttemptedSubmit]);
+
 
   // KPI Calculations
   const activeCount = useMemo(
@@ -247,6 +273,7 @@ const EmployeeDirectoryTab = forwardRef<EmployeeDirectoryTabRef>((_props, ref) =
     setFormPhoto(null);
     setFormAadharFile(null);
     setFormError(null);
+    setHasAttemptedSubmit(false);
     setIsFormOpen(true);
   };
 
@@ -269,21 +296,16 @@ const EmployeeDirectoryTab = forwardRef<EmployeeDirectoryTabRef>((_props, ref) =
     setFormPhoto(null);
     setFormAadharFile(null);
     setFormError(null);
+    setHasAttemptedSubmit(false);
     setIsFormOpen(true);
   };
 
   const handleSaveEmployee = async () => {
-    if (!formName.trim()) {
-      setFormError('Please enter employee name');
-      return;
-    }
-    if (!formMobile.trim()) {
-      setFormError('Please enter mobile number');
-      return;
-    }
-    const parsedSalary = parseFloat(formSalary);
-    if (formSalary && (isNaN(parsedSalary) || parsedSalary < 0)) {
-      setFormError('Please enter a valid salary');
+    setHasAttemptedSubmit(true);
+    setFormError(null);
+    
+    if (Object.keys(fieldErrors).length > 0) {
+      setFormError('Please fix the errors in the form before saving.');
       return;
     }
 
@@ -297,7 +319,7 @@ const EmployeeDirectoryTab = forwardRef<EmployeeDirectoryTabRef>((_props, ref) =
           designation: formDesignation.trim(),
           address: formAddress.trim(),
           gender: formGender,
-          salary: parsedSalary || undefined,
+          salary: formSalary ? parseFloat(formSalary) : undefined,
           aadhaarNumber: formAadhar.trim(),
           joiningDate: formDoj ? new Date(formDoj).toISOString() : undefined,
         },
@@ -542,14 +564,15 @@ const EmployeeDirectoryTab = forwardRef<EmployeeDirectoryTabRef>((_props, ref) =
 
       {/* Add / Edit Employee Dialog */}
       <Dialog open={isFormOpen} onOpenChange={setIsFormOpen}>
-        <DialogContent className="sm:max-w-2xl border border-gray-400">
-          <DialogHeader className="-mx-4 -mt-4 mb-2 rounded-t-xl border-b border-gray-200 bg-[#A8DCAB] px-4 py-3">
+        <DialogContent className="sm:max-w-2xl border border-gray-400 flex flex-col max-h-[90vh]">
+          <DialogHeader className="-mx-4 -mt-4 mb-2 shrink-0 rounded-t-xl border-b border-gray-200 bg-[#A8DCAB] px-4 py-3">
             <DialogTitle className="text-lg font-bold text-black">
               {editingEmployee ? 'Edit Employee Record' : 'Add New Employee'}
             </DialogTitle>
           </DialogHeader>
 
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 py-2">
+          <div className="flex-1 overflow-y-auto pr-2 -mr-2 pb-2 [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]">
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 py-2">
             <div className="flex flex-col gap-1.5">
               <Label htmlFor="emp-id" className="text-xs font-semibold text-gray-700">Employee ID</Label>
               <Input
@@ -562,36 +585,47 @@ const EmployeeDirectoryTab = forwardRef<EmployeeDirectoryTabRef>((_props, ref) =
             </div>
 
             <div className="flex flex-col gap-1.5">
-              <Label htmlFor="emp-name" className="text-xs font-semibold text-gray-700">Full Name</Label>
+              <Label htmlFor="emp-name" className={`text-xs font-semibold ${fieldErrors.name ? 'text-red-600' : 'text-gray-700'}`}>Full Name</Label>
               <Input
                 id="emp-name"
                 placeholder="e.g. Ramesh Kumar"
                 value={formName}
                 onChange={(e) => setFormName(e.target.value)}
-                className="h-9 text-xs"
+                className={`h-9 text-xs ${fieldErrors.name ? 'border-red-500 focus-visible:ring-red-500' : ''}`}
               />
+              {fieldErrors.name && <span className="text-[10px] text-red-500">{fieldErrors.name}</span>}
             </div>
 
             <div className="flex flex-col gap-1.5">
-              <Label htmlFor="emp-designation" className="text-xs font-semibold text-gray-700">Designation</Label>
+              <Label htmlFor="emp-designation" className={`text-xs font-semibold ${fieldErrors.designation ? 'text-red-600' : 'text-gray-700'}`}>Designation</Label>
               <Input
                 id="emp-designation"
-                placeholder="e.g. Knitting Operator"
+                list="designation-list"
+                placeholder="Select or type designation..."
                 value={formDesignation}
                 onChange={(e) => setFormDesignation(e.target.value)}
-                className="h-9 text-xs"
+                className={`h-9 text-xs ${fieldErrors.designation ? 'border-red-500 focus-visible:ring-red-500' : ''}`}
+                autoComplete="off"
               />
+              <datalist id="designation-list">
+                <option value="Manager" />
+                <option value="Supervisor" />
+                <option value="Knitting Operator" />
+                <option value="Employee" />
+              </datalist>
+              {fieldErrors.designation && <span className="text-[10px] text-red-500">{fieldErrors.designation}</span>}
             </div>
 
             <div className="flex flex-col gap-1.5">
-              <Label htmlFor="emp-mobile" className="text-xs font-semibold text-gray-700">Mobile Number</Label>
+              <Label htmlFor="emp-mobile" className={`text-xs font-semibold ${fieldErrors.mobile ? 'text-red-600' : 'text-gray-700'}`}>Mobile Number</Label>
               <Input
                 id="emp-mobile"
                 placeholder="e.g. +91 98765 43210"
                 value={formMobile}
                 onChange={(e) => setFormMobile(e.target.value)}
-                className="h-9 text-xs"
+                className={`h-9 text-xs ${fieldErrors.mobile ? 'border-red-500 focus-visible:ring-red-500' : ''}`}
               />
+              {fieldErrors.mobile && <span className="text-[10px] text-red-500">{fieldErrors.mobile}</span>}
             </div>
 
             <div className="flex flex-col gap-1.5">
@@ -606,15 +640,16 @@ const EmployeeDirectoryTab = forwardRef<EmployeeDirectoryTabRef>((_props, ref) =
             </div>
 
             <div className="flex flex-col gap-1.5">
-              <Label htmlFor="emp-salary" className="text-xs font-semibold text-gray-700">Monthly Salary (₹)</Label>
+              <Label htmlFor="emp-salary" className={`text-xs font-semibold ${fieldErrors.salary ? 'text-red-600' : 'text-gray-700'}`}>Monthly Salary (₹)</Label>
               <Input
                 id="emp-salary"
                 type="number"
                 placeholder="e.g. 25000"
                 value={formSalary}
                 onChange={(e) => setFormSalary(e.target.value)}
-                className="h-9 text-xs"
+                className={`h-9 text-xs ${fieldErrors.salary ? 'border-red-500 focus-visible:ring-red-500' : ''}`}
               />
+              {fieldErrors.salary && <span className="text-[10px] text-red-500">{fieldErrors.salary}</span>}
             </div>
 
             <div className="flex flex-col gap-1.5">
@@ -645,25 +680,27 @@ const EmployeeDirectoryTab = forwardRef<EmployeeDirectoryTabRef>((_props, ref) =
             </div>
 
             <div className="flex flex-col gap-1.5">
-              <Label htmlFor="emp-aadhar" className="text-xs font-semibold text-gray-700">Aadhar Card</Label>
+              <Label htmlFor="emp-aadhar" className={`text-xs font-semibold ${fieldErrors.aadhar ? 'text-red-600' : 'text-gray-700'}`}>Aadhar Card</Label>
               <Input
                 id="emp-aadhar"
                 placeholder="e.g. 4521 8890 1234"
                 value={formAadhar}
                 onChange={(e) => setFormAadhar(e.target.value)}
-                className="h-9 text-xs"
+                className={`h-9 text-xs ${fieldErrors.aadhar ? 'border-red-500 focus-visible:ring-red-500' : ''}`}
               />
+              {fieldErrors.aadhar && <span className="text-[10px] text-red-500">{fieldErrors.aadhar}</span>}
             </div>
 
             <div className="sm:col-span-3 flex flex-col gap-1.5">
-              <Label htmlFor="emp-address" className="text-xs font-semibold text-gray-700">Residential Address</Label>
+              <Label htmlFor="emp-address" className={`text-xs font-semibold ${fieldErrors.address ? 'text-red-600' : 'text-gray-700'}`}>Residential Address</Label>
               <Input
                 id="emp-address"
                 placeholder="Door No, Street Name, City..."
                 value={formAddress}
                 onChange={(e) => setFormAddress(e.target.value)}
-                className="h-9 text-xs"
+                className={`h-9 text-xs ${fieldErrors.address ? 'border-red-500 focus-visible:ring-red-500' : ''}`}
               />
+              {fieldErrors.address && <span className="text-[10px] text-red-500">{fieldErrors.address}</span>}
             </div>
 
             {formError && <p className="sm:col-span-3 text-xs text-red-600 font-medium">{formError}</p>}
@@ -696,8 +733,9 @@ const EmployeeDirectoryTab = forwardRef<EmployeeDirectoryTabRef>((_props, ref) =
               </div>
             </div>
           </div>
+          </div>
 
-          <DialogFooter className="border-gray-200 bg-white">
+          <DialogFooter className="shrink-0 border-gray-200 bg-white pt-2">
             <Button variant="outline" size="sm" onClick={() => setIsFormOpen(false)} className="h-8 text-xs">
               Cancel
             </Button>
@@ -834,6 +872,14 @@ export function EmployeePage() {
           >
             <Plus className="w-3 h-3" />
             ADD EMPLOYEE
+          </Button>
+        )}
+        {activeTab === 'payroll' && (
+          <Button
+            className="flex items-center gap-2 bg-[#004D40] hover:bg-[#00382e] text-white rounded-md px-3 py-2 h-auto text-[12px] font-bold tracking-wide shadow-[0_1px_2px_rgba(0,45,35,0.2)]"
+          >
+            <FileText className="w-3 h-3" />
+            GENERATE PAYROLL
           </Button>
         )}
       </div>
