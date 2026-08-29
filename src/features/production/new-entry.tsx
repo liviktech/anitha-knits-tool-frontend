@@ -154,34 +154,34 @@ export function NewEntry({ onClose, defaultDate, readOnly = false }: NewEntryPro
         {!readOnly && (
           <div className="rounded-xl border border-gray-400 bg-white shadow-sm mb-3 transition-all duration-500">
             <div
-              className="bg-gray-50 border-b border-gray-200 px-4 py-3 rounded-t-xl flex justify-between items-center cursor-pointer select-none"
+              className="bg-violet-100 border-b border-violet-200 px-4 py-3 rounded-t-xl flex justify-between items-center cursor-pointer select-none"
               onClick={() => setIsInventoryMinimized(!isInventoryMinimized)}
             >
-              <h3 className="text-[13px] font-extrabold uppercase tracking-wider text-gray-700 flex items-center gap-2">
+              <h3 className="text-[13px] font-extrabold uppercase tracking-wider text-violet-900 flex items-center gap-2">
                 Inventory Balances
               </h3>
-              <Button variant="ghost" size="sm" className="h-6 w-6 p-0 hover:bg-gray-200 text-gray-500">
+              <Button variant="ghost" size="sm" className="h-6 w-6 p-0 hover:bg-violet-200 text-violet-700">
                 {isInventoryMinimized ? <ChevronDown className="h-4 w-4" /> : <ChevronUp className="h-4 w-4" />}
               </Button>
             </div>
-            <div className={`px-4 grid grid-cols-1 sm:grid-cols-3 sm:divide-x divide-gray-200 transition-all duration-500 ease-in-out ${isInventoryMinimized ? 'py-3 gap-2' : 'py-4 gap-4'}`}>
+            <div className={`px-4 grid grid-cols-1 sm:grid-cols-3 sm:divide-x divide-gray-200 transition-all duration-500 ease-in-out ${isInventoryMinimized ? 'py-3 gap-2' : 'py-3 gap-3'}`}>
               <div className="flex flex-col sm:pr-4">
                 <div className="flex justify-between items-center border-b border-gray-200 pb-2">
-                  <label className="flex items-center gap-1.5 text-[11px] font-bold uppercase tracking-wide text-gray-500">
+                  <label className="flex items-center gap-2 text-[13px] font-bold uppercase tracking-wide text-gray-500">
                     <img src="/hdpe-in.png" alt="" className="h-8 w-8 object-contain" />
                     HDPE Balance
                   </label>
-                  <span className={`text-[12px] font-bold text-gray-900 transition-opacity duration-300 ${isInventoryMinimized ? 'opacity-100' : 'opacity-0'}`}>
+                  <span className={`text-[13px] font-bold text-gray-900 transition-opacity duration-300 ${isInventoryMinimized ? 'opacity-100' : 'opacity-0'}`}>
                     {totalRawMaterial} kg
                   </span>
                 </div>
                 <div className={`grid transition-[grid-template-rows] duration-500 ease-in-out ${isInventoryMinimized ? 'grid-rows-[0fr]' : 'grid-rows-[1fr]'}`}>
                   <div className="overflow-hidden">
-                    <div className="flex flex-col gap-2 max-h-[120px] overflow-y-auto pr-1 pt-2">
+                    <div className="flex flex-col gap-2 pr-1 pt-2">
                       {lookups.brands.map((b) => (
-                        <div key={b.id} className="flex justify-between items-center text-[12.5px]">
+                        <div key={b.id} className="flex justify-between items-center rounded-lg border border-gray-100 bg-gray-50 px-3 py-2.5 text-[12.5px]">
                           <span className="text-gray-700">{b.name}</span>
-                          <span className="font-semibold text-gray-900">{getHDPEBalance(b.name)} kg</span>
+                          <span className="font-bold text-gray-900">{getHDPEBalance(b.name)} kg</span>
                         </div>
                       ))}
                     </div>
@@ -190,21 +190,21 @@ export function NewEntry({ onClose, defaultDate, readOnly = false }: NewEntryPro
               </div>
               <div className="flex flex-col sm:px-4 pt-3 sm:pt-0 border-t sm:border-t-0 border-gray-200">
                 <div className="flex justify-between items-center border-b border-gray-200 pb-2">
-                  <label className="flex items-center gap-1.5 text-[11px] font-bold uppercase tracking-wide text-gray-500">
-                    <img src="/chem.png" alt="" className="h-8 w-8 object-contain" />
+                  <label className="flex items-center gap-2 text-[13px] font-bold uppercase tracking-wide text-gray-500">
+                    <img src="/chemical-in.png" alt="" className="h-8 w-8 object-contain" />
                     Chemical Balance
                   </label>
-                  <span className={`text-[12px] font-bold text-gray-900 transition-opacity duration-300 ${isInventoryMinimized ? 'opacity-100' : 'opacity-0'}`}>
+                  <span className={`text-[13px] font-bold text-gray-900 transition-opacity duration-300 ${isInventoryMinimized ? 'opacity-100' : 'opacity-0'}`}>
                     {totalChemical} kg
                   </span>
                 </div>
                 <div className={`grid transition-[grid-template-rows] duration-500 ease-in-out ${isInventoryMinimized ? 'grid-rows-[0fr]' : 'grid-rows-[1fr]'}`}>
                   <div className="overflow-hidden">
-                    <div className="flex flex-col gap-2 max-h-[120px] overflow-y-auto pr-1 pt-2">
+                    <div className="flex flex-col gap-2 pr-1 pt-2">
                       {lookups.chemicals.map((c) => (
-                        <div key={c.id} className="flex justify-between items-center text-[12.5px]">
+                        <div key={c.id} className="flex justify-between items-center rounded-lg border border-gray-100 bg-gray-50 px-3 py-2.5 text-[12.5px]">
                           <span className="text-gray-700">{c.name}</span>
-                          <span className="font-semibold text-gray-900">{getChemicalBalance(c.name)} kg</span>
+                          <span className="font-bold text-gray-900">{getChemicalBalance(c.name)} kg</span>
                         </div>
                       ))}
                     </div>
@@ -213,21 +213,22 @@ export function NewEntry({ onClose, defaultDate, readOnly = false }: NewEntryPro
               </div>
               <div className="flex flex-col sm:pl-4 pt-3 sm:pt-0 border-t sm:border-t-0 border-gray-200">
                 <div className="flex justify-between items-center border-b border-gray-200 pb-2">
-                  <label className="flex items-center gap-1.5 text-[11px] font-bold uppercase tracking-wide text-gray-500">
-                    <img src="/colour.png" alt="" className="h-8 w-8 object-contain" />
+                  <label className="flex items-center gap-2.5 text-[13px] font-bold uppercase tracking-wide text-gray-500">
+                    <img src="/color-in.png" alt="" className="h-8 w-8 object-contain" />
                     Color Balance
                   </label>
-                  <span className={`text-[12px] font-bold text-gray-900 transition-opacity duration-300 ${isInventoryMinimized ? 'opacity-100' : 'opacity-0'}`}>
+                  <span className={`text-[13 So bar start
+                    px] font-bold text-gray-900 transition-opacity duration-300 ${isInventoryMinimized ? 'opacity-100' : 'opacity-0'}`}>
                     {totalColor} kg
                   </span>
                 </div>
                 <div className={`grid transition-[grid-template-rows] duration-500 ease-in-out ${isInventoryMinimized ? 'grid-rows-[0fr]' : 'grid-rows-[1fr]'}`}>
                   <div className="overflow-hidden">
-                    <div className="flex flex-col gap-2 max-h-[120px] overflow-y-auto pr-1 pt-2">
+                    <div className="flex flex-col gap-2 pr-1 pt-2">
                       {lookups.colors.map((c) => (
-                        <div key={c.id} className="flex justify-between items-center text-[12.5px]">
+                        <div key={c.id} className="flex justify-between items-center rounded-lg border border-gray-100 bg-gray-50 px-3 py-2.5 text-[12.5px]">
                           <span className="text-gray-700">{c.name}</span>
-                          <span className="font-semibold text-gray-900">{getColorBalance(c.name)} kg</span>
+                          <span className="font-bold text-gray-900">{getColorBalance(c.name)} kg</span>
                         </div>
                       ))}
                     </div>
