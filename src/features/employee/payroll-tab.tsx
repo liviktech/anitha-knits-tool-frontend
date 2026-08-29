@@ -8,6 +8,8 @@ import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from '
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Label } from '@/components/ui/label';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Loader } from '@/components/shared/loader';
+import { TablePaginationControls, RowsPerPageSelect } from '@/components/shared/table-pagination-controls';
 import { useEmployees, useDistributeMarketValue, usePayrollSummary, useGrantSalaryAdvance, useSavePayrollRecords, useSavedPayrollRecords, useMarketValueAllocations, useSalaryAdvances, type SalaryAdvanceStatus } from './employee-queries';
 import { useAttendanceRecords } from './attendance-queries';
 
@@ -93,6 +95,12 @@ export const PayrollTab = forwardRef<PayrollTabRef>((_, ref) => {
     return matchesSearch && matchesStatus;
   });
 
+  // Pagination
+  const [payrollPage, setPayrollPage] = useState(1);
+  const [payrollPageSize, setPayrollPageSize] = useState(10);
+  const [advancePage, setAdvancePage] = useState(1);
+  const [advancePageSize, setAdvancePageSize] = useState(10);
+
   // Market Value Form State
   const [marketValuePool, setMarketValuePool] = useState<string>('');
   const [marketValueDate, setMarketValueDate] = useState<string>('');
@@ -141,6 +149,20 @@ export const PayrollTab = forwardRef<PayrollTabRef>((_, ref) => {
       status: saved?.status || 'Pending'
     };
   });
+
+  const payrollTotalPages = Math.max(1, Math.ceil(filteredPayroll.length / payrollPageSize));
+  const payrollCurrentPage = Math.min(payrollPage, payrollTotalPages);
+  const pagedPayroll = filteredPayroll.slice(
+    (payrollCurrentPage - 1) * payrollPageSize,
+    payrollCurrentPage * payrollPageSize,
+  );
+
+  const advanceTotalPages = Math.max(1, Math.ceil(filteredAdvances.length / advancePageSize));
+  const advanceCurrentPage = Math.min(advancePage, advanceTotalPages);
+  const pagedAdvances = filteredAdvances.slice(
+    (advanceCurrentPage - 1) * advancePageSize,
+    advanceCurrentPage * advancePageSize,
+  );
 
   const totalPayroll = isGenerated
     ? savedRecords.reduce((sum, p) => sum + Number(p.netSalary), 0)
@@ -266,45 +288,59 @@ export const PayrollTab = forwardRef<PayrollTabRef>((_, ref) => {
               </div>
             </div>
 
-        <div className="overflow-x-auto flex-1 flex flex-col">
-          <Table className="font-hanken">
-            <TableHeader className="bg-emerald-50/30">
-              <TableRow className="hover:bg-transparent border-b border-emerald-400">
-                <TableHead className="text-sm font-semibold tracking-wide text-gray-800 w-[100px] pl-4">Emp ID</TableHead>
-                <TableHead className="text-sm font-semibold tracking-wide text-gray-800">Name</TableHead>
-                <TableHead className="text-sm font-semibold tracking-wide text-gray-800 text-right">Base Salary</TableHead>
-                <TableHead className="text-sm font-semibold tracking-wide text-gray-800 text-center">Days Worked</TableHead>
-                <TableHead className="text-sm font-semibold tracking-wide text-gray-800 text-right">Gross Salary</TableHead>
-                <TableHead className="text-sm font-semibold tracking-wide text-gray-800 text-right text-amber-700">Advance Deducted</TableHead>
-                <TableHead className="text-sm font-semibold tracking-wide text-gray-800 text-right text-blue-700">Market Value Share</TableHead>
+        <div className="overflow-x-auto overflow-y-auto flex-1 min-h-0">
+          <Table className="border-collapse font-hanken">
+            <TableHeader className="bg-emerald-50/30 sticky top-0 z-10">
+              <TableRow className="hover:bg-transparent border-b border-gray-300">
+                <TableHead className="text-sm font-semibold tracking-wide text-gray-800 w-[100px] pl-4 border-r border-gray-300">Emp ID</TableHead>
+                <TableHead className="text-sm font-semibold tracking-wide text-gray-800 border-r border-gray-300">Name</TableHead>
+                <TableHead className="text-sm font-semibold tracking-wide text-gray-800 text-right border-r border-gray-300">Base Salary</TableHead>
+                <TableHead className="text-sm font-semibold tracking-wide text-gray-800 text-center border-r border-gray-300">Days Worked</TableHead>
+                <TableHead className="text-sm font-semibold tracking-wide text-gray-800 text-right border-r border-gray-300">Gross Salary</TableHead>
+                <TableHead className="text-sm font-semibold tracking-wide text-gray-800 text-right text-amber-700 border-r border-gray-300">Advance Deducted</TableHead>
+                <TableHead className="text-sm font-semibold tracking-wide text-gray-800 text-right text-blue-700 border-r border-gray-300">Market Value Share</TableHead>
                 <TableHead className="text-sm font-extrabold tracking-wide text-gray-900 text-right pr-4">Net Payable</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
-              {filteredPayroll.map((row) => (
-                <TableRow key={row.id} className="border-b border-emerald-50 hover:bg-emerald-50/30 transition-colors">
-                  <TableCell className="pl-4 text-sm font-bold text-gray-900">{row.customUserId || row.id}</TableCell>
-                  <TableCell className="text-sm font-semibold text-gray-800">{row.name}</TableCell>
-                  <TableCell className="text-sm text-right">₹{row.baseSalary.toLocaleString()}</TableCell>
-                  <TableCell className="text-sm text-center font-medium bg-gray-50/50">{row.daysWorked}</TableCell>
-                  <TableCell className="text-sm text-right font-semibold text-gray-700">₹{row.grossSalary.toLocaleString()}</TableCell>
-                  <TableCell className="text-sm text-right font-medium text-amber-700">- ₹{row.advanceDeduction.toLocaleString()}</TableCell>
-                  <TableCell className="text-sm text-right font-medium text-blue-700">+ ₹{row.marketValueBonus.toLocaleString()}</TableCell>
-                  <TableCell className="text-sm font-extrabold text-right pr-4 text-emerald-800">₹{row.netSalary.toLocaleString()}</TableCell>
+              {isPayrollLoading ? (
+                <TableRow>
+                  <TableCell colSpan={8} className="h-28 text-center text-gray-500 text-sm">
+                    <div className="flex items-center justify-center gap-2"><Loader size="sm" /> Loading payroll data...</div>
+                  </TableCell>
                 </TableRow>
-              ))}
+              ) : pagedPayroll.length === 0 ? (
+                <TableRow>
+                  <TableCell colSpan={8} className="h-28 !text-center text-gray-500 text-sm">No payroll data found matching your criteria.</TableCell>
+                </TableRow>
+              ) : (
+                pagedPayroll.map((row) => (
+                  <TableRow key={row.id} className="border-b border-gray-300 hover:bg-emerald-50/30 transition-colors">
+                    <TableCell className="pl-4 text-sm font-bold text-gray-900 border-r border-gray-300">{row.customUserId || row.id}</TableCell>
+                    <TableCell className="text-sm font-semibold text-gray-800 border-r border-gray-300">{row.name}</TableCell>
+                    <TableCell className="text-sm text-right border-r border-gray-300">₹{row.baseSalary.toLocaleString()}</TableCell>
+                    <TableCell className="text-sm text-center font-medium bg-gray-50/50 border-r border-gray-300">{row.daysWorked}</TableCell>
+                    <TableCell className="text-sm text-right font-semibold text-gray-700 border-r border-gray-300">₹{row.grossSalary.toLocaleString()}</TableCell>
+                    <TableCell className="text-sm text-right font-medium text-amber-700 border-r border-gray-300">- ₹{row.advanceDeduction.toLocaleString()}</TableCell>
+                    <TableCell className="text-sm text-right font-medium text-blue-700 border-r border-gray-300">+ ₹{row.marketValueBonus.toLocaleString()}</TableCell>
+                    <TableCell className="text-sm font-extrabold text-right pr-4 text-emerald-800">₹{row.netSalary.toLocaleString()}</TableCell>
+                  </TableRow>
+                ))
+              )}
             </TableBody>
           </Table>
-          {isPayrollLoading && (
-            <div className="flex-1 flex items-center justify-center gap-2 text-gray-500 text-md py-8">
-              <Loader2 className="h-4 w-4 animate-spin" /> Loading payroll data...
-            </div>
-          )}
-          {!isPayrollLoading && filteredPayroll.length === 0 && (
-            <div className="flex-1 flex items-center justify-center text-gray-500 text-md py-8">
-              No payroll data found matching your criteria.
-            </div>
-          )}
+        </div>
+
+        {/* Payroll Table Footer */}
+        <div className="shrink-0 p-3 border-t border-gray-400 bg-emerald-50/20 text-xs text-gray-700 flex flex-wrap justify-between items-center gap-3 px-4">
+          <span>
+            Showing{" "}
+            {filteredPayroll.length === 0 ? 0 : (payrollCurrentPage - 1) * payrollPageSize + 1}-
+            {Math.min(payrollCurrentPage * payrollPageSize, filteredPayroll.length)} of{" "}
+            {filteredPayroll.length} entries
+          </span>
+          <TablePaginationControls currentPage={payrollCurrentPage} totalPages={payrollTotalPages} onPageChange={setPayrollPage} />
+          <RowsPerPageSelect pageSize={payrollPageSize} onPageSizeChange={(size) => { setPayrollPageSize(size); setPayrollPage(1); }} />
         </div>
           </div>
         </TabsContent>
@@ -341,60 +377,74 @@ export const PayrollTab = forwardRef<PayrollTabRef>((_, ref) => {
               </Button>
             </div>
 
-            <div className="overflow-x-auto flex-1 flex flex-col">
-              <Table className="font-hanken">
-                <TableHeader className="bg-emerald-50/30">
-                  <TableRow className="hover:bg-transparent border-b border-emerald-400">
-                    <TableHead className="text-sm font-semibold tracking-wide text-gray-800 w-[100px] pl-4">Emp ID</TableHead>
-                    <TableHead className="text-sm font-semibold tracking-wide text-gray-800">Name</TableHead>
-                    <TableHead className="text-sm font-semibold tracking-wide text-gray-800 text-right">Advance Amount</TableHead>
-                    <TableHead className="text-sm font-semibold tracking-wide text-gray-800">Method</TableHead>
-                    <TableHead className="text-sm font-semibold tracking-wide text-gray-800 text-center">EMI Progress</TableHead>
-                    <TableHead className="text-sm font-semibold tracking-wide text-gray-800 text-right">Remaining</TableHead>
-                    <TableHead className="text-sm font-semibold tracking-wide text-gray-800">Effective Date</TableHead>
+            <div className="overflow-x-auto overflow-y-auto flex-1 min-h-0">
+              <Table className="border-collapse font-hanken">
+                <TableHeader className="bg-amber-50/30 sticky top-0 z-10">
+                  <TableRow className="hover:bg-transparent border-b border-gray-300">
+                    <TableHead className="text-sm font-semibold tracking-wide text-gray-800 w-[100px] pl-4 border-r border-gray-300">Emp ID</TableHead>
+                    <TableHead className="text-sm font-semibold tracking-wide text-gray-800 border-r border-gray-300">Name</TableHead>
+                    <TableHead className="text-sm font-semibold tracking-wide text-gray-800 text-right border-r border-gray-300">Advance Amount</TableHead>
+                    <TableHead className="text-sm font-semibold tracking-wide text-gray-800 border-r border-gray-300">Method</TableHead>
+                    <TableHead className="text-sm font-semibold tracking-wide text-gray-800 text-center border-r border-gray-300">EMI Progress</TableHead>
+                    <TableHead className="text-sm font-semibold tracking-wide text-gray-800 text-right border-r border-gray-300">Remaining</TableHead>
+                    <TableHead className="text-sm font-semibold tracking-wide text-gray-800 border-r border-gray-300">Effective Date</TableHead>
                     <TableHead className="text-sm font-semibold tracking-wide text-gray-800 text-center pr-4">Status</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {filteredAdvances.map((adv) => (
-                    <TableRow key={adv.id} className="border-b border-emerald-50 hover:bg-emerald-50/30 transition-colors">
-                      <TableCell className="pl-4 text-sm font-bold text-gray-900">{adv.customUserId || adv.employeeId}</TableCell>
-                      <TableCell className="text-sm font-semibold text-gray-800">{adv.employeeName || '-'}</TableCell>
-                      <TableCell className="text-sm text-right">₹{adv.amount.toLocaleString()}</TableCell>
-                      <TableCell className="text-sm">
-                        {adv.repaymentMethod === 'emi' ? (
-                          <span className="inline-flex flex-col leading-tight">
-                            <span className="font-medium text-gray-800">EMI</span>
-                            <span className="text-[11px] text-gray-500">₹{adv.emiAmount?.toLocaleString()} × {adv.totalMonths}mo</span>
-                          </span>
-                        ) : (
-                          <span className="font-medium text-gray-800">Single Payment</span>
-                        )}
-                      </TableCell>
-                      <TableCell className="text-sm text-center">
-                        {adv.repaymentMethod === 'emi' ? `${adv.monthsPaid} / ${adv.totalMonths} months` : '-'}
-                      </TableCell>
-                      <TableCell className="text-sm text-right font-medium text-amber-700">₹{adv.remainingAmount.toLocaleString()}</TableCell>
-                      <TableCell className="text-sm text-gray-700">{formatDateDisplay(adv.effectiveDate)}</TableCell>
-                      <TableCell className="text-center pr-4">
-                        <span className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-[11px] font-semibold ${advanceStatusBadgeClass(adv.status)}`}>
-                          {adv.status === 'ACTIVE' ? 'Active' : 'Completed'}
-                        </span>
+                  {isAdvancesLoading ? (
+                    <TableRow>
+                      <TableCell colSpan={8} className="h-28 text-center text-gray-500 text-sm">
+                        <div className="flex items-center justify-center gap-2"><Loader size="sm" /> Loading salary advances...</div>
                       </TableCell>
                     </TableRow>
-                  ))}
+                  ) : pagedAdvances.length === 0 ? (
+                    <TableRow>
+                      <TableCell colSpan={8} className="h-28 !text-center text-gray-500 text-sm">No salary advances found matching your criteria.</TableCell>
+                    </TableRow>
+                  ) : (
+                    pagedAdvances.map((adv) => (
+                      <TableRow key={adv.id} className="border-b border-gray-300 hover:bg-emerald-50/30 transition-colors">
+                        <TableCell className="pl-4 text-sm font-bold text-gray-900 border-r border-gray-300">{adv.customUserId || adv.employeeId}</TableCell>
+                        <TableCell className="text-sm font-semibold text-gray-800 border-r border-gray-300">{adv.employeeName || '-'}</TableCell>
+                        <TableCell className="text-sm text-right border-r border-gray-300">₹{adv.amount.toLocaleString()}</TableCell>
+                        <TableCell className="text-sm border-r border-gray-300">
+                          {adv.repaymentMethod === 'emi' ? (
+                            <span className="inline-flex flex-col leading-tight">
+                              <span className="font-medium text-gray-800">EMI</span>
+                              <span className="text-[11px] text-gray-500">₹{adv.emiAmount?.toLocaleString()} × {adv.totalMonths}mo</span>
+                            </span>
+                          ) : (
+                            <span className="font-medium text-gray-800">Single Payment</span>
+                          )}
+                        </TableCell>
+                        <TableCell className="text-sm text-center border-r border-gray-300">
+                          {adv.repaymentMethod === 'emi' ? `${adv.monthsPaid} / ${adv.totalMonths} months` : '-'}
+                        </TableCell>
+                        <TableCell className="text-sm text-right font-medium text-amber-700 border-r border-gray-300">₹{adv.remainingAmount.toLocaleString()}</TableCell>
+                        <TableCell className="text-sm text-gray-700 border-r border-gray-300">{formatDateDisplay(adv.effectiveDate)}</TableCell>
+                        <TableCell className="text-center pr-4">
+                          <span className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-[11px] font-semibold ${advanceStatusBadgeClass(adv.status)}`}>
+                            {adv.status === 'ACTIVE' ? 'Active' : 'Completed'}
+                          </span>
+                        </TableCell>
+                      </TableRow>
+                    ))
+                  )}
                 </TableBody>
               </Table>
-              {isAdvancesLoading && (
-                <div className="flex-1 flex items-center justify-center gap-2 text-gray-500 text-md py-8">
-                  <Loader2 className="h-4 w-4 animate-spin" /> Loading salary advances...
-                </div>
-              )}
-              {!isAdvancesLoading && filteredAdvances.length === 0 && (
-                <div className="flex-1 flex items-center justify-center text-gray-500 text-md py-8">
-                  No salary advances found matching your criteria.
-                </div>
-              )}
+            </div>
+
+            {/* Salary Advance Table Footer */}
+            <div className="shrink-0 p-3 border-t border-gray-400 bg-emerald-50/20 text-xs text-gray-700 flex flex-wrap justify-between items-center gap-3 px-4">
+              <span>
+                Showing{" "}
+                {filteredAdvances.length === 0 ? 0 : (advanceCurrentPage - 1) * advancePageSize + 1}-
+                {Math.min(advanceCurrentPage * advancePageSize, filteredAdvances.length)} of{" "}
+                {filteredAdvances.length} entries
+              </span>
+              <TablePaginationControls currentPage={advanceCurrentPage} totalPages={advanceTotalPages} onPageChange={setAdvancePage} />
+              <RowsPerPageSelect pageSize={advancePageSize} onPageSizeChange={(size) => { setAdvancePageSize(size); setAdvancePage(1); }} />
             </div>
           </div>
         </TabsContent>
