@@ -317,36 +317,36 @@ function RoleFormDialog({ open, onOpenChange, initial, rights, onSubmit, isPendi
 
   return (
     <Dialog open={open} onOpenChange={(next) => { if (!isPending) onOpenChange(next); }}>
-      <DialogContent className="sm:max-w-md">
-        <DialogHeader>
-          <DialogTitle>{isEdit ? 'Edit Role' : 'Add Role'}</DialogTitle>
+      <DialogContent className="sm:max-w-md border border-gray-400">
+        <DialogHeader className="-mx-4 -mt-4 mb-2 rounded-t-xl border-b border-gray-200 bg-[#A8DCAB] px-4 py-3">
+          <DialogTitle className="text-lg font-bold text-black">{isEdit ? 'Edit Role' : 'Add Role'}</DialogTitle>
         </DialogHeader>
 
-        <div className="flex flex-col gap-3">
-          <div className="flex flex-col gap-1">
-            <Label htmlFor="role-name" className="text-sm font-semibold text-gray-600">Role Name</Label>
+        <div className="flex flex-col gap-4 py-2">
+          <div className="flex flex-col gap-1.5">
+            <Label htmlFor="role-name" className="text-xs font-semibold text-gray-700">Role Name</Label>
             <Input
               id="role-name"
               placeholder="e.g. Production Manager"
               value={roleName}
               onChange={(e) => setRoleName(e.target.value)}
-              className="h-8 text-sm"
+              className="h-9 text-xs"
             />
           </div>
 
-          <div className="flex flex-col gap-1">
-            <Label htmlFor="role-description" className="text-sm font-semibold text-gray-600">Description</Label>
+          <div className="flex flex-col gap-1.5">
+            <Label htmlFor="role-description" className="text-xs font-semibold text-gray-700">Description</Label>
             <Input
               id="role-description"
               placeholder="What can this role do?"
               value={description}
               onChange={(e) => setDescription(e.target.value)}
-              className="h-8 text-sm"
+              className="h-9 text-xs"
             />
           </div>
 
-          <div className="flex flex-col gap-1">
-            <Label className="text-sm font-semibold text-gray-600">Assigned Rights</Label>
+          <div className="flex flex-col gap-1.5">
+            <Label className="text-xs font-semibold text-gray-700">Assigned Rights</Label>
             <div className="flex max-h-56 flex-col gap-3 overflow-y-auto rounded-lg border border-gray-200 p-3">
               {rightsByGroup.length === 0 ? (
                 <p className="text-center text-[13px] text-gray-400">No rights configured yet.</p>
@@ -370,14 +370,14 @@ function RoleFormDialog({ open, onOpenChange, initial, rights, onSubmit, isPendi
               )}
             </div>
           </div>
+
+          {displayError && <p className="text-xs text-red-600 font-medium">{displayError}</p>}
         </div>
 
-        {displayError && <p className="text-sm text-red-600">{displayError}</p>}
-
-        <DialogFooter>
-          <Button variant="outline" size="sm" onClick={() => onOpenChange(false)} disabled={isPending}>Cancel</Button>
-          <Button size="sm" className="bg-[#004D40] hover:bg-[#003D33]" onClick={handleSubmit} disabled={isPending}>
-            {isPending && <Loader size="sm" className="mr-2" />}
+        <DialogFooter className="border-gray-200 bg-white">
+          <Button variant="outline" size="sm" onClick={() => onOpenChange(false)} disabled={isPending} className="h-8 text-xs">Cancel</Button>
+          <Button size="sm" onClick={handleSubmit} disabled={isPending} className="h-8 bg-[#004D40] hover:bg-[#00332a] text-white text-xs font-medium px-4">
+            {isPending && <Loader size="sm" className="mr-1.5" />}
             {isEdit ? 'Save Changes' : 'Add Role'}
           </Button>
         </DialogFooter>
@@ -445,16 +445,16 @@ function AssignRoleDialog({ open, onOpenChange, roles, employees, onSubmit, isPe
 
   return (
     <Dialog open={open} onOpenChange={(next) => { if (!isPending) onOpenChange(next); }}>
-      <DialogContent className="sm:max-w-md">
-        <DialogHeader>
-          <DialogTitle>Assign Role</DialogTitle>
+      <DialogContent className="sm:max-w-md border border-gray-400">
+        <DialogHeader className="-mx-4 -mt-4 mb-2 rounded-t-xl border-b border-gray-200 bg-[#A8DCAB] px-4 py-3">
+          <DialogTitle className="text-lg font-bold text-black">Assign Role</DialogTitle>
         </DialogHeader>
 
-        <div className="flex flex-col gap-3">
-          <div className="flex flex-col gap-1">
-            <Label className="text-sm font-semibold text-gray-600">Role</Label>
+        <div className="flex flex-col gap-4 py-2">
+          <div className="flex flex-col gap-1.5">
+            <Label className="text-xs font-semibold text-gray-700">Role</Label>
             <Select value={roleId} onValueChange={setRoleId}>
-              <SelectTrigger className="h-9 w-full text-[14px]">
+              <SelectTrigger className="h-9 w-full text-xs">
                 <SelectValue placeholder="Select a role" />
               </SelectTrigger>
               <SelectContent>
@@ -465,13 +465,13 @@ function AssignRoleDialog({ open, onOpenChange, roles, employees, onSubmit, isPe
             </Select>
           </div>
 
-          <div className="flex flex-col gap-1">
-            <Label className="text-sm font-semibold text-gray-600">Employees</Label>
+          <div className="flex flex-col gap-1.5">
+            <Label className="text-xs font-semibold text-gray-700">Employees</Label>
             <Input
               placeholder="Search employees..."
               value={employeeSearch}
               onChange={(e) => setEmployeeSearch(e.target.value)}
-              className="h-9 text-[14px]"
+              className="h-9 text-xs"
             />
             <div className="mt-1 flex max-h-56 flex-col gap-1 overflow-y-auto rounded-lg border border-gray-200 p-2">
               {filteredEmployees.length === 0 ? (
@@ -504,14 +504,14 @@ function AssignRoleDialog({ open, onOpenChange, roles, employees, onSubmit, isPe
               )}
             </div>
           </div>
+
+          {displayError && <p className="text-xs text-red-600 font-medium">{displayError}</p>}
         </div>
 
-        {displayError && <p className="text-sm text-red-600">{displayError}</p>}
-
-        <DialogFooter>
-          <Button variant="outline" size="sm" onClick={() => onOpenChange(false)} disabled={isPending}>Cancel</Button>
-          <Button size="sm" className="bg-[#004D40] hover:bg-[#003D33]" onClick={handleSubmit} disabled={isPending}>
-            {isPending && <Loader size="sm" className="mr-2" />}
+        <DialogFooter className="border-gray-200 bg-white">
+          <Button variant="outline" size="sm" onClick={() => onOpenChange(false)} disabled={isPending} className="h-8 text-xs">Cancel</Button>
+          <Button size="sm" onClick={handleSubmit} disabled={isPending} className="h-8 bg-[#004D40] hover:bg-[#00332a] text-white text-xs font-medium px-4">
+            {isPending && <Loader size="sm" className="mr-1.5" />}
             Assign Role
           </Button>
         </DialogFooter>
