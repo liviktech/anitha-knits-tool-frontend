@@ -6,6 +6,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { motion } from 'framer-motion';
 import { ProductionConfigTab } from './production-config-tab';
 import { RawMaterialsTab } from './raw-materials-tab';
+import { RolesTab } from './roles-tab';
 
 export const BAG_WEIGHT_STORAGE_KEY = 'extruder_default_bag_weight';
 
@@ -101,52 +102,8 @@ export function AdminPanelPage() {
           <RawMaterialsTab />
         </TabsContent>
 
-        <TabsContent value="bag-weight" className="mt-0 animate-in fade-in-0 duration-300 p-6 max-w-7xl">
-          <div className="bg-white border border-gray-200 rounded-xl shadow-sm p-6">
-            <h2 className="text-lg font-bold text-gray-900 mb-4">Extruder Production Settings</h2>
-
-            <div className="flex flex-col gap-4 max-w-sm">
-              <div className="space-y-2">
-                <label htmlFor="bagWeight" className="text-sm font-semibold text-gray-700">
-                  Default Bag Weight (KG)
-                </label>
-                <div className="flex items-center gap-3">
-                  <Input
-                    id="bagWeight"
-                    type="number"
-                    placeholder="e.g. 25"
-                    value={bagWeight}
-                    onChange={(e) => setBagWeight(e.target.value)}
-                    className="h-10 font-medium"
-                  />
-                  <Button
-                    onClick={handleSave}
-                    className="bg-blue-600 hover:bg-blue-700 text-white font-semibold h-10 px-6 rounded-lg shadow-sm transition-all whitespace-nowrap"
-                  >
-                    {isSaved ? 'Saved!' : 'Save'}
-                  </Button>
-                </div>
-              </div>
-              <p className="text-[13px] text-gray-500 font-medium leading-relaxed">
-                This weight will be automatically filled in the <strong>Weight per Bag (Wt / Bag)</strong> field when entering extruder production details.
-              </p>
-            </div>
-          </div>
-        </TabsContent>
-
         <TabsContent value="roles" className="mt-0 animate-in fade-in-0 duration-300 p-6 max-w-7xl">
-          <div className="bg-white border border-gray-200 rounded-xl shadow-sm p-12 flex flex-col items-center justify-center text-center">
-            <div className="w-12 h-12 bg-blue-50 rounded-full flex items-center justify-center mb-4">
-              <Users className="w-6 h-6 text-blue-500" />
-            </div>
-            <h2 className="text-lg font-bold text-gray-900 mb-2">Roles & Permissions</h2>
-            <p className="text-blue-600 font-semibold text-sm max-w-sm bg-blue-50 py-1.5 px-3 rounded-full mt-2">
-              Coming Soon
-            </p>
-            <p className="text-gray-500 text-sm mt-4">
-              Role management and permissions configuration will be available in a future update.
-            </p>
-          </div>
+          <RolesTab />
         </TabsContent>
       </Tabs>
     </div>

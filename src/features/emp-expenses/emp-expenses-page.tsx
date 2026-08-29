@@ -6,7 +6,6 @@ import {
   Edit2,
   Trash2,
   Search,
-  Wallet,
   ChevronLeft,
   ChevronRight,
 } from "lucide-react";
