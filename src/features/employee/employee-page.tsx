@@ -8,6 +8,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { DeleteConfirmDialog } from '@/components/shared/delete-confirm-dialog';
+import { TablePaginationControls, RowsPerPageSelect } from '@/components/shared/table-pagination-controls';
 import { AttendanceTab, type AttendanceTabRef } from './attendance-tab';
 import { useAuth } from '@/features/auth/auth-context';
 import { hasTabAccess } from '@/lib/access';
@@ -177,6 +178,8 @@ const EmployeeDirectoryTab = forwardRef<EmployeeDirectoryTabRef>((_props, ref) =
 
   const [searchQuery, setSearchQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState<string>('ALL');
+  const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState(10);
 
   // Modal states
   const [isFormOpen, setIsFormOpen] = useState(false);
@@ -256,6 +259,17 @@ const EmployeeDirectoryTab = forwardRef<EmployeeDirectoryTabRef>((_props, ref) =
       return matchesSearch && matchesStatus;
     });
   }, [employees, searchQuery, statusFilter]);
+
+  useEffect(() => {
+    setPage(1);
+  }, [searchQuery, statusFilter]);
+
+  const totalPages = Math.max(1, Math.ceil(filteredEmployees.length / pageSize));
+  const currentPage = Math.min(page, totalPages);
+  const pagedEmployees = useMemo(
+    () => filteredEmployees.slice((currentPage - 1) * pageSize, currentPage * pageSize),
+    [filteredEmployees, currentPage, pageSize],
+  );
 
   const openCreateModal = () => {
     setEditingEmployee(null);
@@ -466,7 +480,7 @@ const EmployeeDirectoryTab = forwardRef<EmployeeDirectoryTabRef>((_props, ref) =
               </TableRow>
             </TableHeader>
             <TableBody>
-              {filteredEmployees.map((emp) => (
+              {pagedEmployees.map((emp) => (
                 <TableRow
                   key={emp.id}
                   className="border-b border-emerald-50 last:border-b-0 hover:bg-emerald-50/30 transition-colors"
@@ -553,11 +567,15 @@ const EmployeeDirectoryTab = forwardRef<EmployeeDirectoryTabRef>((_props, ref) =
         </div>
 
         {/* Table Footer */}
-        <div className="p-3 border-t border-gray-400 bg-emerald-50/20 text-xs text-gray-700 flex justify-between items-center px-4">
-          <span>Showing {filteredEmployees.length} of {employees.length} employees</span>
-          <span className="font-semibold text-gray-700">
-            Active Payroll: <span className='text-green-600'>{formatCurrency(totalPayroll)}</span>
+        <div className="p-3 border-t border-gray-400 bg-emerald-50/20 text-xs text-gray-700 flex flex-wrap justify-between items-center gap-3 px-4">
+          <span>
+            Showing {filteredEmployees.length === 0 ? 0 : (currentPage - 1) * pageSize + 1}-
+            {Math.min(currentPage * pageSize, filteredEmployees.length)} of {filteredEmployees.length} employees
           </span>
+
+          <TablePaginationControls currentPage={currentPage} totalPages={totalPages} onPageChange={setPage} />
+
+          <RowsPerPageSelect pageSize={pageSize} onPageSizeChange={(size) => { setPageSize(size); setPage(1); }} />
         </div>
       </div>
 
