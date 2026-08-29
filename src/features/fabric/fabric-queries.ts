@@ -13,9 +13,9 @@ export interface FabricCheckDetail {
 /**
  * Matches the real API's FabricChecking schema (see /api/docs). This stage
  * lives at /fabric-checking, not nested under /production like Extruder and
- * Looms, and — like Looms — only has create/list/get, no edit yet. fwKg/bwKg
- * are NOT fields on `fabricCheck` — they're separate WastageRecords in
- * `wastages` (codes FW / BW).
+ * Looms. fwKg/bwKg are NOT fields on `fabricCheck` — they're separate
+ * WastageRecords in `wastages` (codes FW / BW). isApproved/approvedAt/
+ * approvedBy back the ADMIN-only approve action (PATCH /fabric-checking/:id/approve).
  */
 export interface FabricCheckingRecord {
   id: string;
@@ -28,6 +28,9 @@ export interface FabricCheckingRecord {
   size: MasterDataRef;
   fabricCheck: FabricCheckDetail;
   wastages: WastageRecordSummary[];
+  isApproved: boolean;
+  approvedAt: string | null;
+  approvedBy: string | null;
   createdAt: string;
   createdBy: string;
   updatedAt: string;

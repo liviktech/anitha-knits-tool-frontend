@@ -1,6 +1,8 @@
 import { useQuery } from '@tanstack/react-query';
-import { apiFetch, extractApiErrorMessage, fetchJson } from '@/lib/api-client';
+import { apiFetch, fetchJson } from '@/lib/api-client';
 import { useApiMutation } from '@/lib/use-api-mutation';
+
+export type RightAction = 'VIEW' | 'ADD' | 'EDIT' | 'DELETE';
 
 export interface ModuleRecord {
   id: string;
@@ -27,7 +29,10 @@ export interface RightRecord {
   /** null = this right covers the whole module, not one specific tab. */
   tabId: string | null;
   tabName: string | null;
+  action: RightAction;
+  /** Server-derived, e.g. "productiondetails_all_edit" — never admin-typed. */
   rightName: string;
+  /** Server-derived, e.g. "Production Details – Edit" — never admin-typed. */
   displayName: string;
   createdAt: string;
   updatedAt: string;
@@ -96,38 +101,10 @@ function patchJson(path: string, body: unknown) {
   });
 }
 
-export interface TabFormInput {
-  moduleId: string;
-  tabCode: string;
-  tabName: string;
-}
-
-export function useCreateTab() {
-  return useApiMutation<TabFormInput>(
-    (data) => postJson('/tabs', data),
-    [tabKeys.all],
-  );
-}
-
-/**
- * Same create-tab request as useCreateTab, but returns the created TabRecord directly instead
- * of a bare success boolean — used where the caller needs the new id right away (e.g.
- * RightFormDialog auto-selecting a tab it just created inline), not just cache invalidation.
- */
-export async function createTabRecord(data: TabFormInput): Promise<TabRecord> {
-  const response = await postJson('/tabs', data);
-  if (!response.ok) {
-    throw new Error(await extractApiErrorMessage(response));
-  }
-  const json = (await response.json()) as { data: TabRecord };
-  return json.data;
-}
-
 export interface RightFormInput {
   moduleId: string;
   tabId: string | null;
-  displayName: string;
-  rightName: string;
+  action: RightAction;
 }
 
 export function useCreateRight() {

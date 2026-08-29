@@ -8,6 +8,8 @@ import { LoadSentFormDialog } from '../inventory/load-sent-form-dialog';
 import { type LoadSentRecord } from '../inventory/load-sent-queries';
 import { Loader } from '@/components/shared/loader';
 import { DeleteConfirmDialog } from '@/components/shared/delete-confirm-dialog';
+import { ApproveConfirmDialog } from '@/components/shared/approve-confirm-dialog';
+import { useAuth } from '@/features/auth/auth-context';
 import { apiFetch, fetchJson } from '@/lib/api-client';
 import extruderIcon from '@/assets/extruder-icon.png';
 import loomsIcon from '@/assets/looms-icon.png';
@@ -231,9 +233,11 @@ function DayDetailView({
 }) {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
+  const { user } = useAuth();
   const { setHeaderTitle } = useProductionHeader();
   const row = dayWiseRows.find((r) => r.date === date) || dayWiseRows[0];
   const formattedDate = format(parseISO(date), 'dd MMM, yyyy');
+  const role = user?.kind === 'company-user' ? user.role : null;
 
   const [expandedStages, setExpandedStages] = useState<Record<string, boolean>>({ extruder: true, looms: true, fabric: true, fabricDelivered: true });
   const toggleStage = (key: string) => setExpandedStages((s) => ({ ...s, [key]: !s[key] }));
@@ -248,6 +252,54 @@ function DayDetailView({
   const { data: loomsData } = useLoomsProductions(dateQuery);
   const { data: fabricData } = useFabricCheckingRecords(dateQuery);
 
+  // This view acts on the whole day (every Extruder/Looms/Fabric Checking record for `date`) as
+  // one unit, mirroring the existing bulk Edit/Delete actions below — so the permission ceilings
+  // (backend: productionCeilings.ts) are applied at the same day granularity, not per record.
+  const dayRecordCount = (extruderData?.data.length ?? 0) + (loomsData?.data.length ?? 0) + (fabricData?.data.length ?? 0);
+  const dayHasApprovedRecord =
+    (extruderData?.data ?? []).some((r) => r.isApproved)
+    || (loomsData?.data ?? []).some((r) => r.isApproved)
+    || (fabricData?.data ?? []).some((r) => r.isApproved);
+  const dayFullyApproved =
+    dayRecordCount > 0
+    && (extruderData?.data ?? []).every((r) => r.isApproved)
+    && (loomsData?.data ?? []).every((r) => r.isApproved)
+    && (fabricData?.data ?? []).every((r) => r.isApproved);
+
+  // Supervisor never edits/deletes; Manager can edit only while nothing for the day is approved
+  // yet (whether they actually hold the PRODUCTION_DETAILS_EDIT_UNAPPROVED right is a
+  // backend-only check — worst case an ungranted Manager sees this button and gets a 403).
+  const canEditDay = role === 'ADMIN' || (role === 'MANAGER' && !dayHasApprovedRecord);
+  const canDeleteDay = role === 'ADMIN';
+  const canApproveDay = role === 'ADMIN' && dayRecordCount > 0 && !dayFullyApproved;
+
+  const [confirmApproveOpen, setConfirmApproveOpen] = useState(false);
+  const [approvingDay, setApprovingDay] = useState(false);
+
+  const handleApproveDay = async () => {
+    setApprovingDay(true);
+    try {
+      const targets = [
+        ...(extruderData?.data ?? []).filter((r) => !r.isApproved).map((r) => ({ path: '/production/extruder', id: r.id })),
+        ...(loomsData?.data ?? []).filter((r) => !r.isApproved).map((r) => ({ path: '/production/looms', id: r.id })),
+        ...(fabricData?.data ?? []).filter((r) => !r.isApproved).map((r) => ({ path: '/fabric-checking', id: r.id })),
+      ];
+      const results = await Promise.all(targets.map(({ path, id }) => apiFetch(`${path}/${id}/approve`, { method: 'PATCH' })));
+      if (results.some((r) => !r.ok)) throw new Error('Failed to approve one or more entries');
+
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: extruderKeys.all }),
+        queryClient.invalidateQueries({ queryKey: loomsKeys.all }),
+        queryClient.invalidateQueries({ queryKey: fabricCheckingKeys.all }),
+      ]);
+      setConfirmApproveOpen(false);
+    } catch (error) {
+      console.error('Error approving day entries:', error);
+    } finally {
+      setApprovingDay(false);
+    }
+  };
+
   const { setHeaderRight } = useProductionHeader();
   const [confirmDeleteOpen, setConfirmDeleteOpen] = useState(false);
   const [deletingDay, setDeletingDay] = useState(false);
@@ -258,27 +310,49 @@ function DayDetailView({
         <div className="flex items-center gap-2 mr-4">
           <Calendar className="w-[18px] h-[18px] text-[#004D40]" />
           <span className="text-[15px] font-bold text-[#004D40]">{formattedDate}</span>
+          {dayRecordCount > 0 && (
+            <span
+              className={`inline-flex items-center rounded-full px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide ${dayFullyApproved ? 'bg-emerald-50 text-emerald-700' : 'bg-amber-50 text-amber-700'
+                }`}
+            >
+              {dayFullyApproved ? 'Approved' : 'Pending Approval'}
+            </span>
+          )}
         </div>
-        <Button
-          variant="outline"
-          size="sm"
-          className="h-[34px] px-4 text-[#00897B] border-[#00897B]/20 font-bold uppercase tracking-wider text-[11px] gap-2 hover:bg-[#00897B]/5 bg-white"
-          onClick={() => navigate(`/production/new-entry?date=${date}&from=details`)}
-        >
-          <Edit className="w-3.5 h-3.5" /> EDIT ENTRY
-        </Button>
-        <Button
-          variant="outline"
-          size="icon"
-          className="h-[34px] w-[34px] text-red-400 border-red-100 hover:bg-red-50 bg-white"
-          onClick={() => setConfirmDeleteOpen(true)}
-        >
-          <Trash2 className="w-4 h-4" />
-        </Button>
+        {canApproveDay && (
+          <Button
+            variant="outline"
+            size="sm"
+            className="h-[34px] px-4 text-[#004D40] border-[#004D40]/20 font-bold uppercase tracking-wider text-[11px] gap-2 hover:bg-[#004D40]/5 bg-white"
+            onClick={() => setConfirmApproveOpen(true)}
+          >
+            <CheckCircle2 className="w-3.5 h-3.5" /> APPROVE
+          </Button>
+        )}
+        {canEditDay && (
+          <Button
+            variant="outline"
+            size="sm"
+            className="h-[34px] px-4 text-[#00897B] border-[#00897B]/20 font-bold uppercase tracking-wider text-[11px] gap-2 hover:bg-[#00897B]/5 bg-white"
+            onClick={() => navigate(`/production/new-entry?date=${date}&from=details`)}
+          >
+            <Edit className="w-3.5 h-3.5" /> EDIT ENTRY
+          </Button>
+        )}
+        {canDeleteDay && (
+          <Button
+            variant="outline"
+            size="icon"
+            className="h-[34px] w-[34px] text-red-400 border-red-100 hover:bg-red-50 bg-white"
+            onClick={() => setConfirmDeleteOpen(true)}
+          >
+            <Trash2 className="w-4 h-4" />
+          </Button>
+        )}
       </div>
     );
     return () => setHeaderRight(null);
-  }, [setHeaderRight, formattedDate, date, navigate, setConfirmDeleteOpen]);
+  }, [setHeaderRight, formattedDate, date, navigate, setConfirmDeleteOpen, setConfirmApproveOpen, canEditDay, canDeleteDay, canApproveDay, dayRecordCount, dayFullyApproved]);
 
   const handleDeleteDay = async () => {
     setDeletingDay(true);
@@ -491,6 +565,14 @@ function DayDetailView({
         isPending={deletingDay}
         onConfirm={handleDeleteDay}
       />
+      <ApproveConfirmDialog
+        open={confirmApproveOpen}
+        onOpenChange={setConfirmApproveOpen}
+        title="Approve this day's entries?"
+        description={`Approves every not-yet-approved Extruder, Looms, and Fabric Checking record for ${formattedDate}. Once approved, a Manager can no longer edit them — this cannot be undone.`}
+        isPending={approvingDay}
+        onConfirm={handleApproveDay}
+      />
     </>
   );
 }
@@ -506,6 +588,14 @@ export function ProductionDesign2() {
       navigate(location.pathname, { replace: true, state: {} });
     }
   }, [location, navigate]);
+
+  const { user } = useAuth();
+  // Aggregated day-wise rows here have no per-record isApproved data (that lives on the
+  // individual Extruder/Looms/Fabric Checking records) — gate by role only; the Detail view
+  // (DayDetailView above) is where approval-aware edit gating actually happens.
+  const role = user?.kind === 'company-user' ? user.role : null;
+  const canEditProduction = role === 'ADMIN' || role === 'MANAGER';
+  const canDeleteProduction = role === 'ADMIN';
 
   const [isNavigating, setIsNavigating] = useState(false);
   const [isReportOpen, setIsReportOpen] = useState(false);
@@ -930,6 +1020,7 @@ export function ProductionDesign2() {
                                 size="icon"
                                 className="h-6 w-6 rounded-md border-[#004D40]/30 text-[#004D40] hover:bg-[#004D40]/10"
                                 onClick={() => navigate(`/production/new-entry?date=${row.date}`)}
+                                disabled={canEditProduction}
                               >
                                 <Edit className="h-[14px] w-[14px]" />
                               </Button>
@@ -938,6 +1029,7 @@ export function ProductionDesign2() {
                                 size="icon"
                                 className="h-6 w-6 rounded-md border-red-200 text-red-600 hover:bg-red-50"
                                 onClick={() => setDeleteTargetDate(row.date)}
+                                disabled={!canDeleteProduction}
                               >
                                 <Trash2 className="h-[14px] w-[14px]" />
                               </Button>

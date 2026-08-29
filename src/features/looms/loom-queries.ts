@@ -11,11 +11,10 @@ export interface LoomDetail {
 }
 
 /**
- * Matches the real API's LoomsProduction schema (see /api/docs). Unlike
- * Extruder, this stage has no edit/approve/reject endpoints yet — only
- * create/list/get — so there's no update payload type here. loomsWasteKg is
- * NOT a field on `loom` — it's stored as a separate WastageRecord in
- * `wastages` (code LOOMS_WASTE).
+ * Matches the real API's LoomsProduction schema (see /api/docs). loomsWasteKg
+ * is NOT a field on `loom` — it's stored as a separate WastageRecord in
+ * `wastages` (code LOOMS_WASTE). isApproved/approvedAt/approvedBy back the
+ * ADMIN-only approve action (PATCH /production/looms/:id/approve).
  */
 export interface LoomsProductionItem {
   id: string;
@@ -28,6 +27,9 @@ export interface LoomsProductionItem {
   size: MasterDataRef;
   loom: LoomDetail;
   wastages: WastageRecordSummary[];
+  isApproved: boolean;
+  approvedAt: string | null;
+  approvedBy: string | null;
   createdAt: string;
   createdBy: string;
   updatedAt: string;

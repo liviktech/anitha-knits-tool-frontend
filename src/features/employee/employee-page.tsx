@@ -27,7 +27,7 @@ export interface EmployeeRecord {
 }
 
 import { useEmployees, useCreateEmployee, useUpdateEmployee, useDeleteEmployee } from './employee-queries';
-import type { Employee } from './employee-queries';
+import type { Employee, ManagedRole } from './employee-queries';
 
 function formatCurrency(num: number) {
   return new Intl.NumberFormat('en-IN', {
@@ -56,6 +56,18 @@ function todayIso() {
 function todayFormatted() {
   const date = new Date();
   return `Today, ${date.getDate()} ${date.toLocaleString('en-US', { month: 'short' })}`;
+}
+
+function roleLabel(role: ManagedRole) {
+  if (role === 'MANAGER') return 'Manager';
+  if (role === 'SUPERVISOR') return 'Supervisor';
+  return 'Employee';
+}
+
+function roleBadgeClass(role: ManagedRole) {
+  if (role === 'MANAGER') return 'bg-blue-50 text-blue-700 border-blue-200';
+  if (role === 'SUPERVISOR') return 'bg-purple-50 text-purple-700 border-purple-200';
+  return 'bg-slate-100 text-slate-700 border-slate-200';
 }
 
 const MAX_UPLOAD_SIZE_BYTES = 3 * 1024 * 1024;
@@ -178,6 +190,7 @@ const EmployeeDirectoryTab = forwardRef<EmployeeDirectoryTabRef>((_props, ref) =
 
   const [searchQuery, setSearchQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState<string>('ALL');
+  const [roleFilter, setRoleFilter] = useState<string>('ALL');
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(10);
 
@@ -190,6 +203,8 @@ const EmployeeDirectoryTab = forwardRef<EmployeeDirectoryTabRef>((_props, ref) =
   // Form input states
   const [formId, setFormId] = useState('');
   const [formName, setFormName] = useState('');
+  const [formRole, setFormRole] = useState<ManagedRole>('EMPLOYEE');
+  const [formPassword, setFormPassword] = useState('');
   const [formDesignation, setFormDesignation] = useState('');
   const [formMobile, setFormMobile] = useState('');
   const [formAadhar, setFormAadhar] = useState('');
@@ -216,6 +231,11 @@ const EmployeeDirectoryTab = forwardRef<EmployeeDirectoryTabRef>((_props, ref) =
     if (hasAttemptedSubmit && !formMobile.trim()) errs.mobile = "Mobile number is required";
     else if (formMobile !== '' && !/^\+?\d{10,12}$/.test(formMobile.replace(/\s/g, ''))) errs.mobile = "Invalid mobile number";
 
+    if (!editingEmployee) {
+      if (hasAttemptedSubmit && !formPassword) errs.password = "Password is required";
+      else if (formPassword !== '' && formPassword.length < 8) errs.password = "Password must be at least 8 characters";
+    }
+
     if (hasAttemptedSubmit && !formAadhar.trim()) errs.aadhar = "Aadhar number is required";
     else if (formAadhar !== '' && !/^\d{12}$/.test(formAadhar.replace(/\s/g, ''))) errs.aadhar = "Aadhar must be exactly 12 digits";
 
@@ -226,7 +246,7 @@ const EmployeeDirectoryTab = forwardRef<EmployeeDirectoryTabRef>((_props, ref) =
     if (hasAttemptedSubmit && (!formSalary || isNaN(parsedSalary) || parsedSalary < 0)) errs.salary = "Valid salary is required";
 
     return errs;
-  }, [formName, formDesignation, formMobile, formAadhar, formAddress, formSalary, hasAttemptedSubmit]);
+  }, [formName, formDesignation, formMobile, formPassword, formAadhar, formAddress, formSalary, hasAttemptedSubmit, editingEmployee]);
 
 
   // KPI Calculations
@@ -255,10 +275,11 @@ const EmployeeDirectoryTab = forwardRef<EmployeeDirectoryTabRef>((_props, ref) =
 
       const statusStr = emp.isActive ? 'Active' : 'Inactive';
       const matchesStatus = statusFilter === 'ALL' || statusStr === statusFilter;
+      const matchesRole = roleFilter === 'ALL' || emp.role === roleFilter;
 
-      return matchesSearch && matchesStatus;
+      return matchesSearch && matchesStatus && matchesRole;
     });
-  }, [employees, searchQuery, statusFilter]);
+  }, [employees, searchQuery, statusFilter, roleFilter]);
 
   useEffect(() => {
     setPage(1);
@@ -275,6 +296,8 @@ const EmployeeDirectoryTab = forwardRef<EmployeeDirectoryTabRef>((_props, ref) =
     setEditingEmployee(null);
     setFormId('');
     setFormName('');
+    setFormRole('EMPLOYEE');
+    setFormPassword('');
     setFormDesignation('');
     setFormMobile('');
     setFormAadhar('');
@@ -296,6 +319,8 @@ const EmployeeDirectoryTab = forwardRef<EmployeeDirectoryTabRef>((_props, ref) =
     setEditingEmployee(emp);
     setFormId(emp.employeeDetails?.customUserId || emp.id);
     setFormName(emp.name || '');
+    setFormRole(emp.role);
+    setFormPassword('');
     setFormDesignation(emp.employeeDetails?.designation || '');
     setFormMobile(emp.mobile);
     setFormAadhar(emp.employeeDetails?.aadhaarNumber || '');
@@ -316,7 +341,7 @@ const EmployeeDirectoryTab = forwardRef<EmployeeDirectoryTabRef>((_props, ref) =
   const handleSaveEmployee = async () => {
     setHasAttemptedSubmit(true);
     setFormError(null);
-    
+
     if (Object.keys(fieldErrors).length > 0) {
       setFormError('Please fix the errors in the form before saving.');
       return;
@@ -344,12 +369,18 @@ const EmployeeDirectoryTab = forwardRef<EmployeeDirectoryTabRef>((_props, ref) =
           data: { ...payload, photo: formPhoto, aadhaarFile: formAadharFile },
         });
       } else {
-        await createEmployee.mutateAsync({ ...payload, photo: formPhoto, aadhaarFile: formAadharFile });
+        await createEmployee.mutateAsync({
+          ...payload,
+          role: formRole,
+          password: formPassword,
+          photo: formPhoto,
+          aadhaarFile: formAadharFile,
+        });
       }
       setIsFormOpen(false);
     } catch (err) {
       console.error('Save failed:', err);
-      setFormError('Failed to save employee. Please try again.');
+      setFormError(err instanceof Error ? err.message : 'Failed to save employee. Please try again.');
     } finally {
       setIsSaving(false);
     }
@@ -428,6 +459,19 @@ const EmployeeDirectoryTab = forwardRef<EmployeeDirectoryTabRef>((_props, ref) =
               />
             </div>
 
+            {/* Role Dropdown Filter */}
+            <Select value={roleFilter} onValueChange={setRoleFilter}>
+              <SelectTrigger className="h-8 w-32 bg-gray-50/50 border-gray-400 text-sm rounded-lg font-hanken">
+                <SelectValue placeholder="Role" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="ALL">All Roles</SelectItem>
+                <SelectItem value="EMPLOYEE">Employee</SelectItem>
+                <SelectItem value="MANAGER">Manager</SelectItem>
+                <SelectItem value="SUPERVISOR">Supervisor</SelectItem>
+              </SelectContent>
+            </Select>
+
             {/* Status Dropdown Filter */}
             <Select value={statusFilter} onValueChange={setStatusFilter}>
               <SelectTrigger className="h-8 w-32 bg-gray-50/50 border-gray-400 text-sm rounded-lg font-hanken">
@@ -452,6 +496,9 @@ const EmployeeDirectoryTab = forwardRef<EmployeeDirectoryTabRef>((_props, ref) =
                 </TableHead>
                 <TableHead className="text-sm font-semibold tracking-wide text-gray-800 min-w-[150px]">
                   Name
+                </TableHead>
+                <TableHead className="text-sm font-semibold tracking-wide text-gray-800 min-w-[110px]">
+                  Role
                 </TableHead>
                 <TableHead className="text-sm font-semibold tracking-wide text-gray-800 min-w-[150px]">
                   Designation
@@ -496,6 +543,11 @@ const EmployeeDirectoryTab = forwardRef<EmployeeDirectoryTabRef>((_props, ref) =
                   </TableCell>
                   <TableCell className="py-3 text-sm font-semibold text-gray-900 whitespace-nowrap">
                     {emp.name || '-'}
+                  </TableCell>
+                  <TableCell className="text-sm whitespace-nowrap">
+                    <span className={`inline-flex items-center rounded-full px-2 py-0.5 text-[11px] font-medium border ${roleBadgeClass(emp.role)}`}>
+                      {roleLabel(emp.role)}
+                    </span>
                   </TableCell>
                   <TableCell className="text-sm text-gray-700 whitespace-nowrap">
                     {emp.employeeDetails?.designation || '-'}
@@ -590,166 +642,203 @@ const EmployeeDirectoryTab = forwardRef<EmployeeDirectoryTabRef>((_props, ref) =
 
           <div className="flex-1 overflow-y-auto pr-2 -mr-2 pb-2 [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]">
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 py-2">
-            <div className="flex flex-col gap-1.5">
-              <Label htmlFor="emp-id" className="text-xs font-semibold text-gray-700">Employee ID</Label>
-              <Input
-                id="emp-id"
-                placeholder="Auto-generated"
-                value={formId}
-                disabled
-                className="h-9 text-xs"
-              />
-            </div>
+              <div className="flex flex-col gap-1.5">
+                <Label htmlFor="emp-id" className="text-xs font-semibold text-gray-700">Employee ID</Label>
+                <Input
+                  id="emp-id"
+                  placeholder="Auto-generated"
+                  value={formId}
+                  disabled
+                  className="h-9 text-xs"
+                />
+              </div>
 
-            <div className="flex flex-col gap-1.5">
-              <Label htmlFor="emp-name" className={`text-xs font-semibold ${fieldErrors.name ? 'text-red-600' : 'text-gray-700'}`}>Full Name</Label>
-              <Input
-                id="emp-name"
-                placeholder="e.g. Ramesh Kumar"
-                value={formName}
-                onChange={(e) => setFormName(e.target.value)}
-                className={`h-9 text-xs ${fieldErrors.name ? 'border-red-500 focus-visible:ring-red-500' : ''}`}
-              />
-              {fieldErrors.name && <span className="text-[10px] text-red-500">{fieldErrors.name}</span>}
-            </div>
+              <div className="flex flex-col gap-1.5">
+                <Label htmlFor="emp-name" className={`text-xs font-semibold ${fieldErrors.name ? 'text-red-600' : 'text-gray-700'}`}>Full Name</Label>
+                <Input
+                  id="emp-name"
+                  placeholder="e.g. Ramesh Kumar"
+                  value={formName}
+                  onChange={(e) => setFormName(e.target.value)}
+                  className={`h-9 text-xs ${fieldErrors.name ? 'border-red-500 focus-visible:ring-red-500' : ''}`}
+                />
+                {fieldErrors.name && <span className="text-[10px] text-red-500">{fieldErrors.name}</span>}
+              </div>
 
-            <div className="flex flex-col gap-1.5">
-              <Label htmlFor="emp-designation" className={`text-xs font-semibold ${fieldErrors.designation ? 'text-red-600' : 'text-gray-700'}`}>Designation</Label>
-              <Input
-                id="emp-designation"
-                list="designation-list"
-                placeholder="Select or type designation..."
-                value={formDesignation}
-                onChange={(e) => setFormDesignation(e.target.value)}
-                className={`h-9 text-xs ${fieldErrors.designation ? 'border-red-500 focus-visible:ring-red-500' : ''}`}
-                autoComplete="off"
-              />
-              <datalist id="designation-list">
-                <option value="Manager" />
-                <option value="Supervisor" />
-                <option value="Knitting Operator" />
-                <option value="Employee" />
-              </datalist>
-              {fieldErrors.designation && <span className="text-[10px] text-red-500">{fieldErrors.designation}</span>}
-            </div>
+              <div className="flex flex-col gap-1.5">
+                <Label htmlFor="emp-designation" className={`text-xs font-semibold ${fieldErrors.designation ? 'text-red-600' : 'text-gray-700'}`}>Designation</Label>
+                <Input
+                  id="emp-designation"
+                  list="designation-list"
+                  placeholder="Select or type designation..."
+                  value={formDesignation}
+                  onChange={(e) => setFormDesignation(e.target.value)}
+                  className={`h-9 text-xs ${fieldErrors.designation ? 'border-red-500 focus-visible:ring-red-500' : ''}`}
+                  autoComplete="off"
+                />
+                <datalist id="designation-list">
+                  <option value="Manager" />
+                  <option value="Supervisor" />
+                  <option value="Knitting Operator" />
+                  <option value="Employee" />
+                </datalist>
+                {fieldErrors.designation && <span className="text-[10px] text-red-500">{fieldErrors.designation}</span>}
+              </div>
 
-            <div className="flex flex-col gap-1.5">
-              <Label htmlFor="emp-mobile" className={`text-xs font-semibold ${fieldErrors.mobile ? 'text-red-600' : 'text-gray-700'}`}>Mobile Number</Label>
-              <Input
-                id="emp-mobile"
-                placeholder="e.g. +91 98765 43210"
-                value={formMobile}
-                onChange={(e) => setFormMobile(e.target.value)}
-                className={`h-9 text-xs ${fieldErrors.mobile ? 'border-red-500 focus-visible:ring-red-500' : ''}`}
-              />
-              {fieldErrors.mobile && <span className="text-[10px] text-red-500">{fieldErrors.mobile}</span>}
-            </div>
+              <div className="flex flex-col gap-1.5">
+                <Label htmlFor="emp-mobile" className={`text-xs font-semibold ${fieldErrors.mobile ? 'text-red-600' : 'text-gray-700'}`}>Mobile Number</Label>
+                <Input
+                  id="emp-mobile"
+                  placeholder="e.g. +91 98765 43210"
+                  value={formMobile}
+                  onChange={(e) => setFormMobile(e.target.value)}
+                  className={`h-9 text-xs ${fieldErrors.mobile ? 'border-red-500 focus-visible:ring-red-500' : ''}`}
+                />
+                {fieldErrors.mobile && <span className="text-[10px] text-red-500">{fieldErrors.mobile}</span>}
+              </div>
 
-            <div className="flex flex-col gap-1.5">
-              <Label htmlFor="emp-doj" className="text-xs font-semibold text-gray-700">Date of Joining</Label>
-              <Input
-                id="emp-doj"
-                type="date"
-                value={formDoj}
-                onChange={(e) => setFormDoj(e.target.value)}
-                className="h-9 text-xs"
-              />
-            </div>
+              <div className="flex flex-col gap-1.5">
+                <Label htmlFor="emp-role" className="text-xs font-semibold text-gray-700">Role</Label>
+                <Select
+                  value={formRole}
+                  onValueChange={(val) => setFormRole(val as ManagedRole)}
+                  disabled={!!editingEmployee}
+                >
+                  <SelectTrigger id="emp-role" className="w-full h-9 text-xs">
+                    <SelectValue placeholder="Select role" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="EMPLOYEE">Employee</SelectItem>
+                    <SelectItem value="MANAGER">Manager (max 1 active)</SelectItem>
+                    <SelectItem value="SUPERVISOR">Supervisor (max 1 active)</SelectItem>
+                  </SelectContent>
+                </Select>
+                {editingEmployee && (
+                  <span className="text-[10px] text-gray-400">Role can't be changed after creation.</span>
+                )}
+              </div>
 
-            <div className="flex flex-col gap-1.5">
-              <Label htmlFor="emp-salary" className={`text-xs font-semibold ${fieldErrors.salary ? 'text-red-600' : 'text-gray-700'}`}>Monthly Salary (₹)</Label>
-              <Input
-                id="emp-salary"
-                type="number"
-                placeholder="e.g. 25000"
-                value={formSalary}
-                onChange={(e) => setFormSalary(e.target.value)}
-                className={`h-9 text-xs ${fieldErrors.salary ? 'border-red-500 focus-visible:ring-red-500' : ''}`}
-              />
-              {fieldErrors.salary && <span className="text-[10px] text-red-500">{fieldErrors.salary}</span>}
-            </div>
-
-            <div className="flex flex-col gap-1.5">
-              <Label htmlFor="emp-gender" className="text-xs font-semibold text-gray-700">Gender</Label>
-              <Select value={formGender} onValueChange={(val) => setFormGender(val as 'MALE' | 'FEMALE' | 'OTHER')}>
-                <SelectTrigger id="emp-gender" className="w-full h-9 text-xs">
-                  <SelectValue placeholder="Select gender" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="MALE">Male</SelectItem>
-                  <SelectItem value="FEMALE">Female</SelectItem>
-                  <SelectItem value="OTHER">Other</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-
-            <div className="flex flex-col gap-1.5">
-              <Label htmlFor="emp-status" className="text-xs font-semibold text-gray-700">Status</Label>
-              <Select value={formStatus} onValueChange={(val) => setFormStatus(val as 'Active' | 'Inactive')}>
-                <SelectTrigger id="emp-status" className="w-full h-9 text-xs">
-                  <SelectValue placeholder="Select status" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="Active">Active</SelectItem>
-                  <SelectItem value="Inactive">Inactive</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-
-            <div className="flex flex-col gap-1.5">
-              <Label htmlFor="emp-aadhar" className={`text-xs font-semibold ${fieldErrors.aadhar ? 'text-red-600' : 'text-gray-700'}`}>Aadhar Card</Label>
-              <Input
-                id="emp-aadhar"
-                placeholder="e.g. 4521 8890 1234"
-                value={formAadhar}
-                onChange={(e) => setFormAadhar(e.target.value)}
-                className={`h-9 text-xs ${fieldErrors.aadhar ? 'border-red-500 focus-visible:ring-red-500' : ''}`}
-              />
-              {fieldErrors.aadhar && <span className="text-[10px] text-red-500">{fieldErrors.aadhar}</span>}
-            </div>
-
-            <div className="sm:col-span-3 flex flex-col gap-1.5">
-              <Label htmlFor="emp-address" className={`text-xs font-semibold ${fieldErrors.address ? 'text-red-600' : 'text-gray-700'}`}>Residential Address</Label>
-              <Input
-                id="emp-address"
-                placeholder="Door No, Street Name, City..."
-                value={formAddress}
-                onChange={(e) => setFormAddress(e.target.value)}
-                className={`h-9 text-xs ${fieldErrors.address ? 'border-red-500 focus-visible:ring-red-500' : ''}`}
-              />
-              {fieldErrors.address && <span className="text-[10px] text-red-500">{fieldErrors.address}</span>}
-            </div>
-
-            {formError && <p className="sm:col-span-3 text-xs text-red-600 font-medium">{formError}</p>}
-
-            <div className="sm:col-span-3 flex flex-col gap-3 pt-2 border-t border-gray-200">
-              <h3 className="text-xs font-bold uppercase tracking-wide text-gray-700">Uploads</h3>
-              <div className="flex flex-row gap-4">
-                <div className="flex-1">
-                  <FileUploadField
-                    id="emp-photo"
-                    label="Employee Photo"
-                    file={formPhoto}
-                    accept="image/*"
-                    existingUrl={editingEmployee?.employeeDetails?.photoUrl}
-                    isAllowedType={(mimetype) => mimetype.startsWith('image/')}
-                    onChange={setFormPhoto}
+              {!editingEmployee && (
+                <div className="flex flex-col gap-1.5">
+                  <Label htmlFor="emp-password" className={`text-xs font-semibold ${fieldErrors.password ? 'text-red-600' : 'text-gray-700'}`}>Password</Label>
+                  <Input
+                    id="emp-password"
+                    type="password"
+                    placeholder="At least 8 characters"
+                    value={formPassword}
+                    onChange={(e) => setFormPassword(e.target.value)}
+                    className={`h-9 text-xs ${fieldErrors.password ? 'border-red-500 focus-visible:ring-red-500' : ''}`}
+                    autoComplete="new-password"
                   />
+                  {fieldErrors.password && <span className="text-[10px] text-red-500">{fieldErrors.password}</span>}
                 </div>
-                <div className="flex-1">
-                  <FileUploadField
-                    id="emp-aadhar-file"
-                    label="Aadhar Card Upload"
-                    file={formAadharFile}
-                    accept="image/*,.pdf"
-                    existingUrl={editingEmployee?.employeeDetails?.aadhaarDocumentUrl}
-                    isAllowedType={(mimetype) => mimetype.startsWith('image/') || mimetype === 'application/pdf'}
-                    onChange={setFormAadharFile}
-                  />
+              )}
+
+              <div className="flex flex-col gap-1.5">
+                <Label htmlFor="emp-doj" className="text-xs font-semibold text-gray-700">Date of Joining</Label>
+                <Input
+                  id="emp-doj"
+                  type="date"
+                  value={formDoj}
+                  onChange={(e) => setFormDoj(e.target.value)}
+                  className="h-9 text-xs"
+                />
+              </div>
+
+              <div className="flex flex-col gap-1.5">
+                <Label htmlFor="emp-salary" className={`text-xs font-semibold ${fieldErrors.salary ? 'text-red-600' : 'text-gray-700'}`}>Monthly Salary (₹)</Label>
+                <Input
+                  id="emp-salary"
+                  type="number"
+                  placeholder="e.g. 25000"
+                  value={formSalary}
+                  onChange={(e) => setFormSalary(e.target.value)}
+                  className={`h-9 text-xs ${fieldErrors.salary ? 'border-red-500 focus-visible:ring-red-500' : ''}`}
+                />
+                {fieldErrors.salary && <span className="text-[10px] text-red-500">{fieldErrors.salary}</span>}
+              </div>
+
+              <div className="flex flex-col gap-1.5">
+                <Label htmlFor="emp-gender" className="text-xs font-semibold text-gray-700">Gender</Label>
+                <Select value={formGender} onValueChange={(val) => setFormGender(val as 'MALE' | 'FEMALE' | 'OTHER')}>
+                  <SelectTrigger id="emp-gender" className="w-full h-9 text-xs">
+                    <SelectValue placeholder="Select gender" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="MALE">Male</SelectItem>
+                    <SelectItem value="FEMALE">Female</SelectItem>
+                    <SelectItem value="OTHER">Other</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div className="flex flex-col gap-1.5">
+                <Label htmlFor="emp-status" className="text-xs font-semibold text-gray-700">Status</Label>
+                <Select value={formStatus} onValueChange={(val) => setFormStatus(val as 'Active' | 'Inactive')}>
+                  <SelectTrigger id="emp-status" className="w-full h-9 text-xs">
+                    <SelectValue placeholder="Select status" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="Active">Active</SelectItem>
+                    <SelectItem value="Inactive">Inactive</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div className="flex flex-col gap-1.5">
+                <Label htmlFor="emp-aadhar" className={`text-xs font-semibold ${fieldErrors.aadhar ? 'text-red-600' : 'text-gray-700'}`}>Aadhar Card</Label>
+                <Input
+                  id="emp-aadhar"
+                  placeholder="e.g. 4521 8890 1234"
+                  value={formAadhar}
+                  onChange={(e) => setFormAadhar(e.target.value)}
+                  className={`h-9 text-xs ${fieldErrors.aadhar ? 'border-red-500 focus-visible:ring-red-500' : ''}`}
+                />
+                {fieldErrors.aadhar && <span className="text-[10px] text-red-500">{fieldErrors.aadhar}</span>}
+              </div>
+
+              <div className="sm:col-span-3 flex flex-col gap-1.5">
+                <Label htmlFor="emp-address" className={`text-xs font-semibold ${fieldErrors.address ? 'text-red-600' : 'text-gray-700'}`}>Residential Address</Label>
+                <Input
+                  id="emp-address"
+                  placeholder="Door No, Street Name, City..."
+                  value={formAddress}
+                  onChange={(e) => setFormAddress(e.target.value)}
+                  className={`h-9 text-xs ${fieldErrors.address ? 'border-red-500 focus-visible:ring-red-500' : ''}`}
+                />
+                {fieldErrors.address && <span className="text-[10px] text-red-500">{fieldErrors.address}</span>}
+              </div>
+
+              {formError && <p className="sm:col-span-3 text-xs text-red-600 font-medium">{formError}</p>}
+
+              <div className="sm:col-span-3 flex flex-col gap-3 pt-2 border-t border-gray-200">
+                <h3 className="text-xs font-bold uppercase tracking-wide text-gray-700">Uploads</h3>
+                <div className="flex flex-row gap-4">
+                  <div className="flex-1">
+                    <FileUploadField
+                      id="emp-photo"
+                      label="Employee Photo"
+                      file={formPhoto}
+                      accept="image/*"
+                      existingUrl={editingEmployee?.employeeDetails?.photoUrl}
+                      isAllowedType={(mimetype) => mimetype.startsWith('image/')}
+                      onChange={setFormPhoto}
+                    />
+                  </div>
+                  <div className="flex-1">
+                    <FileUploadField
+                      id="emp-aadhar-file"
+                      label="Aadhar Card Upload"
+                      file={formAadharFile}
+                      accept="image/*,.pdf"
+                      existingUrl={editingEmployee?.employeeDetails?.aadhaarDocumentUrl}
+                      isAllowedType={(mimetype) => mimetype.startsWith('image/') || mimetype === 'application/pdf'}
+                      onChange={setFormAadharFile}
+                    />
+                  </div>
                 </div>
               </div>
             </div>
-          </div>
           </div>
 
           <DialogFooter className="shrink-0 border-gray-200 bg-white pt-2">
