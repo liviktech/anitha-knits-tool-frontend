@@ -11,7 +11,8 @@ import { DeleteConfirmDialog } from '@/components/shared/delete-confirm-dialog';
 import { TablePaginationControls, RowsPerPageSelect } from '@/components/shared/table-pagination-controls';
 import { AttendanceTab, type AttendanceTabRef } from './attendance-tab';
 import { useAuth } from '@/features/auth/auth-context';
-import { hasTabAccess } from '@/lib/access';
+import { can, hasTabAccess } from '@/lib/access';
+import { RIGHTS } from '@/lib/permissions';
 
 export interface EmployeeRecord {
   id: string;
@@ -183,6 +184,9 @@ export interface EmployeeDirectoryTabRef {
 }
 
 const EmployeeDirectoryTab = forwardRef<EmployeeDirectoryTabRef>((_props, ref) => {
+  const { user } = useAuth();
+  const canEdit = can(user, RIGHTS.employees.directory.edit);
+  const canDelete = can(user, RIGHTS.employees.directory.delete);
   const { data: employees = [], isLoading } = useEmployees();
   const createEmployee = useCreateEmployee();
   const updateEmployee = useUpdateEmployee();
@@ -581,24 +585,28 @@ const EmployeeDirectoryTab = forwardRef<EmployeeDirectoryTabRef>((_props, ref) =
                   </TableCell>
                   <TableCell className="text-center pr-4">
                     <div className="flex items-center justify-center gap-1.5">
-                      <Button
-                        variant="ghost"
-                        size="icon-sm"
-                        className="h-7 w-7 rounded-full bg-blue-50 text-blue-600 hover:bg-blue-100 cursor-pointer"
-                        aria-label="Edit employee"
-                        onClick={() => openEditModal(emp)}
-                      >
-                        <Edit2 className="h-3.5 w-3.5" />
-                      </Button>
-                      <Button
-                        variant="ghost"
-                        size="icon-sm"
-                        className="h-7 w-7 rounded-full bg-red-50 text-red-600 hover:bg-red-100 cursor-pointer"
-                        aria-label="Delete employee"
-                        onClick={() => setDeleteTarget(emp)}
-                      >
-                        <Trash2 className="h-3.5 w-3.5" />
-                      </Button>
+                      {canEdit && (
+                        <Button
+                          variant="ghost"
+                          size="icon-sm"
+                          className="h-7 w-7 rounded-full bg-blue-50 text-blue-600 hover:bg-blue-100 cursor-pointer"
+                          aria-label="Edit employee"
+                          onClick={() => openEditModal(emp)}
+                        >
+                          <Edit2 className="h-3.5 w-3.5" />
+                        </Button>
+                      )}
+                      {canDelete && (
+                        <Button
+                          variant="ghost"
+                          size="icon-sm"
+                          className="h-7 w-7 rounded-full bg-red-50 text-red-600 hover:bg-red-100 cursor-pointer"
+                          aria-label="Delete employee"
+                          onClick={() => setDeleteTarget(emp)}
+                        >
+                          <Trash2 className="h-3.5 w-3.5" />
+                        </Button>
+                      )}
                     </div>
                   </TableCell>
                 </TableRow>
@@ -894,16 +902,18 @@ const EmployeeDirectoryTab = forwardRef<EmployeeDirectoryTabRef>((_props, ref) =
             <Button variant="outline" size="sm" onClick={() => setViewTarget(null)} className="h-8 text-xs">
               Close
             </Button>
-            <Button
-              size="sm"
-              className="h-8 bg-[#004D40] hover:bg-[#00332a] text-white text-xs font-medium px-4"
-              onClick={() => {
-                if (viewTarget) openEditModal(viewTarget);
-                setViewTarget(null);
-              }}
-            >
-              Edit
-            </Button>
+            {canEdit && (
+              <Button
+                size="sm"
+                className="h-8 bg-[#004D40] hover:bg-[#00332a] text-white text-xs font-medium px-4"
+                onClick={() => {
+                  if (viewTarget) openEditModal(viewTarget);
+                  setViewTarget(null);
+                }}
+              >
+                Edit
+              </Button>
+            )}
           </DialogFooter>
         </DialogContent>
       </Dialog>
@@ -928,6 +938,8 @@ export function EmployeePage() {
   const canSeeDirectory = visibleTabs.includes('directory');
   const canSeeAttendance = visibleTabs.includes('attendance');
   const canSeePayroll = visibleTabs.includes('payroll');
+  const canAddEmployee = can(user, RIGHTS.employees.directory.add);
+  const canMarkAttendance = can(user, RIGHTS.employees.attendance.edit);
 
   const [activeTab, setActiveTab] = useState('directory');
   const directoryRef = useRef<EmployeeDirectoryTabRef>(null);
@@ -962,16 +974,18 @@ export function EmployeePage() {
               <span className="text-sm font-medium text-gray-700">{todayFormatted()}</span>
               <Calendar className="h-4 w-4 text-gray-500" />
             </div>
-            <Button
-              className="flex items-center gap-2 bg-[#004D40] hover:bg-[#00382e] text-white rounded-md px-3 py-2 h-auto text-[12px] font-bold tracking-wide shadow-[0_1px_2px_rgba(0,45,35,0.2)]"
-              onClick={() => attendanceRef.current?.openAddModal()}
-            >
-              <Plus className="w-3 h-3" />
-              ADD ATTENDANCE
-            </Button>
+            {canMarkAttendance && (
+              <Button
+                className="flex items-center gap-2 bg-[#004D40] hover:bg-[#00382e] text-white rounded-md px-3 py-2 h-auto text-[12px] font-bold tracking-wide shadow-[0_1px_2px_rgba(0,45,35,0.2)]"
+                onClick={() => attendanceRef.current?.openAddModal()}
+              >
+                <Plus className="w-3 h-3" />
+                ADD ATTENDANCE
+              </Button>
+            )}
           </div>
         )}
-        {activeTab === 'directory' && canSeeDirectory && (
+        {activeTab === 'directory' && canSeeDirectory && canAddEmployee && (
           <Button
             className="flex items-center gap-2 bg-[#004D40] hover:bg-[#00382e] text-white rounded-md px-3 py-2 h-auto text-[12px] font-bold tracking-wide shadow-[0_1px_2px_rgba(0,45,35,0.2)]"
             onClick={() => directoryRef.current?.openCreateModal()}

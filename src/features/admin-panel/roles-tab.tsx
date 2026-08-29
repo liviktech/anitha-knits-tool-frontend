@@ -19,6 +19,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { DeleteConfirmDialog } from '@/components/shared/delete-confirm-dialog';
 import { Loader } from '@/components/shared/loader';
 import { useEmployees, type Employee } from '@/features/employee/employee-queries';
+import { X, CalendarDays } from 'lucide-react';
 import {
   useCreateRight,
   useCreateRoleAccess,
@@ -272,17 +273,146 @@ interface RoleFormDialogProps {
   serverError?: string | null;
 }
 
-function RoleFormDialog({ open, onOpenChange, initial, rights, onSubmit, isPending, serverError }: RoleFormDialogProps) {
+// function RoleFormDialog({ open, onOpenChange, initial, rights, onSubmit, isPending, serverError }: RoleFormDialogProps) {
+//   const [roleName, setRoleName] = useState('');
+//   const [description, setDescription] = useState('');
+//   const [rightIds, setRightIds] = useState<string[]>([]);
+//   const [formError, setFormError] = useState<string | null>(null);
+//   const isEdit = initial != null;
+
+//   useEffect(() => {
+//     if (open) {
+//       setRoleName(initial?.roleName ?? '');
+//       setDescription(initial?.description ?? '');
+//       setRightIds(initial?.rightIds ?? []);
+//       setFormError(null);
+//     }
+//   }, [open, initial]);
+
+//   const rightsByGroup = useMemo(() => {
+//     const groups = new Map<string, RightRecord[]>();
+//     rights.forEach((r) => {
+//       const key = r.tabName ? `${r.moduleName} › ${r.tabName}` : r.moduleName;
+//       const list = groups.get(key) ?? [];
+//       list.push(r);
+//       groups.set(key, list);
+//     });
+//     return Array.from(groups.entries()).sort(([a], [b]) => a.localeCompare(b));
+//   }, [rights]);
+
+//   const toggleRight = (id: string) => {
+//     setRightIds((prev) => (prev.includes(id) ? prev.filter((r) => r !== id) : [...prev, id]));
+//   };
+
+//   const handleSubmit = async () => {
+//     if (!roleName.trim()) {
+//       setFormError('Please enter a role name.');
+//       return;
+//     }
+//     setFormError(null);
+//     const ok = await onSubmit({ roleName: roleName.trim(), description: description.trim(), rightIds });
+//     if (ok) onOpenChange(false);
+//   };
+
+//   const displayError = formError ?? serverError;
+
+//   return (
+//     <Dialog open={open} onOpenChange={(next) => { if (!isPending) onOpenChange(next); }}>
+//       <DialogContent className="sm:max-w-md">
+//         <DialogHeader>
+//           <DialogTitle>{isEdit ? 'Edit Role' : 'Add Role'}</DialogTitle>
+//         </DialogHeader>
+
+//         <div className="flex flex-col gap-3">
+//           <div className="flex flex-col gap-1">
+//             <Label htmlFor="role-name" className="text-sm font-semibold text-gray-600">Role Name</Label>
+//             <Input
+//               id="role-name"
+//               placeholder="e.g. Production Manager"
+//               value={roleName}
+//               onChange={(e) => setRoleName(e.target.value)}
+//               className="h-8 text-sm"
+//             />
+//           </div>
+
+//           <div className="flex flex-col gap-1">
+//             <Label htmlFor="role-description" className="text-sm font-semibold text-gray-600">Description</Label>
+//             <Input
+//               id="role-description"
+//               placeholder="What can this role do?"
+//               value={description}
+//               onChange={(e) => setDescription(e.target.value)}
+//               className="h-8 text-sm"
+//             />
+//           </div>
+
+//           <div className="flex flex-col gap-1">
+//             <Label className="text-sm font-semibold text-gray-600">Assigned Rights</Label>
+//             <div className="flex max-h-56 flex-col gap-3 overflow-y-auto rounded-lg border border-gray-200 p-3">
+//               {rightsByGroup.length === 0 ? (
+//                 <p className="text-center text-[13px] text-gray-400">No rights configured yet.</p>
+//               ) : (
+//                 rightsByGroup.map(([group, groupRights]) => (
+//                   <div key={group} className="flex flex-col gap-1.5">
+//                     <span className="text-[12px] font-bold uppercase tracking-wide text-gray-400">{group}</span>
+//                     {groupRights.map((r) => (
+//                       <label key={r.id} className="flex items-center gap-2 text-sm text-gray-700">
+//                         <input
+//                           type="checkbox"
+//                           checked={rightIds.includes(r.id)}
+//                           onChange={() => toggleRight(r.id)}
+//                           className="h-3.5 w-3.5 rounded border-gray-300 text-[#004D40] focus:ring-[#004D40]"
+//                         />
+//                         {r.displayName}
+//                       </label>
+//                     ))}
+//                   </div>
+//                 ))
+//               )}
+//             </div>
+//           </div>
+//         </div>
+
+//         {displayError && <p className="text-sm text-red-600">{displayError}</p>}
+
+//         <DialogFooter>
+//           <Button variant="outline" size="sm" onClick={() => onOpenChange(false)} disabled={isPending}>Cancel</Button>
+//           <Button size="sm" className="bg-[#004D40] hover:bg-[#003D33]" onClick={handleSubmit} disabled={isPending}>
+//             {isPending && <Loader size="sm" className="mr-2" />}
+//             {isEdit ? 'Save Changes' : 'Add Role'}
+//           </Button>
+//         </DialogFooter>
+//       </DialogContent>
+//     </Dialog>
+//   );
+// }
+
+
+
+
+function RoleFormDialog({
+  open,
+  onOpenChange,
+  initial,
+  rights,
+  onSubmit,
+  isPending,
+  serverError,
+}: RoleFormDialogProps) {
   const [roleName, setRoleName] = useState('');
-  const [description, setDescription] = useState('');
+  const [effectiveDate, setEffectiveDate] = useState('');
   const [rightIds, setRightIds] = useState<string[]>([]);
   const [formError, setFormError] = useState<string | null>(null);
+
   const isEdit = initial != null;
 
   useEffect(() => {
     if (open) {
       setRoleName(initial?.roleName ?? '');
-      setDescription(initial?.description ?? '');
+      setEffectiveDate(
+        initial?.effectiveDate?.slice(0, 10) ??
+        new Date().toISOString().slice(0, 10)
+      );
       setRightIds(initial?.rightIds ?? []);
       setFormError(null);
     }
@@ -290,17 +420,49 @@ function RoleFormDialog({ open, onOpenChange, initial, rights, onSubmit, isPendi
 
   const rightsByGroup = useMemo(() => {
     const groups = new Map<string, RightRecord[]>();
-    rights.forEach((r) => {
-      const key = r.tabName ? `${r.moduleName} › ${r.tabName}` : r.moduleName;
+
+    rights.forEach((right) => {
+      const key = right.tabName
+        ? `${right.moduleName} › ${right.tabName}`
+        : right.moduleName;
+
       const list = groups.get(key) ?? [];
-      list.push(r);
+      list.push(right);
       groups.set(key, list);
     });
-    return Array.from(groups.entries()).sort(([a], [b]) => a.localeCompare(b));
+
+    return Array.from(groups.entries()).sort(([a], [b]) =>
+      a.localeCompare(b)
+    );
   }, [rights]);
 
   const toggleRight = (id: string) => {
-    setRightIds((prev) => (prev.includes(id) ? prev.filter((r) => r !== id) : [...prev, id]));
+    setRightIds((prev) =>
+      prev.includes(id)
+        ? prev.filter((item) => item !== id)
+        : [...prev, id]
+    );
+  };
+
+  const isGroupSelected = (groupRights: RightRecord[]) =>
+    groupRights.length > 0 &&
+    groupRights.every((right) => rightIds.includes(right.id));
+
+  const isGroupPartiallySelected = (groupRights: RightRecord[]) =>
+    groupRights.some((right) => rightIds.includes(right.id)) &&
+    !isGroupSelected(groupRights);
+
+  const toggleGroup = (groupRights: RightRecord[]) => {
+    const ids = groupRights.map((right) => right.id);
+    const allSelected = ids.every((id) => rightIds.includes(id));
+
+    setRightIds((prev) => {
+      if (allSelected) {
+        return prev.filter((id) => !ids.includes(id));
+      }
+
+      return Array.from(new Set([...prev, ...ids]));
+    });
   };
 
   const handleSubmit = async () => {
@@ -308,77 +470,436 @@ function RoleFormDialog({ open, onOpenChange, initial, rights, onSubmit, isPendi
       setFormError('Please enter a role name.');
       return;
     }
+
+    if (!effectiveDate) {
+      setFormError('Please select an effective date.');
+      return;
+    }
+
     setFormError(null);
-    const ok = await onSubmit({ roleName: roleName.trim(), description: description.trim(), rightIds });
-    if (ok) onOpenChange(false);
+
+    const ok = await onSubmit({
+      roleName: roleName.trim(),
+      effectiveDate,
+      rightIds,
+    });
+
+    if (ok) {
+      onOpenChange(false);
+    }
   };
 
   const displayError = formError ?? serverError;
 
   return (
-    <Dialog open={open} onOpenChange={(next) => { if (!isPending) onOpenChange(next); }}>
-      <DialogContent className="sm:max-w-md">
-        <DialogHeader>
-          <DialogTitle>{isEdit ? 'Edit Role' : 'Add Role'}</DialogTitle>
+    <Dialog
+      open={open}
+      onOpenChange={(next) => {
+        if (!isPending) {
+          onOpenChange(next);
+        }
+      }}
+    >
+      <DialogContent
+        className="
+          !max-w-[1100px]
+          w-[calc(100vw-48px)]
+          h-[calc(100vh-80px)]
+          max-h-[820px]
+          p-0
+          gap-0
+          overflow-hidden
+          rounded-2xl
+          border
+          border-gray-200
+          bg-white
+          shadow-2xl
+        "
+      >
+        {/* =====================================================
+            HEADER
+        ===================================================== */}
+        <DialogHeader
+          className="
+            flex
+            h-[68px]
+            shrink-0
+            flex-row
+            items-center
+            justify-between
+            border-b
+            border-gray-200
+            px-7
+            py-0
+          "
+        >
+          <DialogTitle className="text-[20px] font-bold text-gray-900">
+            {isEdit ? 'Edit Role' : 'Add New Role'}
+          </DialogTitle>
+
+          {/* 
+            IMPORTANT:
+            DialogContent already has a default close button.
+            Hide it and use this one instead.
+          */}
+          <button
+            type="button"
+            onClick={() => onOpenChange(false)}
+            disabled={isPending}
+            className="
+              flex
+              h-9
+              w-9
+              shrink-0
+              items-center
+              justify-center
+              rounded-md
+              bg-red-600
+              text-white
+              transition-colors
+              hover:bg-red-700
+              disabled:opacity-50
+            "
+          >
+            <X className="h-5 w-5" strokeWidth={2.5} />
+          </button>
         </DialogHeader>
 
-        <div className="flex flex-col gap-3">
-          <div className="flex flex-col gap-1">
-            <Label htmlFor="role-name" className="text-sm font-semibold text-gray-600">Role Name</Label>
-            <Input
-              id="role-name"
-              placeholder="e.g. Production Manager"
-              value={roleName}
-              onChange={(e) => setRoleName(e.target.value)}
-              className="h-8 text-sm"
-            />
-          </div>
+        {/* =====================================================
+            BODY
+        ===================================================== */}
+        <div className="min-h-0 flex-1 overflow-y-auto">
+          <div className="px-7 py-5">
+            {/* =================================================
+                TOP FORM
+            ================================================= */}
+            <div className="grid grid-cols-2 gap-5">
+              {/* Role Name */}
+              <div className="space-y-2">
+                <Label
+                  htmlFor="role-name"
+                  className="text-sm font-medium text-slate-700"
+                >
+                  Role Name <span className="text-red-500">*</span>
+                </Label>
 
-          <div className="flex flex-col gap-1">
-            <Label htmlFor="role-description" className="text-sm font-semibold text-gray-600">Description</Label>
-            <Input
-              id="role-description"
-              placeholder="What can this role do?"
-              value={description}
-              onChange={(e) => setDescription(e.target.value)}
-              className="h-8 text-sm"
-            />
-          </div>
+                <Input
+                  id="role-name"
+                  value={roleName}
+                  onChange={(e) => setRoleName(e.target.value)}
+                  placeholder="Enter role name (e.g., Admin, Manager, Viewer)"
+                  disabled={isPending}
+                  className="
+                    h-11
+                    rounded-lg
+                    border-slate-200
+                    px-3
+                    text-sm
+                    shadow-none
+                    placeholder:text-slate-400
+                    focus-visible:border-[#005487]
+                    focus-visible:ring-1
+                    focus-visible:ring-[#005487]
+                  "
+                />
+              </div>
 
-          <div className="flex flex-col gap-1">
-            <Label className="text-sm font-semibold text-gray-600">Assigned Rights</Label>
-            <div className="flex max-h-56 flex-col gap-3 overflow-y-auto rounded-lg border border-gray-200 p-3">
+              {/* Effective Date */}
+              <div className="space-y-2">
+                <Label
+                  htmlFor="effective-date"
+                  className="text-sm font-medium text-slate-700"
+                >
+                  Effective Date <span className="text-red-500">*</span>
+                </Label>
+
+                <div className="relative">
+                  <CalendarDays
+                    className="
+                      pointer-events-none
+                      absolute
+                      left-3
+                      top-1/2
+                      z-10
+                      h-4
+                      w-4
+                      -translate-y-1/2
+                      text-slate-400
+                    "
+                  />
+
+                  <Input
+                    id="effective-date"
+                    type="date"
+                    value={effectiveDate}
+                    onChange={(e) => setEffectiveDate(e.target.value)}
+                    disabled={isPending}
+                    className="
+                      h-11
+                      rounded-lg
+                      border-slate-200
+                      pl-10
+                      text-sm
+                      shadow-none
+                      focus-visible:border-[#005487]
+                      focus-visible:ring-1
+                      focus-visible:ring-[#005487]
+                    "
+                  />
+                </div>
+              </div>
+            </div>
+
+            {/* =================================================
+                SELECTED RIGHTS
+            ================================================= */}
+            <div className="mt-5">
+              <span
+                className="
+                  inline-flex
+                  items-center
+                  rounded-full
+                  border
+                  border-blue-100
+                  bg-blue-50
+                  px-2.5
+                  py-1
+                  text-[12px]
+                  font-bold
+                  tracking-wide
+                  text-blue-600
+                "
+              >
+                {rightIds.length} RIGHTS SELECTED
+              </span>
+            </div>
+
+            {/* =================================================
+                RIGHTS GRID
+            ================================================= */}
+            <div className="mt-5">
               {rightsByGroup.length === 0 ? (
-                <p className="text-center text-[13px] text-gray-400">No rights configured yet.</p>
+                <div
+                  className="
+                    flex
+                    min-h-[180px]
+                    items-center
+                    justify-center
+                    rounded-xl
+                    border
+                    border-dashed
+                    border-gray-200
+                    bg-gray-50
+                  "
+                >
+                  <p className="text-sm text-gray-400">
+                    No rights configured yet.
+                  </p>
+                </div>
               ) : (
-                rightsByGroup.map(([group, groupRights]) => (
-                  <div key={group} className="flex flex-col gap-1.5">
-                    <span className="text-[12px] font-bold uppercase tracking-wide text-gray-400">{group}</span>
-                    {groupRights.map((r) => (
-                      <label key={r.id} className="flex items-center gap-2 text-sm text-gray-700">
-                        <input
-                          type="checkbox"
-                          checked={rightIds.includes(r.id)}
-                          onChange={() => toggleRight(r.id)}
-                          className="h-3.5 w-3.5 rounded border-gray-300 text-[#004D40] focus:ring-[#004D40]"
-                        />
-                        {r.displayName}
-                      </label>
-                    ))}
-                  </div>
-                ))
+                <div className="grid grid-cols-2 gap-5">
+                  {rightsByGroup.map(([group, groupRights]) => {
+                    const selected = isGroupSelected(groupRights);
+                    const partial =
+                      isGroupPartiallySelected(groupRights);
+
+                    return (
+                      <div
+                        key={group}
+                        className="
+                          rounded-xl
+                          border
+                          border-slate-200
+                          bg-white
+                          p-5
+                        "
+                      >
+                        {/* GROUP HEADER */}
+                        <div className="flex items-start justify-between gap-4">
+                          <label className="flex min-w-0 cursor-pointer items-start gap-3">
+                            <input
+                              type="checkbox"
+                              checked={selected}
+                              ref={(element) => {
+                                if (element) {
+                                  element.indeterminate = partial;
+                                }
+                              }}
+                              onChange={() =>
+                                toggleGroup(groupRights)
+                              }
+                              disabled={isPending}
+                              className="
+                                mt-0.5
+                                h-4
+                                w-4
+                                shrink-0
+                                cursor-pointer
+                                rounded
+                                border-gray-300
+                                accent-[#005487]
+                              "
+                            />
+
+                            <span
+                              className="
+                                text-[16px]
+                                font-semibold
+                                leading-5
+                                text-slate-700
+                              "
+                            >
+                              {group}
+                            </span>
+                          </label>
+
+                          <span
+                            className="
+                              shrink-0
+                              rounded-md
+                              bg-slate-100
+                              px-2.5
+                              py-1
+                              text-[11px]
+                              font-semibold
+                              leading-4
+                              text-slate-500
+                            "
+                          >
+                            {groupRights.length}{' '}
+                            {groupRights.length === 1
+                              ? 'right'
+                              : 'rights'}
+                          </span>
+                        </div>
+
+                        {/* RIGHTS */}
+                        <div className="mt-5 space-y-3">
+                          {groupRights.map((right) => (
+                            <label
+                              key={right.id}
+                              className="
+                                flex
+                                cursor-pointer
+                                items-center
+                                gap-3
+                                text-sm
+                                leading-5
+                                text-slate-600
+                              "
+                            >
+                              <input
+                                type="checkbox"
+                                checked={rightIds.includes(right.id)}
+                                onChange={() =>
+                                  toggleRight(right.id)
+                                }
+                                disabled={isPending}
+                                className="
+                                  h-3.5
+                                  w-3.5
+                                  shrink-0
+                                  cursor-pointer
+                                  rounded
+                                  border-gray-300
+                                  accent-[#005487]
+                                "
+                              />
+
+                              <span>{right.displayName}</span>
+                            </label>
+                          ))}
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
               )}
             </div>
           </div>
         </div>
 
-        {displayError && <p className="text-sm text-red-600">{displayError}</p>}
+        {/* =====================================================
+            ERROR
+        ===================================================== */}
+        {displayError && (
+          <div
+            className="
+              shrink-0
+              border-t
+              border-red-100
+              bg-red-50
+              px-7
+              py-2
+            "
+          >
+            <p className="text-sm text-red-600">
+              {displayError}
+            </p>
+          </div>
+        )}
 
-        <DialogFooter>
-          <Button variant="outline" size="sm" onClick={() => onOpenChange(false)} disabled={isPending}>Cancel</Button>
-          <Button size="sm" className="bg-[#004D40] hover:bg-[#003D33]" onClick={handleSubmit} disabled={isPending}>
-            {isPending && <Loader size="sm" className="mr-2" />}
-            {isEdit ? 'Save Changes' : 'Add Role'}
+        {/* =====================================================
+            FOOTER
+        ===================================================== */}
+        <DialogFooter
+          className="
+            flex
+            h-[70px]
+            shrink-0
+            flex-row
+            items-center
+            justify-end
+            gap-3
+            border-t
+            border-gray-200
+            bg-white
+            px-7
+            py-0
+          "
+        >
+          <Button
+            type="button"
+            variant="outline"
+            onClick={() => onOpenChange(false)}
+            disabled={isPending}
+            className="
+              h-11
+              rounded-lg
+              border-gray-300
+              px-5
+              text-sm
+              font-medium
+              text-slate-700
+            "
+          >
+            Cancel
+          </Button>
+
+          <Button
+            type="button"
+            onClick={handleSubmit}
+            disabled={isPending}
+            className="
+              h-11
+              min-w-[165px]
+              rounded-lg
+              bg-[#005487]
+              px-6
+              text-sm
+              font-bold
+              text-white
+              hover:bg-[#004673]
+            "
+          >
+            {isPending && (
+              <Loader
+                size="sm"
+                className="mr-2"
+              />
+            )}
+
+            {isEdit ? 'SAVE CHANGES' : 'CREATE ROLE'}
           </Button>
         </DialogFooter>
       </DialogContent>

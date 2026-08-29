@@ -10,6 +10,7 @@ import { Loader } from '@/components/shared/loader';
 import { DeleteConfirmDialog } from '@/components/shared/delete-confirm-dialog';
 import { ApproveConfirmDialog } from '@/components/shared/approve-confirm-dialog';
 import { useAuth } from '@/features/auth/auth-context';
+import { canCreateProductionRecord, canDeleteProductionRecord, canEditProductionRecord } from '@/lib/production-permissions';
 import { apiFetch, fetchJson } from '@/lib/api-client';
 import extruderIcon from '@/assets/extruder-icon.png';
 import loomsIcon from '@/assets/looms-icon.png';
@@ -237,7 +238,6 @@ function DayDetailView({
   const { setHeaderTitle } = useProductionHeader();
   const row = dayWiseRows.find((r) => r.date === date) || dayWiseRows[0];
   const formattedDate = format(parseISO(date), 'dd MMM, yyyy');
-  const role = user?.kind === 'company-user' ? user.role : null;
 
   const [expandedStages, setExpandedStages] = useState<Record<string, boolean>>({ extruder: true, looms: true, fabric: true, fabricDelivered: true });
   const toggleStage = (key: string) => setExpandedStages((s) => ({ ...s, [key]: !s[key] }));
@@ -252,26 +252,11 @@ function DayDetailView({
   const { data: loomsData } = useLoomsProductions(dateQuery);
   const { data: fabricData } = useFabricCheckingRecords(dateQuery);
 
-  // This view acts on the whole day (every Extruder/Looms/Fabric Checking record for `date`) as
-  // one unit, mirroring the existing bulk Edit/Delete actions below — so the permission ceilings
-  // (backend: productionCeilings.ts) are applied at the same day granularity, not per record.
-  const dayRecordCount = (extruderData?.data.length ?? 0) + (loomsData?.data.length ?? 0) + (fabricData?.data.length ?? 0);
   const dayHasApprovedRecord =
     (extruderData?.data ?? []).some((r) => r.isApproved)
     || (loomsData?.data ?? []).some((r) => r.isApproved)
     || (fabricData?.data ?? []).some((r) => r.isApproved);
-  const dayFullyApproved =
-    dayRecordCount > 0
-    && (extruderData?.data ?? []).every((r) => r.isApproved)
-    && (loomsData?.data ?? []).every((r) => r.isApproved)
-    && (fabricData?.data ?? []).every((r) => r.isApproved);
-
-  // Supervisor never edits/deletes; Manager can edit only while nothing for the day is approved
-  // yet (whether they actually hold the PRODUCTION_DETAILS_EDIT_UNAPPROVED right is a
-  // backend-only check — worst case an ungranted Manager sees this button and gets a 403).
-  const canEditDay = role === 'ADMIN' || (role === 'MANAGER' && !dayHasApprovedRecord);
-  const canDeleteDay = role === 'ADMIN';
-  const canApproveDay = role === 'ADMIN' && dayRecordCount > 0 && !dayFullyApproved;
+  const canEditDay = canEditProductionRecord(user, dayHasApprovedRecord);
 
   const [confirmApproveOpen, setConfirmApproveOpen] = useState(false);
   const [approvingDay, setApprovingDay] = useState(false);
@@ -310,25 +295,7 @@ function DayDetailView({
         <div className="flex items-center gap-2 mr-4">
           <Calendar className="w-[18px] h-[18px] text-[#004D40]" />
           <span className="text-[15px] font-bold text-[#004D40]">{formattedDate}</span>
-          {dayRecordCount > 0 && (
-            <span
-              className={`inline-flex items-center rounded-full px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide ${dayFullyApproved ? 'bg-emerald-50 text-emerald-700' : 'bg-amber-50 text-amber-700'
-                }`}
-            >
-              {dayFullyApproved ? 'Approved' : 'Pending Approval'}
-            </span>
-          )}
         </div>
-        {canApproveDay && (
-          <Button
-            variant="outline"
-            size="sm"
-            className="h-[34px] px-4 text-[#004D40] border-[#004D40]/20 font-bold uppercase tracking-wider text-[11px] gap-2 hover:bg-[#004D40]/5 bg-white"
-            onClick={() => setConfirmApproveOpen(true)}
-          >
-            <CheckCircle2 className="w-3.5 h-3.5" /> APPROVE
-          </Button>
-        )}
         {canEditDay && (
           <Button
             variant="outline"
@@ -339,20 +306,10 @@ function DayDetailView({
             <Edit className="w-3.5 h-3.5" /> EDIT ENTRY
           </Button>
         )}
-        {canDeleteDay && (
-          <Button
-            variant="outline"
-            size="icon"
-            className="h-[34px] w-[34px] text-red-400 border-red-100 hover:bg-red-50 bg-white"
-            onClick={() => setConfirmDeleteOpen(true)}
-          >
-            <Trash2 className="w-4 h-4" />
-          </Button>
-        )}
       </div>
     );
     return () => setHeaderRight(null);
-  }, [setHeaderRight, formattedDate, date, navigate, setConfirmDeleteOpen, setConfirmApproveOpen, canEditDay, canDeleteDay, canApproveDay, dayRecordCount, dayFullyApproved]);
+  }, [setHeaderRight, formattedDate, date, navigate, canEditDay]);
 
   const handleDeleteDay = async () => {
     setDeletingDay(true);
@@ -591,16 +548,18 @@ export function ProductionDesign2() {
 
   const { user } = useAuth();
   // Aggregated day-wise rows here have no per-record isApproved data (that lives on the
-  // individual Extruder/Looms/Fabric Checking records) — gate by role only; the Detail view
-  // (DayDetailView above) is where approval-aware edit gating actually happens.
-  const role = user?.kind === 'company-user' ? user.role : null;
-  const canEditProduction = role === 'ADMIN' || role === 'MANAGER';
-  const canDeleteProduction = role === 'ADMIN';
+  // individual Extruder/Looms/Fabric Checking records), so this optimistically assumes
+  // not-yet-approved — the Detail view (DayDetailView above) is where approval-aware edit
+  // gating actually happens, and the backend enforces the real per-record check regardless.
+  const canEditProduction = canEditProductionRecord(user, false);
+  const canDeleteProduction = canDeleteProductionRecord(user);
 
   const [isNavigating, setIsNavigating] = useState(false);
   const [isReportOpen, setIsReportOpen] = useState(false);
   const [deleteTargetDate, setDeleteTargetDate] = useState<string | null>(null);
   const [deletingDate, setDeletingDate] = useState(false);
+  const [approveTargetDate, setApproveTargetDate] = useState<string | null>(null);
+  const [approvingDate, setApprovingDate] = useState(false);
   const [editingLoadSent, setEditingLoadSent] = useState<LoadSentRecord | null>(null);
   const [filterDate, setFilterDate] = useState<Date>(new Date());
   const monthStr = format(filterDate, 'yyyy-MM');
@@ -647,6 +606,41 @@ export function ProductionDesign2() {
     }
   };
 
+  // Approves every not-yet-approved Extruder/Looms/Fabric Checking record for one date — the
+  // day-wise table only has aggregated totals for each row, not record ids, so this fetches
+  // the real records for that date first, then approves each unapproved one.
+  const handleApproveDate = async () => {
+    if (!approveTargetDate) return;
+    setApprovingDate(true);
+    try {
+      const dateQuery = `?date_from=${approveTargetDate}&date_to=${approveTargetDate}&limit=100`;
+      const [extruderRes, loomsRes, fabricRes] = await Promise.all([
+        fetchJson<{ data: { id: string; isApproved: boolean }[] }>(`/production/extruder${dateQuery}`),
+        fetchJson<{ data: { id: string; isApproved: boolean }[] }>(`/production/looms${dateQuery}`),
+        fetchJson<{ data: { id: string; isApproved: boolean }[] }>(`/fabric-checking${dateQuery}`),
+      ]);
+
+      const results = await Promise.all([
+        ...extruderRes.data.filter((r) => !r.isApproved).map((r) => apiFetch(`/production/extruder/${r.id}/approve`, { method: 'PATCH' })),
+        ...loomsRes.data.filter((r) => !r.isApproved).map((r) => apiFetch(`/production/looms/${r.id}/approve`, { method: 'PATCH' })),
+        ...fabricRes.data.filter((r) => !r.isApproved).map((r) => apiFetch(`/fabric-checking/${r.id}/approve`, { method: 'PATCH' })),
+      ]);
+      if (results.some((r) => !r.ok)) throw new Error('Failed to approve one or more entries');
+
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: extruderKeys.all }),
+        queryClient.invalidateQueries({ queryKey: loomsKeys.all }),
+        queryClient.invalidateQueries({ queryKey: fabricCheckingKeys.all }),
+        queryClient.invalidateQueries({ queryKey: dashboardProductionKey }),
+      ]);
+      setApproveTargetDate(null);
+    } catch (error) {
+      console.error('Error approving day entries:', error);
+    } finally {
+      setApprovingDate(false);
+    }
+  };
+
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(10);
   const totalPages = Math.max(1, Math.ceil(dayWiseRows.length / pageSize));
@@ -682,13 +676,15 @@ export function ProductionDesign2() {
               className="h-9 w-40 bg-white border border-gray-400 rounded-md px-3 py-2 text-sm font-semibold text-[#003140] shadow-[0_1px_2px_rgba(0,0,0,0.05)] hover:bg-gray-50 focus-visible:ring-1 focus-visible:ring-[#004D40]"
             />
           </div>
-          <Button
-            className="flex items-center gap-2 bg-[#004D40] hover:bg-[#00382e] text-white rounded-md px-3 py-2 h-auto text-[12px] font-bold tracking-wide shadow-[0_1px_2px_rgba(0,45,35,0.2)] cursor-pointer"
-            onClick={() => navigate('/production/new-entry')}
-          >
-            <Plus className="w-3 h-3" />
-            ADD NEW ENTRY
-          </Button>
+          {canCreateProductionRecord(user) && (
+            <Button
+              className="flex items-center gap-2 bg-[#004D40] hover:bg-[#00382e] text-white rounded-md px-3 py-2 h-auto text-[12px] font-bold tracking-wide shadow-[0_1px_2px_rgba(0,45,35,0.2)] cursor-pointer"
+              onClick={() => navigate('/production/new-entry')}
+            >
+              <Plus className="w-3 h-3" />
+              ADD NEW ENTRY
+            </Button>
+          )}
         </>
       );
     }
@@ -698,7 +694,7 @@ export function ProductionDesign2() {
       setShowBackButton(false);
       setOnBackClick(undefined);
     };
-  }, [setHeaderRight, setShowBackButton, setOnBackClick, navigate, selectedDate, filterDate]);
+  }, [setHeaderRight, setShowBackButton, setOnBackClick, navigate, selectedDate, filterDate, user]);
 
   if (loadingDayWise) {
     return (
@@ -907,25 +903,25 @@ export function ProductionDesign2() {
                     <TableHead colSpan={3} className="w-[22%] text-[#0B5566] font-bold bg-[#D6EEF7] border-r border-gray-300 py-2 text-xs uppercase tracking-wider">
                       <span className="flex items-center justify-center gap-2 text-[13px] font-extrabold">
                         {/* <span className="bg-[#0B5566] text-white w-5 h-5 rounded-sm flex items-center justify-center text-[10px] font-bold">1</span> */}
-                        EXTRUDER PRODUCTION 
+                        EXTRUDER PRODUCTION
                       </span>
                     </TableHead>
                     <TableHead colSpan={3} className="w-[22%] text-[#7A6A00] font-bold bg-[#FFF6BF] border-r border-gray-300 py-2 text-xs uppercase tracking-wider">
                       <span className="flex items-center justify-center gap-2 text-[13px] font-extrabold">
                         {/* <span className="bg-[#7A6A00] text-white w-5 h-5 rounded-sm flex items-center justify-center text-[10px] font-bold">2</span> */}
-                        LOOMS PRODUCTION 
+                        LOOMS PRODUCTION
                       </span>
                     </TableHead>
                     <TableHead colSpan={3} className="w-[22%] text-[#2F6B2F] font-bold bg-[#DCEEDB] border-r border-gray-300 py-2 text-xs uppercase tracking-wider">
                       <span className="flex items-center justify-center gap-2 text-[13px] font-extrabold">
                         {/* <span className="bg-[#2F6B2F] text-white w-5 h-5 rounded-sm flex items-center justify-center text-[10px] font-bold">3</span> */}
-                        FABRIC PRODUCTION 
+                        FABRIC PRODUCTION
                       </span>
                     </TableHead>
                     <TableHead colSpan={3} className="w-[22%] text-[#61401E] font-bold bg-[#f2caa0] border-r border-gray-300 py-2 text-xs uppercase tracking-wider">
                       <span className="flex items-center justify-center gap-2 text-[13px] font-extrabold">
                         {/* <span className="bg-[#61401E] text-white w-5 h-5 rounded-sm flex items-center justify-center text-[10px] font-bold">4</span> */}
-                        FABRIC DELIVERED 
+                        FABRIC DELIVERED
                       </span>
                     </TableHead>
                     <TableHead rowSpan={2} className="!text-center font-extrabold text-gray-800 align-middle border-gray-300 w-[90px] min-w-[90px] px-1 bg-white text-xs uppercase tracking-wider">Actions</TableHead>
@@ -1006,21 +1002,22 @@ export function ProductionDesign2() {
                           {/* Actions */}
                           <TableCell className="py-1">
                             <div className="flex items-center justify-center gap-2">
-                              <Button
-                                variant="outline"
-                                size="icon"
-                                className="h-6 w-6 rounded-md border-emerald-200 text-emerald-600 opacity-50 cursor-not-allowed"
-                                disabled
-                                title="Approval coming soon"
-                              >
-                                <CheckCircle2 className="h-[14px] w-[14px]" />
-                              </Button>
+                              {user?.role === 'ADMIN' &&
+                                (<Button
+                                  variant="outline"
+                                  size="icon"
+                                  className="h-6 w-6 rounded-md border-emerald-200 text-emerald-600 "
+                                  onClick={() => setApproveTargetDate(row.date)}
+                                >
+                                  <CheckCircle2 className="h-[14px] w-[14px]" />
+                                </Button>)
+                              }
                               <Button
                                 variant="outline"
                                 size="icon"
                                 className="h-6 w-6 rounded-md border-[#004D40]/30 text-[#004D40] hover:bg-[#004D40]/10"
                                 onClick={() => navigate(`/production/new-entry?date=${row.date}`)}
-                                disabled={canEditProduction}
+                                disabled={!canEditProduction}
                               >
                                 <Edit className="h-[14px] w-[14px]" />
                               </Button>
@@ -1121,6 +1118,18 @@ export function ProductionDesign2() {
         }
         isPending={deletingDate}
         onConfirm={handleDeleteDate}
+      />
+      <ApproveConfirmDialog
+        open={!!approveTargetDate}
+        onOpenChange={(open) => !open && setApproveTargetDate(null)}
+        title="Approve this day's entries?"
+        description={
+          approveTargetDate
+            ? `Approves every not-yet-approved Extruder, Looms, and Fabric Checking record for ${format(parseISO(approveTargetDate), 'dd MMM, yyyy')}. Once approved, a Manager can no longer edit them — this cannot be undone.`
+            : undefined
+        }
+        isPending={approvingDate}
+        onConfirm={handleApproveDate}
       />
       {editingLoadSent && (
         <LoadSentFormDialog

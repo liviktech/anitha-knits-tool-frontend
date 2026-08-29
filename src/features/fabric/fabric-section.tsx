@@ -6,6 +6,8 @@ import { Loader } from '@/components/shared/loader';
 import { TableNoteFooter } from '@/components/shared/table-note-footer';
 import { Edit2, Trash2 } from 'lucide-react';
 import { DeleteConfirmDialog } from '@/components/shared/delete-confirm-dialog';
+import { useAuth } from '@/features/auth/auth-context';
+import { canDeleteProductionRecord, canEditProductionRecord } from '@/lib/production-permissions';
 import { apiFetch, extractApiErrorMessage } from '@/lib/api-client';
 import { sumWastageByCode } from '@/lib/api-types';
 import {
@@ -32,6 +34,7 @@ export interface FabricRow {
   secondGrade: number;
   fwKg: number;
   bwKg: number;
+  isApproved: boolean;
 }
 
 export function mapFabricItem(item: FabricCheckingRecord): FabricRow {
@@ -51,6 +54,7 @@ export function mapFabricItem(item: FabricCheckingRecord): FabricRow {
     secondGrade,
     fwKg: sumWastageByCode(item.wastages, 'FW'),
     bwKg: sumWastageByCode(item.wastages, 'BW'),
+    isApproved: item.isApproved,
   };
 }
 
@@ -76,6 +80,7 @@ export function suggestFabricOutput(draft: Pick<FabricDraft, 'input' | 'fwKg' | 
 
 export const FabricSection = forwardRef<SectionRef, SectionProps>(({ productionDate, readOnly, hideExisting, hideBanner, onEditFabricGroup }, ref) => {
   const queryClient = useQueryClient();
+  const { user } = useAuth();
   const { data, isLoading } = useFabricCheckingRecords(
     productionDate ? `?date_from=${productionDate}&date_to=${productionDate}` : '',
     !hideExisting,
@@ -290,6 +295,7 @@ export const FabricSection = forwardRef<SectionRef, SectionProps>(({ productionD
                     {!readOnly && (
                       <TableCell className="!text-center">
                         <div className="flex items-center justify-center gap-1.5">
+
                           <Button
                             variant="ghost"
                             size="icon-sm"
@@ -305,18 +311,22 @@ export const FabricSection = forwardRef<SectionRef, SectionProps>(({ productionD
                               fwKg: String(row.fwKg),
                               bwKg: String(row.bwKg),
                             })}
+                            disabled={!canEditProductionRecord(user, row.isApproved)}
                           >
                             <Edit2 className="h-3.5 w-3.5" />
                           </Button>
-                          <Button
-                            variant="ghost"
-                            size="icon-sm"
-                            className="rounded-full bg-red-50 text-red-500 hover:bg-red-100"
-                            aria-label="Delete row"
-                            onClick={() => setDeleteTarget(row)}
-                          >
-                            <Trash2 className="h-3.5 w-3.5" />
-                          </Button>
+
+                          {canDeleteProductionRecord(user) && (
+                            <Button
+                              variant="ghost"
+                              size="icon-sm"
+                              className="rounded-full bg-red-50 text-red-500 hover:bg-red-100"
+                              aria-label="Delete row"
+                              onClick={() => setDeleteTarget(row)}
+                            >
+                              <Trash2 className="h-3.5 w-3.5" />
+                            </Button>
+                          )}
                         </div>
                       </TableCell>
                     )}

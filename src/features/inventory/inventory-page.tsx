@@ -10,6 +10,10 @@ import { DeleteConfirmDialog } from '@/components/shared/delete-confirm-dialog';
 import { TablePaginationFooter } from '@/components/shared/table-pagination-footer';
 import { apiFetch } from '@/lib/api-client';
 import { useLookups } from '@/lib/lookups';
+import { useAuth } from '@/features/auth/auth-context';
+import { can } from '@/lib/access';
+import { RIGHTS } from '@/lib/permissions';
+import { canCreateProductionRecord, canDeleteProductionRecord, canEditProductionRecord } from '@/lib/production-permissions';
 import { formatDate, formatDateDisplay } from './inventory-utils';
 import { InventoryFormDialog } from './inventory-form-dialog';
 import { LoadSentFormDialog } from './load-sent-form-dialog';
@@ -34,6 +38,8 @@ import { useFabricCheckingRecords } from '@/features/fabric/fabric-queries';
 
 function InventoryReceiveTab({ onBack }: { onBack: () => void }) {
   const queryClient = useQueryClient();
+  const { user } = useAuth();
+  const canAdd = can(user, RIGHTS.inventory.add);
   const { data, isLoading } = useInventoryRecords('?limit=100');
   const records = data?.data ?? [];
   const totalKg = records.reduce((sum, r) => sum + r.weightKg, 0);
@@ -95,13 +101,15 @@ function InventoryReceiveTab({ onBack }: { onBack: () => void }) {
             <Input type="number" className="h-8 w-28 text-right" value={totalKg.toFixed(2)} readOnly />
             <span className="text-gray-400">kg</span>
           </div>
-          <Button
-            size="sm"
-            className="h-8 gap-1 rounded-full bg-[#004D40] text-white hover:bg-[#00332a]"
-            onClick={openCreate}
-          >
-            <Plus className="h-3 w-3" /> Add received stock
-          </Button>
+          {canAdd && (
+            <Button
+              size="sm"
+              className="h-8 gap-1 rounded-full bg-[#004D40] text-white hover:bg-[#00332a]"
+              onClick={openCreate}
+            >
+              <Plus className="h-3 w-3" /> Add received stock
+            </Button>
+          )}
         </div>
       </div>
 
@@ -202,6 +210,10 @@ function InventoryReceiveTab({ onBack }: { onBack: () => void }) {
 
 function LoadSentTab({ onBack }: { onBack: () => void }) {
   const queryClient = useQueryClient();
+  const { user } = useAuth();
+  const canAdd = canCreateProductionRecord(user);
+  const canEdit = canEditProductionRecord(user, false);
+  const canDelete = canDeleteProductionRecord(user);
   const { data: lookupsData } = useLookups();
   const colors = lookupsData?.colors ?? [];
   const sizes = lookupsData?.sizes ?? [];
@@ -278,13 +290,15 @@ function LoadSentTab({ onBack }: { onBack: () => void }) {
             <span className="font-bold text-gray-900">{totalKg.toFixed(2)}</span>
             <span className="text-xs text-gray-400">kg</span>
           </div>
-          <Button
-            size="sm"
-            className="h-8 gap-1.5 rounded-full bg-orange-600 text-white hover:bg-orange-700 shadow-sm"
-            onClick={openCreate}
-          >
-            <Plus className="h-3.5 w-3.5" /> Add sent stock
-          </Button>
+          {canAdd && (
+            <Button
+              size="sm"
+              className="h-8 gap-1.5 rounded-full bg-orange-600 text-white hover:bg-orange-700 shadow-sm"
+              onClick={openCreate}
+            >
+              <Plus className="h-3.5 w-3.5" /> Add sent stock
+            </Button>
+          )}
         </div>
       </div>
 
@@ -365,12 +379,16 @@ function LoadSentTab({ onBack }: { onBack: () => void }) {
                   <TableCell className="text-center">{getLoadSentWeight(r).toFixed(2)}</TableCell>
                   <TableCell className="text-center">
                     <div className="flex items-center justify-center gap-2">
-                      <Button variant="ghost" size="icon-sm" className="rounded-full bg-blue-50 text-blue-500 hover:bg-blue-100" aria-label="Edit row" onClick={() => openEdit(r)}>
-                        <Edit2 className="h-3.5 w-3.5" />
-                      </Button>
-                      <Button variant="ghost" size="icon-sm" className="rounded-full bg-red-50 text-red-500 hover:bg-red-100" aria-label="Delete row" onClick={() => setDeleteTarget(r)}>
-                        <Trash2 className="h-3.5 w-3.5" />
-                      </Button>
+                      {canEdit && (
+                        <Button variant="ghost" size="icon-sm" className="rounded-full bg-blue-50 text-blue-500 hover:bg-blue-100" aria-label="Edit row" onClick={() => openEdit(r)}>
+                          <Edit2 className="h-3.5 w-3.5" />
+                        </Button>
+                      )}
+                      {canDelete && (
+                        <Button variant="ghost" size="icon-sm" className="rounded-full bg-red-50 text-red-500 hover:bg-red-100" aria-label="Delete row" onClick={() => setDeleteTarget(r)}>
+                          <Trash2 className="h-3.5 w-3.5" />
+                        </Button>
+                      )}
                     </div>
                   </TableCell>
                 </TableRow>
@@ -396,6 +414,9 @@ function LoadSentTab({ onBack }: { onBack: () => void }) {
 /* ---------------------------------------------------------------------- */
 
 function StockSummaryCard({ month, onEditDate, onDeleteDate }: { month: string; onEditDate: (date: string) => void; onDeleteDate: (date: string, records: InventoryRecord[]) => void }) {
+  const { user } = useAuth();
+  const canEdit = can(user, RIGHTS.inventory.edit);
+  const canDelete = can(user, RIGHTS.inventory.delete);
   const { data, isLoading } = useInventoryRecords('?limit=100');
   const { data: lookupsData } = useLookups();
   const records = data?.data ?? [];
@@ -670,12 +691,16 @@ function StockSummaryCard({ month, onEditDate, onDeleteDate }: { month: string; 
                       {totalCols === 0 && <td className="border border-gray-200 px-3 py-1"></td>}
                       <td className="border border-gray-200 px-3 py-1 text-center">
                         <div className="flex items-center justify-center gap-1">
-                          <Button variant="ghost" size="icon-sm" className="h-6 w-6 rounded-full text-blue-600 hover:bg-blue-50" onClick={() => onEditDate(date)}>
-                            <Edit2 className="h-3 w-3" />
-                          </Button>
-                          <Button variant="ghost" size="icon-sm" className="h-6 w-6 rounded-full text-red-600 hover:bg-red-50" onClick={() => onDeleteDate(date, dayRecords)}>
-                            <Trash2 className="h-3 w-3" />
-                          </Button>
+                          {canEdit && (
+                            <Button variant="ghost" size="icon-sm" className="h-6 w-6 rounded-full text-blue-600 hover:bg-blue-50" onClick={() => onEditDate(date)}>
+                              <Edit2 className="h-3 w-3" />
+                            </Button>
+                          )}
+                          {canDelete && (
+                            <Button variant="ghost" size="icon-sm" className="h-6 w-6 rounded-full text-red-600 hover:bg-red-50" onClick={() => onDeleteDate(date, dayRecords)}>
+                              <Trash2 className="h-3 w-3" />
+                            </Button>
+                          )}
                         </div>
                       </td>
                     </tr>
@@ -770,6 +795,8 @@ function InventorySummary({ month, onEditDate }: { month: string; onEditDate: (d
 }
 
 export function InventoryPage() {
+  const { user } = useAuth();
+  const canAddStock = can(user, RIGHTS.inventory.add);
   const [activeView, setActiveView] = useState<'summary' | 'receive' | 'send'>('summary');
   const [month, setMonth] = useState(() => new Date().toISOString().slice(0, 7)); // YYYY-MM
   const [stockFormOpen, setStockFormOpen] = useState(false);
@@ -809,6 +836,7 @@ export function InventoryPage() {
               onChange={(e) => e.target.value && setMonth(e.target.value)}
               className="h-9 w-40 bg-white border border-gray-400 rounded-md px-3 py-2 text-sm font-semibold text-[#003140] shadow-[0_1px_2px_rgba(0,0,0,0.05)] hover:bg-gray-50 focus-visible:ring-1 focus-visible:ring-[#004D40]"
             />
+            {canAddStock && (
             <Button
               className="flex items-center gap-2 bg-[#004D40] hover:bg-[#00382e] text-white rounded-md px-3 py-2 h-auto text-[12px] font-bold tracking-wide shadow-[0_1px_2px_rgba(0,45,35,0.2)]"
               onClick={openAdd}
@@ -816,6 +844,7 @@ export function InventoryPage() {
               <Plus className="w-3 h-3" />
               ADD STOCK
             </Button>
+            )}
           </div>
         )}
       </div>

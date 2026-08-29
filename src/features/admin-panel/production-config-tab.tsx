@@ -207,7 +207,7 @@ export function ProductionConfigTab() {
                 </p>
 
                 <p className="mt-1 text-[16px] font-bold text-gray-900">
-                  {latest.chemicalWeight ?? '—'}
+                  {latest.chemicalWeight?.toPrecision(3) ?? '—'}
                   <span className="ml-1 text-[12px] font-normal text-gray-400">
                     kg
                   </span>
@@ -235,7 +235,7 @@ export function ProductionConfigTab() {
                 </p>
 
                 <p className="mt-1 text-[16px] font-bold text-gray-900">
-                  {latest.blueKgBasis}
+                  {latest.blueKgBasis.toPrecision(2)}
                   <span className="ml-1 text-[12px] font-normal text-gray-400">
                     kg
                   </span>
@@ -249,7 +249,7 @@ export function ProductionConfigTab() {
                 </p>
 
                 <p className="mt-1 text-[16px] font-bold text-gray-900">
-                  {latest.greenKgBasis}
+                  {latest.greenKgBasis.toPrecision(2)}
                   <span className="ml-1 text-[12px] font-normal text-gray-400">
                     kg
                   </span>
@@ -411,20 +411,20 @@ export function ProductionConfigTab() {
                     {/* Blue */}
                     <td className="px-4 py-1.5">
                       <span className="inline-flex rounded-md border border-blue-100 bg-blue-50 px-2 py-1 text-[11px] font-medium text-blue-700">
-                        {item.blueKgBasis} kg
+                        {item.blueKgBasis.toPrecision(2)} kg
                       </span>
                     </td>
 
                     {/* Green */}
                     <td className="px-4 py-1.5">
                       <span className="inline-flex rounded-md border border-green-100 bg-green-50 px-2 py-1 text-[11px] font-medium text-green-700">
-                        {item.greenKgBasis} kg
+                        {item.greenKgBasis.toPrecision(2)} kg
                       </span>
                     </td>
 
                     {/* Chemical */}
                     <td className="px-4 py-1.5 text-[13px] text-gray-700">
-                      {item.chemicalWeight !== null ? `${item.chemicalWeight} kg` : '—'}
+                      {item.chemicalWeight !== null ? `${item.chemicalWeight.toPrecision(3)} kg` : '—'}
                     </td>
 
                     {/* Actions */}
