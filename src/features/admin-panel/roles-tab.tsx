@@ -270,7 +270,7 @@ interface RoleFormDialogProps {
   onOpenChange: (open: boolean) => void;
   initial: RoleAccessRecord | null;
   rights: RightRecord[];
-  onSubmit: (data: { roleName: string; description: string; rightIds: string[] }) => Promise<boolean>;
+  onSubmit: (data: { roleName: string; description: string; effectiveDate?: string; rightIds: string[] }) => Promise<boolean>;
   isPending: boolean;
   serverError?: string | null;
 }
@@ -361,6 +361,7 @@ function RoleFormDialog({
 
     const ok = await onSubmit({
       roleName: roleName.trim(),
+      description: initial?.description ?? '',
       effectiveDate,
       rightIds,
     });

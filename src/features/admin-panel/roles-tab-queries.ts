@@ -42,6 +42,7 @@ export interface RoleAccessRecord {
   id: string;
   roleName: string;
   description: string | null;
+  effectiveDate?: string;
   rightIds: string[];
   createdAt: string;
   updatedAt: string;

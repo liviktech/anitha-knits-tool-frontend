@@ -597,24 +597,28 @@ const EmployeeDirectoryTab = forwardRef<EmployeeDirectoryTabRef>((_props, ref) =
                     </TableCell>
                     <TableCell className="text-center pr-4">
                       <div className="flex items-center justify-center gap-1.5">
-                        <Button
-                          variant="ghost"
-                          size="icon-sm"
-                          className="h-7 w-7 rounded-full bg-blue-50 text-blue-600 hover:bg-blue-100 cursor-pointer"
-                          aria-label="Edit employee"
-                          onClick={() => openEditModal(emp)}
-                        >
-                          <Edit2 className="h-3.5 w-3.5" />
-                        </Button>
-                        <Button
-                          variant="ghost"
-                          size="icon-sm"
-                          className="h-7 w-7 rounded-full bg-red-50 text-red-600 hover:bg-red-100 cursor-pointer"
-                          aria-label="Delete employee"
-                          onClick={() => setDeleteTarget(emp)}
-                        >
-                          <Trash2 className="h-3.5 w-3.5" />
-                        </Button>
+                        {canEdit && (
+                          <Button
+                            variant="ghost"
+                            size="icon-sm"
+                            className="h-7 w-7 rounded-full bg-blue-50 text-blue-600 hover:bg-blue-100 cursor-pointer"
+                            aria-label="Edit employee"
+                            onClick={() => openEditModal(emp)}
+                          >
+                            <Edit2 className="h-3.5 w-3.5" />
+                          </Button>
+                        )}
+                        {canDelete && (
+                          <Button
+                            variant="ghost"
+                            size="icon-sm"
+                            className="h-7 w-7 rounded-full bg-red-50 text-red-600 hover:bg-red-100 cursor-pointer"
+                            aria-label="Delete employee"
+                            onClick={() => setDeleteTarget(emp)}
+                          >
+                            <Trash2 className="h-3.5 w-3.5" />
+                          </Button>
+                        )}
                       </div>
                     </TableCell>
                   </TableRow>
