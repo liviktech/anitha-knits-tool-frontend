@@ -239,7 +239,7 @@ export function EmpExpensesPage() {
   return (
     <div
       id="emp-expenses-layout"
-      className="flex flex-col h-full bg-[#004D40]/5 min-h-full flex-1"
+      className="flex flex-col h-full bg-[#004D40]/5 flex-1 min-h-0"
     >
       <style>{`
         #emp-expenses-layout, #emp-expenses-layout * { font-family: 'Hanken Grotesk Variable', 'Hanken Grotesk', sans-serif !important; }
@@ -276,10 +276,10 @@ export function EmpExpensesPage() {
       </div>
 
       {/* Content Area */}
-      <div className="flex-1 overflow-y-auto relative flex flex-col">
-        <div className="flex flex-col gap-2 p-2">
+      <div className="flex-1 relative flex flex-col min-h-0">
+        <div className="flex flex-col gap-2 p-2 flex-1 min-h-0">
           {/* Top Stat Summary Cards — styled like the Employee tab's summary cards */}
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 shrink-0">
             {/* Total Expenses Card */}
             <div className="bg-white rounded-xl border border-gray-400 shadow-sm p-4 relative overflow-hidden group/card hover:border-emerald-300 transition-colors flex flex-col h-full justify-center">
               <div className="absolute top-0 right-0 p-2 opacity-5 group-hover/card:opacity-10 transition-opacity">
@@ -324,9 +324,9 @@ export function EmpExpensesPage() {
           </div>
 
           {/* Main Table Container — styled like the Employee tab's table */}
-          <div className="rounded-xl border border-gray-400 bg-white shadow-sm overflow-hidden">
+          <div className="rounded-xl border border-gray-400 bg-white shadow-sm overflow-hidden flex-1 flex flex-col min-h-0">
             {/* Header Bar */}
-            <div className="border-b border-emerald-400 p-3 bg-white flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+            <div className="shrink-0 border-b border-emerald-400 p-3 bg-white flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
               <div className="flex items-center gap-3"></div>
 
               <div className="flex flex-wrap items-center gap-2">
@@ -345,10 +345,10 @@ export function EmpExpensesPage() {
             </div>
 
             {/* Data Table */}
-            <div className="overflow-x-auto">
+            <div className="overflow-x-auto overflow-y-auto flex-1 min-h-0">
               <Table>
-                <TableHeader className="bg-emerald-50/30">
-                  <TableRow className="hover:bg-transparent border-b border-emerald-400">
+                <TableHeader className="bg-emerald-50/30 sticky top-0 z-10">
+                  <TableRow className="hover:bg-transparent border-b border-gray-300">
                     <TableHead className="text-sm font-semibold tracking-wide text-gray-800 pl-4 w-[100px] border-r border-gray-300">
                       Expense ID
                     </TableHead>
@@ -416,18 +416,18 @@ export function EmpExpensesPage() {
                     pagedExpenses.map((expense) => (
                       <TableRow
                         key={expense.id}
-                        className="border-b border-emerald-50 last:border-b-0 hover:bg-emerald-50/30 transition-colors"
+                        className="border-b border-gray-300 hover:bg-emerald-50/30 transition-colors"
                       >
-                        <TableCell className="pl-4 text-sm font-bold text-gray-700 whitespace-nowrap border-r border-gray-200">
+                        <TableCell className="pl-4 text-sm font-bold text-gray-700 whitespace-nowrap border-r border-gray-300">
                           {expense.expenseId}
                         </TableCell>
-                        <TableCell className="text-[13px] text-gray-600 whitespace-nowrap border-r border-gray-200">
+                        <TableCell className="text-[13px] text-gray-600 whitespace-nowrap border-r border-gray-300">
                           {formatDateDisplay(expense.date)}
                         </TableCell>
-                        <TableCell className="py-3 text-sm font-semibold text-gray-900 whitespace-nowrap border-r border-gray-200">
+                        <TableCell className="py-3 text-sm font-semibold text-gray-900 whitespace-nowrap border-r border-gray-300">
                           {expense.expenseName}
                         </TableCell>
-                        <TableCell className="text-right pr-6 font-bold text-gray-600 text-sm whitespace-nowrap border-r border-gray-200">
+                        <TableCell className="text-right pr-6 font-bold text-gray-600 text-sm whitespace-nowrap border-r border-gray-300">
                           {formatCurrency(expense.amount)}
                         </TableCell>
                         <TableCell className="text-center pr-4">
@@ -460,7 +460,7 @@ export function EmpExpensesPage() {
             </div>
 
             {/* Table Footer */}
-            <div className="p-3 border-t border-gray-400 bg-emerald-50/20 text-xs text-gray-700 flex flex-wrap justify-between items-center gap-3 px-4">
+            <div className="shrink-0 p-3 border-t border-gray-400 bg-emerald-50/20 text-xs text-gray-700 flex flex-wrap justify-between items-center gap-3 px-4">
               <span>
                 Showing{" "}
                 {totalFiltered === 0 ? 0 : (currentPage - 1) * pageSize + 1}-

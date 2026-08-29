@@ -246,7 +246,7 @@ export function RawMaterialsTab() {
           <div className="overflow-x-auto">
             <table className="w-full min-w-[560px] border-collapse">
               <thead>
-                <tr className="border-b border-emerald-400 bg-emerald-50/30">
+                <tr className="border-b border-emerald-300 bg-emerald-50/30">
                   <th className="px-5 py-3 text-left text-sm font-semibold tracking-wide text-gray-800">Item Code</th>
                   <th className="px-4 py-3 text-left text-sm font-semibold tracking-wide text-gray-800">Name</th>
                   <th className="px-4 py-3 text-right text-sm font-semibold tracking-wide text-gray-800">Last Updated</th>
@@ -263,7 +263,7 @@ export function RawMaterialsTab() {
                   </tr>
                 ) : (
                   selectedItems.map((item) => (
-                    <tr key={item.id} className="group border-b border-emerald-200 last:border-b-0 transition-colors hover:bg-emerald-50/30">
+                    <tr key={item.id} className="group border-b border-emerald-300 last:border-b-0 transition-colors hover:bg-emerald-50/30">
                       <td className="px-5 py-1.5 text-[13px] font-medium text-gray-900">
                         {item.itemCode}
                       </td>

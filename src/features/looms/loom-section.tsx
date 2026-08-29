@@ -211,12 +211,12 @@ export const LoomSection = forwardRef<SectionRef, SectionProps>(({ productionDat
         <Table>
           <TableHeader className={`${theme.headerBg}`}>
             <TableRow className="hover:!bg-transparent border-b-0">
-              <TableHead className={`text-sm !text-center font-semibold tracking-wide border-b border-black/10 ${theme.headerText}`}>Size</TableHead>
-              <TableHead className={`w-37.5 min-w-37.5 text-center text-sm font-semibold  tracking-wide border border-black/10 ${theme.headerText}`}>Color</TableHead>
-              <TableHead className={`text-center text-sm font-semibold  tracking-wide border border-black/10 ${theme.headerText}`}>Loom Production</TableHead>
-              <TableHead className={`text-center text-sm font-semibold  tracking-wide border border-black/10 ${theme.headerText}`}>Looms/Yarn Waste</TableHead>
-              <TableHead className={`text-center text-sm font-semibold  tracking-wide border border-black/10 ${theme.headerText}`}>Fabric production</TableHead>
-              {!readOnly && <TableHead className={`!text-center text-sm font-semibold  tracking-wide border border-black/10 ${theme.headerText}`}>Action</TableHead>}
+              <TableHead className={`text-sm !text-center font-semibold tracking-wide border-b border-gray-300 ${theme.headerText}`}>Size</TableHead>
+              <TableHead className={`w-37.5 min-w-37.5 text-center text-sm font-semibold  tracking-wide border border-gray-300 ${theme.headerText}`}>Color</TableHead>
+              <TableHead className={`text-center text-sm font-semibold  tracking-wide border border-gray-300 ${theme.headerText}`}>Loom Production</TableHead>
+              <TableHead className={`text-center text-sm font-semibold  tracking-wide border border-gray-300 ${theme.headerText}`}>Looms/Yarn Waste</TableHead>
+              <TableHead className={`text-center text-sm font-semibold  tracking-wide border border-gray-300 ${theme.headerText}`}>Fabric production</TableHead>
+              {!readOnly && <TableHead className={`!text-center text-sm font-semibold  tracking-wide border border-gray-300 ${theme.headerText}`}>Action</TableHead>}
             </TableRow>
           </TableHeader>
           <TableBody>
@@ -233,11 +233,11 @@ export const LoomSection = forwardRef<SectionRef, SectionProps>(({ productionDat
                 {!readOnly &&
                   newRows.map((row) => (
                     <TableRow key={row.key} className="bg-orange-50/50">
-                      <TableCell className="!text-center"><span className="font-medium text-gray-700 border border-black/10">{row.size || '-'}</span></TableCell>
-                      <TableCell className="w-37.5 min-w-37.5 text-center"><span className="font-medium text-gray-700 border border-black/10">{row.color || '-'}</span></TableCell>
-                      <TableCell className="text-center border border-black/10">{parseFloat(row.input) > 0 ? parseFloat(row.input).toFixed(2) : '-'}</TableCell>
-                      <TableCell className="text-center border border-black/10">{parseFloat(row.loomsWasteKg) > 0 ? parseFloat(row.loomsWasteKg).toFixed(2) : '-'}</TableCell>
-                      <TableCell className="text-center border border-black/10">{parseFloat(row.output) > 0 ? parseFloat(row.output).toFixed(2) : '-'}</TableCell>
+                      <TableCell className="!text-center"><span className="font-medium text-gray-700 border border-gray-300">{row.size || '-'}</span></TableCell>
+                      <TableCell className="w-37.5 min-w-37.5 text-center"><span className="font-medium text-gray-700 border border-gray-300">{row.color || '-'}</span></TableCell>
+                      <TableCell className="text-center border border-gray-300">{parseFloat(row.input) > 0 ? parseFloat(row.input).toFixed(2) : '-'}</TableCell>
+                      <TableCell className="text-center border border-gray-300">{parseFloat(row.loomsWasteKg) > 0 ? parseFloat(row.loomsWasteKg).toFixed(2) : '-'}</TableCell>
+                      <TableCell className="text-center border border-gray-300">{parseFloat(row.output) > 0 ? parseFloat(row.output).toFixed(2) : '-'}</TableCell>
                       <TableCell className="!text-center">
                         <div className="flex items-center justify-center gap-1.5">
                           <Button variant="ghost" size="icon-sm" disabled={saving} className="rounded-full bg-blue-50 text-blue-500 hover:bg-blue-100" onClick={() => onEditLoomGroup && onEditLoomGroup(row)}>
@@ -252,11 +252,11 @@ export const LoomSection = forwardRef<SectionRef, SectionProps>(({ productionDat
                   ))}
                 {rows.map((row) => (
                   <TableRow key={row.id}>
-                    <TableCell className="!text-center border border-black/10">{row.size}</TableCell>
-                    <TableCell className="w-37.5 min-w-37.5 text-center border border-black/10">{row.color}</TableCell>
-                    <TableCell className="text-center border border-black/10">{row.input.toFixed(2)}</TableCell>
-                    <TableCell className="text-center border border-black/10">{row.loomsWasteKg.toFixed(2)}</TableCell>
-                    <TableCell className="text-center border border-black/10">{row.output.toFixed(2)}</TableCell>
+                    <TableCell className="!text-center border border-gray-300">{row.size}</TableCell>
+                    <TableCell className="w-37.5 min-w-37.5 text-center border border-gray-300">{row.color}</TableCell>
+                    <TableCell className="text-center border border-gray-300">{row.input.toFixed(2)}</TableCell>
+                    <TableCell className="text-center border border-gray-300">{row.loomsWasteKg.toFixed(2)}</TableCell>
+                    <TableCell className="text-center border border-gray-300">{row.output.toFixed(2)}</TableCell>
                     {!readOnly && (
                       <TableCell className="!text-center">
                         <div className="flex items-center justify-center gap-1.5">

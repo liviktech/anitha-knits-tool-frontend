@@ -114,7 +114,7 @@ export function MarkAttendanceModal({ isOpen, onClose, onSave, employees, defaul
             </thead>
             <tbody>
               {filtered.map((emp) => (
-                <tr key={emp.id} className="border-t border-gray-100">
+                <tr key={emp.id} className="border-t border-gray-300">
                   <td className="px-6 py-3 align-top">
                     <div className="font-semibold text-gray-900">{emp.name}</div>
                     <div className="text-xs text-blue-600">{emp.customUserId || emp.id}</div>

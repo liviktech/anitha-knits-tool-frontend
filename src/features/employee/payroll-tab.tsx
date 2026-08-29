@@ -266,46 +266,46 @@ export const PayrollTab = forwardRef<PayrollTabRef>((_, ref) => {
               </div>
             </div>
 
-            <div className="overflow-x-auto flex-1 flex flex-col">
-              <Table className="font-hanken">
-                <TableHeader className="bg-emerald-50/30">
-                  <TableRow className="hover:bg-transparent border-b border-emerald-400">
-                    <TableHead className="text-sm font-semibold tracking-wide text-gray-800 w-[100px] pl-4">Emp ID</TableHead>
-                    <TableHead className="text-sm font-semibold tracking-wide text-gray-800">Name</TableHead>
-                    <TableHead className="text-sm font-semibold tracking-wide text-gray-800 text-right">Base Salary</TableHead>
-                    <TableHead className="text-sm font-semibold tracking-wide text-gray-800 text-center">Days Worked</TableHead>
-                    <TableHead className="text-sm font-semibold tracking-wide text-gray-800 text-right">Gross Pay</TableHead>
-                    <TableHead className="text-sm font-semibold tracking-wide text-gray-800 text-right text-amber-700">Advance Deducted</TableHead>
-                    <TableHead className="text-sm font-semibold tracking-wide text-gray-800 text-right text-blue-700">Market Value Share</TableHead>
-                    <TableHead className="text-sm font-extrabold tracking-wide text-gray-900 text-right pr-4">Net Payable</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {filteredPayroll.map((row) => (
-                    <TableRow key={row.id} className="border-b border-emerald-50 hover:bg-emerald-50/30 transition-colors">
-                      <TableCell className="pl-4 text-sm font-bold text-gray-900">{row.customUserId || row.id}</TableCell>
-                      <TableCell className="text-sm font-semibold text-gray-800">{row.name}</TableCell>
-                      <TableCell className="text-sm text-right">₹{row.baseSalary.toLocaleString()}</TableCell>
-                      <TableCell className="text-sm text-center font-medium bg-gray-50/50">{row.daysWorked}</TableCell>
-                      <TableCell className="text-sm text-right font-semibold text-gray-700">₹{row.grossSalary.toLocaleString()}</TableCell>
-                      <TableCell className="text-sm text-right font-medium text-amber-700">- ₹{row.advanceDeduction.toLocaleString()}</TableCell>
-                      <TableCell className="text-sm text-right font-medium text-blue-700">+ ₹{row.marketValueBonus.toLocaleString()}</TableCell>
-                      <TableCell className="text-sm font-extrabold text-right pr-4 text-emerald-800">₹{row.netSalary.toLocaleString()}</TableCell>
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
-              {isPayrollLoading && (
-                <div className="flex-1 flex items-center justify-center gap-2 text-gray-500 text-md py-8">
-                  <Loader2 className="h-4 w-4 animate-spin" /> Loading payroll data...
-                </div>
-              )}
-              {!isPayrollLoading && filteredPayroll.length === 0 && (
-                <div className="flex-1 flex items-center justify-center text-gray-500 text-md py-8">
-                  No payroll data found matching your criteria.
-                </div>
-              )}
+        <div className="overflow-x-auto flex-1 flex flex-col">
+          <Table className="font-hanken">
+            <TableHeader className="bg-emerald-50/30">
+              <TableRow className="hover:bg-transparent border-b border-emerald-400">
+                <TableHead className="text-sm font-semibold tracking-wide text-gray-800 w-[100px] pl-4">Emp ID</TableHead>
+                <TableHead className="text-sm font-semibold tracking-wide text-gray-800">Name</TableHead>
+                <TableHead className="text-sm font-semibold tracking-wide text-gray-800 text-right">Base Salary</TableHead>
+                <TableHead className="text-sm font-semibold tracking-wide text-gray-800 text-center">Days Worked</TableHead>
+                <TableHead className="text-sm font-semibold tracking-wide text-gray-800 text-right">Gross Salary</TableHead>
+                <TableHead className="text-sm font-semibold tracking-wide text-gray-800 text-right text-amber-700">Advance Deducted</TableHead>
+                <TableHead className="text-sm font-semibold tracking-wide text-gray-800 text-right text-blue-700">Market Value Share</TableHead>
+                <TableHead className="text-sm font-extrabold tracking-wide text-gray-900 text-right pr-4">Net Payable</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {filteredPayroll.map((row) => (
+                <TableRow key={row.id} className="border-b border-emerald-50 hover:bg-emerald-50/30 transition-colors">
+                  <TableCell className="pl-4 text-sm font-bold text-gray-900">{row.customUserId || row.id}</TableCell>
+                  <TableCell className="text-sm font-semibold text-gray-800">{row.name}</TableCell>
+                  <TableCell className="text-sm text-right">₹{row.baseSalary.toLocaleString()}</TableCell>
+                  <TableCell className="text-sm text-center font-medium bg-gray-50/50">{row.daysWorked}</TableCell>
+                  <TableCell className="text-sm text-right font-semibold text-gray-700">₹{row.grossSalary.toLocaleString()}</TableCell>
+                  <TableCell className="text-sm text-right font-medium text-amber-700">- ₹{row.advanceDeduction.toLocaleString()}</TableCell>
+                  <TableCell className="text-sm text-right font-medium text-blue-700">+ ₹{row.marketValueBonus.toLocaleString()}</TableCell>
+                  <TableCell className="text-sm font-extrabold text-right pr-4 text-emerald-800">₹{row.netSalary.toLocaleString()}</TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
+          {isPayrollLoading && (
+            <div className="flex-1 flex items-center justify-center gap-2 text-gray-500 text-md py-8">
+              <Loader2 className="h-4 w-4 animate-spin" /> Loading payroll data...
             </div>
+          )}
+          {!isPayrollLoading && filteredPayroll.length === 0 && (
+            <div className="flex-1 flex items-center justify-center text-gray-500 text-md py-8">
+              No payroll data found matching your criteria.
+            </div>
+          )}
+        </div>
           </div>
         </TabsContent>
 

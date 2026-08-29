@@ -30,7 +30,7 @@ export function SummaryAttendanceModal({ isOpen, onClose, summaryRows, isLoading
           <div className="rounded-xl border border-gray-200 bg-white shadow-sm overflow-hidden">
             <Table>
               <TableHeader className="bg-[#F8F9FA]">
-                <TableRow className="hover:bg-transparent border-b border-gray-200">
+                <TableRow className="hover:bg-transparent border-b border-gray-300">
                   <TableHead className="text-xs font-bold tracking-wider text-gray-500 py-4 px-5">
                     EMP ID
                   </TableHead>
@@ -63,7 +63,7 @@ export function SummaryAttendanceModal({ isOpen, onClose, summaryRows, isLoading
                   </TableRow>
                 ) : (
                   summaryRows.map((row) => (
-                    <TableRow key={row.employeeId} className="border-b border-gray-100 hover:bg-gray-50/50">
+                    <TableRow key={row.employeeId} className="border-b border-gray-300 hover:bg-gray-50/50">
                       <TableCell className="py-3 px-5">
                         <span className="text-sm font-semibold text-blue-600">{row.employeeId}</span>
                       </TableCell>
