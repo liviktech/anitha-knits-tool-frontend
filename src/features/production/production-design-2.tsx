@@ -817,25 +817,25 @@ export function ProductionDesign2() {
                     <TableHead colSpan={3} className="w-[22%] text-[#0B5566] font-bold bg-[#D6EEF7] border-r border-gray-300 py-2 text-xs uppercase tracking-wider">
                       <span className="flex items-center justify-center gap-2 text-[13px] font-extrabold">
                         {/* <span className="bg-[#0B5566] text-white w-5 h-5 rounded-sm flex items-center justify-center text-[10px] font-bold">1</span> */}
-                        EXTRUDER PRODUCTION (KG)
+                        EXTRUDER PRODUCTION 
                       </span>
                     </TableHead>
                     <TableHead colSpan={3} className="w-[22%] text-[#7A6A00] font-bold bg-[#FFF6BF] border-r border-gray-300 py-2 text-xs uppercase tracking-wider">
                       <span className="flex items-center justify-center gap-2 text-[13px] font-extrabold">
                         {/* <span className="bg-[#7A6A00] text-white w-5 h-5 rounded-sm flex items-center justify-center text-[10px] font-bold">2</span> */}
-                        LOOMS PRODUCTION (KG)
+                        LOOMS PRODUCTION 
                       </span>
                     </TableHead>
                     <TableHead colSpan={3} className="w-[22%] text-[#2F6B2F] font-bold bg-[#DCEEDB] border-r border-gray-300 py-2 text-xs uppercase tracking-wider">
                       <span className="flex items-center justify-center gap-2 text-[13px] font-extrabold">
                         {/* <span className="bg-[#2F6B2F] text-white w-5 h-5 rounded-sm flex items-center justify-center text-[10px] font-bold">3</span> */}
-                        FABRIC PRODUCTION (KG)
+                        FABRIC PRODUCTION 
                       </span>
                     </TableHead>
                     <TableHead colSpan={3} className="w-[22%] text-[#61401E] font-bold bg-[#f2caa0] border-r border-gray-300 py-2 text-xs uppercase tracking-wider">
                       <span className="flex items-center justify-center gap-2 text-[13px] font-extrabold">
                         {/* <span className="bg-[#61401E] text-white w-5 h-5 rounded-sm flex items-center justify-center text-[10px] font-bold">4</span> */}
-                        FABRIC DELIVERED (KG)
+                        FABRIC DELIVERED 
                       </span>
                     </TableHead>
                     <TableHead rowSpan={2} className="!text-center font-extrabold text-gray-800 align-middle border-gray-300 w-[90px] min-w-[90px] px-1 bg-white text-xs uppercase tracking-wider">Actions</TableHead>
@@ -890,7 +890,7 @@ export function ProductionDesign2() {
                               }, 500);
                             }}
                           >
-                            {format(parseISO(row.date), 'dd MMM, yyyy')}
+                            {format(parseISO(row.date), 'dd MMM')}
                           </TableCell>
 
                           {/* Extruder */}
@@ -916,6 +916,15 @@ export function ProductionDesign2() {
                           {/* Actions */}
                           <TableCell className="py-1">
                             <div className="flex items-center justify-center gap-2">
+                              <Button
+                                variant="outline"
+                                size="icon"
+                                className="h-6 w-6 rounded-md border-emerald-200 text-emerald-600 opacity-50 cursor-not-allowed"
+                                disabled
+                                title="Approval coming soon"
+                              >
+                                <CheckCircle2 className="h-[14px] w-[14px]" />
+                              </Button>
                               <Button
                                 variant="outline"
                                 size="icon"
@@ -968,9 +977,7 @@ export function ProductionDesign2() {
             {/* Pagination Footer */}
             <div className="flex flex-wrap items-center justify-between gap-3 border-t border-gray-300 p-2 text-sm text-gray-500 bg-white">
               <div className="font-medium text-gray-600 text-xs">
-                {dayWiseRows.length === 0
-                  ? 'No entries'
-                  : `Showing ${Math.min(pageSize, dayWiseRows.length - (currentPage - 1) * pageSize)} of ${dayWiseRows.length} entries`}
+                All weights are measured in Kilogram (KG)
               </div>
               <div className="flex flex-wrap gap-1 items-center">
                 <Button variant="outline" size="icon" className="h-8 w-8 rounded-md border-gray-200 text-gray-600" onClick={() => setPage((p) => Math.max(1, p - 1))} disabled={currentPage <= 1}>&lt;</Button>
