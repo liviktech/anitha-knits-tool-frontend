@@ -37,6 +37,8 @@ import {
   type RoleAccessRecord,
   type TabRecord,
 } from './roles-tab-queries';
+import { CalendarDays } from 'lucide-react';
+
 
 function formatDate(iso: string) {
   const d = new Date(iso);
@@ -176,16 +178,16 @@ function RightFormDialog({ open, onOpenChange, initial, modules, tabs, onSubmit,
 
   return (
     <Dialog open={open} onOpenChange={(next) => { if (!isPending) onOpenChange(next); }}>
-      <DialogContent className="sm:max-w-sm">
-        <DialogHeader>
-          <DialogTitle>{isEdit ? 'Edit Right' : 'Add Right'}</DialogTitle>
+      <DialogContent className="sm:max-w-sm border border-gray-400">
+        <DialogHeader className="-mx-4 -mt-4 mb-2 rounded-t-xl border-b border-gray-200 bg-[#A8DCAB] px-4 py-3">
+          <DialogTitle className="text-lg font-bold text-black">{isEdit ? 'Edit Right' : 'Add Right'}</DialogTitle>
         </DialogHeader>
 
-        <div className="flex flex-col gap-3">
-          <div className="flex flex-col gap-1">
-            <Label className="text-sm font-semibold text-gray-600">Module</Label>
+        <div className="flex flex-col gap-4 py-2">
+          <div className="flex flex-col gap-1.5">
+            <Label className="text-xs font-semibold text-gray-700">Module</Label>
             <Select value={moduleId} onValueChange={handleModuleChange}>
-              <SelectTrigger className="h-9 w-full text-[14px]">
+              <SelectTrigger className="h-9 w-full text-xs">
                 <SelectValue placeholder="Select a module" />
               </SelectTrigger>
               <SelectContent>
@@ -196,12 +198,12 @@ function RightFormDialog({ open, onOpenChange, initial, modules, tabs, onSubmit,
             </Select>
           </div>
 
-          <div className="flex flex-col gap-1">
-            <Label className="text-sm font-semibold text-gray-600">Tab <span className="font-normal text-gray-400">(optional — leave unset for whole-module access)</span></Label>
+          <div className="flex flex-col gap-1.5">
+            <Label className="text-xs font-semibold text-gray-700">Tab <span className="font-normal text-gray-400">(optional — leave unset for whole-module access)</span></Label>
 
             {!moduleId && (
               <Select disabled>
-                <SelectTrigger className="h-9 w-full text-[14px]">
+                <SelectTrigger className="h-9 w-full text-xs">
                   <SelectValue placeholder="Select a module first" />
                 </SelectTrigger>
                 <SelectContent />
@@ -210,7 +212,7 @@ function RightFormDialog({ open, onOpenChange, initial, modules, tabs, onSubmit,
 
             {moduleId && tabsForModule.length > 0 && (
               <Select value={tabId ?? NO_TAB_VALUE} onValueChange={(v) => setTabId(v === NO_TAB_VALUE ? null : v)}>
-                <SelectTrigger className="h-9 w-full text-[14px]">
+                <SelectTrigger className="h-9 w-full text-xs">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
@@ -229,10 +231,10 @@ function RightFormDialog({ open, onOpenChange, initial, modules, tabs, onSubmit,
             )}
           </div>
 
-          <div className="flex flex-col gap-1">
-            <Label className="text-sm font-semibold text-gray-600">Action</Label>
+          <div className="flex flex-col gap-1.5">
+            <Label className="text-xs font-semibold text-gray-700">Action</Label>
             <Select value={action} onValueChange={(v) => setAction(v as RightActionValue)}>
-              <SelectTrigger className="h-9 w-full text-[14px]">
+              <SelectTrigger className="h-9 w-full text-xs">
                 <SelectValue placeholder="Select an action" />
               </SelectTrigger>
               <SelectContent>
@@ -242,14 +244,14 @@ function RightFormDialog({ open, onOpenChange, initial, modules, tabs, onSubmit,
               </SelectContent>
             </Select>
           </div>
+
+          {displayError && <p className="text-xs text-red-600 font-medium">{displayError}</p>}
         </div>
 
-        {displayError && <p className="text-sm text-red-600">{displayError}</p>}
-
-        <DialogFooter>
-          <Button variant="outline" size="sm" onClick={() => onOpenChange(false)} disabled={isPending}>Cancel</Button>
-          <Button size="sm" className="bg-[#004D40] hover:bg-[#003D33]" onClick={handleSubmit} disabled={isPending}>
-            {isPending && <Loader size="sm" className="mr-2" />}
+        <DialogFooter className="border-gray-200 bg-white">
+          <Button variant="outline" size="sm" onClick={() => onOpenChange(false)} disabled={isPending} className="h-8 text-xs">Cancel</Button>
+          <Button size="sm" onClick={handleSubmit} disabled={isPending} className="h-8 bg-[#004D40] hover:bg-[#00332a] text-white text-xs font-medium px-4">
+            {isPending && <Loader size="sm" className="mr-1.5" />}
             {isEdit ? 'Save Changes' : 'Add Right'}
           </Button>
         </DialogFooter>
@@ -272,120 +274,498 @@ interface RoleFormDialogProps {
   serverError?: string | null;
 }
 
-function RoleFormDialog({ open, onOpenChange, initial, rights, onSubmit, isPending, serverError }: RoleFormDialogProps) {
+function RoleFormDialog({
+  open,
+  onOpenChange,
+  initial,
+  rights,
+  onSubmit,
+  isPending,
+  serverError,
+}: RoleFormDialogProps) {
   const [roleName, setRoleName] = useState('');
-  const [description, setDescription] = useState('');
+  const [effectiveDate, setEffectiveDate] = useState('');
   const [rightIds, setRightIds] = useState<string[]>([]);
   const [formError, setFormError] = useState<string | null>(null);
+ 
   const isEdit = initial != null;
-
+ 
   useEffect(() => {
     if (open) {
       setRoleName(initial?.roleName ?? '');
-      setDescription(initial?.description ?? '');
+      setEffectiveDate(
+        initial?.effectiveDate?.slice(0, 10) ??
+        new Date().toISOString().slice(0, 10)
+      );
       setRightIds(initial?.rightIds ?? []);
       setFormError(null);
     }
   }, [open, initial]);
-
+ 
   const rightsByGroup = useMemo(() => {
     const groups = new Map<string, RightRecord[]>();
-    rights.forEach((r) => {
-      const key = r.tabName ? `${r.moduleName} › ${r.tabName}` : r.moduleName;
+ 
+    rights.forEach((right) => {
+      const key = right.tabName
+        ? `${right.moduleName} › ${right.tabName}`
+        : right.moduleName;
+ 
       const list = groups.get(key) ?? [];
-      list.push(r);
+      list.push(right);
       groups.set(key, list);
     });
-    return Array.from(groups.entries()).sort(([a], [b]) => a.localeCompare(b));
+ 
+    return Array.from(groups.entries()).sort(([a], [b]) =>
+      a.localeCompare(b)
+    );
   }, [rights]);
-
+ 
   const toggleRight = (id: string) => {
-    setRightIds((prev) => (prev.includes(id) ? prev.filter((r) => r !== id) : [...prev, id]));
+    setRightIds((prev) =>
+      prev.includes(id)
+        ? prev.filter((item) => item !== id)
+        : [...prev, id]
+    );
   };
-
+ 
+  const isGroupSelected = (groupRights: RightRecord[]) =>
+    groupRights.length > 0 &&
+    groupRights.every((right) => rightIds.includes(right.id));
+ 
+  const isGroupPartiallySelected = (groupRights: RightRecord[]) =>
+    groupRights.some((right) => rightIds.includes(right.id)) &&
+    !isGroupSelected(groupRights);
+ 
+  const toggleGroup = (groupRights: RightRecord[]) => {
+    const ids = groupRights.map((right) => right.id);
+    const allSelected = ids.every((id) => rightIds.includes(id));
+ 
+    setRightIds((prev) => {
+      if (allSelected) {
+        return prev.filter((id) => !ids.includes(id));
+      }
+ 
+      return Array.from(new Set([...prev, ...ids]));
+    });
+  };
+ 
   const handleSubmit = async () => {
     if (!roleName.trim()) {
       setFormError('Please enter a role name.');
       return;
     }
+ 
+    if (!effectiveDate) {
+      setFormError('Please select an effective date.');
+      return;
+    }
+ 
     setFormError(null);
-    const ok = await onSubmit({ roleName: roleName.trim(), description: description.trim(), rightIds });
-    if (ok) onOpenChange(false);
+ 
+    const ok = await onSubmit({
+      roleName: roleName.trim(),
+      effectiveDate,
+      rightIds,
+    });
+ 
+    if (ok) {
+      onOpenChange(false);
+    }
   };
-
+ 
   const displayError = formError ?? serverError;
-
+ 
   return (
-    <Dialog open={open} onOpenChange={(next) => { if (!isPending) onOpenChange(next); }}>
-      <DialogContent className="sm:max-w-md border border-gray-400">
-        <DialogHeader className="-mx-4 -mt-4 mb-2 rounded-t-xl border-b border-gray-200 bg-[#A8DCAB] px-4 py-3">
-          <DialogTitle className="text-lg font-bold text-black">{isEdit ? 'Edit Role' : 'Add Role'}</DialogTitle>
+    <Dialog
+      open={open}
+      onOpenChange={(next) => {
+        if (!isPending) {
+          onOpenChange(next);
+        }
+      }}
+    >
+      <DialogContent
+        className="
+          !max-w-[1100px]
+          w-[calc(100vw-48px)]
+          max-h-[min(820px,85vh)]
+          flex
+          flex-col
+          p-0
+          gap-0
+          overflow-hidden
+          rounded-2xl
+          border
+          border-gray-200
+          bg-white
+          shadow-2xl
+        "
+      >
+        {/* =====================================================
+            HEADER
+        ===================================================== */}
+        <DialogHeader
+          className="
+            flex
+            h-[68px]
+            shrink-0
+            flex-row
+            items-center
+            justify-between
+            border-b
+            border-gray-200
+            bg-[#A8DCAB]
+            px-7
+            py-0
+          "
+        >
+          <DialogTitle className="text-lg font-bold text-black">
+            {isEdit ? 'Edit Role' : 'Add New Role'}
+          </DialogTitle>
         </DialogHeader>
-
-        <div className="flex flex-col gap-4 py-2">
-          <div className="flex flex-col gap-1.5">
-            <Label htmlFor="role-name" className="text-xs font-semibold text-gray-700">Role Name</Label>
-            <Input
-              id="role-name"
-              placeholder="e.g. Production Manager"
-              value={roleName}
-              onChange={(e) => setRoleName(e.target.value)}
-              className="h-9 text-xs"
-            />
-          </div>
-
-          <div className="flex flex-col gap-1.5">
-            <Label htmlFor="role-description" className="text-xs font-semibold text-gray-700">Description</Label>
-            <Input
-              id="role-description"
-              placeholder="What can this role do?"
-              value={description}
-              onChange={(e) => setDescription(e.target.value)}
-              className="h-9 text-xs"
-            />
-          </div>
-
-          <div className="flex flex-col gap-1.5">
-            <Label className="text-xs font-semibold text-gray-700">Assigned Rights</Label>
-            <div className="flex max-h-56 flex-col gap-3 overflow-y-auto rounded-lg border border-gray-200 p-3">
+ 
+        {/* =====================================================
+            BODY
+        ===================================================== */}
+        <div className="min-h-0 flex-1 overflow-y-auto">
+          <div className="px-3 py-2">
+            {/* =================================================
+                TOP FORM
+            ================================================= */}
+            <div className="grid grid-cols-2 gap-5">
+              {/* Role Name */}
+              <div className="space-y-2">
+                <Label
+                  htmlFor="role-name"
+                  className="text-sm font-medium text-slate-700"
+                >
+                  Role Name <span className="text-red-500">*</span>
+                </Label>
+ 
+                <Input
+                  id="role-name"
+                  value={roleName}
+                  onChange={(e) => setRoleName(e.target.value)}
+                  placeholder="Enter role name (e.g., Admin, Manager, Viewer)"
+                  disabled={isPending}
+                  className="
+                    h-11
+                    rounded-lg
+                    border-slate-200
+                    px-3
+                    text-sm
+                    shadow-none
+                    placeholder:text-slate-400
+                    focus-visible:border-[#005487]
+                    focus-visible:ring-1
+                    focus-visible:ring-[#005487]
+                  "
+                />
+              </div>
+ 
+              {/* Effective Date */}
+              <div className="space-y-2">
+                <Label
+                  htmlFor="effective-date"
+                  className="text-sm font-medium text-slate-700"
+                >
+                  Effective Date <span className="text-red-500">*</span>
+                </Label>
+ 
+                <div className="relative">
+                  <CalendarDays
+                    className="
+                      pointer-events-none
+                      absolute
+                      left-3
+                      top-1/2
+                      z-10
+                      h-4
+                      w-4
+                      -translate-y-1/2
+                      text-slate-400
+                    "
+                  />
+ 
+                  <Input
+                    id="effective-date"
+                    type="date"
+                    value={effectiveDate}
+                    onChange={(e) => setEffectiveDate(e.target.value)}
+                    disabled={isPending}
+                    className="
+                      h-11
+                      rounded-lg
+                      border-slate-200
+                      pl-10
+                      text-sm
+                      shadow-none
+                      focus-visible:border-[#005487]
+                      focus-visible:ring-1
+                      focus-visible:ring-[#005487]
+                    "
+                  />
+                </div>
+              </div>
+            </div>
+ 
+            {/* =================================================
+                SELECTED RIGHTS
+            ================================================= */}
+            <div className="mt-5">
+              <span
+                className="
+                  inline-flex
+                  items-center
+                  rounded-full
+                  border
+                  border-blue-100
+                  bg-blue-50
+                  px-2.5
+                  py-1
+                  text-[12px]
+                  font-bold
+                  tracking-wide
+                  text-blue-600
+                "
+              >
+                {rightIds.length} RIGHTS SELECTED
+              </span>
+            </div>
+ 
+            {/* =================================================
+                RIGHTS GRID
+            ================================================= */}
+            <div className="mt-5">
               {rightsByGroup.length === 0 ? (
-                <p className="text-center text-[13px] text-gray-400">No rights configured yet.</p>
+                <div
+                  className="
+                    flex
+                    min-h-[180px]
+                    items-center
+                    justify-center
+                    rounded-xl
+                    border
+                    border-dashed
+                    border-gray-200
+                    bg-gray-50
+                  "
+                >
+                  <p className="text-sm text-gray-400">
+                    No rights configured yet.
+                  </p>
+                </div>
               ) : (
-                rightsByGroup.map(([group, groupRights]) => (
-                  <div key={group} className="flex flex-col gap-1.5">
-                    <span className="text-[12px] font-bold uppercase tracking-wide text-gray-400">{group}</span>
-                    {groupRights.map((r) => (
-                      <label key={r.id} className="flex items-center gap-2 text-sm text-gray-700">
-                        <input
-                          type="checkbox"
-                          checked={rightIds.includes(r.id)}
-                          onChange={() => toggleRight(r.id)}
-                          className="h-3.5 w-3.5 rounded border-gray-300 text-[#004D40] focus:ring-[#004D40]"
-                        />
-                        {r.displayName}
-                      </label>
-                    ))}
-                  </div>
-                ))
+                <div className="grid grid-cols-2 gap-5">
+                  {rightsByGroup.map(([group, groupRights]) => {
+                    const selected = isGroupSelected(groupRights);
+                    const partial =
+                      isGroupPartiallySelected(groupRights);
+ 
+                    return (
+                      <div
+                        key={group}
+                        className="
+                          rounded-xl
+                          border
+                          border-slate-200
+                          bg-white
+                          p-5
+                        "
+                      >
+                        {/* GROUP HEADER */}
+                        <div className="flex items-start justify-between gap-4">
+                          <label className="flex min-w-0 cursor-pointer items-start gap-3">
+                            <input
+                              type="checkbox"
+                              checked={selected}
+                              ref={(element) => {
+                                if (element) {
+                                  element.indeterminate = partial;
+                                }
+                              }}
+                              onChange={() =>
+                                toggleGroup(groupRights)
+                              }
+                              disabled={isPending}
+                              className="
+                                mt-0.5
+                                h-4
+                                w-4
+                                shrink-0
+                                cursor-pointer
+                                rounded
+                                border-gray-300
+                                accent-[#005487]
+                              "
+                            />
+ 
+                            <span
+                              className="
+                                text-[16px]
+                                font-semibold
+                                leading-5
+                                text-slate-700
+                              "
+                            >
+                              {group}
+                            </span>
+                          </label>
+ 
+                          <span
+                            className="
+                              shrink-0
+                              rounded-md
+                              bg-slate-100
+                              px-2.5
+                              py-1
+                              text-[11px]
+                              font-semibold
+                              leading-4
+                              text-slate-500
+                            "
+                          >
+                            {groupRights.length}{' '}
+                            {groupRights.length === 1
+                              ? 'right'
+                              : 'rights'}
+                          </span>
+                        </div>
+ 
+                        {/* RIGHTS */}
+                        <div className="mt-5 space-y-3">
+                          {groupRights.map((right) => (
+                            <label
+                              key={right.id}
+                              className="
+                                flex
+                                cursor-pointer
+                                items-center
+                                gap-3
+                                text-sm
+                                leading-5
+                                text-slate-600
+                              "
+                            >
+                              <input
+                                type="checkbox"
+                                checked={rightIds.includes(right.id)}
+                                onChange={() =>
+                                  toggleRight(right.id)
+                                }
+                                disabled={isPending}
+                                className="
+                                  h-3.5
+                                  w-3.5
+                                  shrink-0
+                                  cursor-pointer
+                                  rounded
+                                  border-gray-300
+                                  accent-[#005487]
+                                "
+                              />
+ 
+                              <span>{right.displayName}</span>
+                            </label>
+                          ))}
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
               )}
             </div>
           </div>
-
-          {displayError && <p className="text-xs text-red-600 font-medium">{displayError}</p>}
         </div>
-
-        <DialogFooter className="border-gray-200 bg-white">
-          <Button variant="outline" size="sm" onClick={() => onOpenChange(false)} disabled={isPending} className="h-8 text-xs">Cancel</Button>
-          <Button size="sm" onClick={handleSubmit} disabled={isPending} className="h-8 bg-[#004D40] hover:bg-[#00332a] text-white text-xs font-medium px-4">
-            {isPending && <Loader size="sm" className="mr-1.5" />}
-            {isEdit ? 'Save Changes' : 'Add Role'}
+ 
+        {/* =====================================================
+            ERROR
+        ===================================================== */}
+        {displayError && (
+          <div
+            className="
+              shrink-0
+              border-t
+              border-red-100
+              bg-red-50
+              px-7
+              py-2
+            "
+          >
+            <p className="text-sm text-red-600">
+              {displayError}
+            </p>
+          </div>
+        )}
+ 
+        {/* =====================================================
+            FOOTER
+        ===================================================== */}
+        <DialogFooter
+          className="
+            flex
+            h-[70px]
+            shrink-0
+            flex-row
+            items-center
+            justify-end
+            gap-3
+            border-t
+            border-gray-200
+            bg-white
+            px-7
+            py-0
+          "
+        >
+          <Button
+            type="button"
+            variant="outline"
+            onClick={() => onOpenChange(false)}
+            disabled={isPending}
+            className="
+              h-11
+              rounded-lg
+              border-gray-300
+              px-5
+              text-sm
+              font-medium
+              text-slate-700
+            "
+          >
+            Cancel
+          </Button>
+ 
+          <Button
+            type="button"
+            onClick={handleSubmit}
+            disabled={isPending}
+            className="
+              h-11
+              min-w-[165px]
+              rounded-lg
+              bg-[#004D40]
+              px-6
+              text-sm
+              font-bold
+              text-white
+              hover:bg-[#00332a]
+            "
+          >
+            {isPending && (
+              <Loader
+                size="sm"
+                className="mr-2"
+              />
+            )}
+ 
+            {isEdit ? 'SAVE CHANGES' : 'CREATE ROLE'}
           </Button>
         </DialogFooter>
       </DialogContent>
     </Dialog>
   );
 }
-
+ 
 /* ============================================================= */
 /* ASSIGN ROLE DIALOG                                            */
 /* ============================================================= */
@@ -806,7 +1186,7 @@ export function RolesTab() {
             <div className="overflow-x-auto">
               <table className="w-full min-w-[620px] border-collapse">
                 <thead>
-                  <tr className="border-b border-gray-100 bg-gray-50/80">
+                  <tr className="border-b border-gray-300 bg-gray-50/80">
                     <th className="w-[18%] px-4 py-2.5 text-left text-[12px] font-semibold uppercase tracking-wide text-gray-500">ID</th>
                     <th className="w-[20%] px-3 py-2.5 text-left text-[12px] font-semibold uppercase tracking-wide text-gray-500">Role Name</th>
                     <th className="w-[22%] px-3 py-2.5 text-left text-[12px] font-semibold uppercase tracking-wide text-gray-500">No. of Rights</th>
@@ -814,7 +1194,7 @@ export function RolesTab() {
                     <th className="w-[15%] px-4 py-2.5 text-right text-[12px] font-semibold uppercase tracking-wide text-gray-500">Actions</th>
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-gray-100">
+                <tbody className="divide-y divide-gray-300">
                   {filteredRoles.length === 0 ? (
                     <tr>
                       <td colSpan={5} className="px-4 py-6 text-center text-[14px] text-gray-400">
@@ -916,7 +1296,7 @@ export function RolesTab() {
             <div className="overflow-x-auto">
               <table className="w-full min-w-[760px] border-collapse">
                 <thead>
-                  <tr className="border-b border-gray-100 bg-gray-50/70">
+                  <tr className="border-b border-gray-300 bg-gray-50/70">
                     <th className="px-5 py-3 text-left text-[12px] font-bold uppercase tracking-wide text-gray-400">Right ID</th>
                     <th className="px-4 py-3 text-left text-[12px] font-bold uppercase tracking-wide text-gray-400">Module / Tab</th>
                     <th className="px-4 py-3 text-left text-[12px] font-bold uppercase tracking-wide text-gray-400">Action</th>
@@ -925,7 +1305,7 @@ export function RolesTab() {
                     <th className="px-5 py-3 text-right text-[12px] font-bold uppercase tracking-wide text-gray-400">Actions</th>
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-gray-100">
+                <tbody className="divide-y divide-gray-300">
                   {filteredRights.length === 0 ? (
                     <tr>
                       <td colSpan={6} className="px-5 py-6 text-center text-[14px] text-gray-400">No rights found.</td>

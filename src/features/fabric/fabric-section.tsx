@@ -235,14 +235,14 @@ export const FabricSection = forwardRef<SectionRef, SectionProps>(({ productionD
         <Table>
           <TableHeader className={`${theme.headerBg}`}>
             <TableRow className="hover:!bg-transparent border-b-0">
-              <TableHead className={`text-sm !text-center font-semibold  tracking-wide border border-black/10 ${theme.headerText}`}>Size</TableHead>
-              <TableHead className={`w-37.5 min-w-37.5 text-center text-sm font-semibold  tracking-wide border border-black/10 ${theme.headerText}`}>Color</TableHead>
-              <TableHead className={`text-center text-sm font-semibold  tracking-wide border border-black/10 ${theme.headerText}`}>Kora</TableHead>
-              <TableHead className={`text-center text-sm font-semibold  tracking-wide border border-black/10 ${theme.headerText}`}>Fabric Production</TableHead>
-              <TableHead className={`text-center text-sm font-semibold  tracking-wide border border-black/10 ${theme.headerText}`}>Fabric Waste</TableHead>
-              <TableHead className={`text-center text-sm font-semibold  tracking-wide border border-black/10 ${theme.headerText}`}>Bit Waste</TableHead>
+              <TableHead className={`text-sm !text-center font-semibold  tracking-wide border border-gray-300 ${theme.headerText}`}>Size</TableHead>
+              <TableHead className={`w-37.5 min-w-37.5 text-center text-sm font-semibold  tracking-wide border border-gray-300 ${theme.headerText}`}>Color</TableHead>
+              <TableHead className={`text-center text-sm font-semibold  tracking-wide border border-gray-300 ${theme.headerText}`}>Kora</TableHead>
+              <TableHead className={`text-center text-sm font-semibold  tracking-wide border border-gray-300 ${theme.headerText}`}>Fabric Production</TableHead>
+              <TableHead className={`text-center text-sm font-semibold  tracking-wide border border-gray-300 ${theme.headerText}`}>Fabric Waste</TableHead>
+              <TableHead className={`text-center text-sm font-semibold  tracking-wide border border-gray-300 ${theme.headerText}`}>Bit Waste</TableHead>
               <TableHead className={`text-center text-sm font-semibold  tracking-wide ${theme.headerText}`}>Fabric Stock</TableHead>
-              {!readOnly && <TableHead className={`!text-center text-sm font-semibold  tracking-wide border border-black/10 ${theme.headerText}`}>Action</TableHead>}
+              {!readOnly && <TableHead className={`!text-center text-sm font-semibold  tracking-wide border border-gray-300 ${theme.headerText}`}>Action</TableHead>}
             </TableRow>
           </TableHeader>
           <TableBody>
@@ -280,13 +280,13 @@ export const FabricSection = forwardRef<SectionRef, SectionProps>(({ productionD
                   ))}
                 {rows.map((row) => (
                   <TableRow key={row.id}>
-                    <TableCell className="!text-center border border-black/10">{row.size}</TableCell>
-                    <TableCell className="w-37.5 min-w-37.5 text-center border border-black/10">{row.color}</TableCell>
-                    <TableCell className="text-center border border-black/10">{row.kora}</TableCell>
-                    <TableCell className="text-center border border-black/10">{row.input.toFixed(2)}</TableCell>
-                    <TableCell className="text-center border border-black/10">{row.fwKg.toFixed(2)}</TableCell>
-                    <TableCell className="text-center border border-black/10">{row.bwKg.toFixed(2)}</TableCell>
-                    <TableCell className="text-center border border-black/10">{row.output.toFixed(2)}</TableCell>
+                    <TableCell className="!text-center border border-gray-300">{row.size}</TableCell>
+                    <TableCell className="w-37.5 min-w-37.5 text-center border border-gray-300">{row.color}</TableCell>
+                    <TableCell className="text-center border border-gray-300">{row.kora}</TableCell>
+                    <TableCell className="text-center border border-gray-300">{row.input.toFixed(2)}</TableCell>
+                    <TableCell className="text-center border border-gray-300">{row.fwKg.toFixed(2)}</TableCell>
+                    <TableCell className="text-center border border-gray-300">{row.bwKg.toFixed(2)}</TableCell>
+                    <TableCell className="text-center border border-gray-300">{row.output.toFixed(2)}</TableCell>
                     {!readOnly && (
                       <TableCell className="!text-center">
                         <div className="flex items-center justify-center gap-1.5">

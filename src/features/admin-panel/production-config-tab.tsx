@@ -304,7 +304,7 @@ export function ProductionConfigTab() {
           <table className="w-full min-w-[900px] border-collapse">
 
             <thead>
-              <tr className="border-b border-emerald-400 bg-emerald-50/30">
+              <tr className="border-b border-emerald-300 bg-emerald-50/30">
 
                 <th className="px-5 py-3 text-left text-sm font-semibold tracking-wide text-gray-800">
                   Effective Date
@@ -356,7 +356,7 @@ export function ProductionConfigTab() {
                 return (
                   <tr
                     key={item.id}
-                    className="group border-b border-emerald-100 last:border-b-0 transition-colors hover:bg-emerald-50/30"
+                    className="group border-b border-emerald-300 last:border-b-0 transition-colors hover:bg-emerald-50/30"
                   >
 
                     {/* Date + LIVE */}

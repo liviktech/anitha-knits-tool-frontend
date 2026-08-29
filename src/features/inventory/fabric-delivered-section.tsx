@@ -204,11 +204,11 @@ export const FabricDeliveredSection = forwardRef<SectionRef, SectionProps & { on
           <TableHeader className={`${theme.headerBg}`}>
             <TableRow className="hover:!bg-transparent border-b-0">
               <TableHead className={`text-sm !text-center font-semibold tracking-wide  ${theme.headerText}`}>Size</TableHead>
-              <TableHead className={`w-37.5 min-w-37.5 text-center text-sm font-semibold tracking-wide border border-black/10 ${theme.headerText}`}>Color</TableHead>
-              <TableHead className={`text-center text-sm font-semibold tracking-wide border border-black/10 ${theme.headerText}`}>Fabric Delivered</TableHead>
-              <TableHead className={`text-center text-sm font-semibold tracking-wide border border-black/10 ${theme.headerText}`}>Vehicle No</TableHead>
-              <TableHead className={`text-center text-sm font-semibold tracking-wide border border-black/10 ${theme.headerText}`}>Driver Name</TableHead>
-              {!readOnly && <TableHead className={`!text-center text-sm font-semibold tracking-wide border border-black/10 ${theme.headerText}`}>Action</TableHead>}
+              <TableHead className={`w-37.5 min-w-37.5 text-center text-sm font-semibold tracking-wide border border-gray-300 ${theme.headerText}`}>Color</TableHead>
+              <TableHead className={`text-center text-sm font-semibold tracking-wide border border-gray-300 ${theme.headerText}`}>Fabric Delivered</TableHead>
+              <TableHead className={`text-center text-sm font-semibold tracking-wide border border-gray-300 ${theme.headerText}`}>Vehicle No</TableHead>
+              <TableHead className={`text-center text-sm font-semibold tracking-wide border border-gray-300 ${theme.headerText}`}>Driver Name</TableHead>
+              {!readOnly && <TableHead className={`!text-center text-sm font-semibold tracking-wide border border-gray-300 ${theme.headerText}`}>Action</TableHead>}
             </TableRow>
           </TableHeader>
           <TableBody>
@@ -243,11 +243,11 @@ export const FabricDeliveredSection = forwardRef<SectionRef, SectionProps & { on
                 ))}
                 {rows.map((row) => (
                   <TableRow key={row.id}>
-                    <TableCell className="!text-center border border-black/10">{row.size}</TableCell>
-                    <TableCell className="w-37.5 min-w-37.5 text-center border border-black/10">{row.color}</TableCell>
-                    <TableCell className="text-center border border-black/10">{row.delivered.toFixed(2)}</TableCell>
-                    <TableCell className="text-center border border-black/10">{row.vehicleNo || '-'}</TableCell>
-                    <TableCell className="text-center border border-black/10">{row.driverName || '-'}</TableCell>
+                    <TableCell className="!text-center border border-gray-300">{row.size}</TableCell>
+                    <TableCell className="w-37.5 min-w-37.5 text-center border border-gray-300">{row.color}</TableCell>
+                    <TableCell className="text-center border border-gray-300">{row.delivered.toFixed(2)}</TableCell>
+                    <TableCell className="text-center border border-gray-300">{row.vehicleNo || '-'}</TableCell>
+                    <TableCell className="text-center border border-gray-300">{row.driverName || '-'}</TableCell>
                     {!readOnly && (
                       <TableCell className="!text-center">
                         <div className="flex items-center justify-center gap-1.5">

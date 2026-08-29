@@ -1,6 +1,4 @@
-import { useState, useEffect } from 'react';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
+import { useState } from 'react';
 import { FlaskConical, ListTree, Users } from 'lucide-react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { ProductionConfigTab } from './production-config-tab';
@@ -13,21 +11,6 @@ type AdminPanelTab = 'production-config' | 'raw-materials' | 'bag-weight' | 'rol
 
 export function AdminPanelPage() {
   const [activeTab, setActiveTab] = useState<AdminPanelTab>('production-config');
-  const [bagWeight, setBagWeight] = useState('');
-  const [isSaved, setIsSaved] = useState(false);
-
-  useEffect(() => {
-    const savedWeight = localStorage.getItem(BAG_WEIGHT_STORAGE_KEY);
-    if (savedWeight) {
-      setBagWeight(savedWeight);
-    }
-  }, []);
-
-  const handleSave = () => {
-    localStorage.setItem(BAG_WEIGHT_STORAGE_KEY, bagWeight);
-    setIsSaved(true);
-    setTimeout(() => setIsSaved(false), 2000);
-  };
 
   return (
     <div id="admin-panel-layout" className="flex flex-col h-full bg-[#004D40]/5 min-h-full flex-1">

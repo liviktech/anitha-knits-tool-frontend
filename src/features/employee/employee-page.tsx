@@ -487,38 +487,38 @@ const EmployeeDirectoryTab = forwardRef<EmployeeDirectoryTabRef>((_props, ref) =
         </div>
 
         {/* Static Data Table with requested fields */}
-        <div className="overflow-x-auto flex-1 flex flex-col">
+        <div className="overflow-x-auto overflow-y-auto flex-1 flex flex-col min-h-0">
           <Table className="font-hanken">
-            <TableHeader className="bg-emerald-50/30">
-              <TableRow className="hover:bg-transparent border-b border-emerald-400">
-                <TableHead className="text-sm font-semibold tracking-wide text-gray-800 pl-4 w-[90px]">
+            <TableHeader className="bg-emerald-50/30 sticky top-0 z-10">
+              <TableRow className="hover:bg-transparent border-b border-emerald-300">
+                <TableHead className="text-sm font-semibold tracking-wide text-gray-800 pl-4 w-[90px] border-r border-emerald-300">
                   ID
                 </TableHead>
-                <TableHead className="text-sm font-semibold tracking-wide text-gray-800 min-w-[150px]">
+                <TableHead className="text-sm font-semibold tracking-wide text-gray-800 min-w-[150px] border-r border-emerald-300">
                   Name
                 </TableHead>
-                <TableHead className="text-sm font-semibold tracking-wide text-gray-800 min-w-[110px]">
+                <TableHead className="text-sm font-semibold tracking-wide text-gray-800 min-w-[110px] border-r border-emerald-300">
                   Role
                 </TableHead>
-                <TableHead className="text-sm font-semibold tracking-wide text-gray-800 min-w-[150px]">
+                <TableHead className="text-sm font-semibold tracking-wide text-gray-800 min-w-[150px] border-r border-emerald-300">
                   Designation
                 </TableHead>
-                <TableHead className="text-sm font-semibold tracking-wide text-gray-800 min-w-[130px]">
+                <TableHead className="text-sm font-semibold tracking-wide text-gray-800 min-w-[130px] border-r border-emerald-300">
                   Mobile Number
                 </TableHead>
-                <TableHead className="text-sm font-semibold tracking-wide text-gray-800 min-w-[130px]">
+                <TableHead className="text-sm font-semibold tracking-wide text-gray-800 min-w-[130px] border-r border-emerald-300">
                   Aadhar Card
                 </TableHead>
-                <TableHead className="text-sm font-semibold tracking-wide text-gray-800 min-w-[110px]">
+                <TableHead className="text-sm font-semibold tracking-wide text-gray-800 min-w-[110px] border-r border-emerald-300">
                   Date of Joining
                 </TableHead>
-                <TableHead className="text-sm font-semibold tracking-wide text-gray-800 min-w-[200px]">
+                <TableHead className="text-sm font-semibold tracking-wide text-gray-800 min-w-[200px] border-r border-emerald-300">
                   Residential Address
                 </TableHead>
-                <TableHead className="text-sm font-semibold tracking-wide text-gray-800 min-w-[80px]">
+                <TableHead className="text-sm font-semibold tracking-wide text-gray-800 min-w-[80px] border-r border-emerald-300">
                   Gender
                 </TableHead>
-                <TableHead className="text-center text-sm font-semibold tracking-wide text-gray-800 min-w-[90px]">
+                <TableHead className="text-center text-sm font-semibold tracking-wide text-gray-800 min-w-[90px] border-r border-emerald-300">
                   Status
                 </TableHead>
                 <TableHead className="text-center text-sm font-semibold tracking-wide text-gray-800 pr-4 w-[100px]">
@@ -530,9 +530,9 @@ const EmployeeDirectoryTab = forwardRef<EmployeeDirectoryTabRef>((_props, ref) =
               {pagedEmployees.map((emp) => (
                 <TableRow
                   key={emp.id}
-                  className="border-b border-emerald-50 last:border-b-0 hover:bg-emerald-50/30 transition-colors"
+                  className="border-b border-emerald-300 hover:bg-emerald-50/30 transition-colors"
                 >
-                  <TableCell className="pl-4 text-sm font-bold whitespace-nowrap">
+                  <TableCell className="pl-4 text-sm font-bold whitespace-nowrap border-r border-gray-300">
                     <button
                       type="button"
                       onClick={() => setViewTarget(emp)}
@@ -541,35 +541,35 @@ const EmployeeDirectoryTab = forwardRef<EmployeeDirectoryTabRef>((_props, ref) =
                       {emp.employeeDetails?.customUserId || emp.id}
                     </button>
                   </TableCell>
-                  <TableCell className="py-3 text-sm font-semibold text-gray-900 whitespace-nowrap">
+                  <TableCell className="py-3 text-sm font-semibold text-gray-900 whitespace-nowrap border-r border-gray-300">
                     {emp.name || '-'}
                   </TableCell>
-                  <TableCell className="text-sm whitespace-nowrap">
+                  <TableCell className="text-sm whitespace-nowrap border-r border-gray-300">
                     <span className={`inline-flex items-center rounded-full px-2 py-0.5 text-[11px] font-medium border ${roleBadgeClass(emp.role)}`}>
                       {roleLabel(emp.role)}
                     </span>
                   </TableCell>
-                  <TableCell className="text-sm text-gray-700 whitespace-nowrap">
+                  <TableCell className="text-sm text-gray-700 whitespace-nowrap border-r border-gray-300">
                     {emp.employeeDetails?.designation || '-'}
                   </TableCell>
-                  <TableCell className="text-[13px] text-gray-700 whitespace-nowrap">
+                  <TableCell className="text-[13px] text-gray-700 whitespace-nowrap border-r border-gray-300">
                     {emp.mobile}
                   </TableCell>
-                  <TableCell className="text-[13px] text-gray-600 font-mono whitespace-nowrap">
+                  <TableCell className="text-[13px] text-gray-600 font-mono whitespace-nowrap border-r border-gray-300">
                     {emp.employeeDetails?.aadhaarNumber || '-'}
                   </TableCell>
-                  <TableCell className="text-[13px] text-gray-600 whitespace-nowrap">
+                  <TableCell className="text-[13px] text-gray-600 whitespace-nowrap border-r border-gray-300">
                     {formatDateDisplay(emp.employeeDetails?.joiningDate || '')}
                   </TableCell>
-                  <TableCell className="text-sm text-gray-600 max-w-[240px] truncate" title={emp.employeeDetails?.address || ''}>
+                  <TableCell className="text-sm text-gray-600 max-w-[240px] truncate border-r border-gray-300" title={emp.employeeDetails?.address || ''}>
                     {emp.employeeDetails?.address || '-'}
                   </TableCell>
-                  <TableCell className="text-sm whitespace-nowrap">
+                  <TableCell className="text-sm whitespace-nowrap border-r border-gray-300">
                     <span className="inline-flex items-center rounded-full px-2 py-0.5 text-[11px] font-medium bg-slate-100 text-slate-700 border border-slate-200">
                       {emp.employeeDetails?.gender || '-'}
                     </span>
                   </TableCell>
-                  <TableCell className="text-center whitespace-nowrap">
+                  <TableCell className="text-center whitespace-nowrap border-r border-gray-300">
                     <span
                       className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-[11px] font-semibold ${emp.isActive
                         ? 'bg-emerald-50 text-[#004D40] border border-emerald-200'

@@ -145,14 +145,14 @@ export function InventoryFormDialog({ onClose, editDate, editRecords }: Inventor
           <div className="border border-gray-200 rounded-lg overflow-x-auto shadow-sm">
             <table className="w-full text-xs border-collapse bg-white">
               <thead>
-                <tr className="bg-gray-50 border-b border-gray-200">
+                <tr className="bg-gray-50 border-b border-gray-300">
                   {hdpeNames.length > 0 && (
-                    <th colSpan={hdpeNames.length + 1} className="border-r border-gray-200 px-3 py-2 text-center font-bold text-blue-700 uppercase tracking-wide bg-blue-50/50">
+                    <th colSpan={hdpeNames.length + 1} className="border-r border-gray-300 px-3 py-2 text-center font-bold text-blue-700 uppercase tracking-wide bg-blue-50/50">
                       HDPE
                     </th>
                   )}
                   {chemicalNames.length > 0 && (
-                    <th colSpan={chemicalNames.length + 1} className="border-r border-gray-200 px-3 py-2 text-center font-bold text-yellow-700 uppercase tracking-wide bg-yellow-50/50">
+                    <th colSpan={chemicalNames.length + 1} className="border-r border-gray-300 px-3 py-2 text-center font-bold text-yellow-700 uppercase tracking-wide bg-yellow-50/50">
                       CHEMICALS
                     </th>
                   )}
@@ -162,50 +162,50 @@ export function InventoryFormDialog({ onClose, editDate, editRecords }: Inventor
                     </th>
                   )}
                 </tr>
-                <tr className="bg-gray-50/80 border-b border-gray-200">
-                  {hdpeNames.length > 0 && <th className="border-r border-gray-200 px-3 py-2 text-center font-semibold text-blue-800 text-[10px] uppercase whitespace-nowrap">DC</th>}
+                <tr className="bg-gray-50/80 border-b border-gray-300">
+                  {hdpeNames.length > 0 && <th className="border-r border-gray-300 px-3 py-2 text-center font-semibold text-blue-800 text-[10px] uppercase whitespace-nowrap">DC</th>}
                   {hdpeNames.map(name => (
-                    <th key={name} className="border-r border-gray-200 px-3 py-2 text-center font-semibold text-blue-600 text-[10px] uppercase whitespace-nowrap">{name}</th>
+                    <th key={name} className="border-r border-gray-300 px-3 py-2 text-center font-semibold text-blue-600 text-[10px] uppercase whitespace-nowrap">{name}</th>
                   ))}
-                  {chemicalNames.length > 0 && <th className="border-r border-gray-200 px-3 py-2 text-center font-semibold text-yellow-800 text-[10px] uppercase whitespace-nowrap">DC</th>}
+                  {chemicalNames.length > 0 && <th className="border-r border-gray-300 px-3 py-2 text-center font-semibold text-yellow-800 text-[10px] uppercase whitespace-nowrap">DC</th>}
                   {chemicalNames.map(name => (
-                    <th key={name} className="border-r border-gray-200 px-3 py-2 text-center font-semibold text-yellow-600 text-[10px] uppercase whitespace-nowrap">{name}</th>
+                    <th key={name} className="border-r border-gray-300 px-3 py-2 text-center font-semibold text-yellow-600 text-[10px] uppercase whitespace-nowrap">{name}</th>
                   ))}
-                  {colorNames.length > 0 && <th className="border-r border-gray-200 px-3 py-2 text-center font-semibold text-purple-800 text-[10px] uppercase whitespace-nowrap">DC</th>}
+                  {colorNames.length > 0 && <th className="border-r border-gray-300 px-3 py-2 text-center font-semibold text-purple-800 text-[10px] uppercase whitespace-nowrap">DC</th>}
                   {colorNames.map(name => (
-                    <th key={name} className="border-r border-gray-200 px-3 py-2 text-center font-semibold text-purple-600 text-[10px] uppercase whitespace-nowrap">{name}</th>
+                    <th key={name} className="border-r border-gray-300 px-3 py-2 text-center font-semibold text-purple-600 text-[10px] uppercase whitespace-nowrap">{name}</th>
                   ))}
                 </tr>
               </thead>
               <tbody>
                 <tr>
                   {hdpeNames.length > 0 && (
-                    <td className="border-r border-gray-200 p-2">
+                    <td className="border-r border-gray-300 p-2">
                       <Input type="text" maxLength={8} placeholder="DC No" className="w-28 text-center h-8 text-xs font-bold bg-blue-50 border-blue-200 mx-auto" value={dcHdpe} onChange={(e) => setDcHdpe(e.target.value.slice(0, 8))} />
                     </td>
                   )}
                   {hdpeNames.map(name => (
-                    <td key={name} className="border-r border-gray-200 p-2">
+                    <td key={name} className="border-r border-gray-300 p-2">
                       <Input type="number" placeholder="0" className="w-20 text-center h-8 text-xs font-medium bg-blue-50/10 border-blue-100 mx-auto" value={weights[`HDPE-${name}`] || ''} onChange={(e) => handleWeightChange('HDPE', name, e.target.value)} />
                     </td>
                   ))}
                   {chemicalNames.length > 0 && (
-                    <td className="border-r border-gray-200 p-2">
+                    <td className="border-r border-gray-300 p-2">
                       <Input type="text" maxLength={8} placeholder="DC No" className="w-28 text-center h-8 text-xs font-bold bg-yellow-50 border-yellow-200 mx-auto" value={dcChemical} onChange={(e) => setDcChemical(e.target.value.slice(0, 8))} />
                     </td>
                   )}
                   {chemicalNames.map(name => (
-                    <td key={name} className="border-r border-gray-200 p-2">
+                    <td key={name} className="border-r border-gray-300 p-2">
                       <Input type="number" placeholder="0" className="w-20 text-center h-8 text-xs font-medium bg-yellow-50/10 border-yellow-100 mx-auto" value={weights[`CHEMICAL-${name}`] || ''} onChange={(e) => handleWeightChange('CHEMICAL', name, e.target.value)} />
                     </td>
                   ))}
                   {colorNames.length > 0 && (
-                    <td className="border-r border-gray-200 p-2">
+                    <td className="border-r border-gray-300 p-2">
                       <Input type="text" maxLength={8} placeholder="DC No" className="w-28 text-center h-8 text-xs font-bold bg-purple-50 border-purple-200 mx-auto" value={dcColor} onChange={(e) => setDcColor(e.target.value.slice(0, 8))} />
                     </td>
                   )}
                   {colorNames.map(name => (
-                    <td key={name} className="border-r border-gray-200 p-2">
+                    <td key={name} className="border-r border-gray-300 p-2">
                       <Input type="number" placeholder="0" className="w-20 text-center h-8 text-xs font-medium bg-purple-50/10 border-purple-100 mx-auto" value={weights[`COLOR-${name}`] || ''} onChange={(e) => handleWeightChange('COLOR', name, e.target.value)} />
                     </td>
                   ))}

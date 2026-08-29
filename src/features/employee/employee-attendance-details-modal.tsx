@@ -60,7 +60,7 @@ export function EmployeeAttendanceDetailsModal({ isOpen, onClose, employeeId, em
           <div className="rounded-xl border border-gray-200 bg-white shadow-sm overflow-hidden">
             <Table>
               <TableHeader className="bg-[#F8F9FA]">
-                <TableRow className="hover:bg-transparent border-b border-gray-200">
+                <TableRow className="hover:bg-transparent border-b border-gray-300">
                   <TableHead className="text-xs font-bold tracking-wider text-gray-500 py-3 px-5">
                     DATE
                   </TableHead>
@@ -80,7 +80,7 @@ export function EmployeeAttendanceDetailsModal({ isOpen, onClose, employeeId, em
                   records.map((rec) => {
                     const currentStatus = editedStatuses[rec.date] || rec.status;
                     return (
-                      <TableRow key={rec.id} className="border-b border-gray-100 hover:bg-gray-50/50">
+                      <TableRow key={rec.id} className="border-b border-gray-300 hover:bg-gray-50/50">
                         <TableCell className="py-3 px-5 w-1/2">
                           <span className="text-sm font-medium text-gray-900">{rec.date}</span>
                         </TableCell>

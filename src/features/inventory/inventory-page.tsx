@@ -131,8 +131,8 @@ function InventoryReceiveTab({ onBack }: { onBack: () => void }) {
               </TableRow>
             ) : (
               groupedRecords.map((group) => (
-                <TableRow key={group.date} className="hover:bg-transparent border-b border-green-100">
-                  <TableCell className="align-middle pt-4 font-medium text-gray-900 w-32 border-r border-gray-100/50">{group.date}</TableCell>
+                <TableRow key={group.date} className="hover:bg-transparent border-b border-green-300">
+                  <TableCell className="align-middle pt-4 font-medium text-gray-900 w-32 border-r border-gray-300">{group.date}</TableCell>
                   <TableCell className="p-3 align-middle">
                     <div className="flex flex-wrap items-center gap-2">
                       {Array.from(new Set(group.records.map(r => r.type))).map((type) => (
@@ -142,7 +142,7 @@ function InventoryReceiveTab({ onBack }: { onBack: () => void }) {
                       ))}
                     </div>
                   </TableCell>
-                  <TableCell className="p-3 align-middle border-l border-gray-100/50">
+                  <TableCell className="p-3 align-middle border-l border-gray-300">
                     <div className="flex flex-wrap items-center gap-2">
                       {group.records.map((r) => (
                         <span key={r.id} className={`inline-flex items-center rounded-md px-2.5 py-1 text-xs font-medium border shadow-sm ${getTypeColor(r.type)}`}>
@@ -151,7 +151,7 @@ function InventoryReceiveTab({ onBack }: { onBack: () => void }) {
                       ))}
                     </div>
                   </TableCell>
-                  <TableCell className="p-3 align-middle text-center border-l border-gray-100/50">
+                  <TableCell className="p-3 align-middle text-center border-l border-gray-300">
                     <div className="flex flex-wrap items-center justify-center gap-2">
                       {group.records.map((r) => (
                         <span key={r.id} className={`inline-flex items-center rounded-md px-2.5 py-1 text-xs font-bold border shadow-sm ${getTypeColor(r.type)}`}>
@@ -160,7 +160,7 @@ function InventoryReceiveTab({ onBack }: { onBack: () => void }) {
                       ))}
                     </div>
                   </TableCell>
-                  <TableCell className="p-3 align-middle text-center border-l border-gray-100/50">
+                  <TableCell className="p-3 align-middle text-center border-l border-gray-300">
                     <Button variant="outline" size="sm" className="h-8 text-xs text-green-700 border-green-200 hover:bg-green-50 shadow-sm">
                       Manage Items <ChevronRight className="h-3 w-3 ml-1" />
                     </Button>
@@ -331,7 +331,7 @@ function LoadSentTab({ onBack }: { onBack: () => void }) {
       <div className="overflow-x-auto">
         <Table>
           <TableHeader>
-            <TableRow className="hover:bg-transparent border-b border-orange-100">
+            <TableRow className="hover:bg-transparent border-b border-orange-300">
               <TableHead className="text-2xs font-semibold uppercase tracking-wide text-gray-400">Date</TableHead>
               <TableHead className="text-2xs font-semibold uppercase tracking-wide text-gray-400">Color</TableHead>
               <TableHead className="text-2xs font-semibold uppercase tracking-wide text-gray-400">Size</TableHead>
@@ -553,43 +553,43 @@ function StockSummaryCard({ month, onEditDate, onDeleteDate }: { month: string; 
         <div className="overflow-x-auto">
           <table className="w-full border-collapse text-sm">
             <thead>
-              <tr className="bg-gray-50 border-b border-gray-200">
-                <th rowSpan={2} className="border border-gray-200 px-3 py-2 text-left font-semibold text-gray-700 uppercase tracking-wide text-xs whitespace-nowrap w-28">DATE</th>
+              <tr className="bg-gray-50 border-b border-gray-300">
+                <th rowSpan={2} className="border border-gray-300 px-3 py-2 text-left font-semibold text-gray-700 uppercase tracking-wide text-xs whitespace-nowrap w-28">DATE</th>
                 {hdpeNames.length > 0 && (
-                  <th colSpan={hdpeNames.length + 2} className="border border-gray-200 px-3 py-2 text-center font-bold text-teal-800 uppercase tracking-wide text-xs bg-blue-100">
+                  <th colSpan={hdpeNames.length + 2} className="border border-gray-300 px-3 py-2 text-center font-bold text-teal-800 uppercase tracking-wide text-xs bg-blue-100">
                     HDPE
                   </th>
                 )}
                 {chemicalNames.length > 0 && (
-                  <th colSpan={chemicalNames.length + 2} className="border border-gray-200 px-3 py-2 text-center font-bold text-yellow-800 uppercase tracking-wide text-xs bg-yellow-100">
+                  <th colSpan={chemicalNames.length + 2} className="border border-gray-300 px-3 py-2 text-center font-bold text-yellow-800 uppercase tracking-wide text-xs bg-yellow-100">
                     CHEMICALS
                   </th>
                 )}
                 {colorNames.length > 0 && (
-                  <th colSpan={colorNames.length + 2} className="border border-gray-200 px-3 py-2 text-center font-bold text-green-800 uppercase tracking-wide text-xs bg-green-100">
+                  <th colSpan={colorNames.length + 2} className="border border-gray-300 px-3 py-2 text-center font-bold text-green-800 uppercase tracking-wide text-xs bg-green-100">
                     COLORS
                   </th>
                 )}
-                {totalCols === 0 && <th className="border border-gray-200 px-3 py-1.5 text-gray-400"></th>}
-                <th rowSpan={2} className="border border-gray-200 px-3 py-2 text-center font-semibold text-gray-700 uppercase tracking-wide text-xs whitespace-nowrap w-20">ACTIONS</th>
+                {totalCols === 0 && <th className="border border-gray-300 px-3 py-1.5 text-gray-400"></th>}
+                <th rowSpan={2} className="border border-gray-300 px-3 py-2 text-center font-semibold text-gray-700 uppercase tracking-wide text-xs whitespace-nowrap w-20">ACTIONS</th>
               </tr>
-              <tr className="bg-white border-b border-gray-200">
-                {hdpeNames.length > 0 && <th className="border border-gray-200 px-3 py-1.5 text-center font-bold text-gray-800 text-xs uppercase whitespace-nowrap bg-gray-50/50">DC NO</th>}
+              <tr className="bg-white border-b border-gray-300">
+                {hdpeNames.length > 0 && <th className="border border-gray-300 px-3 py-1.5 text-center font-bold text-gray-800 text-xs uppercase whitespace-nowrap bg-gray-50/50">DC NO</th>}
                 {hdpeNames.map(name => (
-                  <th key={name} className="border border-gray-200 px-3 py-1.5 text-center font-bold text-gray-800 text-xs uppercase whitespace-nowrap">{name}</th>
+                  <th key={name} className="border border-gray-300 px-3 py-1.5 text-center font-bold text-gray-800 text-xs uppercase whitespace-nowrap">{name}</th>
                 ))}
-                {hdpeNames.length > 0 && <th className="border border-gray-200 px-3 py-1.5 text-center font-bold text-teal-800 text-xs uppercase whitespace-nowrap bg-blue-50/70">Total</th>}
-                {chemicalNames.length > 0 && <th className="border border-gray-200 px-3 py-1.5 text-center font-bold text-gray-800 text-xs uppercase whitespace-nowrap bg-gray-50/50">DC NO</th>}
+                {hdpeNames.length > 0 && <th className="border border-gray-300 px-3 py-1.5 text-center font-bold text-teal-800 text-xs uppercase whitespace-nowrap bg-blue-50/70">Total</th>}
+                {chemicalNames.length > 0 && <th className="border border-gray-300 px-3 py-1.5 text-center font-bold text-gray-800 text-xs uppercase whitespace-nowrap bg-gray-50/50">DC NO</th>}
                 {chemicalNames.map(name => (
-                  <th key={name} className="border border-gray-200 px-3 py-1.5 text-center font-bold text-gray-800 text-xs uppercase whitespace-nowrap">{name}</th>
+                  <th key={name} className="border border-gray-300 px-3 py-1.5 text-center font-bold text-gray-800 text-xs uppercase whitespace-nowrap">{name}</th>
                 ))}
-                {chemicalNames.length > 0 && <th className="border border-gray-200 px-3 py-1.5 text-center font-bold text-yellow-800 text-xs uppercase whitespace-nowrap bg-yellow-50/70">Total</th>}
-                {colorNames.length > 0 && <th className="border border-gray-200 px-3 py-1.5 text-center font-bold text-gray-800 text-xs uppercase whitespace-nowrap bg-gray-50/50">DC NO</th>}
+                {chemicalNames.length > 0 && <th className="border border-gray-300 px-3 py-1.5 text-center font-bold text-yellow-800 text-xs uppercase whitespace-nowrap bg-yellow-50/70">Total</th>}
+                {colorNames.length > 0 && <th className="border border-gray-300 px-3 py-1.5 text-center font-bold text-gray-800 text-xs uppercase whitespace-nowrap bg-gray-50/50">DC NO</th>}
                 {colorNames.map(name => (
-                  <th key={name} className="border border-gray-200 px-3 py-1.5 text-center font-bold text-gray-800 text-xs uppercase whitespace-nowrap">{name}</th>
+                  <th key={name} className="border border-gray-300 px-3 py-1.5 text-center font-bold text-gray-800 text-xs uppercase whitespace-nowrap">{name}</th>
                 ))}
-                {colorNames.length > 0 && <th className="border border-gray-200 px-3 py-1.5 text-center font-bold text-green-800 text-xs uppercase whitespace-nowrap bg-green-50/70">Total</th>}
-                {totalCols === 0 && <th className="border border-gray-200"></th>}
+                {colorNames.length > 0 && <th className="border border-gray-300 px-3 py-1.5 text-center font-bold text-green-800 text-xs uppercase whitespace-nowrap bg-green-50/70">Total</th>}
+                {totalCols === 0 && <th className="border border-gray-300"></th>}
               </tr>
             </thead>
             <tbody>
@@ -612,63 +612,63 @@ function StockSummaryCard({ month, onEditDate, onDeleteDate }: { month: string; 
                   const dayColorTotal = dayRecords.filter(r => r.type === 'COLOR').reduce((s, r) => s + r.weightKg, 0);
                   return (
                     <tr key={date} className="hover:bg-green-50/40 transition-colors group">
-                      <td className="border border-gray-200 px-3 py-1 font-bold text-gray-800 whitespace-nowrap text-sm">{formatDateDisplay(date).replace(/,?\s*\d{4}$/, '')}</td>
+                      <td className="border border-gray-300 px-3 py-1 font-bold text-gray-800 whitespace-nowrap text-sm">{formatDateDisplay(date).replace(/,?\s*\d{4}$/, '')}</td>
                       {hdpeNames.length > 0 && (
-                        <td className="border border-gray-200 px-3 py-1 text-center font-bold text-gray-800 text-sm bg-blue-50/30">
+                        <td className="border border-gray-300 px-3 py-1 text-center font-bold text-gray-800 text-sm bg-blue-50/30">
                           {dayRecords.find(r => r.type === 'HDPE')?.DC_NUMBER || '-'}
                         </td>
                       )}
                       {hdpeNames.map(name => {
                         const val = getWeight(dayRecords, 'HDPE', name);
                         return (
-                          <td key={name} className="border border-gray-200 px-3 py-1 text-center font-medium text-gray-800 text-sm">
+                          <td key={name} className="border border-gray-300 px-3 py-1 text-center font-medium text-gray-800 text-sm">
                             {val > 0 ? val.toFixed(2) : <span className="text-gray-500">0.00</span>}
                           </td>
                         );
                       })}
                       {hdpeNames.length > 0 && (
-                        <td className="border border-gray-200 px-3 py-1 text-center font-bold text-gray-800 text-sm bg-blue-50/30">
+                        <td className="border border-gray-300 px-3 py-1 text-center font-bold text-gray-800 text-sm bg-blue-50/30">
                           {dayHdpeTotal > 0 ? dayHdpeTotal.toFixed(2) : <span className="text-gray-500">0.00</span>}
                         </td>
                       )}
                       {chemicalNames.length > 0 && (
-                        <td className="border border-gray-200 px-3 py-1 text-center font-bold text-gray-800 text-sm bg-yellow-50/30">
+                        <td className="border border-gray-300 px-3 py-1 text-center font-bold text-gray-800 text-sm bg-yellow-50/30">
                           {dayRecords.find(r => r.type === 'CHEMICAL')?.DC_NUMBER || '-'}
                         </td>
                       )}
                       {chemicalNames.map(name => {
                         const val = getWeight(dayRecords, 'CHEMICAL', name);
                         return (
-                          <td key={name} className="border border-gray-200 px-3 py-1 text-center font-medium text-gray-800 text-sm">
+                          <td key={name} className="border border-gray-300 px-3 py-1 text-center font-medium text-gray-800 text-sm">
                             {val > 0 ? val.toFixed(2) : <span className="text-gray-500">0.00</span>}
                           </td>
                         );
                       })}
                       {chemicalNames.length > 0 && (
-                        <td className="border border-gray-200 px-3 py-1 text-center font-bold text-gray-800 text-sm bg-yellow-50/30">
+                        <td className="border border-gray-300 px-3 py-1 text-center font-bold text-gray-800 text-sm bg-yellow-50/30">
                           {dayChemicalTotal > 0 ? dayChemicalTotal.toFixed(2) : <span className="text-gray-500">0.00</span>}
                         </td>
                       )}
                       {colorNames.length > 0 && (
-                        <td className="border border-gray-200 px-3 py-1 text-center font-bold text-gray-800 text-sm bg-green-50/30">
+                        <td className="border border-gray-300 px-3 py-1 text-center font-bold text-gray-800 text-sm bg-green-50/30">
                           {dayRecords.find(r => r.type === 'COLOR')?.DC_NUMBER || '-'}
                         </td>
                       )}
                       {colorNames.map(name => {
                         const val = getWeight(dayRecords, 'COLOR', name);
                         return (
-                          <td key={name} className="border border-gray-200 px-3 py-1 text-center font-medium text-gray-800 text-sm">
+                          <td key={name} className="border border-gray-300 px-3 py-1 text-center font-medium text-gray-800 text-sm">
                             {val > 0 ? val.toFixed(2) : <span className="text-gray-500">0.00</span>}
                           </td>
                         );
                       })}
                       {colorNames.length > 0 && (
-                        <td className="border border-gray-200 px-3 py-1 text-center font-bold text-gray-800 text-sm bg-green-50/30">
+                        <td className="border border-gray-300 px-3 py-1 text-center font-bold text-gray-800 text-sm bg-green-50/30">
                           {dayColorTotal > 0 ? dayColorTotal.toFixed(2) : <span className="text-gray-500">0.00</span>}
                         </td>
                       )}
-                      {totalCols === 0 && <td className="border border-gray-200 px-3 py-1"></td>}
-                      <td className="border border-gray-200 px-3 py-1 text-center">
+                      {totalCols === 0 && <td className="border border-gray-300 px-3 py-1"></td>}
+                      <td className="border border-gray-300 px-3 py-1 text-center">
                         <div className="flex items-center justify-center gap-1">
                           <Button variant="ghost" size="icon-sm" className="h-6 w-6 rounded-full text-blue-600 hover:bg-blue-50" onClick={() => onEditDate(date)}>
                             <Edit2 className="h-3 w-3" />
@@ -684,30 +684,30 @@ function StockSummaryCard({ month, onEditDate, onDeleteDate }: { month: string; 
               )}
               {groupedByDate.length > 0 && (
                 <tr className="bg-white border-t-2 border-gray-300 font-bold">
-                  <td className="border border-gray-200 px-3 py-1.5 text-gray-800 uppercase text-sm tracking-wide font-bold">TOTAL</td>
-                  {hdpeNames.length > 0 && <td className="border border-gray-200 px-3 py-1 bg-gray-50"></td>}
+                  <td className="border border-gray-300 px-3 py-1.5 text-gray-800 uppercase text-sm tracking-wide font-bold">TOTAL</td>
+                  {hdpeNames.length > 0 && <td className="border border-gray-300 px-3 py-1 bg-gray-50"></td>}
                   {hdpeTotals.map((val, i) => (
-                    <td key={i} className="border border-gray-200 px-3 py-1 text-center text-gray-800 text-sm font-bold">{val > 0 ? val.toFixed(2) : <span className="text-gray-500">0.00</span>}</td>
+                    <td key={i} className="border border-gray-300 px-3 py-1 text-center text-gray-800 text-sm font-bold">{val > 0 ? val.toFixed(2) : <span className="text-gray-500">0.00</span>}</td>
                   ))}
                   {hdpeNames.length > 0 && (
-                    <td className="border border-gray-200 px-3 py-1 text-center text-gray-800 text-sm font-bold bg-blue-50/50">{rawMaterials.weight > 0 ? rawMaterials.weight.toFixed(2) : <span className="text-gray-500">0.00</span>}</td>
+                    <td className="border border-gray-300 px-3 py-1 text-center text-gray-800 text-sm font-bold bg-blue-50/50">{rawMaterials.weight > 0 ? rawMaterials.weight.toFixed(2) : <span className="text-gray-500">0.00</span>}</td>
                   )}
-                  {chemicalNames.length > 0 && <td className="border border-gray-200 px-3 py-1 bg-gray-50"></td>}
+                  {chemicalNames.length > 0 && <td className="border border-gray-300 px-3 py-1 bg-gray-50"></td>}
                   {chemTotals.map((val, i) => (
-                    <td key={i} className="border border-gray-200 px-3 py-1 text-center text-gray-800 text-sm font-bold">{val > 0 ? val.toFixed(2) : <span className="text-gray-500">0.00</span>}</td>
+                    <td key={i} className="border border-gray-300 px-3 py-1 text-center text-gray-800 text-sm font-bold">{val > 0 ? val.toFixed(2) : <span className="text-gray-500">0.00</span>}</td>
                   ))}
                   {chemicalNames.length > 0 && (
-                    <td className="border border-gray-200 px-3 py-1 text-center text-gray-800 text-sm font-bold bg-yellow-50/50">{chemicals.weight > 0 ? chemicals.weight.toFixed(2) : <span className="text-gray-500">0.00</span>}</td>
+                    <td className="border border-gray-300 px-3 py-1 text-center text-gray-800 text-sm font-bold bg-yellow-50/50">{chemicals.weight > 0 ? chemicals.weight.toFixed(2) : <span className="text-gray-500">0.00</span>}</td>
                   )}
-                  {colorNames.length > 0 && <td className="border border-gray-200 px-3 py-1 bg-gray-50"></td>}
+                  {colorNames.length > 0 && <td className="border border-gray-300 px-3 py-1 bg-gray-50"></td>}
                   {colorTotals.map((val, i) => (
-                    <td key={i} className="border border-gray-200 px-3 py-1 text-center text-gray-800 text-sm font-bold">{val > 0 ? val.toFixed(2) : <span className="text-gray-500">0.00</span>}</td>
+                    <td key={i} className="border border-gray-300 px-3 py-1 text-center text-gray-800 text-sm font-bold">{val > 0 ? val.toFixed(2) : <span className="text-gray-500">0.00</span>}</td>
                   ))}
                   {colorNames.length > 0 && (
-                    <td className="border border-gray-200 px-3 py-1 text-center text-gray-800 text-sm font-bold bg-green-50/50">{colors.weight > 0 ? colors.weight.toFixed(2) : <span className="text-gray-500">0.00</span>}</td>
+                    <td className="border border-gray-300 px-3 py-1 text-center text-gray-800 text-sm font-bold bg-green-50/50">{colors.weight > 0 ? colors.weight.toFixed(2) : <span className="text-gray-500">0.00</span>}</td>
                   )}
-                  {totalCols === 0 && <td className="border border-gray-200 px-3 py-1"></td>}
-                  <td className="border border-gray-200 px-3 py-1"></td>
+                  {totalCols === 0 && <td className="border border-gray-300 px-3 py-1"></td>}
+                  <td className="border border-gray-300 px-3 py-1"></td>
                 </tr>
               )}
             </tbody>

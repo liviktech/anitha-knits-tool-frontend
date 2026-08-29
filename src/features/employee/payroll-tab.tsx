@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Search, Wallet, FileText, Banknote, Calendar, Loader2 } from 'lucide-react';
+import { Search, Wallet, Banknote, Calendar, Loader2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
@@ -105,7 +105,7 @@ export function PayrollTab() {
         <div className="overflow-x-auto flex-1 flex flex-col">
           <Table className="font-hanken">
             <TableHeader className="bg-emerald-50/30">
-              <TableRow className="hover:bg-transparent border-b border-emerald-400">
+              <TableRow className="hover:bg-transparent border-b border-emerald-300">
                 <TableHead className="text-sm font-semibold tracking-wide text-gray-800 w-[100px] pl-4">Emp ID</TableHead>
                 <TableHead className="text-sm font-semibold tracking-wide text-gray-800">Name</TableHead>
                 <TableHead className="text-sm font-semibold tracking-wide text-gray-800 text-right">Base Salary</TableHead>
@@ -118,7 +118,7 @@ export function PayrollTab() {
             </TableHeader>
             <TableBody>
               {filteredPayroll.map((row) => (
-                <TableRow key={row.id} className="border-b border-emerald-50 hover:bg-emerald-50/30 transition-colors">
+                <TableRow key={row.id} className="border-b border-emerald-300 hover:bg-emerald-50/30 transition-colors">
                   <TableCell className="pl-4 text-sm font-bold text-gray-900">{row.id}</TableCell>
                   <TableCell className="text-sm font-semibold text-gray-800">{row.name}</TableCell>
                   <TableCell className="text-sm text-right">₹{row.baseSalary.toLocaleString()}</TableCell>

@@ -246,20 +246,20 @@ export const AttendanceTab = forwardRef<AttendanceTabRef>((_props, ref) => {
         <div className="overflow-x-auto flex-1 flex flex-col">
           <Table className="font-hanken">
             <TableHeader className="bg-emerald-50/30">
-              <TableRow className="hover:bg-transparent border-b border-emerald-400">
-                <TableHead className="text-sm font-semibold tracking-wide text-gray-800 py-2 px-5 text-left w-[15%]">
+              <TableRow className="hover:bg-transparent border-b border-emerald-300">
+                <TableHead className="text-sm font-semibold tracking-wide text-gray-800 py-2 px-5 text-left w-[15%] border-r border-emerald-300">
                   EMP ID
                 </TableHead>
-                <TableHead className="text-sm font-semibold tracking-wide text-gray-800 py-2 px-5 text-center w-[17%]">
+                <TableHead className="text-sm font-semibold tracking-wide text-gray-800 py-2 px-5 text-center w-[17%] border-r border-emerald-300">
                   EMPLOYEE NAME
                 </TableHead>
-                <TableHead className="text-sm font-semibold tracking-wide text-gray-800 py-2 px-5 text-center w-[17%]">
+                <TableHead className="text-sm font-semibold tracking-wide text-gray-800 py-2 px-5 text-center w-[17%] border-r border-emerald-300">
                   PRESENT DAYS
                 </TableHead>
-                <TableHead className="text-sm font-semibold tracking-wide text-gray-800 py-2 px-5 text-center w-[17%]">
+                <TableHead className="text-sm font-semibold tracking-wide text-gray-800 py-2 px-5 text-center w-[17%] border-r border-emerald-300">
                   ABSENT DAYS
                 </TableHead>
-                <TableHead className="text-sm font-semibold tracking-wide text-gray-800 py-2 px-5 text-center w-[17%]">
+                <TableHead className="text-sm font-semibold tracking-wide text-gray-800 py-2 px-5 text-center w-[17%] border-r border-emerald-300">
                   HALF DAYS
                 </TableHead>
                 <TableHead className="text-sm font-semibold tracking-wide text-gray-800 py-2 px-5 text-right w-[17%]">
@@ -269,13 +269,13 @@ export const AttendanceTab = forwardRef<AttendanceTabRef>((_props, ref) => {
             </TableHeader>
             <TableBody>
               {!isLoading && summaryRows.map((row) => (
-                <TableRow key={row.employeeId} className="border-b border-gray-100 hover:bg-gray-50/50">
-                  <TableCell className="py-3 px-5 text-left">
+                <TableRow key={row.employeeId} className="border-b border-gray-300 hover:bg-gray-50/50">
+                  <TableCell className="py-3 px-5 text-left border-r border-gray-300">
                     <span className="text-sm font-semibold text-blue-600">
                       {row.employeeId}
                     </span>
                   </TableCell>
-                  <TableCell className="py-3 px-5 text-center">
+                  <TableCell className="py-3 px-5 text-center border-r border-gray-300">
                     <div className="flex items-center justify-center gap-3">
                       <div className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-gray-200 text-xs font-semibold text-gray-600">
                         {row.employeeName.charAt(0)}
@@ -283,17 +283,17 @@ export const AttendanceTab = forwardRef<AttendanceTabRef>((_props, ref) => {
                       <span className="text-sm font-semibold text-gray-900">{row.employeeName}</span>
                     </div>
                   </TableCell>
-                  <TableCell className="py-3 px-5 text-center">
+                  <TableCell className="py-3 px-5 text-center border-r border-gray-300">
                     <span className="inline-flex items-center justify-center rounded-full text-green-700 px-3 py-1 text-sm font-medium text-emerald-900">
                       {row.present}
                     </span>
                   </TableCell>
-                  <TableCell className="py-3 px-5 text-center">
+                  <TableCell className="py-3 px-5 text-center border-r border-gray-300">
                     <span className="inline-flex items-center justify-center rounded-full text-red-500 px-3 py-1 text-sm font-medium text-rose-900">
                       {row.absent}
                     </span>
                   </TableCell>
-                  <TableCell className="py-3 px-5 text-center">
+                  <TableCell className="py-3 px-5 text-center border-r border-gray-300">
                     <span className="inline-flex items-center justify-center rounded-full text-[#BFDBFE] px-3 py-1 text-sm font-medium text-blue-900">
                       {row.halfDay}
                     </span>
