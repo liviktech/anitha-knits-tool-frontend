@@ -3,7 +3,6 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { FlaskConical, ListTree, Users } from 'lucide-react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { motion } from 'framer-motion';
 import { ProductionConfigTab } from './production-config-tab';
 import { RawMaterialsTab } from './raw-materials-tab';
 import { RolesTab } from './roles-tab';
@@ -50,43 +49,22 @@ export function AdminPanelPage() {
         onValueChange={(value) => setActiveTab(value as AdminPanelTab)}
         className="flex-1 overflow-y-auto px-2 pb-1 gap-1"
       >
-        <div className="pt-2 px-2">
-          <TabsList>
-            <TabsTrigger value="production-config" className="relative">
-              {activeTab === 'production-config' && (
-                <motion.div
-                  layoutId="activeAdminTabPill"
-                  className="absolute inset-0 bg-[#004D40] rounded-md z-0"
-                  transition={{ type: 'spring', bounce: 0.2, duration: 0.6 }}
-                />
-              )}
-              <span className="relative z-10 flex items-center gap-1">
+        <div className="px-1">
+          <TabsList variant="notch-flip">
+            <TabsTrigger value="production-config">
+              <span className="flex items-center gap-1">
                 <FlaskConical className="h-4 w-4" strokeWidth={1.75} />
                 Production Config
               </span>
             </TabsTrigger>
-            <TabsTrigger value="raw-materials" className="relative">
-              {activeTab === 'raw-materials' && (
-                <motion.div
-                  layoutId="activeAdminTabPill"
-                  className="absolute inset-0 bg-[#004D40] rounded-md z-0"
-                  transition={{ type: 'spring', bounce: 0.2, duration: 0.6 }}
-                />
-              )}
-              <span className="relative z-10 flex items-center gap-1">
+            <TabsTrigger value="raw-materials">
+              <span className="flex items-center gap-1">
                 <ListTree className="h-4 w-4" strokeWidth={1.75} />
                 Drop Down
               </span>
             </TabsTrigger>
-            <TabsTrigger value="roles" className="relative">
-              {activeTab === 'roles' && (
-                <motion.div
-                  layoutId="activeAdminTabPill"
-                  className="absolute inset-0 bg-[#004D40] rounded-md z-0"
-                  transition={{ type: 'spring', bounce: 0.2, duration: 0.6 }}
-                />
-              )}
-              <span className="relative z-10 flex items-center gap-1">
+            <TabsTrigger value="roles">
+              <span className="flex items-center gap-1">
                 <Users className="h-4 w-4" strokeWidth={1.75} />
                 Roles
               </span>
