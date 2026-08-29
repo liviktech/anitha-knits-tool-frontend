@@ -10,6 +10,7 @@ import {
   ShieldCheck,
   Trash2,
   Users,
+  X
 } from 'lucide-react';
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
@@ -287,9 +288,8 @@ function RoleFormDialog({
   const [effectiveDate, setEffectiveDate] = useState('');
   const [rightIds, setRightIds] = useState<string[]>([]);
   const [formError, setFormError] = useState<string | null>(null);
- 
   const isEdit = initial != null;
- 
+
   useEffect(() => {
     if (open) {
       setRoleName(initial?.roleName ?? '');
@@ -301,25 +301,22 @@ function RoleFormDialog({
       setFormError(null);
     }
   }, [open, initial]);
- 
+
   const rightsByGroup = useMemo(() => {
     const groups = new Map<string, RightRecord[]>();
- 
     rights.forEach((right) => {
       const key = right.tabName
         ? `${right.moduleName} › ${right.tabName}`
         : right.moduleName;
- 
       const list = groups.get(key) ?? [];
       list.push(right);
       groups.set(key, list);
     });
- 
     return Array.from(groups.entries()).sort(([a], [b]) =>
       a.localeCompare(b)
     );
   }, [rights]);
- 
+
   const toggleRight = (id: string) => {
     setRightIds((prev) =>
       prev.includes(id)
@@ -327,54 +324,54 @@ function RoleFormDialog({
         : [...prev, id]
     );
   };
- 
+
   const isGroupSelected = (groupRights: RightRecord[]) =>
     groupRights.length > 0 &&
     groupRights.every((right) => rightIds.includes(right.id));
- 
+
   const isGroupPartiallySelected = (groupRights: RightRecord[]) =>
     groupRights.some((right) => rightIds.includes(right.id)) &&
     !isGroupSelected(groupRights);
- 
+
   const toggleGroup = (groupRights: RightRecord[]) => {
     const ids = groupRights.map((right) => right.id);
     const allSelected = ids.every((id) => rightIds.includes(id));
- 
+
     setRightIds((prev) => {
       if (allSelected) {
         return prev.filter((id) => !ids.includes(id));
       }
- 
+
       return Array.from(new Set([...prev, ...ids]));
     });
   };
- 
+
   const handleSubmit = async () => {
     if (!roleName.trim()) {
       setFormError('Please enter a role name.');
       return;
     }
- 
+
     if (!effectiveDate) {
       setFormError('Please select an effective date.');
       return;
     }
- 
+
     setFormError(null);
- 
+
     const ok = await onSubmit({
       roleName: roleName.trim(),
       effectiveDate,
       rightIds,
     });
- 
+
     if (ok) {
       onOpenChange(false);
     }
   };
- 
+
   const displayError = formError ?? serverError;
- 
+
   return (
     <Dialog
       open={open}
@@ -388,9 +385,8 @@ function RoleFormDialog({
         className="
           !max-w-[1100px]
           w-[calc(100vw-48px)]
-          max-h-[min(820px,85vh)]
-          flex
-          flex-col
+          h-[calc(100vh-80px)]
+          max-h-[820px]
           p-0
           gap-0
           overflow-hidden
@@ -414,21 +410,47 @@ function RoleFormDialog({
             justify-between
             border-b
             border-gray-200
-            bg-[#A8DCAB]
             px-7
             py-0
           "
         >
-          <DialogTitle className="text-lg font-bold text-black">
+          <DialogTitle className="text-[20px] font-bold text-gray-900">
             {isEdit ? 'Edit Role' : 'Add New Role'}
           </DialogTitle>
+
+          {/* 
+            IMPORTANT:
+            DialogContent already has a default close button.
+            Hide it and use this one instead.
+          */}
+          <button
+            type="button"
+            onClick={() => onOpenChange(false)}
+            disabled={isPending}
+            className="
+              flex
+              h-9
+              w-9
+              shrink-0
+              items-center
+              justify-center
+              rounded-md
+              bg-red-600
+              text-white
+              transition-colors
+              hover:bg-red-700
+              disabled:opacity-50
+            "
+          >
+            <X className="h-5 w-5" strokeWidth={2.5} />
+          </button>
         </DialogHeader>
- 
+
         {/* =====================================================
             BODY
         ===================================================== */}
         <div className="min-h-0 flex-1 overflow-y-auto">
-          <div className="px-3 py-2">
+          <div className="px-7 py-5">
             {/* =================================================
                 TOP FORM
             ================================================= */}
@@ -441,7 +463,6 @@ function RoleFormDialog({
                 >
                   Role Name <span className="text-red-500">*</span>
                 </Label>
- 
                 <Input
                   id="role-name"
                   value={roleName}
@@ -462,7 +483,6 @@ function RoleFormDialog({
                   "
                 />
               </div>
- 
               {/* Effective Date */}
               <div className="space-y-2">
                 <Label
@@ -471,7 +491,6 @@ function RoleFormDialog({
                 >
                   Effective Date <span className="text-red-500">*</span>
                 </Label>
- 
                 <div className="relative">
                   <CalendarDays
                     className="
@@ -486,7 +505,6 @@ function RoleFormDialog({
                       text-slate-400
                     "
                   />
- 
                   <Input
                     id="effective-date"
                     type="date"
@@ -508,7 +526,6 @@ function RoleFormDialog({
                 </div>
               </div>
             </div>
- 
             {/* =================================================
                 SELECTED RIGHTS
             ================================================= */}
@@ -532,7 +549,6 @@ function RoleFormDialog({
                 {rightIds.length} RIGHTS SELECTED
               </span>
             </div>
- 
             {/* =================================================
                 RIGHTS GRID
             ================================================= */}
@@ -561,7 +577,6 @@ function RoleFormDialog({
                     const selected = isGroupSelected(groupRights);
                     const partial =
                       isGroupPartiallySelected(groupRights);
- 
                     return (
                       <div
                         key={group}
@@ -599,7 +614,6 @@ function RoleFormDialog({
                                 accent-[#005487]
                               "
                             />
- 
                             <span
                               className="
                                 text-[16px]
@@ -611,7 +625,6 @@ function RoleFormDialog({
                               {group}
                             </span>
                           </label>
- 
                           <span
                             className="
                               shrink-0
@@ -631,7 +644,6 @@ function RoleFormDialog({
                               : 'rights'}
                           </span>
                         </div>
- 
                         {/* RIGHTS */}
                         <div className="mt-5 space-y-3">
                           {groupRights.map((right) => (
@@ -664,7 +676,6 @@ function RoleFormDialog({
                                   accent-[#005487]
                                 "
                               />
- 
                               <span>{right.displayName}</span>
                             </label>
                           ))}
@@ -677,7 +688,6 @@ function RoleFormDialog({
             </div>
           </div>
         </div>
- 
         {/* =====================================================
             ERROR
         ===================================================== */}
@@ -697,7 +707,6 @@ function RoleFormDialog({
             </p>
           </div>
         )}
- 
         {/* =====================================================
             FOOTER
         ===================================================== */}
@@ -734,7 +743,6 @@ function RoleFormDialog({
           >
             Cancel
           </Button>
- 
           <Button
             type="button"
             onClick={handleSubmit}
@@ -743,12 +751,12 @@ function RoleFormDialog({
               h-11
               min-w-[165px]
               rounded-lg
-              bg-[#004D40]
+              bg-[#005487]
               px-6
               text-sm
               font-bold
               text-white
-              hover:bg-[#00332a]
+              hover:bg-[#004673]
             "
           >
             {isPending && (
@@ -757,7 +765,6 @@ function RoleFormDialog({
                 className="mr-2"
               />
             )}
- 
             {isEdit ? 'SAVE CHANGES' : 'CREATE ROLE'}
           </Button>
         </DialogFooter>
@@ -765,7 +772,7 @@ function RoleFormDialog({
     </Dialog>
   );
 }
- 
+
 /* ============================================================= */
 /* ASSIGN ROLE DIALOG                                            */
 /* ============================================================= */

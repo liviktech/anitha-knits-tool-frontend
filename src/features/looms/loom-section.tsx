@@ -6,6 +6,8 @@ import { Loader } from '@/components/shared/loader';
 import { TableNoteFooter } from '@/components/shared/table-note-footer';
 import { Edit2, Trash2 } from 'lucide-react';
 import { DeleteConfirmDialog } from '@/components/shared/delete-confirm-dialog';
+import { useAuth } from '@/features/auth/auth-context';
+import { canDeleteProductionRecord, canEditProductionRecord } from '@/lib/production-permissions';
 import { apiFetch, extractApiErrorMessage } from '@/lib/api-client';
 import { sumWastageByCode } from '@/lib/api-types';
 import {
@@ -25,6 +27,7 @@ export interface LoomRow {
   input: number;
   output: number;
   loomsWasteKg: number;
+  isApproved: boolean;
 }
 
 export function mapLoomItem(item: LoomsProductionItem): LoomRow {
@@ -35,6 +38,7 @@ export function mapLoomItem(item: LoomsProductionItem): LoomRow {
     input: item.loom?.yarnInputKg ?? 0,
     output: item.loom?.fabricOutputKg ?? 0,
     loomsWasteKg: sumWastageByCode(item.wastages, 'LOOMS_WASTE'),
+    isApproved: item.isApproved,
   };
 }
 
@@ -57,6 +61,7 @@ export function suggestLoomOutput(draft: Pick<LoomDraft, 'input' | 'loomsWasteKg
 
 export const LoomSection = forwardRef<SectionRef, SectionProps>(({ productionDate, readOnly, hideExisting, hideBanner, onEditLoomGroup }, ref) => {
   const queryClient = useQueryClient();
+  const { user } = useAuth();
   const { data, isLoading } = useLoomsProductions(
     productionDate ? `?date_from=${productionDate}&date_to=${productionDate}` : '',
     !hideExisting,
@@ -265,6 +270,7 @@ export const LoomSection = forwardRef<SectionRef, SectionProps>(({ productionDat
                             size="icon-sm"
                             className="rounded-full bg-blue-50 text-blue-500 hover:bg-blue-100"
                             aria-label="Edit row"
+                            disabled={!canEditProductionRecord(user, row.isApproved)}
                             onClick={() => onEditLoomGroup && onEditLoomGroup({
                               id: row.id,
                               size: row.size,
@@ -276,15 +282,17 @@ export const LoomSection = forwardRef<SectionRef, SectionProps>(({ productionDat
                           >
                             <Edit2 className="h-3.5 w-3.5" />
                           </Button>
-                          <Button
-                            variant="ghost"
-                            size="icon-sm"
-                            className="rounded-full bg-red-50 text-red-500 hover:bg-red-100"
-                            aria-label="Delete row"
-                            onClick={() => setDeleteTarget(row)}
-                          >
-                            <Trash2 className="h-3.5 w-3.5" />
-                          </Button>
+                          {canDeleteProductionRecord(user) && (
+                            <Button
+                              variant="ghost"
+                              size="icon-sm"
+                              className="rounded-full bg-red-50 text-red-500 hover:bg-red-100"
+                              aria-label="Delete row"
+                              onClick={() => setDeleteTarget(row)}
+                            >
+                              <Trash2 className="h-3.5 w-3.5" />
+                            </Button>
+                          )}
                         </div>
                       </TableCell>
                     )}

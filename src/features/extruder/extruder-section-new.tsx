@@ -6,6 +6,8 @@ import { Loader } from '@/components/shared/loader';
 import { TableNoteFooter } from '@/components/shared/table-note-footer';
 import { Trash2, Edit2 } from 'lucide-react';
 import { DeleteConfirmDialog } from '@/components/shared/delete-confirm-dialog';
+import { useAuth } from '@/features/auth/auth-context';
+import { canDeleteProductionRecord, canEditProductionRecord } from '@/lib/production-permissions';
 import { apiFetch, extractApiErrorMessage } from '@/lib/api-client';
 import {
   useExtruderProductions,
@@ -55,10 +57,13 @@ export interface ExtruderGroupDraft {
   lumpsKg: string;
   yarnWasteKg: string;
   brands: ExtruderBrandDraft[];
+  /** true if any underlying record for this group has been approved. Undefined/false for unsaved (new) groups. */
+  isApproved?: boolean;
 }
 
 export const ExtruderSection = forwardRef<SectionRef, SectionProps>(({ productionDate, readOnly, hideExisting, hideBanner, onEditExtruderGroup }, ref) => {
   const queryClient = useQueryClient();
+  const { user } = useAuth();
   const { data, isLoading } = useExtruderProductions(
     productionDate ? `?date_from=${productionDate}&date_to=${productionDate}` : '',
     !hideExisting,
@@ -95,7 +100,8 @@ export const ExtruderSection = forwardRef<SectionRef, SectionProps>(({ productio
           colorConsumedKg: '0',
           lumpsKg: '0',
           yarnWasteKg: '0',
-          brands: []
+          brands: [],
+          isApproved: false,
         });
       }
 
@@ -103,6 +109,7 @@ export const ExtruderSection = forwardRef<SectionRef, SectionProps>(({ productio
       // Combine yarn output (it should only be >0 on one of the items realistically)
       const currentOutput = parseFloat(group.output) || 0;
       group.output = (currentOutput + item.extruder.yarnOutputKg).toString();
+      group.isApproved = group.isApproved || item.isApproved;
 
       if (!group.chemical && item.extruder?.chemical?.name) {
         group.chemical = item.extruder.chemical.name;
@@ -351,17 +358,21 @@ export const ExtruderSection = forwardRef<SectionRef, SectionProps>(({ productio
             {idx === 0 && !readOnly && (
               <TableCell rowSpan={group.brands.length} className="!text-center align-middle border-l border-gray-300">
                 <div className="flex flex-row items-center justify-center gap-1.5 mt-1">
-                  <Button variant="ghost" size="icon-sm" disabled={saving} className="h-6 w-6 p-0 rounded bg-blue-50 text-blue-500 hover:bg-blue-100" onClick={() => onEditExtruderGroup?.(group)}>
-                    <Edit2 className="h-3 w-3" />
-                  </Button>
+                  {(isNew || canEditProductionRecord(user, group.isApproved ?? false)) && (
+                    <Button variant="ghost" size="icon-sm" disabled={saving} className="h-6 w-6 p-0 rounded bg-blue-50 text-blue-500 hover:bg-blue-100" onClick={() => onEditExtruderGroup?.(group)}>
+                      <Edit2 className="h-3 w-3" />
+                    </Button>
+                  )}
                   {isNew ? (
                     <Button variant="ghost" size="icon-sm" disabled={saving} className="h-6 w-6 p-0 rounded bg-red-50 text-red-500 hover:bg-red-100" onClick={() => removeGroup(group.key)} title="Remove Group">
                       <Trash2 className="h-3 w-3" />
                     </Button>
                   ) : (
-                    <Button variant="ghost" size="icon-sm" disabled={saving} className="h-6 w-6 p-0 rounded bg-red-50 text-red-500 hover:bg-red-100" onClick={() => setDeleteTarget({ groupId: group.key, size: group.size, color: group.color })}>
-                      <Trash2 className="h-3 w-3" />
-                    </Button>
+                    canDeleteProductionRecord(user) && (
+                      <Button variant="ghost" size="icon-sm" disabled={saving} className="h-6 w-6 p-0 rounded bg-red-50 text-red-500 hover:bg-red-100" onClick={() => setDeleteTarget({ groupId: group.key, size: group.size, color: group.color })}>
+                        <Trash2 className="h-3 w-3" />
+                      </Button>
+                    )
                   )}
                 </div>
               </TableCell>

@@ -15,6 +15,8 @@ import { useFabricCheckingRecords } from '@/features/fabric/fabric-queries';
 import { useLoadSentRecords } from '@/features/inventory/load-sent-queries';
 import { useInventoryRecords } from '@/features/inventory/inventory-queries';
 import { useProductionHeader } from './production-details';
+import { useAuth } from '@/features/auth/auth-context';
+import { canCreateProductionRecord } from '@/lib/production-permissions';
 
 interface NewEntryProps {
   onClose: () => void;
@@ -24,6 +26,8 @@ interface NewEntryProps {
 }
 
 export function NewEntry({ onClose, defaultDate, readOnly = false }: NewEntryProps) {
+  const { user } = useAuth();
+  const canAddRow = canCreateProductionRecord(user);
   const { setHeaderRight, setShowBackButton, setOnBackClick, setHeaderTitle } = useProductionHeader();
   const isCreateMode = !defaultDate && !readOnly;
 
@@ -94,7 +98,7 @@ export function NewEntry({ onClose, defaultDate, readOnly = false }: NewEntryPro
             </PopoverContent>
           </Popover>
         )}
-        {!readOnly && (
+        {!readOnly && canAddRow && (
           <Button
             className={`flex items-center gap-2 rounded-md px-3 py-2 h-auto text-[12px] cursor-pointer font-bold tracking-wide shadow-[0_1px_2px_rgba(0,45,35,0.2)] transition-colors duration-200 ${activeTab === 'extruder' ? `${themes.extruder.iconBg} ${themes.extruder.iconColor} ${themes.extruder.iconHoverBg} ${themes.extruder.iconHoverColor}` :
               activeTab === 'looms' ? `${themes.looms.iconBg} ${themes.looms.iconColor} ${themes.looms.iconHoverBg} ${themes.looms.iconHoverColor}` :
@@ -116,7 +120,7 @@ export function NewEntry({ onClose, defaultDate, readOnly = false }: NewEntryPro
       setShowBackButton(false);
       setOnBackClick(undefined);
     };
-  }, [setHeaderRight, setShowBackButton, setOnBackClick, setHeaderTitle, onClose, date, readOnly, submitting, activeTab, showDatePicker]);
+  }, [setHeaderRight, setShowBackButton, setOnBackClick, setHeaderTitle, onClose, date, readOnly, submitting, activeTab, showDatePicker, canAddRow]);
 
   // Most recent entry before the selected date — used to carry forward
   // Data for calculating live stock balances in create mode

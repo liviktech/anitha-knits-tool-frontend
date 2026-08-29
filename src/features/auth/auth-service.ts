@@ -18,13 +18,15 @@ export interface AccessGrant {
 }
 
 /**
- * What this user can see, resolved from their assigned RoleAccess.
- * `null` = unrestricted (sees every module/tab) — always true for ADMIN, and also true for
- * any other role with no RoleAccess assigned yet.
+ * What this user can see and do, resolved from their assigned RoleAccess.
+ * `null` = unrestricted (sees every module/tab, can do everything) — always true for ADMIN, and
+ * also true for any other role with no RoleAccess assigned yet.
  */
 export interface UserAccess {
   grants: AccessGrant[];
   moduleCodes: string[];
+  /** Every rightName this user's RoleAccess grants, e.g. "productiondetails_all_edit". Empty (not missing) when no RoleAccess is assigned. */
+  rights: string[];
 }
 
 export interface CompanyUserProfile {
