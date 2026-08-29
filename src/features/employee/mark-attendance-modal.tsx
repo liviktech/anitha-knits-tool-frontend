@@ -28,6 +28,7 @@ export interface MarkAttendanceModalProps {
   employees: AttendanceEmployeeOption[];
   defaultDate?: string;
   isSaving?: boolean;
+  existingRecords?: { employeeId: string; date: string; status: DailyStatus }[];
 }
 
 const STATUS_OPTIONS: { value: DailyStatus; label: string; activeClass: string }[] = [
@@ -37,7 +38,7 @@ const STATUS_OPTIONS: { value: DailyStatus; label: string; activeClass: string }
   { value: 'Company Holiday', label: 'Company Holiday', activeClass: 'bg-amber-100 text-amber-800 border-amber-300' },
 ];
 
-export function MarkAttendanceModal({ isOpen, onClose, onSave, employees, defaultDate, isSaving }: MarkAttendanceModalProps) {
+export function MarkAttendanceModal({ isOpen, onClose, onSave, employees, defaultDate, isSaving, existingRecords = [] }: MarkAttendanceModalProps) {
   const [date, setDate] = useState(defaultDate || new Date().toISOString().slice(0, 10));
   const [search, setSearch] = useState('');
   const [statusMap, setStatusMap] = useState<Record<string, DailyStatus>>({});
@@ -45,12 +46,31 @@ export function MarkAttendanceModal({ isOpen, onClose, onSave, employees, defaul
 
   useEffect(() => {
     if (isOpen) {
-      setDate(defaultDate || new Date().toISOString().slice(0, 10));
+      if (!defaultDate && !date) {
+        setDate(new Date().toISOString().slice(0, 10));
+      }
       setSearch('');
-      setStatusMap({});
-      setRemarksMap({});
     }
   }, [isOpen, defaultDate]);
+
+  useEffect(() => {
+    if (isOpen) {
+      const initialStatusMap: Record<string, DailyStatus> = {};
+      const targetDate = date || defaultDate || new Date().toISOString().slice(0, 10);
+      
+      existingRecords.forEach(r => {
+        if (r.date.split('T')[0] === targetDate) {
+          // r.employeeId is the customUserId or rawId, we need to map it to the employee option id
+          const emp = employees.find(e => e.customUserId === r.employeeId || e.id === r.employeeId);
+          if (emp) {
+            initialStatusMap[emp.id] = r.status;
+          }
+        }
+      });
+      setStatusMap(initialStatusMap);
+      setRemarksMap({}); // We can also populate remarks if they were passed
+    }
+  }, [date, isOpen, existingRecords, employees]);
 
   const filtered = employees.filter(
     (e) => e.name.toLowerCase().includes(search.toLowerCase()) || 

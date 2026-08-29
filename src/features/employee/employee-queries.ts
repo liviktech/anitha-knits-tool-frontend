@@ -197,3 +197,149 @@ export function useDeleteEmployee() {
     },
   });
 }
+
+export function useDistributeMarketValue() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async (data: {
+      marketValueDate: string;
+      totalPool: number;
+      allocations: Record<string, number>;
+    }) => {
+      const response = await fetchJson<{ data: any }>(
+        '/company/payroll/market-value',
+        {
+          method: 'POST',
+          body: JSON.stringify(data),
+          headers: {
+            'Content-Type': 'application/json',
+          },
+        },
+      );
+      return response.data;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: employeeKeys.lists() });
+    },
+  });
+}
+
+export function usePayrollSummary(month: number, year: number) {
+  return useQuery({
+    queryKey: [...employeeKeys.lists(), 'payroll-summary', month, year],
+    queryFn: async () => {
+      const response = await fetchJson<{ data: any[] }>(
+        `/company/payroll/summary?month=${month}&year=${year}`,
+      );
+      return response.data;
+    },
+  });
+}
+
+export function useMarketValueAllocations(month: number, year: number) {
+  return useQuery({
+    queryKey: [...employeeKeys.lists(), 'market-value-allocations', month, year],
+    queryFn: async () => {
+      const response = await fetchJson<{ data: Record<string, number> }>(
+        `/company/payroll/market-value?month=${month}&year=${year}`,
+      );
+      return response.data;
+    },
+  });
+}
+
+export function useGrantSalaryAdvance() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async (data: {
+      employeeId: string;
+      amount: number;
+      effectiveDate: string;
+      repaymentMethod: 'single' | 'emi';
+      totalMonths?: number;
+    }) => {
+      const response = await fetchJson<{ data: any }>(
+        '/company/payroll/advance',
+        {
+          method: 'POST',
+          body: JSON.stringify(data),
+          headers: {
+            'Content-Type': 'application/json',
+          },
+        },
+      );
+      return response.data;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: employeeKeys.lists() });
+      queryClient.invalidateQueries({ queryKey: [...employeeKeys.lists(), 'salary-advances'] });
+    }
+  });
+}
+
+export type SalaryAdvanceStatus = 'ACTIVE' | 'COMPLETED';
+
+export interface SalaryAdvanceRecord {
+  id: string;
+  employeeId: string;
+  employeeName: string | null;
+  customUserId: string | null;
+  amount: number;
+  effectiveDate: string;
+  repaymentMethod: 'single' | 'emi';
+  totalMonths: number | null;
+  emiAmount: number | null;
+  monthsPaid: number;
+  monthsRemaining: number;
+  paidAmount: number;
+  remainingAmount: number;
+  status: SalaryAdvanceStatus;
+}
+
+/** Every salary advance for the company, with EMI progress (months paid/remaining, status) computed against today. */
+export function useSalaryAdvances() {
+  return useQuery({
+    queryKey: [...employeeKeys.lists(), 'salary-advances'],
+    queryFn: async () => {
+      const response = await fetchJson<{ data: SalaryAdvanceRecord[] }>('/company/payroll/advance');
+      return response.data;
+    },
+  });
+}
+
+export function useSavePayrollRecords() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async (data: {
+      month: number;
+      year: number;
+    }) => {
+      const response = await fetchJson<{ data: any }>(
+        '/company/payroll/records',
+        {
+          method: 'POST',
+          body: JSON.stringify(data),
+          headers: {
+            'Content-Type': 'application/json',
+          },
+        },
+      );
+      return response.data;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: employeeKeys.lists() });
+    }
+  });
+}
+
+export function useSavedPayrollRecords(month: number, year: number) {
+  return useQuery({
+    queryKey: [...employeeKeys.lists(), 'saved-payroll-records', month, year],
+    queryFn: async () => {
+      const response = await fetchJson<{ data: any[] }>(
+        `/company/payroll/records?month=${month}&year=${year}`,
+      );
+      return response.data;
+    },
+  });
+}

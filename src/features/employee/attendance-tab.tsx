@@ -29,9 +29,12 @@ export interface AttendanceTabRef {
 }
 
 export const AttendanceTab = forwardRef<AttendanceTabRef>((_props, ref) => {
+  const currentMonthName = MONTHS[new Date().getMonth()];
+  const currentYearStr = new Date().getFullYear().toString();
+
   const [searchQuery, setSearchQuery] = useState('');
-  const [monthFilter, setMonthFilter] = useState('ALL');
-  const [yearFilter, setYearFilter] = useState('ALL');
+  const [monthFilter, setMonthFilter] = useState(currentMonthName);
+  const [yearFilter, setYearFilter] = useState(currentYearStr);
   const [roleFilter, setRoleFilter] = useState('ALL');
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isDetailsModalOpen, setIsDetailsModalOpen] = useState(false);
@@ -62,7 +65,30 @@ export const AttendanceTab = forwardRef<AttendanceTabRef>((_props, ref) => {
     }));
   }, [employeesData]);
 
-  const { data: attendanceData, isLoading } = useAttendanceRecords();
+  // Compute dateFrom and dateTo based on filters
+  const queryParams = useMemo(() => {
+    let dateFrom: string | undefined;
+    let dateTo: string | undefined;
+    
+    if (yearFilter !== 'ALL' && monthFilter !== 'ALL') {
+      const monthIndex = MONTHS.indexOf(monthFilter);
+      const yearNum = Number(yearFilter);
+      dateFrom = `${yearNum}-${(monthIndex + 1).toString().padStart(2, '0')}-01`;
+      const lastDay = new Date(yearNum, monthIndex + 1, 0).getDate();
+      dateTo = `${yearNum}-${(monthIndex + 1).toString().padStart(2, '0')}-${lastDay}`;
+    } else if (yearFilter !== 'ALL') {
+      dateFrom = `${yearFilter}-01-01`;
+      dateTo = `${yearFilter}-12-31`;
+    } else {
+      // Both are ALL: fetch for a wide range (e.g. past 2 years)
+      const currentYear = new Date().getFullYear();
+      dateFrom = `${currentYear - 2}-01-01`;
+      dateTo = `${currentYear + 1}-12-31`;
+    }
+    return { dateFrom, dateTo };
+  }, [monthFilter, yearFilter]);
+
+  const { data: attendanceData, isLoading } = useAttendanceRecords(queryParams.dateFrom, queryParams.dateTo);
   const upsertMutation = useUpsertAttendance();
 
   const records = useMemo<AttendanceRecord[]>(() => {
@@ -89,16 +115,16 @@ export const AttendanceTab = forwardRef<AttendanceTabRef>((_props, ref) => {
     });
   }, [attendanceData]);
 
-  const presentCount = records.filter(r => r.status === 'Present').length;
-  const absentCount = records.filter(r => r.status === 'Absent').length;
-  const halfDayCount = records.filter(r => r.status === 'Half-day').length;
-
   const filteredRecords = records.filter((r) => {
     const [year, month] = r.date.split('-');
     const matchesMonth = monthFilter === 'ALL' || MONTHS[Number(month) - 1] === monthFilter;
     const matchesYear = yearFilter === 'ALL' || year === yearFilter;
     return matchesMonth && matchesYear;
   });
+
+  const presentCount = filteredRecords.filter(r => r.status === 'Present').length;
+  const absentCount = filteredRecords.filter(r => r.status === 'Absent').length;
+  const halfDayCount = filteredRecords.filter(r => r.status === 'Half-day').length;
 
   const summaryRows = useMemo(() => {
     const map = new Map<string, { employeeId: string; rawId: string; employeeName: string; role: string; present: number; absent: number; halfDay: number }>();
@@ -119,7 +145,9 @@ export const AttendanceTab = forwardRef<AttendanceTabRef>((_props, ref) => {
 
     // Populate from filtered records
     filteredRecords.forEach((r) => {
-      const existing = map.get(r.employeeId);
+      // Find the employee by their raw database ID, not the customUserId display key
+      const employeeKey = employeeOptions.find(emp => emp.id === r.employeeId)?.customUserId || r.employeeId;
+      const existing = map.get(employeeKey);
       if (existing) {
         if (r.status === 'Present') existing.present += 1;
         if (r.status === 'Absent') existing.absent += 1;
@@ -345,6 +373,18 @@ export const AttendanceTab = forwardRef<AttendanceTabRef>((_props, ref) => {
         employees={employeeOptions}
         defaultDate={selectedRecord?.date}
         isSaving={upsertMutation.isPending}
+        existingRecords={records.map(r => {
+          let mappedStatus: 'Present' | 'Absent' | 'Half-day' | 'Company Holiday' = 'Present';
+          if (r.status === 'Absent') mappedStatus = 'Absent';
+          if (r.status === 'Half-day') mappedStatus = 'Half-day';
+          if (r.status === 'Leave') mappedStatus = 'Company Holiday';
+          if (r.status === 'Present') mappedStatus = 'Present';
+          return {
+            employeeId: r.employeeId,
+            date: r.date,
+            status: mappedStatus
+          };
+        })}
       />
 
       <EmployeeAttendanceDetailsModal

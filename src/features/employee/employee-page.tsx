@@ -10,6 +10,7 @@ import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from '
 import { DeleteConfirmDialog } from '@/components/shared/delete-confirm-dialog';
 import { TablePaginationControls, RowsPerPageSelect } from '@/components/shared/table-pagination-controls';
 import { AttendanceTab, type AttendanceTabRef } from './attendance-tab';
+import { PayrollTab, type PayrollTabRef } from './payroll-tab';
 import { useAuth } from '@/features/auth/auth-context';
 import { hasTabAccess } from '@/lib/access';
 
@@ -911,7 +912,6 @@ const EmployeeDirectoryTab = forwardRef<EmployeeDirectoryTabRef>((_props, ref) =
   );
 });
 
-import { PayrollTab } from './payroll-tab';
 
 const EMPLOYEE_TABS = [
   { value: 'directory', tabCode: 'directory' },
@@ -932,6 +932,7 @@ export function EmployeePage() {
   const [activeTab, setActiveTab] = useState('directory');
   const directoryRef = useRef<EmployeeDirectoryTabRef>(null);
   const attendanceRef = useRef<AttendanceTabRef>(null);
+  const payrollRef = useRef<PayrollTabRef>(null);
 
   // Keep activeTab pointed at a tab this user can actually see — matters when their
   // RoleAccess doesn't grant "directory" (today's default) or changes mid-session.
@@ -983,6 +984,7 @@ export function EmployeePage() {
         {activeTab === 'payroll' && (
           <Button
             className="flex items-center gap-2 bg-[#004D40] hover:bg-[#00382e] text-white rounded-md px-3 py-2 h-auto text-[12px] font-bold tracking-wide shadow-[0_1px_2px_rgba(0,45,35,0.2)]"
+            onClick={() => payrollRef.current?.openGenerateModal()}
           >
             <FileText className="w-3 h-3" />
             GENERATE PAYROLL
@@ -1031,7 +1033,7 @@ export function EmployeePage() {
         )}
         {canSeePayroll && (
           <TabsContent value="payroll" className="mt-0 animate-in fade-in-0 slide-in-from-bottom-4 duration-500 ease-in-out">
-            <PayrollTab />
+            <PayrollTab ref={payrollRef} />
           </TabsContent>
         )}
       </Tabs>
