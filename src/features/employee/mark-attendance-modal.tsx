@@ -28,6 +28,7 @@ export interface MarkAttendanceModalProps {
   employees: AttendanceEmployeeOption[];
   defaultDate?: string;
   isSaving?: boolean;
+  existingRecords?: { employeeId: string; date: string; status: DailyStatus }[];
 }
 
 const STATUS_OPTIONS: { value: DailyStatus; label: string; activeClass: string }[] = [
@@ -37,7 +38,7 @@ const STATUS_OPTIONS: { value: DailyStatus; label: string; activeClass: string }
   { value: 'Company Holiday', label: 'Company Holiday', activeClass: 'bg-amber-100 text-amber-800 border-amber-300' },
 ];
 
-export function MarkAttendanceModal({ isOpen, onClose, onSave, employees, defaultDate, isSaving }: MarkAttendanceModalProps) {
+export function MarkAttendanceModal({ isOpen, onClose, onSave, employees, defaultDate, isSaving, existingRecords = [] }: MarkAttendanceModalProps) {
   const [date, setDate] = useState(defaultDate || new Date().toISOString().slice(0, 10));
   const [search, setSearch] = useState('');
   const [statusMap, setStatusMap] = useState<Record<string, DailyStatus>>({});
@@ -45,12 +46,31 @@ export function MarkAttendanceModal({ isOpen, onClose, onSave, employees, defaul
 
   useEffect(() => {
     if (isOpen) {
-      setDate(defaultDate || new Date().toISOString().slice(0, 10));
+      if (!defaultDate && !date) {
+        setDate(new Date().toISOString().slice(0, 10));
+      }
       setSearch('');
-      setStatusMap({});
-      setRemarksMap({});
     }
   }, [isOpen, defaultDate]);
+
+  useEffect(() => {
+    if (isOpen) {
+      const initialStatusMap: Record<string, DailyStatus> = {};
+      const targetDate = date || defaultDate || new Date().toISOString().slice(0, 10);
+      
+      existingRecords.forEach(r => {
+        if (r.date.split('T')[0] === targetDate) {
+          // r.employeeId is the customUserId or rawId, we need to map it to the employee option id
+          const emp = employees.find(e => e.customUserId === r.employeeId || e.id === r.employeeId);
+          if (emp) {
+            initialStatusMap[emp.id] = r.status;
+          }
+        }
+      });
+      setStatusMap(initialStatusMap);
+      setRemarksMap({}); // We can also populate remarks if they were passed
+    }
+  }, [date, isOpen, existingRecords, employees]);
 
   const filtered = employees.filter(
     (e) => e.name.toLowerCase().includes(search.toLowerCase()) || 
@@ -67,9 +87,9 @@ export function MarkAttendanceModal({ isOpen, onClose, onSave, employees, defaul
 
   return (
     <Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
-      <DialogContent className="sm:max-w-5xl p-0 overflow-hidden gap-0 rounded-2xl">
-        <DialogHeader className="px-6 py-4 border-b border-gray-100 bg-white">
-          <DialogTitle className="text-xl font-semibold text-gray-900">Mark Daily Attendance</DialogTitle>
+      <DialogContent className="sm:max-w-5xl p-0 overflow-hidden gap-0 rounded-2xl border border-gray-400">
+        <DialogHeader className="px-6 py-4 border-b border-gray-200 bg-[#A8DCAB]">
+          <DialogTitle className="text-xl font-semibold text-black">Mark Daily Attendance</DialogTitle>
         </DialogHeader>
 
         <div className="flex flex-wrap items-center gap-3 px-6 py-4 border-b border-gray-100">
@@ -94,7 +114,7 @@ export function MarkAttendanceModal({ isOpen, onClose, onSave, employees, defaul
             </thead>
             <tbody>
               {filtered.map((emp) => (
-                <tr key={emp.id} className="border-t border-gray-100">
+                <tr key={emp.id} className="border-t border-gray-300">
                   <td className="px-6 py-3 align-top">
                     <div className="font-semibold text-gray-900">{emp.name}</div>
                     <div className="text-xs text-blue-600">{emp.customUserId || emp.id}</div>
@@ -129,12 +149,12 @@ export function MarkAttendanceModal({ isOpen, onClose, onSave, employees, defaul
           </table>
         </div>
 
-        <DialogFooter className="flex flex-row justify-end gap-3 px-6 py-2 border-t border-gray-100 bg-white sm:justify-end m-1">
+        <DialogFooter className="flex flex-row justify-end gap-3 px-6 py-2 border-t border-gray-200 bg-white sm:justify-end m-1">
           <Button variant="outline" onClick={onClose} className="border-gray-200 text-gray-700 hover:bg-gray-50 rounded-lg">
             Cancel
           </Button>
-          <Button onClick={handleSubmit} disabled={isSaving} className="bg-[#0B503B] hover:bg-[#083A2A] text-white rounded-lg">
-            Save Attendance
+          <Button onClick={handleSubmit} disabled={isSaving} className="bg-[#004D40] hover:bg-[#00332a] text-white rounded-lg">
+            Add
             {isSaving && <Loader2 className="ml-2 h-4 w-4 animate-spin" />}
           </Button>
         </DialogFooter>

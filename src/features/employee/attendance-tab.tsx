@@ -1,9 +1,11 @@
-import { useState, useMemo } from 'react';
-import { Search, Plus, Edit2 } from 'lucide-react';
+import { useState, useMemo, forwardRef, useImperativeHandle } from 'react';
+import { Search, Edit2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+import { Loader } from '@/components/shared/loader';
+import { TablePaginationControls, RowsPerPageSelect } from '@/components/shared/table-pagination-controls';
 import { MarkAttendanceModal } from './mark-attendance-modal';
 import { EmployeeAttendanceDetailsModal } from './employee-attendance-details-modal';
 import { useEmployees } from './employee-queries';
@@ -24,10 +26,17 @@ export interface AttendanceRecord {
   status: 'Present' | 'Absent' | 'Half-day' | 'Leave';
 }
 
-export function AttendanceTab() {
+export interface AttendanceTabRef {
+  openAddModal: () => void;
+}
+
+export const AttendanceTab = forwardRef<AttendanceTabRef>((_props, ref) => {
+  const currentMonthName = MONTHS[new Date().getMonth()];
+  const currentYearStr = new Date().getFullYear().toString();
+
   const [searchQuery, setSearchQuery] = useState('');
-  const [monthFilter, setMonthFilter] = useState('ALL');
-  const [yearFilter, setYearFilter] = useState('ALL');
+  const [monthFilter, setMonthFilter] = useState(currentMonthName);
+  const [yearFilter, setYearFilter] = useState(currentYearStr);
   const [roleFilter, setRoleFilter] = useState('ALL');
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isDetailsModalOpen, setIsDetailsModalOpen] = useState(false);
@@ -44,6 +53,8 @@ export function AttendanceTab() {
     setIsModalOpen(true);
   };
 
+  useImperativeHandle(ref, () => ({ openAddModal }));
+
   // We pass 'isActive=true' or just fetch all for employeeOptions
   const { data: employeesData } = useEmployees('isActive=true');
   const employeeOptions = useMemo(() => {
@@ -56,7 +67,30 @@ export function AttendanceTab() {
     }));
   }, [employeesData]);
 
-  const { data: attendanceData, isLoading } = useAttendanceRecords();
+  // Compute dateFrom and dateTo based on filters
+  const queryParams = useMemo(() => {
+    let dateFrom: string | undefined;
+    let dateTo: string | undefined;
+    
+    if (yearFilter !== 'ALL' && monthFilter !== 'ALL') {
+      const monthIndex = MONTHS.indexOf(monthFilter);
+      const yearNum = Number(yearFilter);
+      dateFrom = `${yearNum}-${(monthIndex + 1).toString().padStart(2, '0')}-01`;
+      const lastDay = new Date(yearNum, monthIndex + 1, 0).getDate();
+      dateTo = `${yearNum}-${(monthIndex + 1).toString().padStart(2, '0')}-${lastDay}`;
+    } else if (yearFilter !== 'ALL') {
+      dateFrom = `${yearFilter}-01-01`;
+      dateTo = `${yearFilter}-12-31`;
+    } else {
+      // Both are ALL: fetch for a wide range (e.g. past 2 years)
+      const currentYear = new Date().getFullYear();
+      dateFrom = `${currentYear - 2}-01-01`;
+      dateTo = `${currentYear + 1}-12-31`;
+    }
+    return { dateFrom, dateTo };
+  }, [monthFilter, yearFilter]);
+
+  const { data: attendanceData, isLoading } = useAttendanceRecords(queryParams.dateFrom, queryParams.dateTo);
   const upsertMutation = useUpsertAttendance();
 
   const records = useMemo<AttendanceRecord[]>(() => {
@@ -83,16 +117,16 @@ export function AttendanceTab() {
     });
   }, [attendanceData]);
 
-  const presentCount = records.filter(r => r.status === 'Present').length;
-  const absentCount = records.filter(r => r.status === 'Absent').length;
-  const halfDayCount = records.filter(r => r.status === 'Half-day').length;
-
   const filteredRecords = records.filter((r) => {
     const [year, month] = r.date.split('-');
     const matchesMonth = monthFilter === 'ALL' || MONTHS[Number(month) - 1] === monthFilter;
     const matchesYear = yearFilter === 'ALL' || year === yearFilter;
     return matchesMonth && matchesYear;
   });
+
+  const presentCount = filteredRecords.filter(r => r.status === 'Present').length;
+  const absentCount = filteredRecords.filter(r => r.status === 'Absent').length;
+  const halfDayCount = filteredRecords.filter(r => r.status === 'Half-day').length;
 
   const summaryRows = useMemo(() => {
     const map = new Map<string, { employeeId: string; rawId: string; employeeName: string; role: string; present: number; absent: number; halfDay: number }>();
@@ -113,7 +147,9 @@ export function AttendanceTab() {
 
     // Populate from filtered records
     filteredRecords.forEach((r) => {
-      const existing = map.get(r.employeeId);
+      // Find the employee by their raw database ID, not the customUserId display key
+      const employeeKey = employeeOptions.find(emp => emp.id === r.employeeId)?.customUserId || r.employeeId;
+      const existing = map.get(employeeKey);
       if (existing) {
         if (r.status === 'Present') existing.present += 1;
         if (r.status === 'Absent') existing.absent += 1;
@@ -137,8 +173,14 @@ export function AttendanceTab() {
     return filteredRecords.filter(r => r.employeeId === selectedEmployee.id);
   }, [filteredRecords, selectedEmployee]);
 
+  const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState(10);
+  const totalPages = Math.max(1, Math.ceil(summaryRows.length / pageSize));
+  const currentPage = Math.min(page, totalPages);
+  const pagedRows = summaryRows.slice((currentPage - 1) * pageSize, currentPage * pageSize);
+
   return (
-    <div className="flex flex-col gap-2 h-[calc(100%-3px)] flex-1 min-h-0">
+    <div className="flex flex-col gap-2 h-[calc(100%-3px)] flex-1 min-h-0 p-2">
       {/* Header section */}
       <div className="flex items-center justify-end">
       </div>
@@ -233,34 +275,27 @@ export function AttendanceTab() {
                 ))}
               </SelectContent>
             </Select>
-            <Button
-              size="sm"
-              onClick={openAddModal}
-              className="h-8 gap-1 bg-[#004D40] text-white hover:bg-[#00332a] px-3.5 text-sm font-medium cursor-pointer font-hanken"
-            >
-              <Plus className="h-3.5 w-3.5" /> Add Attendance
-            </Button>
           </div>
         </div>
 
         {/* Table */}
-        <div className="overflow-x-auto flex-1 flex flex-col">
-          <Table className="font-hanken">
-            <TableHeader className="bg-emerald-50/30">
-              <TableRow className="hover:bg-transparent border-b border-emerald-400">
-                <TableHead className="text-sm font-semibold tracking-wide text-gray-800 py-2 px-5 text-left w-[15%]">
+        <div className="overflow-x-auto overflow-y-auto flex-1 min-h-0">
+          <Table className="border-collapse font-hanken">
+            <TableHeader className="bg-emerald-50/30 sticky top-0 z-10">
+              <TableRow className="hover:bg-transparent border-b border-gray-300">
+                <TableHead className="text-sm font-semibold tracking-wide text-gray-800 py-2 px-5 text-left w-[15%] border-r border-gray-300">
                   EMP ID
                 </TableHead>
-                <TableHead className="text-sm font-semibold tracking-wide text-gray-800 py-2 px-5 text-center w-[17%]">
+                <TableHead className="text-sm font-semibold tracking-wide text-gray-800 py-2 px-5 text-center w-[17%] border-r border-gray-300">
                   EMPLOYEE NAME
                 </TableHead>
-                <TableHead className="text-sm font-semibold tracking-wide text-gray-800 py-2 px-5 text-center w-[17%]">
+                <TableHead className="text-sm font-semibold tracking-wide text-gray-800 py-2 px-5 text-center w-[17%] border-r border-gray-300">
                   PRESENT DAYS
                 </TableHead>
-                <TableHead className="text-sm font-semibold tracking-wide text-gray-800 py-2 px-5 text-center w-[17%]">
+                <TableHead className="text-sm font-semibold tracking-wide text-gray-800 py-2 px-5 text-center w-[17%] border-r border-gray-300">
                   ABSENT DAYS
                 </TableHead>
-                <TableHead className="text-sm font-semibold tracking-wide text-gray-800 py-2 px-5 text-center w-[17%]">
+                <TableHead className="text-sm font-semibold tracking-wide text-gray-800 py-2 px-5 text-center w-[17%] border-r border-gray-300">
                   HALF DAYS
                 </TableHead>
                 <TableHead className="text-sm font-semibold tracking-wide text-gray-800 py-2 px-5 text-right w-[17%]">
@@ -269,58 +304,71 @@ export function AttendanceTab() {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {!isLoading && summaryRows.map((row) => (
-                <TableRow key={row.employeeId} className="border-b border-gray-100 hover:bg-gray-50/50">
-                  <TableCell className="py-3 px-5 text-left">
-                    <span className="text-sm font-semibold text-blue-600">
-                      {row.employeeId}
-                    </span>
-                  </TableCell>
-                  <TableCell className="py-3 px-5 text-center">
-                    <div className="flex items-center justify-center gap-3">
-                      <div className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-gray-200 text-xs font-semibold text-gray-600">
-                        {row.employeeName.charAt(0)}
-                      </div>
-                      <span className="text-sm font-semibold text-gray-900">{row.employeeName}</span>
-                    </div>
-                  </TableCell>
-                  <TableCell className="py-3 px-5 text-center">
-                    <span className="inline-flex items-center justify-center rounded-full text-green-700 px-3 py-1 text-sm font-medium text-emerald-900">
-                      {row.present}
-                    </span>
-                  </TableCell>
-                  <TableCell className="py-3 px-5 text-center">
-                    <span className="inline-flex items-center justify-center rounded-full text-red-500 px-3 py-1 text-sm font-medium text-rose-900">
-                      {row.absent}
-                    </span>
-                  </TableCell>
-                  <TableCell className="py-3 px-5 text-center">
-                    <span className="inline-flex items-center justify-center rounded-full text-[#BFDBFE] px-3 py-1 text-sm font-medium text-blue-900">
-                      {row.halfDay}
-                    </span>
-                  </TableCell>
-                  <TableCell className="py-3 px-5 text-right">
-                    <div className="flex items-center justify-end gap-1.5">
-                      <Button variant="ghost" size="icon-sm" className="h-7 w-7 rounded-full bg-blue-50 text-blue-600 hover:bg-blue-100 cursor-pointer" aria-label="View attendance details" onClick={() => openDetailsModal(row)}>
-                        <Edit2 className="h-3.5 w-3.5" />
-                      </Button>
-                    </div>
+              {isLoading ? (
+                <TableRow>
+                  <TableCell colSpan={6} className="h-28 text-center text-gray-500 text-sm">
+                    <div className="flex items-center justify-center gap-2"><Loader size="sm" /> Loading attendance records...</div>
                   </TableCell>
                 </TableRow>
-              ))
-              }
+              ) : pagedRows.length === 0 ? (
+                <TableRow>
+                  <TableCell colSpan={6} className="h-28 !text-center text-gray-500 text-sm">No attendance records found.</TableCell>
+                </TableRow>
+              ) : (
+                pagedRows.map((row) => (
+                  <TableRow key={row.employeeId} className="border-b border-gray-300 hover:bg-emerald-50/30 transition-colors">
+                    <TableCell className="py-3 px-5 text-left border-r border-gray-300">
+                      <span className="text-sm font-semibold text-blue-600">
+                        {row.employeeId}
+                      </span>
+                    </TableCell>
+                    <TableCell className="py-3 px-5 text-center border-r border-gray-300">
+                      <div className="flex items-center justify-center gap-3">
+                        <div className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-gray-200 text-xs font-semibold text-gray-600">
+                          {row.employeeName.charAt(0)}
+                        </div>
+                        <span className="text-sm font-semibold text-gray-900">{row.employeeName}</span>
+                      </div>
+                    </TableCell>
+                    <TableCell className="py-3 px-5 text-center border-r border-gray-300">
+                      <span className="inline-flex items-center justify-center rounded-full text-green-700 px-3 py-1 text-sm font-medium text-emerald-900">
+                        {row.present}
+                      </span>
+                    </TableCell>
+                    <TableCell className="py-3 px-5 text-center border-r border-gray-300">
+                      <span className="inline-flex items-center justify-center rounded-full text-red-500 px-3 py-1 text-sm font-medium text-rose-900">
+                        {row.absent}
+                      </span>
+                    </TableCell>
+                    <TableCell className="py-3 px-5 text-center border-r border-gray-300">
+                      <span className="inline-flex items-center justify-center rounded-full text-[#BFDBFE] px-3 py-1 text-sm font-medium text-blue-900">
+                        {row.halfDay}
+                      </span>
+                    </TableCell>
+                    <TableCell className="py-3 px-5 text-right">
+                      <div className="flex items-center justify-end gap-1.5">
+                        <Button variant="ghost" size="icon-sm" className="h-7 w-7 rounded-full bg-blue-50 text-blue-600 hover:bg-blue-100 cursor-pointer" aria-label="View attendance details" onClick={() => openDetailsModal(row)}>
+                          <Edit2 className="h-3.5 w-3.5" />
+                        </Button>
+                      </div>
+                    </TableCell>
+                  </TableRow>
+                ))
+              )}
             </TableBody>
           </Table>
-          {isLoading && (
-            <div className="flex-1 flex items-center justify-center text-gray-500 text-md">
-              Loading attendance records...
-            </div>
-          )}
-          {!isLoading && summaryRows.length === 0 && (
-            <div className="flex-1 flex items-center justify-center text-gray-500 text-md">
-              No attendance records found.
-            </div>
-          )}
+        </div>
+
+        {/* Table Footer */}
+        <div className="shrink-0 p-3 border-t border-gray-400 bg-emerald-50/20 text-xs text-gray-700 flex flex-wrap justify-between items-center gap-3 px-4">
+          <span>
+            Showing{" "}
+            {summaryRows.length === 0 ? 0 : (currentPage - 1) * pageSize + 1}-
+            {Math.min(currentPage * pageSize, summaryRows.length)} of{" "}
+            {summaryRows.length} entries
+          </span>
+          <TablePaginationControls currentPage={currentPage} totalPages={totalPages} onPageChange={setPage} />
+          <RowsPerPageSelect pageSize={pageSize} onPageSizeChange={(size) => { setPageSize(size); setPage(1); }} />
         </div>
       </div>
 
@@ -346,6 +394,18 @@ export function AttendanceTab() {
         employees={employeeOptions}
         defaultDate={selectedRecord?.date}
         isSaving={upsertMutation.isPending}
+        existingRecords={records.map(r => {
+          let mappedStatus: 'Present' | 'Absent' | 'Half-day' | 'Company Holiday' = 'Present';
+          if (r.status === 'Absent') mappedStatus = 'Absent';
+          if (r.status === 'Half-day') mappedStatus = 'Half-day';
+          if (r.status === 'Leave') mappedStatus = 'Company Holiday';
+          if (r.status === 'Present') mappedStatus = 'Present';
+          return {
+            employeeId: r.employeeId,
+            date: r.date,
+            status: mappedStatus
+          };
+        })}
       />
 
       <EmployeeAttendanceDetailsModal
@@ -378,4 +438,4 @@ export function AttendanceTab() {
       />
     </div>
   );
-}
+});

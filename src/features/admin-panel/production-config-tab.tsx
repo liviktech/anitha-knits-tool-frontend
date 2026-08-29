@@ -137,7 +137,7 @@ export function ProductionConfigTab() {
           <div className="pointer-events-none absolute right-0 top-0 h-full w-64 bg-gradient-to-l from-[#004D40]/[0.035] to-transparent" />
 
           {/* Header */}
-          <div className="relative flex items-center justify-between border-b border-gray-100 px-5 py-3">
+          <div className="relative flex items-center justify-between border-b border-gray-300 px-5 py-3">
 
             <div className="flex items-center gap-3">
 
@@ -207,7 +207,7 @@ export function ProductionConfigTab() {
                 </p>
 
                 <p className="mt-1 text-[16px] font-bold text-gray-900">
-                  {latest.chemicalWeight ?? '—'}
+                  {latest.chemicalWeight?.toPrecision(3) ?? '—'}
                   <span className="ml-1 text-[12px] font-normal text-gray-400">
                     kg
                   </span>
@@ -235,7 +235,7 @@ export function ProductionConfigTab() {
                 </p>
 
                 <p className="mt-1 text-[16px] font-bold text-gray-900">
-                  {latest.blueKgBasis}
+                  {latest.blueKgBasis.toPrecision(2)}
                   <span className="ml-1 text-[12px] font-normal text-gray-400">
                     kg
                   </span>
@@ -249,7 +249,7 @@ export function ProductionConfigTab() {
                 </p>
 
                 <p className="mt-1 text-[16px] font-bold text-gray-900">
-                  {latest.greenKgBasis}
+                  {latest.greenKgBasis.toPrecision(2)}
                   <span className="ml-1 text-[12px] font-normal text-gray-400">
                     kg
                   </span>
@@ -296,7 +296,7 @@ export function ProductionConfigTab() {
         </div>
       </div>
 
-      <section className="-mt-2 overflow-hidden rounded-xl border border-gray-200 bg-white shadow-sm">
+      <section className="-mt-2 overflow-hidden rounded-xl border border-gray-400 bg-white shadow-sm">
 
         {/* Table */}
         <div className="overflow-x-auto">
@@ -304,44 +304,44 @@ export function ProductionConfigTab() {
           <table className="w-full min-w-[900px] border-collapse">
 
             <thead>
-              <tr className="border-b border-gray-100 bg-gray-50/70">
+              <tr className="border-b border-emerald-300 bg-emerald-50/30">
 
-                <th className="px-5 py-3 text-left text-[10px] font-bold uppercase tracking-wide text-gray-400">
+                <th className="px-5 py-3 text-left text-sm font-semibold tracking-wide text-gray-800">
                   Effective Date
                 </th>
 
-                <th className="px-4 py-3 text-left text-[10px] font-bold uppercase tracking-wide text-gray-400">
+                <th className="px-4 py-3 text-left text-sm font-semibold tracking-wide text-gray-800">
                   Bags
                 </th>
 
-                <th className="px-4 py-3 text-left text-[10px] font-bold uppercase tracking-wide text-gray-400">
+                <th className="px-4 py-3 text-left text-sm font-semibold tracking-wide text-gray-800">
                   HDPE
                 </th>
 
-                <th className="px-4 py-3 text-left text-[10px] font-bold uppercase tracking-wide text-gray-400">
+                <th className="px-4 py-3 text-left text-sm font-semibold tracking-wide text-gray-800">
                   White
                 </th>
 
-                <th className="px-4 py-3 text-left text-[10px] font-bold uppercase tracking-wide text-gray-400">
+                <th className="px-4 py-3 text-left text-sm font-semibold tracking-wide text-gray-800">
                   Blue
                 </th>
 
-                <th className="px-4 py-3 text-left text-[10px] font-bold uppercase tracking-wide text-gray-400">
+                <th className="px-4 py-3 text-left text-sm font-semibold tracking-wide text-gray-800">
                   Green
                 </th>
 
-                <th className="px-4 py-3 text-left text-[10px] font-bold uppercase tracking-wide text-gray-400">
+                <th className="px-4 py-3 text-left text-sm font-semibold tracking-wide text-gray-800">
                   Chemical
                 </th>
 
-                <th className="px-5 py-3 text-right text-[10px] font-bold uppercase tracking-wide text-gray-400">
+                <th className="px-5 py-3 text-right text-sm font-semibold tracking-wide text-gray-800">
                   Actions
                 </th>
 
               </tr>
             </thead>
 
-            <tbody className="divide-y divide-gray-100">
+            <tbody>
 
               {history.length === 0 && (
                 <tr>
@@ -356,7 +356,7 @@ export function ProductionConfigTab() {
                 return (
                   <tr
                     key={item.id}
-                    className="group transition-colors hover:bg-gray-50/70"
+                    className="group border-b border-emerald-300 last:border-b-0 transition-colors hover:bg-emerald-50/30"
                   >
 
                     {/* Date + LIVE */}
@@ -411,20 +411,20 @@ export function ProductionConfigTab() {
                     {/* Blue */}
                     <td className="px-4 py-1.5">
                       <span className="inline-flex rounded-md border border-blue-100 bg-blue-50 px-2 py-1 text-[11px] font-medium text-blue-700">
-                        {item.blueKgBasis} kg
+                        {item.blueKgBasis.toPrecision(2)} kg
                       </span>
                     </td>
 
                     {/* Green */}
                     <td className="px-4 py-1.5">
                       <span className="inline-flex rounded-md border border-green-100 bg-green-50 px-2 py-1 text-[11px] font-medium text-green-700">
-                        {item.greenKgBasis} kg
+                        {item.greenKgBasis.toPrecision(2)} kg
                       </span>
                     </td>
 
                     {/* Chemical */}
                     <td className="px-4 py-1.5 text-[13px] text-gray-700">
-                      {item.chemicalWeight !== null ? `${item.chemicalWeight} kg` : '—'}
+                      {item.chemicalWeight !== null ? `${item.chemicalWeight.toPrecision(3)} kg` : '—'}
                     </td>
 
                     {/* Actions */}

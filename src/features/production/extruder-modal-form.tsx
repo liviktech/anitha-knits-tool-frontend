@@ -335,11 +335,11 @@ export function ExtruderModalForm({ productionDate, initialData, isEditMode, onC
                 </Select>
               </div>
               <div className="space-y-1 flex-1">
-                {idx === 0 && <Label className="text-xs text-gray-500">Bag Wt</Label>}
-                <Input type="number" placeholder="Bag Wt" disabled readOnly value={brandRow.basisWeightKg} className="h-8 text-xs w-full bg-gray-100" />
+                {idx === 0 && <Label className="text-xs text-gray-500">Bag Weight</Label>}
+                <Input type="number" placeholder="Bag Wt" disabled readOnly value={brandRow.basisWeightKg} className="h-8 text-xs w-fullborder border-gray-300" />
               </div>
               <div className="space-y-1 flex-1">
-                {idx === 0 && <Label className="text-xs text-gray-500">Loose Wt</Label>}
+                {idx === 0 && <Label className="text-xs text-gray-500">Loose Weight</Label>}
                 <Input type="number" placeholder="Loose Wt" value={brandRow.looseWeight} onChange={(e) => updateBrandField(brandRow.key, 'looseWeight', e.target.value)} className="h-8 text-xs w-full" />
               </div>
               <div className="space-y-1 flex-1">

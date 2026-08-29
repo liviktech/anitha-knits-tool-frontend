@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import { Plus, Edit2, Trash2, PackagePlus, PackageMinus, ArrowLeft, ChevronRight } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -7,8 +7,13 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Loader } from '@/components/shared/loader';
 import { DeleteConfirmDialog } from '@/components/shared/delete-confirm-dialog';
+import { TablePaginationFooter } from '@/components/shared/table-pagination-footer';
 import { apiFetch } from '@/lib/api-client';
 import { useLookups } from '@/lib/lookups';
+import { useAuth } from '@/features/auth/auth-context';
+import { can } from '@/lib/access';
+import { RIGHTS } from '@/lib/permissions';
+import { canCreateProductionRecord, canDeleteProductionRecord, canEditProductionRecord } from '@/lib/production-permissions';
 import { formatDate, formatDateDisplay } from './inventory-utils';
 import { InventoryFormDialog } from './inventory-form-dialog';
 import { LoadSentFormDialog } from './load-sent-form-dialog';
@@ -33,6 +38,8 @@ import { useFabricCheckingRecords } from '@/features/fabric/fabric-queries';
 
 function InventoryReceiveTab({ onBack }: { onBack: () => void }) {
   const queryClient = useQueryClient();
+  const { user } = useAuth();
+  const canAdd = can(user, RIGHTS.inventory.add);
   const { data, isLoading } = useInventoryRecords('?limit=100');
   const records = data?.data ?? [];
   const totalKg = records.reduce((sum, r) => sum + r.weightKg, 0);
@@ -94,13 +101,15 @@ function InventoryReceiveTab({ onBack }: { onBack: () => void }) {
             <Input type="number" className="h-8 w-28 text-right" value={totalKg.toFixed(2)} readOnly />
             <span className="text-gray-400">kg</span>
           </div>
-          <Button
-            size="sm"
-            className="h-8 gap-1 rounded-full bg-[#004D40] text-white hover:bg-[#00332a]"
-            onClick={openCreate}
-          >
-            <Plus className="h-3 w-3" /> Add received stock
-          </Button>
+          {canAdd && (
+            <Button
+              size="sm"
+              className="h-8 gap-1 rounded-full bg-[#004D40] text-white hover:bg-[#00332a]"
+              onClick={openCreate}
+            >
+              <Plus className="h-3 w-3" /> Add received stock
+            </Button>
+          )}
         </div>
       </div>
 
@@ -130,8 +139,8 @@ function InventoryReceiveTab({ onBack }: { onBack: () => void }) {
               </TableRow>
             ) : (
               groupedRecords.map((group) => (
-                <TableRow key={group.date} className="hover:bg-transparent border-b border-green-100">
-                  <TableCell className="align-middle pt-4 font-medium text-gray-900 w-32 border-r border-gray-100/50">{group.date}</TableCell>
+                <TableRow key={group.date} className="hover:bg-transparent border-b border-green-300">
+                  <TableCell className="align-middle pt-4 font-medium text-gray-900 w-32 border-r border-gray-300">{group.date}</TableCell>
                   <TableCell className="p-3 align-middle">
                     <div className="flex flex-wrap items-center gap-2">
                       {Array.from(new Set(group.records.map(r => r.type))).map((type) => (
@@ -141,7 +150,7 @@ function InventoryReceiveTab({ onBack }: { onBack: () => void }) {
                       ))}
                     </div>
                   </TableCell>
-                  <TableCell className="p-3 align-middle border-l border-gray-100/50">
+                  <TableCell className="p-3 align-middle border-l border-gray-300">
                     <div className="flex flex-wrap items-center gap-2">
                       {group.records.map((r) => (
                         <span key={r.id} className={`inline-flex items-center rounded-md px-2.5 py-1 text-xs font-medium border shadow-sm ${getTypeColor(r.type)}`}>
@@ -150,7 +159,7 @@ function InventoryReceiveTab({ onBack }: { onBack: () => void }) {
                       ))}
                     </div>
                   </TableCell>
-                  <TableCell className="p-3 align-middle text-center border-l border-gray-100/50">
+                  <TableCell className="p-3 align-middle text-center border-l border-gray-300">
                     <div className="flex flex-wrap items-center justify-center gap-2">
                       {group.records.map((r) => (
                         <span key={r.id} className={`inline-flex items-center rounded-md px-2.5 py-1 text-xs font-bold border shadow-sm ${getTypeColor(r.type)}`}>
@@ -159,7 +168,7 @@ function InventoryReceiveTab({ onBack }: { onBack: () => void }) {
                       ))}
                     </div>
                   </TableCell>
-                  <TableCell className="p-3 align-middle text-center border-l border-gray-100/50">
+                  <TableCell className="p-3 align-middle text-center border-l border-gray-300">
                     <Button variant="outline" size="sm" className="h-8 text-xs text-green-700 border-green-200 hover:bg-green-50 shadow-sm">
                       Manage Items <ChevronRight className="h-3 w-3 ml-1" />
                     </Button>
@@ -201,6 +210,10 @@ function InventoryReceiveTab({ onBack }: { onBack: () => void }) {
 
 function LoadSentTab({ onBack }: { onBack: () => void }) {
   const queryClient = useQueryClient();
+  const { user } = useAuth();
+  const canAdd = canCreateProductionRecord(user);
+  const canEdit = canEditProductionRecord(user, false);
+  const canDelete = canDeleteProductionRecord(user);
   const { data: lookupsData } = useLookups();
   const colors = lookupsData?.colors ?? [];
   const sizes = lookupsData?.sizes ?? [];
@@ -277,13 +290,15 @@ function LoadSentTab({ onBack }: { onBack: () => void }) {
             <span className="font-bold text-gray-900">{totalKg.toFixed(2)}</span>
             <span className="text-xs text-gray-400">kg</span>
           </div>
-          <Button
-            size="sm"
-            className="h-8 gap-1.5 rounded-full bg-orange-600 text-white hover:bg-orange-700 shadow-sm"
-            onClick={openCreate}
-          >
-            <Plus className="h-3.5 w-3.5" /> Add sent stock
-          </Button>
+          {canAdd && (
+            <Button
+              size="sm"
+              className="h-8 gap-1.5 rounded-full bg-orange-600 text-white hover:bg-orange-700 shadow-sm"
+              onClick={openCreate}
+            >
+              <Plus className="h-3.5 w-3.5" /> Add sent stock
+            </Button>
+          )}
         </div>
       </div>
 
@@ -330,7 +345,7 @@ function LoadSentTab({ onBack }: { onBack: () => void }) {
       <div className="overflow-x-auto">
         <Table>
           <TableHeader>
-            <TableRow className="hover:bg-transparent border-b border-orange-100">
+            <TableRow className="hover:bg-transparent border-b border-orange-300">
               <TableHead className="text-2xs font-semibold uppercase tracking-wide text-gray-400">Date</TableHead>
               <TableHead className="text-2xs font-semibold uppercase tracking-wide text-gray-400">Color</TableHead>
               <TableHead className="text-2xs font-semibold uppercase tracking-wide text-gray-400">Size</TableHead>
@@ -364,12 +379,16 @@ function LoadSentTab({ onBack }: { onBack: () => void }) {
                   <TableCell className="text-center">{getLoadSentWeight(r).toFixed(2)}</TableCell>
                   <TableCell className="text-center">
                     <div className="flex items-center justify-center gap-2">
-                      <Button variant="ghost" size="icon-sm" className="rounded-full bg-blue-50 text-blue-500 hover:bg-blue-100" aria-label="Edit row" onClick={() => openEdit(r)}>
-                        <Edit2 className="h-3.5 w-3.5" />
-                      </Button>
-                      <Button variant="ghost" size="icon-sm" className="rounded-full bg-red-50 text-red-500 hover:bg-red-100" aria-label="Delete row" onClick={() => setDeleteTarget(r)}>
-                        <Trash2 className="h-3.5 w-3.5" />
-                      </Button>
+                      {canEdit && (
+                        <Button variant="ghost" size="icon-sm" className="rounded-full bg-blue-50 text-blue-500 hover:bg-blue-100" aria-label="Edit row" onClick={() => openEdit(r)}>
+                          <Edit2 className="h-3.5 w-3.5" />
+                        </Button>
+                      )}
+                      {canDelete && (
+                        <Button variant="ghost" size="icon-sm" className="rounded-full bg-red-50 text-red-500 hover:bg-red-100" aria-label="Delete row" onClick={() => setDeleteTarget(r)}>
+                          <Trash2 className="h-3.5 w-3.5" />
+                        </Button>
+                      )}
                     </div>
                   </TableCell>
                 </TableRow>
@@ -394,12 +413,13 @@ function LoadSentTab({ onBack }: { onBack: () => void }) {
 
 /* ---------------------------------------------------------------------- */
 
-function StockSummaryCard({ onAdd, onEditDate, onDeleteDate }: { onAdd: (e: React.MouseEvent) => void; onEditDate: (date: string) => void; onDeleteDate: (date: string, records: InventoryRecord[]) => void }) {
-  const { data } = useInventoryRecords('?limit=100');
+function StockSummaryCard({ month, onEditDate, onDeleteDate }: { month: string; onEditDate: (date: string) => void; onDeleteDate: (date: string, records: InventoryRecord[]) => void }) {
+  const { user } = useAuth();
+  const canEdit = can(user, RIGHTS.inventory.edit);
+  const canDelete = can(user, RIGHTS.inventory.delete);
+  const { data, isLoading } = useInventoryRecords('?limit=100');
   const { data: lookupsData } = useLookups();
   const records = data?.data ?? [];
-
-  const [month, setMonth] = useState(() => new Date().toISOString().slice(0, 7)); // YYYY-MM
 
   const monthRecords = records.filter(r => r.date.startsWith(month));
 
@@ -434,6 +454,19 @@ function StockSummaryCard({ onAdd, onEditDate, onDeleteDate }: { onAdd: (e: Reac
     }, new Map<string, InventoryRecord[]>()).entries()
   ).sort(([a], [b]) => b.localeCompare(a));
 
+  const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState(10);
+  const totalPages = Math.max(1, Math.ceil(groupedByDate.length / pageSize));
+  const currentPage = Math.min(page, totalPages);
+  const pagedGroupedByDate = useMemo(
+    () => groupedByDate.slice((currentPage - 1) * pageSize, currentPage * pageSize),
+    [groupedByDate, currentPage, pageSize],
+  );
+
+  useEffect(() => {
+    setPage(1);
+  }, [month]);
+
   const getWeight = (dayRecords: InventoryRecord[], type: InventoryType, name: string) =>
     dayRecords.filter(r => r.type === type && r.name === name).reduce((sum, r) => sum + r.weightKg, 0);
 
@@ -445,240 +478,229 @@ function StockSummaryCard({ onAdd, onEditDate, onDeleteDate }: { onAdd: (e: Reac
   const totalCols = hdpeNames.length + chemicalNames.length + colorNames.length;
 
   return (
-    <div className="flex flex-col gap-4">
+    <div className="flex flex-col gap-2">
       {/* === Top Summary Card === */}
-      <div className="rounded-xl border border-green-200 bg-white shadow-sm overflow-hidden">
-        {/* Header */}
-        <div className="p-3 border-b border-green-200 bg-gradient-to-br from-green-50 via-emerald-50/50 to-white relative overflow-hidden flex items-center justify-between">
-          <div className="absolute -right-8 -top-8 w-32 h-32 bg-green-400/5 rounded-full blur-2xl pointer-events-none"></div>
-          <div className="flex items-center gap-3 relative z-10">
-            <div className="flex h-10 w-10 items-center justify-center rounded-lg border border-green-200 bg-green-50 text-green-700 shadow-sm shrink-0">
-              <PackagePlus className="h-5 w-5" />
-            </div>
-            <div className="flex flex-col mr-2">
-              <h2 className="font-bold text-gray-900 text-lg leading-tight">Stock Received</h2>
-              <p className="text-xs text-gray-500">Warehouse In-flow</p>
-            </div>
+      {/* Mini cards: HDPE, Chemicals, Colors */}
 
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-2">
+
+        {/* HDPE Card */}
+        <div className="bg-white rounded-xl border border-gray-400 shadow-sm p-4 relative overflow-hidden group/card hover:border-blue-200 transition-colors flex flex-col">
+          <div className="absolute top-0 right-0 p-4 opacity-5 group-hover/card:opacity-10 transition-opacity">
+            <img src="/hdpe.png" alt="" className="w-26 h-26 object-contain" />
           </div>
-          <div className="flex items-center gap-3 relative z-10">
-            <Button size="sm" onClick={onAdd} className="bg-green-600 hover:bg-green-700 h-9 text-xs shadow-sm">
-              <Plus className="w-4 h-4 mr-1.5" /> Add Stock
-            </Button>
-            <Input type="month" value={month} onChange={e => setMonth(e.target.value)} className="h-9 text-sm w-36 bg-white/60 shadow-sm font-medium" />
+          <div className="flex justify-between items-center mb-4 relative z-10">
+            <div className="flex items-center gap-2">
+              <div className=""><img src="/hdpe.png" alt="HDPE" className="w-12 h-12 object-contain" /></div>
+              <h3 className="font-extrabold text-gray-800 text-lg">HDPE Materials</h3>
+            </div>
+            <div className="text-lg font-bold text-gray-800 leading-none">{rawMaterials.weight.toFixed(2)} <span className="text-xs font-medium text-gray-500">kg</span></div>
+          </div>
+          <div className="mt-auto relative z-10 pt-2 border-t border-gray-50">
+            {rawMaterials.items.length > 0 ? (
+              <div className="flex flex-wrap items-center gap-x-6 gap-y-3 mt-2">
+                {rawMaterials.items.map(item => (
+                  <div key={item.name} className="flex flex-col gap-0.5">
+                    <span className="font-medium text-gray-500 text-xs">{item.name}</span>
+                    <span className="font-extrabold text-[#004D40] text-base">{item.weight.toFixed(2)}<span className="text-gray-500 font-normal text-xs ml-0.5">kg</span></span>
+                  </div>
+                ))}
+              </div>
+            ) : <span className="text-xs text-gray-400 italic">No HDPE this month</span>}
+          </div>
+        </div>
 
+        {/* Chemicals Card */}
+        <div className="bg-white rounded-xl border border-gray-400 shadow-sm p-4 relative overflow-hidden group/card hover:border-orange-200 transition-colors flex flex-col">
+          <div className="absolute top-0 right-0 p-4 opacity-5 group-hover/card:opacity-10 transition-opacity">
+            <img src="/chemical.png" alt="" className="w-26 h-26 object-contain" />
+          </div>
+          <div className="flex justify-between items-center mb-4 relative z-10">
+            <div className="flex items-center gap-2">
+              <div className=""><img src="/chemical.png" alt="Chemicals" className="w-12 h-12 object-contain" /></div>
+              <h3 className="font-extrabold text-gray-800 text-lg">Chemicals</h3>
+            </div>
+            <div className="text-lg font-bold text-gray-800 leading-none">{chemicals.weight.toFixed(2)} <span className="text-xs font-medium text-gray-500">kg</span></div>
+          </div>
+          <div className="mt-auto relative z-10 pt-2 border-t border-gray-50">
+            {chemicals.items.length > 0 ? (
+              <div className="flex flex-wrap items-center gap-x-6 gap-y-3 mt-2">
+                {chemicals.items.map(item => (
+                  <div key={item.name} className="flex flex-col gap-0.5">
+                    <span className="font-medium text-gray-500 text-xs">{item.name}</span>
+                    <span className="font-extrabold text-[#004D40] text-base">{item.weight.toFixed(2)}<span className="text-gray-500 font-normal text-xs ml-0.5">kg</span></span>
+                  </div>
+                ))}
+              </div>
+            ) : <span className="text-xs text-gray-400 italic">No chemicals this month</span>}
           </div>
         </div>
 
-        {/* Mini cards: HDPE, Chemicals, Colors */}
-        <div className="p-2 bg-gradient-to-br from-gray-50 to-green-50/20" style={{ fontFamily: "'Hanken Grotesk Variable', 'Hanken Grotesk', sans-serif" }}>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-2">
-
-            {/* HDPE Card */}
-            <div className="bg-white rounded-xl border border-gray-400 shadow-sm p-4 relative overflow-hidden group/card hover:border-blue-200 transition-colors flex flex-col">
-              <div className="absolute top-0 right-0 p-4 opacity-5 group-hover/card:opacity-10 transition-opacity">
-                <img src="/hdpe.png" alt="" className="w-26 h-26 object-contain" />
-              </div>
-              <div className="flex justify-between items-center mb-4 relative z-10">
-                <div className="flex items-center gap-2">
-                  <div className=""><img src="/hdpe.png" alt="HDPE" className="w-12 h-12 object-contain" /></div>
-                  <h3 className="font-extrabold text-gray-800 text-lg">HDPE Materials</h3>
-                </div>
-                <div className="text-lg font-bold text-gray-800 leading-none">{rawMaterials.weight.toFixed(2)} <span className="text-xs font-medium text-gray-500">kg</span></div>
-              </div>
-              <div className="mt-auto relative z-10 pt-2 border-t border-gray-50">
-                {rawMaterials.items.length > 0 ? (
-                  <div className="flex flex-wrap items-center gap-x-6 gap-y-3 mt-2">
-                    {rawMaterials.items.map(item => (
-                      <div key={item.name} className="flex flex-col gap-0.5">
-                        <span className="font-medium text-gray-500 text-xs">{item.name}</span>
-                        <span className="font-extrabold text-[#004D40] text-base">{item.weight.toFixed(2)}<span className="text-gray-500 font-normal text-xs ml-0.5">kg</span></span>
-                      </div>
-                    ))}
-                  </div>
-                ) : <span className="text-xs text-gray-400 italic">No HDPE this month</span>}
-              </div>
+        {/* Colors Card */}
+        <div className="bg-white rounded-xl border border-gray-400 shadow-sm p-4 relative overflow-hidden group/card hover:border-purple-200 transition-colors flex flex-col">
+          <div className="absolute top-0 right-0 p-4 opacity-5 group-hover/card:opacity-10 transition-opacity">
+            <img src="/color.png" alt="" className="w-26 h-26 object-contain" />
+          </div>
+          <div className="flex justify-between items-center mb-4 relative z-10">
+            <div className="flex items-center gap-2">
+              <div className=""><img src="/color.png" alt="Colors" className="w-12 h-12 object-contain" /></div>
+              <h3 className="font-extrabold text-gray-800 text-lg">Colors</h3>
             </div>
-
-            {/* Chemicals Card */}
-            <div className="bg-white rounded-xl border border-gray-400 shadow-sm p-4 relative overflow-hidden group/card hover:border-orange-200 transition-colors flex flex-col">
-              <div className="absolute top-0 right-0 p-4 opacity-5 group-hover/card:opacity-10 transition-opacity">
-                <img src="/chemical.png" alt="" className="w-26 h-26 object-contain" />
-              </div>
-              <div className="flex justify-between items-center mb-4 relative z-10">
-                <div className="flex items-center gap-2">
-                  <div className=""><img src="/chemical.png" alt="Chemicals" className="w-12 h-12 object-contain" /></div>
-                  <h3 className="font-extrabold text-gray-800 text-lg">Chemicals</h3>
-                </div>
-                <div className="text-lg font-bold text-gray-800 leading-none">{chemicals.weight.toFixed(2)} <span className="text-xs font-medium text-gray-500">kg</span></div>
-              </div>
-              <div className="mt-auto relative z-10 pt-2 border-t border-gray-50">
-                {chemicals.items.length > 0 ? (
-                  <div className="flex flex-wrap items-center gap-x-6 gap-y-3 mt-2">
-                    {chemicals.items.map(item => (
-                      <div key={item.name} className="flex flex-col gap-0.5">
-                        <span className="font-medium text-gray-500 text-xs">{item.name}</span>
-                        <span className="font-extrabold text-[#004D40] text-base">{item.weight.toFixed(2)}<span className="text-gray-500 font-normal text-xs ml-0.5">kg</span></span>
-                      </div>
-                    ))}
+            <div className="text-lg font-bold text-gray-800 leading-none">{colors.weight.toFixed(2)} <span className="text-xs font-medium text-gray-500">kg</span></div>
+          </div>
+          <div className="mt-auto relative z-10 pt-2 border-t border-gray-50">
+            {colors.items.length > 0 ? (
+              <div className="flex flex-wrap items-center gap-x-6 gap-y-3 mt-2">
+                {colors.items.map(item => (
+                  <div key={item.name} className="flex flex-col gap-0.5">
+                    <span className="font-medium text-gray-500 text-xs">{item.name}</span>
+                    <span className="font-extrabold text-[#004D40] text-base">{item.weight.toFixed(2)}<span className="text-gray-500 font-normal text-xs ml-0.5">kg</span></span>
                   </div>
-                ) : <span className="text-xs text-gray-400 italic">No chemicals this month</span>}
+                ))}
               </div>
-            </div>
-
-            {/* Colors Card */}
-            <div className="bg-white rounded-xl border border-gray-400 shadow-sm p-4 relative overflow-hidden group/card hover:border-purple-200 transition-colors flex flex-col">
-              <div className="absolute top-0 right-0 p-4 opacity-5 group-hover/card:opacity-10 transition-opacity">
-                <img src="/color.png" alt="" className="w-26 h-26 object-contain" />
-              </div>
-              <div className="flex justify-between items-center mb-4 relative z-10">
-                <div className="flex items-center gap-2">
-                  <div className=""><img src="/color.png" alt="Colors" className="w-12 h-12 object-contain" /></div>
-                  <h3 className="font-extrabold text-gray-800 text-lg">Colors</h3>
-                </div>
-                <div className="text-lg font-bold text-gray-800 leading-none">{colors.weight.toFixed(2)} <span className="text-xs font-medium text-gray-500">kg</span></div>
-              </div>
-              <div className="mt-auto relative z-10 pt-2 border-t border-gray-50">
-                {colors.items.length > 0 ? (
-                  <div className="flex flex-wrap items-center gap-x-6 gap-y-3 mt-2">
-                    {colors.items.map(item => (
-                      <div key={item.name} className="flex flex-col gap-0.5">
-                        <span className="font-medium text-gray-500 text-xs">{item.name}</span>
-                        <span className="font-extrabold text-[#004D40] text-base">{item.weight.toFixed(2)}<span className="text-gray-500 font-normal text-xs ml-0.5">kg</span></span>
-                      </div>
-                    ))}
-                  </div>
-                ) : <span className="text-xs text-gray-400 italic">No colors this month</span>}
-              </div>
-            </div>
-
+            ) : <span className="text-xs text-gray-400 italic">No colors this month</span>}
           </div>
         </div>
+
       </div>
 
+
+
       {/* === Day-wise Table Section === */}
-      <div className="rounded-xl border border-gray-200 bg-white shadow-sm overflow-hidden">
-        <div className="px-4 py-3 border-b border-gray-100 bg-gray-50/50">
-          <h3 className="font-semibold text-gray-700 text-sm">Day Wise Stock Received Details</h3>
+      <div className="rounded-xl border border-gray-400 bg-white shadow-sm overflow-hidden">
+        <div className="px-4 py-3 border-b border-gray-400 bg-gray-50">
+          <h3 className="font-bold text-[#004D40] text-lg">Day Wise Stock Received Details</h3>
         </div>
         <div className="overflow-x-auto">
           <table className="w-full border-collapse text-sm">
             <thead>
-              <tr className="bg-gray-50 border-b border-gray-200">
-                <th rowSpan={2} className="border border-gray-200 px-3 py-2 text-left font-semibold text-gray-500 uppercase tracking-wide text-xs whitespace-nowrap w-28">DATE</th>
+              <tr className="bg-gray-50 border-b border-gray-300">
+                <th rowSpan={2} className="border border-gray-300 px-3 py-2 text-left font-semibold text-gray-700 uppercase tracking-wide text-xs whitespace-nowrap w-28">DATE</th>
                 {hdpeNames.length > 0 && (
-                  <th colSpan={hdpeNames.length + 2} className="border border-gray-200 px-3 py-2 text-center font-bold text-teal-800 uppercase tracking-wide text-xs bg-blue-100">
-                    HDPE (KG)
+                  <th colSpan={hdpeNames.length + 2} className="border border-gray-300 px-3 py-2 text-center font-bold text-teal-800 uppercase tracking-wide text-xs bg-blue-100">
+                    HDPE
                   </th>
                 )}
                 {chemicalNames.length > 0 && (
-                  <th colSpan={chemicalNames.length + 2} className="border border-gray-200 px-3 py-2 text-center font-bold text-yellow-800 uppercase tracking-wide text-xs bg-yellow-100">
-                    CHEMICALS (KG)
+                  <th colSpan={chemicalNames.length + 2} className="border border-gray-300 px-3 py-2 text-center font-bold text-yellow-800 uppercase tracking-wide text-xs bg-yellow-100">
+                    CHEMICALS
                   </th>
                 )}
                 {colorNames.length > 0 && (
-                  <th colSpan={colorNames.length + 2} className="border border-gray-200 px-3 py-2 text-center font-bold text-green-800 uppercase tracking-wide text-xs bg-green-100">
-                    COLORS (KG)
+                  <th colSpan={colorNames.length + 2} className="border border-gray-300 px-3 py-2 text-center font-bold text-green-800 uppercase tracking-wide text-xs bg-green-100">
+                    COLORS
                   </th>
                 )}
-                {totalCols === 0 && <th className="border border-gray-200 px-3 py-1.5 text-gray-400"></th>}
-                <th rowSpan={2} className="border border-gray-200 px-3 py-2 text-center font-semibold text-gray-500 uppercase tracking-wide text-xs whitespace-nowrap w-20">ACTIONS</th>
+                {totalCols === 0 && <th className="border border-gray-300 px-3 py-1.5 text-gray-400"></th>}
+                <th rowSpan={2} className="border border-gray-300 px-3 py-2 text-center font-semibold text-gray-700 uppercase tracking-wide text-xs whitespace-nowrap w-20">ACTIONS</th>
               </tr>
-              <tr className="bg-white border-b border-gray-200">
-                {hdpeNames.length > 0 && <th className="border border-gray-200 px-3 py-1.5 text-center font-bold text-gray-800 text-xs uppercase whitespace-nowrap bg-gray-50/50">DC NO</th>}
+              <tr className="bg-white border-b border-gray-300">
+                {hdpeNames.length > 0 && <th className="border border-gray-300 px-3 py-1.5 text-center font-bold text-gray-800 text-xs uppercase whitespace-nowrap bg-gray-50/50">DC NO</th>}
                 {hdpeNames.map(name => (
-                  <th key={name} className="border border-gray-200 px-3 py-1.5 text-center font-bold text-gray-800 text-xs uppercase whitespace-nowrap">{name}</th>
+                  <th key={name} className="border border-gray-300 px-3 py-1.5 text-center font-bold text-gray-800 text-xs uppercase whitespace-nowrap">{name}</th>
                 ))}
-                {hdpeNames.length > 0 && <th className="border border-gray-200 px-3 py-1.5 text-center font-bold text-teal-800 text-xs uppercase whitespace-nowrap bg-blue-50/70">Total</th>}
-                {chemicalNames.length > 0 && <th className="border border-gray-200 px-3 py-1.5 text-center font-bold text-gray-800 text-xs uppercase whitespace-nowrap bg-gray-50/50">DC NO</th>}
+                {hdpeNames.length > 0 && <th className="border border-gray-300 px-3 py-1.5 text-center font-bold text-teal-800 text-xs uppercase whitespace-nowrap bg-blue-50/70">Total</th>}
+                {chemicalNames.length > 0 && <th className="border border-gray-300 px-3 py-1.5 text-center font-bold text-gray-800 text-xs uppercase whitespace-nowrap bg-gray-50/50">DC NO</th>}
                 {chemicalNames.map(name => (
-                  <th key={name} className="border border-gray-200 px-3 py-1.5 text-center font-bold text-gray-800 text-xs uppercase whitespace-nowrap">{name}</th>
+                  <th key={name} className="border border-gray-300 px-3 py-1.5 text-center font-bold text-gray-800 text-xs uppercase whitespace-nowrap">{name}</th>
                 ))}
-                {chemicalNames.length > 0 && <th className="border border-gray-200 px-3 py-1.5 text-center font-bold text-yellow-800 text-xs uppercase whitespace-nowrap bg-yellow-50/70">Total</th>}
-                {colorNames.length > 0 && <th className="border border-gray-200 px-3 py-1.5 text-center font-bold text-gray-800 text-xs uppercase whitespace-nowrap bg-gray-50/50">DC NO</th>}
+                {chemicalNames.length > 0 && <th className="border border-gray-300 px-3 py-1.5 text-center font-bold text-yellow-800 text-xs uppercase whitespace-nowrap bg-yellow-50/70">Total</th>}
+                {colorNames.length > 0 && <th className="border border-gray-300 px-3 py-1.5 text-center font-bold text-gray-800 text-xs uppercase whitespace-nowrap bg-gray-50/50">DC NO</th>}
                 {colorNames.map(name => (
-                  <th key={name} className="border border-gray-200 px-3 py-1.5 text-center font-bold text-gray-800 text-xs uppercase whitespace-nowrap">{name}</th>
+                  <th key={name} className="border border-gray-300 px-3 py-1.5 text-center font-bold text-gray-800 text-xs uppercase whitespace-nowrap">{name}</th>
                 ))}
-                {colorNames.length > 0 && <th className="border border-gray-200 px-3 py-1.5 text-center font-bold text-green-800 text-xs uppercase whitespace-nowrap bg-green-50/70">Total</th>}
-                {totalCols === 0 && <th className="border border-gray-200"></th>}
+                {colorNames.length > 0 && <th className="border border-gray-300 px-3 py-1.5 text-center font-bold text-green-800 text-xs uppercase whitespace-nowrap bg-green-50/70">Total</th>}
+                {totalCols === 0 && <th className="border border-gray-300"></th>}
               </tr>
             </thead>
             <tbody>
-              {groupedByDate.length === 0 ? (
+              {isLoading ? (
+                <tr>
+                  <td colSpan={2 + totalCols || 3} className="h-28 text-center">
+                    <div className="flex items-center justify-center gap-2 text-gray-500 text-sm">
+                      <Loader size="sm" /> Loading stock records...
+                    </div>
+                  </td>
+                </tr>
+              ) : groupedByDate.length === 0 ? (
                 <tr>
                   <td colSpan={2 + totalCols || 3} className="text-center py-8 text-gray-400 text-sm">No stock received this month.</td>
                 </tr>
               ) : (
-                groupedByDate.map(([date, dayRecords]) => {
+                pagedGroupedByDate.map(([date, dayRecords]) => {
                   const dayHdpeTotal = dayRecords.filter(r => r.type === 'HDPE').reduce((s, r) => s + r.weightKg, 0);
                   const dayChemicalTotal = dayRecords.filter(r => r.type === 'CHEMICAL').reduce((s, r) => s + r.weightKg, 0);
                   const dayColorTotal = dayRecords.filter(r => r.type === 'COLOR').reduce((s, r) => s + r.weightKg, 0);
                   return (
                     <tr key={date} className="hover:bg-green-50/40 transition-colors group">
-                      <td className="border border-gray-200 px-3 py-1 font-bold text-gray-800 whitespace-nowrap text-sm">{formatDateDisplay(date)}</td>
+                      <td className="border border-gray-300 px-3 py-1 font-bold text-gray-800 whitespace-nowrap text-sm">{formatDateDisplay(date).replace(/,?\s*\d{4}$/, '')}</td>
                       {hdpeNames.length > 0 && (
-                        <td className="border border-gray-200 px-3 py-1 text-center font-bold text-gray-800 text-sm bg-blue-50/30">
+                        <td className="border border-gray-300 px-3 py-1 text-center font-bold text-gray-800 text-sm bg-blue-50/30">
                           {dayRecords.find(r => r.type === 'HDPE')?.DC_NUMBER || '-'}
                         </td>
                       )}
                       {hdpeNames.map(name => {
                         const val = getWeight(dayRecords, 'HDPE', name);
                         return (
-                          <td key={name} className="border border-gray-200 px-3 py-1 text-center font-medium text-gray-800 text-sm">
+                          <td key={name} className="border border-gray-300 px-3 py-1 text-center font-medium text-gray-800 text-sm">
                             {val > 0 ? val.toFixed(2) : <span className="text-gray-500">0.00</span>}
                           </td>
                         );
                       })}
                       {hdpeNames.length > 0 && (
-                        <td className="border border-gray-200 px-3 py-1 text-center font-bold text-gray-800 text-sm bg-blue-50/30">
+                        <td className="border border-gray-300 px-3 py-1 text-center font-bold text-gray-800 text-sm bg-blue-50/30">
                           {dayHdpeTotal > 0 ? dayHdpeTotal.toFixed(2) : <span className="text-gray-500">0.00</span>}
                         </td>
                       )}
                       {chemicalNames.length > 0 && (
-                        <td className="border border-gray-200 px-3 py-1 text-center font-bold text-gray-800 text-sm bg-yellow-50/30">
+                        <td className="border border-gray-300 px-3 py-1 text-center font-bold text-gray-800 text-sm bg-yellow-50/30">
                           {dayRecords.find(r => r.type === 'CHEMICAL')?.DC_NUMBER || '-'}
                         </td>
                       )}
                       {chemicalNames.map(name => {
                         const val = getWeight(dayRecords, 'CHEMICAL', name);
                         return (
-                          <td key={name} className="border border-gray-200 px-3 py-1 text-center font-medium text-gray-800 text-sm">
+                          <td key={name} className="border border-gray-300 px-3 py-1 text-center font-medium text-gray-800 text-sm">
                             {val > 0 ? val.toFixed(2) : <span className="text-gray-500">0.00</span>}
                           </td>
                         );
                       })}
                       {chemicalNames.length > 0 && (
-                        <td className="border border-gray-200 px-3 py-1 text-center font-bold text-gray-800 text-sm bg-yellow-50/30">
+                        <td className="border border-gray-300 px-3 py-1 text-center font-bold text-gray-800 text-sm bg-yellow-50/30">
                           {dayChemicalTotal > 0 ? dayChemicalTotal.toFixed(2) : <span className="text-gray-500">0.00</span>}
                         </td>
                       )}
                       {colorNames.length > 0 && (
-                        <td className="border border-gray-200 px-3 py-1 text-center font-bold text-gray-800 text-sm bg-green-50/30">
+                        <td className="border border-gray-300 px-3 py-1 text-center font-bold text-gray-800 text-sm bg-green-50/30">
                           {dayRecords.find(r => r.type === 'COLOR')?.DC_NUMBER || '-'}
                         </td>
                       )}
                       {colorNames.map(name => {
                         const val = getWeight(dayRecords, 'COLOR', name);
                         return (
-                          <td key={name} className="border border-gray-200 px-3 py-1 text-center font-medium text-gray-800 text-sm">
+                          <td key={name} className="border border-gray-300 px-3 py-1 text-center font-medium text-gray-800 text-sm">
                             {val > 0 ? val.toFixed(2) : <span className="text-gray-500">0.00</span>}
                           </td>
                         );
                       })}
                       {colorNames.length > 0 && (
-                        <td className="border border-gray-200 px-3 py-1 text-center font-bold text-gray-800 text-sm bg-green-50/30">
+                        <td className="border border-gray-300 px-3 py-1 text-center font-bold text-gray-800 text-sm bg-green-50/30">
                           {dayColorTotal > 0 ? dayColorTotal.toFixed(2) : <span className="text-gray-500">0.00</span>}
                         </td>
                       )}
-                      {totalCols === 0 && <td className="border border-gray-200 px-3 py-1"></td>}
-                      <td className="border border-gray-200 px-3 py-1 text-center">
+                      {totalCols === 0 && <td className="border border-gray-300 px-3 py-1"></td>}
+                      <td className="border border-gray-300 px-3 py-1 text-center">
                         <div className="flex items-center justify-center gap-1">
-                          <Button variant="ghost" size="icon-sm" className="h-6 w-6 rounded-full text-blue-600 hover:bg-blue-50" onClick={() => onEditDate(date)}>
-                            <Edit2 className="h-3 w-3" />
-                          </Button>
-                          <Button variant="ghost" size="icon-sm" className="h-6 w-6 rounded-full text-red-600 hover:bg-red-50" onClick={() => onDeleteDate(date, dayRecords)}>
-                            <Trash2 className="h-3 w-3" />
-                          </Button>
+                          {canEdit && (
+                            <Button variant="ghost" size="icon-sm" className="h-6 w-6 rounded-full text-blue-600 hover:bg-blue-50" onClick={() => onEditDate(date)}>
+                              <Edit2 className="h-3 w-3" />
+                            </Button>
+                          )}
+                          {canDelete && (
+                            <Button variant="ghost" size="icon-sm" className="h-6 w-6 rounded-full text-red-600 hover:bg-red-50" onClick={() => onDeleteDate(date, dayRecords)}>
+                              <Trash2 className="h-3 w-3" />
+                            </Button>
+                          )}
                         </div>
                       </td>
                     </tr>
@@ -687,47 +709,53 @@ function StockSummaryCard({ onAdd, onEditDate, onDeleteDate }: { onAdd: (e: Reac
               )}
               {groupedByDate.length > 0 && (
                 <tr className="bg-white border-t-2 border-gray-300 font-bold">
-                  <td className="border border-gray-200 px-3 py-1.5 text-gray-800 uppercase text-sm tracking-wide font-bold">TOTAL</td>
-                  {hdpeNames.length > 0 && <td className="border border-gray-200 px-3 py-1 bg-gray-50"></td>}
+                  <td className="border border-gray-300 px-3 py-1.5 text-gray-800 uppercase text-sm tracking-wide font-bold">TOTAL</td>
+                  {hdpeNames.length > 0 && <td className="border border-gray-300 px-3 py-1 bg-gray-50"></td>}
                   {hdpeTotals.map((val, i) => (
-                    <td key={i} className="border border-gray-200 px-3 py-1 text-center text-gray-800 text-sm font-bold">{val > 0 ? val.toFixed(2) : <span className="text-gray-500">0.00</span>}</td>
+                    <td key={i} className="border border-gray-300 px-3 py-1 text-center text-gray-800 text-sm font-bold">{val > 0 ? val.toFixed(2) : <span className="text-gray-500">0.00</span>}</td>
                   ))}
                   {hdpeNames.length > 0 && (
-                    <td className="border border-gray-200 px-3 py-1 text-center text-gray-800 text-sm font-bold bg-blue-50/50">{rawMaterials.weight > 0 ? rawMaterials.weight.toFixed(2) : <span className="text-gray-500">0.00</span>}</td>
+                    <td className="border border-gray-300 px-3 py-1 text-center text-gray-800 text-sm font-bold bg-blue-50/50">{rawMaterials.weight > 0 ? rawMaterials.weight.toFixed(2) : <span className="text-gray-500">0.00</span>}</td>
                   )}
-                  {chemicalNames.length > 0 && <td className="border border-gray-200 px-3 py-1 bg-gray-50"></td>}
+                  {chemicalNames.length > 0 && <td className="border border-gray-300 px-3 py-1 bg-gray-50"></td>}
                   {chemTotals.map((val, i) => (
-                    <td key={i} className="border border-gray-200 px-3 py-1 text-center text-gray-800 text-sm font-bold">{val > 0 ? val.toFixed(2) : <span className="text-gray-500">0.00</span>}</td>
+                    <td key={i} className="border border-gray-300 px-3 py-1 text-center text-gray-800 text-sm font-bold">{val > 0 ? val.toFixed(2) : <span className="text-gray-500">0.00</span>}</td>
                   ))}
                   {chemicalNames.length > 0 && (
-                    <td className="border border-gray-200 px-3 py-1 text-center text-gray-800 text-sm font-bold bg-yellow-50/50">{chemicals.weight > 0 ? chemicals.weight.toFixed(2) : <span className="text-gray-500">0.00</span>}</td>
+                    <td className="border border-gray-300 px-3 py-1 text-center text-gray-800 text-sm font-bold bg-yellow-50/50">{chemicals.weight > 0 ? chemicals.weight.toFixed(2) : <span className="text-gray-500">0.00</span>}</td>
                   )}
-                  {colorNames.length > 0 && <td className="border border-gray-200 px-3 py-1 bg-gray-50"></td>}
+                  {colorNames.length > 0 && <td className="border border-gray-300 px-3 py-1 bg-gray-50"></td>}
                   {colorTotals.map((val, i) => (
-                    <td key={i} className="border border-gray-200 px-3 py-1 text-center text-gray-800 text-sm font-bold">{val > 0 ? val.toFixed(2) : <span className="text-gray-500">0.00</span>}</td>
+                    <td key={i} className="border border-gray-300 px-3 py-1 text-center text-gray-800 text-sm font-bold">{val > 0 ? val.toFixed(2) : <span className="text-gray-500">0.00</span>}</td>
                   ))}
                   {colorNames.length > 0 && (
-                    <td className="border border-gray-200 px-3 py-1 text-center text-gray-800 text-sm font-bold bg-green-50/50">{colors.weight > 0 ? colors.weight.toFixed(2) : <span className="text-gray-500">0.00</span>}</td>
+                    <td className="border border-gray-300 px-3 py-1 text-center text-gray-800 text-sm font-bold bg-green-50/50">{colors.weight > 0 ? colors.weight.toFixed(2) : <span className="text-gray-500">0.00</span>}</td>
                   )}
-                  {totalCols === 0 && <td className="border border-gray-200 px-3 py-1"></td>}
-                  <td className="border border-gray-200 px-3 py-1"></td>
+                  {totalCols === 0 && <td className="border border-gray-300 px-3 py-1"></td>}
+                  <td className="border border-gray-300 px-3 py-1"></td>
                 </tr>
               )}
             </tbody>
           </table>
         </div>
+
+        <TablePaginationFooter
+          currentPage={currentPage}
+          totalPages={totalPages}
+          pageSize={pageSize}
+          onPageChange={setPage}
+          onPageSizeChange={(size) => {
+            setPageSize(size);
+            setPage(1);
+          }}
+        />
       </div>
     </div>
   );
 }
 
-function InventorySummary() {
+function InventorySummary({ month, onEditDate }: { month: string; onEditDate: (date: string) => void }) {
   const queryClient = useQueryClient();
-  const { data } = useInventoryRecords('?limit=100');
-  const allRecords = data?.data ?? [];
-
-  const [stockFormOpen, setStockFormOpen] = useState(false);
-  const [editTargetDate, setEditTargetDate] = useState<string | null>(null);
 
   const [deleteTarget, setDeleteTarget] = useState<{ date: string, records: InventoryRecord[] } | null>(null);
   const [deleting, setDeleting] = useState(false);
@@ -746,31 +774,13 @@ function InventorySummary() {
     }
   };
 
-  const openAdd = (e: React.MouseEvent) => {
-    e.stopPropagation();
-    setEditTargetDate(null);
-    setStockFormOpen(true);
-  };
-
-  const openEdit = (date: string) => {
-    setEditTargetDate(date);
-    setStockFormOpen(true);
-  };
-
   return (
     <div className="flex flex-col gap-6">
       <StockSummaryCard
-        onAdd={openAdd}
-        onEditDate={openEdit}
+        month={month}
+        onEditDate={onEditDate}
         onDeleteDate={(date, records) => setDeleteTarget({ date, records })}
       />
-      {stockFormOpen && (
-        <InventoryFormDialog
-          onClose={() => setStockFormOpen(false)}
-          editDate={editTargetDate ?? undefined}
-          editRecords={editTargetDate ? allRecords.filter(r => formatDate(r.date) === editTargetDate) : undefined}
-        />
-      )}
 
       <DeleteConfirmDialog
         open={!!deleteTarget}
@@ -785,7 +795,25 @@ function InventorySummary() {
 }
 
 export function InventoryPage() {
+  const { user } = useAuth();
+  const canAddStock = can(user, RIGHTS.inventory.add);
   const [activeView, setActiveView] = useState<'summary' | 'receive' | 'send'>('summary');
+  const [month, setMonth] = useState(() => new Date().toISOString().slice(0, 7)); // YYYY-MM
+  const [stockFormOpen, setStockFormOpen] = useState(false);
+  const [editTargetDate, setEditTargetDate] = useState<string | null>(null);
+
+  const { data } = useInventoryRecords('?limit=100');
+  const allRecords = data?.data ?? [];
+
+  const openAdd = () => {
+    setEditTargetDate(null);
+    setStockFormOpen(true);
+  };
+
+  const openEdit = (date: string) => {
+    setEditTargetDate(date);
+    setStockFormOpen(true);
+  };
 
   return (
     <div id="inventory-layout" className="flex flex-col h-full bg-[#004D40]/5 min-h-full flex-1">
@@ -795,21 +823,48 @@ export function InventoryPage() {
       `}</style>
 
       {/* Unified Header */}
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between px-4 py-3 bg-[#F4F1E8] border-b border-gray-100 shrink-0">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between px-4 py-3 bg-[#F4F1E8] border-b border-[#004D40] shrink-0">
         <div>
           <h1 className="text-[20px] font-bold text-black leading-tight px-2">Inventory</h1>
           <p className="text-[12.5px] text-gray-500 font-medium px-2">Track stock received into and sent out of the warehouse</p>
         </div>
+        {activeView === 'summary' && (
+          <div className="flex flex-wrap items-center gap-3">
+            <Input
+              type="month"
+              value={month}
+              onChange={(e) => e.target.value && setMonth(e.target.value)}
+              className="h-9 w-40 bg-white border border-gray-400 rounded-md px-3 py-2 text-sm font-semibold text-[#003140] shadow-[0_1px_2px_rgba(0,0,0,0.05)] hover:bg-gray-50 focus-visible:ring-1 focus-visible:ring-[#004D40]"
+            />
+            {canAddStock && (
+            <Button
+              className="flex items-center gap-2 bg-[#004D40] hover:bg-[#00382e] text-white rounded-md px-3 py-2 h-auto text-[12px] font-bold tracking-wide shadow-[0_1px_2px_rgba(0,45,35,0.2)]"
+              onClick={openAdd}
+            >
+              <Plus className="w-3 h-3" />
+              ADD STOCK
+            </Button>
+            )}
+          </div>
+        )}
       </div>
 
       {/* Content Area */}
-      <div className="flex-1 overflow-y-auto relative flex flex-col">
+      <div className="flex-1 overflow-y-auto relative flex flex-col bg-[#004D40]/5">
         <div className="flex flex-col gap-2 p-2">
-          {activeView === 'summary' && <InventorySummary />}
+          {activeView === 'summary' && <InventorySummary month={month} onEditDate={openEdit} />}
           {activeView === 'receive' && <InventoryReceiveTab onBack={() => setActiveView('summary')} />}
           {activeView === 'send' && <LoadSentTab onBack={() => setActiveView('summary')} />}
         </div>
       </div>
+
+      {stockFormOpen && (
+        <InventoryFormDialog
+          onClose={() => setStockFormOpen(false)}
+          editDate={editTargetDate ?? undefined}
+          editRecords={editTargetDate ? allRecords.filter(r => formatDate(r.date) === editTargetDate) : undefined}
+        />
+      )}
     </div>
   );
 }

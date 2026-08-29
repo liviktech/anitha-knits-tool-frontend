@@ -8,6 +8,9 @@ import { LoadSentFormDialog } from '../inventory/load-sent-form-dialog';
 import { type LoadSentRecord } from '../inventory/load-sent-queries';
 import { Loader } from '@/components/shared/loader';
 import { DeleteConfirmDialog } from '@/components/shared/delete-confirm-dialog';
+import { ApproveConfirmDialog } from '@/components/shared/approve-confirm-dialog';
+import { useAuth } from '@/features/auth/auth-context';
+import { canCreateProductionRecord, canDeleteProductionRecord, canEditProductionRecord } from '@/lib/production-permissions';
 import { apiFetch, fetchJson } from '@/lib/api-client';
 import extruderIcon from '@/assets/extruder-icon.png';
 import loomsIcon from '@/assets/looms-icon.png';
@@ -128,7 +131,6 @@ interface StageBlockProps {
 
 function StageBlock({
   number,
-  icon,
   title,
   description,
   theme,
@@ -151,9 +153,9 @@ function StageBlock({
         <div className={`w-10 h-10 rounded-full ${theme.circle} text-white font-bold text-[14px] flex items-center justify-center ring-4 ring-[#F3F5F4]`}>
           {number}
         </div>
-        <div className="w-11 h-11 rounded-xl bg-white border border-gray-100 shadow-sm flex items-center justify-center">
+        {/* <div className="w-11 h-11 rounded-xl bg-white border border-gray-100 shadow-sm flex items-center justify-center">
           {icon}
-        </div>
+        </div> */}
       </div>
 
       <div className="flex-1 flex flex-col gap-2 pb-5 min-w-0">
@@ -232,6 +234,7 @@ function DayDetailView({
 }) {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
+  const { user } = useAuth();
   const { setHeaderTitle } = useProductionHeader();
   const row = dayWiseRows.find((r) => r.date === date) || dayWiseRows[0];
   const formattedDate = format(parseISO(date), 'dd MMM, yyyy');
@@ -249,6 +252,39 @@ function DayDetailView({
   const { data: loomsData } = useLoomsProductions(dateQuery);
   const { data: fabricData } = useFabricCheckingRecords(dateQuery);
 
+  const dayHasApprovedRecord =
+    (extruderData?.data ?? []).some((r) => r.isApproved)
+    || (loomsData?.data ?? []).some((r) => r.isApproved)
+    || (fabricData?.data ?? []).some((r) => r.isApproved);
+  const canEditDay = canEditProductionRecord(user, dayHasApprovedRecord);
+
+  const [confirmApproveOpen, setConfirmApproveOpen] = useState(false);
+  const [approvingDay, setApprovingDay] = useState(false);
+
+  const handleApproveDay = async () => {
+    setApprovingDay(true);
+    try {
+      const targets = [
+        ...(extruderData?.data ?? []).filter((r) => !r.isApproved).map((r) => ({ path: '/production/extruder', id: r.id })),
+        ...(loomsData?.data ?? []).filter((r) => !r.isApproved).map((r) => ({ path: '/production/looms', id: r.id })),
+        ...(fabricData?.data ?? []).filter((r) => !r.isApproved).map((r) => ({ path: '/fabric-checking', id: r.id })),
+      ];
+      const results = await Promise.all(targets.map(({ path, id }) => apiFetch(`${path}/${id}/approve`, { method: 'PATCH' })));
+      if (results.some((r) => !r.ok)) throw new Error('Failed to approve one or more entries');
+
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: extruderKeys.all }),
+        queryClient.invalidateQueries({ queryKey: loomsKeys.all }),
+        queryClient.invalidateQueries({ queryKey: fabricCheckingKeys.all }),
+      ]);
+      setConfirmApproveOpen(false);
+    } catch (error) {
+      console.error('Error approving day entries:', error);
+    } finally {
+      setApprovingDay(false);
+    }
+  };
+
   const { setHeaderRight } = useProductionHeader();
   const [confirmDeleteOpen, setConfirmDeleteOpen] = useState(false);
   const [deletingDay, setDeletingDay] = useState(false);
@@ -260,26 +296,20 @@ function DayDetailView({
           <Calendar className="w-[18px] h-[18px] text-[#004D40]" />
           <span className="text-[15px] font-bold text-[#004D40]">{formattedDate}</span>
         </div>
-        <Button
-          variant="outline"
-          size="sm"
-          className="h-[34px] px-4 text-[#00897B] border-[#00897B]/20 font-bold uppercase tracking-wider text-[11px] gap-2 hover:bg-[#00897B]/5 bg-white"
-          onClick={() => navigate(`/production/new-entry?date=${date}&from=details`)}
-        >
-          <Edit className="w-3.5 h-3.5" /> EDIT ENTRY
-        </Button>
-        <Button
-          variant="outline"
-          size="icon"
-          className="h-[34px] w-[34px] text-red-400 border-red-100 hover:bg-red-50 bg-white"
-          onClick={() => setConfirmDeleteOpen(true)}
-        >
-          <Trash2 className="w-4 h-4" />
-        </Button>
+        {canEditDay && (
+          <Button
+            variant="outline"
+            size="sm"
+            className="h-[34px] px-4 text-[#00897B] border-[#00897B]/20 font-bold uppercase tracking-wider text-[11px] gap-2 hover:bg-[#00897B]/5 bg-white"
+            onClick={() => navigate(`/production/new-entry?date=${date}&from=details`)}
+          >
+            <Edit className="w-3.5 h-3.5" /> EDIT ENTRY
+          </Button>
+        )}
       </div>
     );
     return () => setHeaderRight(null);
-  }, [setHeaderRight, formattedDate, date, navigate, setConfirmDeleteOpen]);
+  }, [setHeaderRight, formattedDate, date, navigate, canEditDay]);
 
   const handleDeleteDay = async () => {
     setDeletingDay(true);
@@ -492,6 +522,14 @@ function DayDetailView({
         isPending={deletingDay}
         onConfirm={handleDeleteDay}
       />
+      <ApproveConfirmDialog
+        open={confirmApproveOpen}
+        onOpenChange={setConfirmApproveOpen}
+        title="Approve this day's entries?"
+        description={`Approves every not-yet-approved Extruder, Looms, and Fabric Checking record for ${formattedDate}. Once approved, a Manager can no longer edit them — this cannot be undone.`}
+        isPending={approvingDay}
+        onConfirm={handleApproveDay}
+      />
     </>
   );
 }
@@ -508,10 +546,20 @@ export function ProductionDesign2() {
     }
   }, [location, navigate]);
 
+  const { user } = useAuth();
+  // Aggregated day-wise rows here have no per-record isApproved data (that lives on the
+  // individual Extruder/Looms/Fabric Checking records), so this optimistically assumes
+  // not-yet-approved — the Detail view (DayDetailView above) is where approval-aware edit
+  // gating actually happens, and the backend enforces the real per-record check regardless.
+  const canEditProduction = canEditProductionRecord(user, false);
+  const canDeleteProduction = canDeleteProductionRecord(user);
+
   const [isNavigating, setIsNavigating] = useState(false);
   const [isReportOpen, setIsReportOpen] = useState(false);
   const [deleteTargetDate, setDeleteTargetDate] = useState<string | null>(null);
   const [deletingDate, setDeletingDate] = useState(false);
+  const [approveTargetDate, setApproveTargetDate] = useState<string | null>(null);
+  const [approvingDate, setApprovingDate] = useState(false);
   const [editingLoadSent, setEditingLoadSent] = useState<LoadSentRecord | null>(null);
   const [filterDate, setFilterDate] = useState<Date>(new Date());
   const monthStr = format(filterDate, 'yyyy-MM');
@@ -558,6 +606,41 @@ export function ProductionDesign2() {
     }
   };
 
+  // Approves every not-yet-approved Extruder/Looms/Fabric Checking record for one date — the
+  // day-wise table only has aggregated totals for each row, not record ids, so this fetches
+  // the real records for that date first, then approves each unapproved one.
+  const handleApproveDate = async () => {
+    if (!approveTargetDate) return;
+    setApprovingDate(true);
+    try {
+      const dateQuery = `?date_from=${approveTargetDate}&date_to=${approveTargetDate}&limit=100`;
+      const [extruderRes, loomsRes, fabricRes] = await Promise.all([
+        fetchJson<{ data: { id: string; isApproved: boolean }[] }>(`/production/extruder${dateQuery}`),
+        fetchJson<{ data: { id: string; isApproved: boolean }[] }>(`/production/looms${dateQuery}`),
+        fetchJson<{ data: { id: string; isApproved: boolean }[] }>(`/fabric-checking${dateQuery}`),
+      ]);
+
+      const results = await Promise.all([
+        ...extruderRes.data.filter((r) => !r.isApproved).map((r) => apiFetch(`/production/extruder/${r.id}/approve`, { method: 'PATCH' })),
+        ...loomsRes.data.filter((r) => !r.isApproved).map((r) => apiFetch(`/production/looms/${r.id}/approve`, { method: 'PATCH' })),
+        ...fabricRes.data.filter((r) => !r.isApproved).map((r) => apiFetch(`/fabric-checking/${r.id}/approve`, { method: 'PATCH' })),
+      ]);
+      if (results.some((r) => !r.ok)) throw new Error('Failed to approve one or more entries');
+
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: extruderKeys.all }),
+        queryClient.invalidateQueries({ queryKey: loomsKeys.all }),
+        queryClient.invalidateQueries({ queryKey: fabricCheckingKeys.all }),
+        queryClient.invalidateQueries({ queryKey: dashboardProductionKey }),
+      ]);
+      setApproveTargetDate(null);
+    } catch (error) {
+      console.error('Error approving day entries:', error);
+    } finally {
+      setApprovingDate(false);
+    }
+  };
+
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(10);
   const totalPages = Math.max(1, Math.ceil(dayWiseRows.length / pageSize));
@@ -593,13 +676,15 @@ export function ProductionDesign2() {
               className="h-9 w-40 bg-white border border-gray-400 rounded-md px-3 py-2 text-sm font-semibold text-[#003140] shadow-[0_1px_2px_rgba(0,0,0,0.05)] hover:bg-gray-50 focus-visible:ring-1 focus-visible:ring-[#004D40]"
             />
           </div>
-          <Button
-            className="flex items-center gap-2 bg-[#004D40] hover:bg-[#00382e] text-white rounded-md px-3 py-2 h-auto text-[12px] font-bold tracking-wide shadow-[0_1px_2px_rgba(0,45,35,0.2)]"
-            onClick={() => navigate('/production/new-entry')}
-          >
-            <Plus className="w-3 h-3" />
-            ADD NEW ENTRY
-          </Button>
+          {canCreateProductionRecord(user) && (
+            <Button
+              className="flex items-center gap-2 bg-[#004D40] hover:bg-[#00382e] text-white rounded-md px-3 py-2 h-auto text-[12px] font-bold tracking-wide shadow-[0_1px_2px_rgba(0,45,35,0.2)] cursor-pointer"
+              onClick={() => navigate('/production/new-entry')}
+            >
+              <Plus className="w-3 h-3" />
+              ADD NEW ENTRY
+            </Button>
+          )}
         </>
       );
     }
@@ -609,7 +694,7 @@ export function ProductionDesign2() {
       setShowBackButton(false);
       setOnBackClick(undefined);
     };
-  }, [setHeaderRight, setShowBackButton, setOnBackClick, navigate, selectedDate, filterDate]);
+  }, [setHeaderRight, setShowBackButton, setOnBackClick, navigate, selectedDate, filterDate, user]);
 
   if (loadingDayWise) {
     return (
@@ -744,7 +829,7 @@ export function ProductionDesign2() {
                       <p className="text-[10px] px-3 font-extrabold uppercase tracking-wide text-gray-600 mb-1">WASTE %</p>
                       <p className="text-[17px] px-3 font-bold text-gray-900 leading-none font-inter">{loomsWastePct.toFixed(2)}%</p>
                     </div>
-                  
+
                   </div>
                 </CardContent>
               </div>
@@ -818,25 +903,25 @@ export function ProductionDesign2() {
                     <TableHead colSpan={3} className="w-[22%] text-[#0B5566] font-bold bg-[#D6EEF7] border-r border-gray-300 py-2 text-xs uppercase tracking-wider">
                       <span className="flex items-center justify-center gap-2 text-[13px] font-extrabold">
                         {/* <span className="bg-[#0B5566] text-white w-5 h-5 rounded-sm flex items-center justify-center text-[10px] font-bold">1</span> */}
-                        EXTRUDER PRODUCTION (KG)
+                        EXTRUDER PRODUCTION
                       </span>
                     </TableHead>
                     <TableHead colSpan={3} className="w-[22%] text-[#7A6A00] font-bold bg-[#FFF6BF] border-r border-gray-300 py-2 text-xs uppercase tracking-wider">
                       <span className="flex items-center justify-center gap-2 text-[13px] font-extrabold">
                         {/* <span className="bg-[#7A6A00] text-white w-5 h-5 rounded-sm flex items-center justify-center text-[10px] font-bold">2</span> */}
-                        LOOMS PRODUCTION (KG)
+                        LOOMS PRODUCTION
                       </span>
                     </TableHead>
                     <TableHead colSpan={3} className="w-[22%] text-[#2F6B2F] font-bold bg-[#DCEEDB] border-r border-gray-300 py-2 text-xs uppercase tracking-wider">
                       <span className="flex items-center justify-center gap-2 text-[13px] font-extrabold">
                         {/* <span className="bg-[#2F6B2F] text-white w-5 h-5 rounded-sm flex items-center justify-center text-[10px] font-bold">3</span> */}
-                        FABRIC PRODUCTION (KG)
+                        FABRIC PRODUCTION
                       </span>
                     </TableHead>
                     <TableHead colSpan={3} className="w-[22%] text-[#61401E] font-bold bg-[#f2caa0] border-r border-gray-300 py-2 text-xs uppercase tracking-wider">
                       <span className="flex items-center justify-center gap-2 text-[13px] font-extrabold">
                         {/* <span className="bg-[#61401E] text-white w-5 h-5 rounded-sm flex items-center justify-center text-[10px] font-bold">4</span> */}
-                        FABRIC DELIVERED (KG)
+                        FABRIC DELIVERED
                       </span>
                     </TableHead>
                     <TableHead rowSpan={2} className="!text-center font-extrabold text-gray-800 align-middle border-gray-300 w-[90px] min-w-[90px] px-1 bg-white text-xs uppercase tracking-wider">Actions</TableHead>
@@ -891,7 +976,7 @@ export function ProductionDesign2() {
                               }, 500);
                             }}
                           >
-                            {format(parseISO(row.date), 'dd MMM, yyyy')}
+                            {format(parseISO(row.date), 'dd MMM')}
                           </TableCell>
 
                           {/* Extruder */}
@@ -917,11 +1002,22 @@ export function ProductionDesign2() {
                           {/* Actions */}
                           <TableCell className="py-1">
                             <div className="flex items-center justify-center gap-2">
+                              {user?.role === 'ADMIN' &&
+                                (<Button
+                                  variant="outline"
+                                  size="icon"
+                                  className="h-6 w-6 rounded-md border-emerald-200 text-emerald-600 "
+                                  onClick={() => setApproveTargetDate(row.date)}
+                                >
+                                  <CheckCircle2 className="h-[14px] w-[14px]" />
+                                </Button>)
+                              }
                               <Button
                                 variant="outline"
                                 size="icon"
                                 className="h-6 w-6 rounded-md border-[#004D40]/30 text-[#004D40] hover:bg-[#004D40]/10"
                                 onClick={() => navigate(`/production/new-entry?date=${row.date}`)}
+                                disabled={!canEditProduction}
                               >
                                 <Edit className="h-[14px] w-[14px]" />
                               </Button>
@@ -930,6 +1026,7 @@ export function ProductionDesign2() {
                                 size="icon"
                                 className="h-6 w-6 rounded-md border-red-200 text-red-600 hover:bg-red-50"
                                 onClick={() => setDeleteTargetDate(row.date)}
+                                disabled={!canDeleteProduction}
                               >
                                 <Trash2 className="h-[14px] w-[14px]" />
                               </Button>
@@ -942,23 +1039,23 @@ export function ProductionDesign2() {
 
                   {!loadingDayWise && dayWiseRows.length > 0 && (
                     <TableRow className="bg-white font-bold hover:bg-white border-t-2 border-gray-400">
-                      <TableCell className="!text-center border-r border-gray-400 text-gray-900 text-[14px] py-1 px-1.5">TOTAL</TableCell>
+                      <TableCell className="!text-center border-r border-gray-300 text-gray-900 text-[13px] py-1 px-1.5">TOTAL</TableCell>
                       {/* Extruder Total */}
                       <TableCell className="text-center text-[#00897B] text-[14px]">{formatNum(dayWiseTotals.extruder.input)}</TableCell>
                       <TableCell className="text-center text-[#00897B] text-[14px]">{formatNum(dayWiseTotals.extruder.wastage)}</TableCell>
-                      <TableCell className="text-center text-[#00897B] text-[14px] border-r border-gray-400">{formatNum(dayWiseTotals.extruder.output)}</TableCell>
+                      <TableCell className="text-center text-[#00897B] text-[14px] border-r border-gray-300">{formatNum(dayWiseTotals.extruder.output)}</TableCell>
                       {/* Looms Total */}
                       <TableCell className="text-center text-[#00897B] text-[14px]">{formatNum(dayWiseTotals.looms.input)}</TableCell>
                       <TableCell className="text-center text-[#00897B] text-[14px]">{formatNum(dayWiseTotals.looms.wastage)}</TableCell>
-                      <TableCell className="text-center text-[#00897B] text-[14px] border-r border-gray-400">{formatNum(dayWiseTotals.looms.output)}</TableCell>
+                      <TableCell className="text-center text-[#00897B] text-[14px] border-r border-gray-300">{formatNum(dayWiseTotals.looms.output)}</TableCell>
                       {/* Fabric Total */}
                       <TableCell className="text-center text-[#00897B] text-[14px]">{formatNum(dayWiseTotals.fabric.input)}</TableCell>
                       <TableCell className="text-center text-[#00897B] text-[14px]">{formatNum(dayWiseTotals.fabric.wastage)}</TableCell>
-                      <TableCell className="text-center text-[#00897B] text-[14px] border-r border-gray-400">{formatNum(dayWiseTotals.fabric.output)}</TableCell>
+                      <TableCell className="text-center text-[#00897B] text-[14px] border-r border-gray-300">{formatNum(dayWiseTotals.fabric.output)}</TableCell>
                       {/* Fabric Delivered Total */}
                       <TableCell className="text-center text-[#00897B] text-[14px]">-</TableCell>
                       <TableCell className="text-center text-[#00897B] text-[14px]">-</TableCell>
-                      <TableCell className="!text-center text-[#00897B] text-[14px] border-r border-gray-400">{formatNum(selectedMonthDeliveryTotal)}</TableCell>
+                      <TableCell className="!text-center text-[#00897B] text-[14px] border-r border-gray-300">{formatNum(selectedMonthDeliveryTotal)}</TableCell>
                       <TableCell></TableCell>
                     </TableRow>
                   )}
@@ -967,11 +1064,9 @@ export function ProductionDesign2() {
             </div>
 
             {/* Pagination Footer */}
-            <div className="flex flex-wrap items-center justify-between gap-3 border-t border-gray-400 p-2 text-sm text-gray-500 bg-white">
+            <div className="flex flex-wrap items-center justify-between gap-3 border-t border-gray-300 p-2 text-sm text-gray-500 bg-white">
               <div className="font-medium text-gray-600 text-xs">
-                {dayWiseRows.length === 0
-                  ? 'No entries'
-                  : `Showing ${Math.min(pageSize, dayWiseRows.length - (currentPage - 1) * pageSize)} of ${dayWiseRows.length} entries`}
+                All weights are measured in Kilogram (KG)
               </div>
               <div className="flex flex-wrap gap-1 items-center">
                 <Button variant="outline" size="icon" className="h-8 w-8 rounded-md border-gray-200 text-gray-600" onClick={() => setPage((p) => Math.max(1, p - 1))} disabled={currentPage <= 1}>&lt;</Button>
@@ -1023,6 +1118,18 @@ export function ProductionDesign2() {
         }
         isPending={deletingDate}
         onConfirm={handleDeleteDate}
+      />
+      <ApproveConfirmDialog
+        open={!!approveTargetDate}
+        onOpenChange={(open) => !open && setApproveTargetDate(null)}
+        title="Approve this day's entries?"
+        description={
+          approveTargetDate
+            ? `Approves every not-yet-approved Extruder, Looms, and Fabric Checking record for ${format(parseISO(approveTargetDate), 'dd MMM, yyyy')}. Once approved, a Manager can no longer edit them — this cannot be undone.`
+            : undefined
+        }
+        isPending={approvingDate}
+        onConfirm={handleApproveDate}
       />
       {editingLoadSent && (
         <LoadSentFormDialog

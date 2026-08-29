@@ -3,8 +3,11 @@ import { useQueryClient } from '@tanstack/react-query';
 import { Button } from '@/components/ui/button';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Loader } from '@/components/shared/loader';
+import { TableNoteFooter } from '@/components/shared/table-note-footer';
 import { Edit2, Trash2 } from 'lucide-react';
 import { DeleteConfirmDialog } from '@/components/shared/delete-confirm-dialog';
+import { useAuth } from '@/features/auth/auth-context';
+import { canDeleteProductionRecord, canEditProductionRecord } from '@/lib/production-permissions';
 import { apiFetch, extractApiErrorMessage } from '@/lib/api-client';
 import { useLoadSentRecords, loadSentKeys, type LoadSentRecord, type LoadSentCreatePayload } from '@/features/inventory/load-sent-queries';
 import { useLookups, findIdByName, type Lookups } from '@/features/extruder/extruder-queries';
@@ -55,6 +58,7 @@ function mapLoadSentRecord(record: LoadSentProductionRecord): FabricDeliveredRow
 
 export const FabricDeliveredSection = forwardRef<SectionRef, SectionProps & { onEditDeliveredGroup?: (draft: FabricDeliveredDraft) => void }>(({ productionDate, readOnly, hideExisting, hideBanner, onEditDeliveredGroup }, ref) => {
   const queryClient = useQueryClient();
+  const { user } = useAuth();
   const { data: lookupsData } = useLookups();
   const lookups: Lookups = lookupsData ?? { brands: [], colors: [], chemicals: [], sizes: [] };
   const { data, isLoading } = useLoadSentRecords('?limit=100', !hideExisting);
@@ -203,11 +207,11 @@ export const FabricDeliveredSection = forwardRef<SectionRef, SectionProps & { on
           <TableHeader className={`${theme.headerBg}`}>
             <TableRow className="hover:!bg-transparent border-b-0">
               <TableHead className={`text-sm !text-center font-semibold tracking-wide  ${theme.headerText}`}>Size</TableHead>
-              <TableHead className={`w-37.5 min-w-37.5 text-center text-sm font-semibold tracking-wide border border-black/10 ${theme.headerText}`}>Color</TableHead>
-              <TableHead className={`text-center text-sm font-semibold tracking-wide border border-black/10 ${theme.headerText}`}>Fabric Delivered (kg)</TableHead>
-              <TableHead className={`text-center text-sm font-semibold tracking-wide border border-black/10 ${theme.headerText}`}>Vehicle No</TableHead>
-              <TableHead className={`text-center text-sm font-semibold tracking-wide border border-black/10 ${theme.headerText}`}>Driver Name</TableHead>
-              {!readOnly && <TableHead className={`!text-center text-sm font-semibold tracking-wide border border-black/10 ${theme.headerText}`}>Action</TableHead>}
+              <TableHead className={`w-37.5 min-w-37.5 text-center text-sm font-semibold tracking-wide border border-gray-300 ${theme.headerText}`}>Color</TableHead>
+              <TableHead className={`text-center text-sm font-semibold tracking-wide border border-gray-300 ${theme.headerText}`}>Fabric Delivered</TableHead>
+              <TableHead className={`text-center text-sm font-semibold tracking-wide border border-gray-300 ${theme.headerText}`}>Vehicle No</TableHead>
+              <TableHead className={`text-center text-sm font-semibold tracking-wide border border-gray-300 ${theme.headerText}`}>Driver Name</TableHead>
+              {!readOnly && <TableHead className={`!text-center text-sm font-semibold tracking-wide border border-gray-300 ${theme.headerText}`}>Action</TableHead>}
             </TableRow>
           </TableHeader>
           <TableBody>
@@ -242,11 +246,11 @@ export const FabricDeliveredSection = forwardRef<SectionRef, SectionProps & { on
                 ))}
                 {rows.map((row) => (
                   <TableRow key={row.id}>
-                    <TableCell className="!text-center border border-black/10">{row.size}</TableCell>
-                    <TableCell className="w-37.5 min-w-37.5 text-center border border-black/10">{row.color}</TableCell>
-                    <TableCell className="text-center border border-black/10">{row.delivered.toFixed(2)}</TableCell>
-                    <TableCell className="text-center border border-black/10">{row.vehicleNo || '-'}</TableCell>
-                    <TableCell className="text-center border border-black/10">{row.driverName || '-'}</TableCell>
+                    <TableCell className="!text-center border border-gray-300">{row.size}</TableCell>
+                    <TableCell className="w-37.5 min-w-37.5 text-center border border-gray-300">{row.color}</TableCell>
+                    <TableCell className="text-center border border-gray-300">{row.delivered.toFixed(2)}</TableCell>
+                    <TableCell className="text-center border border-gray-300">{row.vehicleNo || '-'}</TableCell>
+                    <TableCell className="text-center border border-gray-300">{row.driverName || '-'}</TableCell>
                     {!readOnly && (
                       <TableCell className="!text-center">
                         <div className="flex items-center justify-center gap-1.5">
@@ -257,12 +261,17 @@ export const FabricDeliveredSection = forwardRef<SectionRef, SectionProps & { on
                             delivered: String(row.delivered),
                             vehicleNo: row.vehicleNo,
                             driverName: row.driverName,
-                          })}>
+                          })}
+                            disabled={!canEditProductionRecord(user, false)}
+                          >
                             <Edit2 className="h-3.5 w-3.5" />
                           </Button>
-                          <Button variant="ghost" size="icon-sm" className="rounded-full bg-red-50 text-red-500 hover:bg-red-100" aria-label="Delete row" onClick={() => setDeleteTarget(row)}>
-                            <Trash2 className="h-3.5 w-3.5" />
-                          </Button>
+
+                          {canDeleteProductionRecord(user) && (
+                            <Button variant="ghost" size="icon-sm" className="rounded-full bg-red-50 text-red-500 hover:bg-red-100" aria-label="Delete row" onClick={() => setDeleteTarget(row)}>
+                              <Trash2 className="h-3.5 w-3.5" />
+                            </Button>
+                          )}
                         </div>
                       </TableCell>
                     )}
@@ -278,6 +287,9 @@ export const FabricDeliveredSection = forwardRef<SectionRef, SectionProps & { on
           </TableBody>
         </Table>
       </div>
+
+      <TableNoteFooter />
+
       <DeleteConfirmDialog
         open={!!deleteTarget}
         onOpenChange={(open) => !open && setDeleteTarget(null)}

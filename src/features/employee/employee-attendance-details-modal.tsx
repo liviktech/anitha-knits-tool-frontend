@@ -51,16 +51,16 @@ export function EmployeeAttendanceDetailsModal({ isOpen, onClose, employeeId, em
 
   return (
     <Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
-      <DialogContent className="sm:max-w-2xl p-0 overflow-hidden gap-0 rounded-2xl">
-        <DialogHeader className="px-6 py-4 border-b border-gray-100 bg-white">
-          <DialogTitle className="text-xl font-semibold text-gray-900">{employeeName}'s Attendance Details</DialogTitle>
+      <DialogContent className="sm:max-w-2xl p-0 overflow-hidden gap-0 rounded-2xl border border-gray-400">
+        <DialogHeader className="px-6 py-4 border-b border-gray-200 bg-[#A8DCAB]">
+          <DialogTitle className="text-xl font-semibold text-black">{employeeName}'s Attendance Details</DialogTitle>
         </DialogHeader>
 
         <div className="max-h-[60vh] overflow-y-auto p-4">
           <div className="rounded-xl border border-gray-200 bg-white shadow-sm overflow-hidden">
             <Table>
               <TableHeader className="bg-[#F8F9FA]">
-                <TableRow className="hover:bg-transparent border-b border-gray-200">
+                <TableRow className="hover:bg-transparent border-b border-gray-300">
                   <TableHead className="text-xs font-bold tracking-wider text-gray-500 py-3 px-5">
                     DATE
                   </TableHead>
@@ -80,7 +80,7 @@ export function EmployeeAttendanceDetailsModal({ isOpen, onClose, employeeId, em
                   records.map((rec) => {
                     const currentStatus = editedStatuses[rec.date] || rec.status;
                     return (
-                      <TableRow key={rec.id} className="border-b border-gray-100 hover:bg-gray-50/50">
+                      <TableRow key={rec.id} className="border-b border-gray-300 hover:bg-gray-50/50">
                         <TableCell className="py-3 px-5 w-1/2">
                           <span className="text-sm font-medium text-gray-900">{rec.date}</span>
                         </TableCell>
@@ -109,17 +109,17 @@ export function EmployeeAttendanceDetailsModal({ isOpen, onClose, employeeId, em
           </div>
         </div>
 
-        <DialogFooter className="px-6 py-4 border-t border-gray-100 bg-white flex justify-between items-center w-full sm:justify-between">
+        <DialogFooter className="px-6 py-4 border-t border-gray-200 bg-white flex justify-between items-center w-full sm:justify-between">
           <Button onClick={onClose} variant="outline" className="bg-white text-gray-700 hover:bg-gray-50 rounded-lg h-9">
             Cancel
           </Button>
           {onSave && (
-            <Button 
-              onClick={handleSave} 
+            <Button
+              onClick={handleSave}
               disabled={!hasChanges || isSaving}
-              className="bg-[#0B503B] text-white hover:bg-[#083A2A] rounded-lg h-9"
+              className="bg-[#004D40] text-white hover:bg-[#00332a] rounded-lg h-9"
             >
-              Save Changes
+              Update
               {isSaving && <Loader2 className="ml-2 h-4 w-4 animate-spin" />}
             </Button>
           )}

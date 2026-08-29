@@ -3,8 +3,11 @@ import { useQueryClient } from '@tanstack/react-query';
 import { Button } from '@/components/ui/button';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Loader } from '@/components/shared/loader';
+import { TableNoteFooter } from '@/components/shared/table-note-footer';
 import { Edit2, Trash2 } from 'lucide-react';
 import { DeleteConfirmDialog } from '@/components/shared/delete-confirm-dialog';
+import { useAuth } from '@/features/auth/auth-context';
+import { canDeleteProductionRecord, canEditProductionRecord } from '@/lib/production-permissions';
 import { apiFetch, extractApiErrorMessage } from '@/lib/api-client';
 import { sumWastageByCode } from '@/lib/api-types';
 import {
@@ -24,6 +27,7 @@ export interface LoomRow {
   input: number;
   output: number;
   loomsWasteKg: number;
+  isApproved: boolean;
 }
 
 export function mapLoomItem(item: LoomsProductionItem): LoomRow {
@@ -34,6 +38,7 @@ export function mapLoomItem(item: LoomsProductionItem): LoomRow {
     input: item.loom?.yarnInputKg ?? 0,
     output: item.loom?.fabricOutputKg ?? 0,
     loomsWasteKg: sumWastageByCode(item.wastages, 'LOOMS_WASTE'),
+    isApproved: item.isApproved,
   };
 }
 
@@ -56,6 +61,7 @@ export function suggestLoomOutput(draft: Pick<LoomDraft, 'input' | 'loomsWasteKg
 
 export const LoomSection = forwardRef<SectionRef, SectionProps>(({ productionDate, readOnly, hideExisting, hideBanner, onEditLoomGroup }, ref) => {
   const queryClient = useQueryClient();
+  const { user } = useAuth();
   const { data, isLoading } = useLoomsProductions(
     productionDate ? `?date_from=${productionDate}&date_to=${productionDate}` : '',
     !hideExisting,
@@ -210,12 +216,12 @@ export const LoomSection = forwardRef<SectionRef, SectionProps>(({ productionDat
         <Table>
           <TableHeader className={`${theme.headerBg}`}>
             <TableRow className="hover:!bg-transparent border-b-0">
-              <TableHead className={`text-sm !text-center font-semibold tracking-wide border-b border-black/10 ${theme.headerText}`}>Size</TableHead>
-              <TableHead className={`w-37.5 min-w-37.5 text-center text-sm font-semibold  tracking-wide border border-black/10 ${theme.headerText}`}>Color</TableHead>
-              <TableHead className={`text-center text-sm font-semibold  tracking-wide border border-black/10 ${theme.headerText}`}>Loom Production (kg)</TableHead>
-              <TableHead className={`text-center text-sm font-semibold  tracking-wide border border-black/10 ${theme.headerText}`}>Looms/Yarn Waste</TableHead>
-              <TableHead className={`text-center text-sm font-semibold  tracking-wide border border-black/10 ${theme.headerText}`}>Fabric production (kg)</TableHead>
-              {!readOnly && <TableHead className={`!text-center text-sm font-semibold  tracking-wide border border-black/10 ${theme.headerText}`}>Action</TableHead>}
+              <TableHead className={`text-sm !text-center font-semibold tracking-wide border-b border-gray-300 ${theme.headerText}`}>Size</TableHead>
+              <TableHead className={`w-37.5 min-w-37.5 text-center text-sm font-semibold  tracking-wide border border-gray-300 ${theme.headerText}`}>Color</TableHead>
+              <TableHead className={`text-center text-sm font-semibold  tracking-wide border border-gray-300 ${theme.headerText}`}>Loom Production</TableHead>
+              <TableHead className={`text-center text-sm font-semibold  tracking-wide border border-gray-300 ${theme.headerText}`}>Looms/Yarn Waste</TableHead>
+              <TableHead className={`text-center text-sm font-semibold  tracking-wide border border-gray-300 ${theme.headerText}`}>Fabric production</TableHead>
+              {!readOnly && <TableHead className={`!text-center text-sm font-semibold  tracking-wide border border-gray-300 ${theme.headerText}`}>Action</TableHead>}
             </TableRow>
           </TableHeader>
           <TableBody>
@@ -232,11 +238,11 @@ export const LoomSection = forwardRef<SectionRef, SectionProps>(({ productionDat
                 {!readOnly &&
                   newRows.map((row) => (
                     <TableRow key={row.key} className="bg-orange-50/50">
-                      <TableCell className="!text-center"><span className="font-medium text-gray-700 border border-black/10">{row.size || '-'}</span></TableCell>
-                      <TableCell className="w-37.5 min-w-37.5 text-center"><span className="font-medium text-gray-700 border border-black/10">{row.color || '-'}</span></TableCell>
-                      <TableCell className="text-center border border-black/10">{parseFloat(row.input) > 0 ? parseFloat(row.input).toFixed(2) : '-'}</TableCell>
-                      <TableCell className="text-center border border-black/10">{parseFloat(row.loomsWasteKg) > 0 ? parseFloat(row.loomsWasteKg).toFixed(2) : '-'}</TableCell>
-                      <TableCell className="text-center border border-black/10">{parseFloat(row.output) > 0 ? parseFloat(row.output).toFixed(2) : '-'}</TableCell>
+                      <TableCell className="!text-center"><span className="font-medium text-gray-700 border border-gray-300">{row.size || '-'}</span></TableCell>
+                      <TableCell className="w-37.5 min-w-37.5 text-center"><span className="font-medium text-gray-700 border border-gray-300">{row.color || '-'}</span></TableCell>
+                      <TableCell className="text-center border border-gray-300">{parseFloat(row.input) > 0 ? parseFloat(row.input).toFixed(2) : '-'}</TableCell>
+                      <TableCell className="text-center border border-gray-300">{parseFloat(row.loomsWasteKg) > 0 ? parseFloat(row.loomsWasteKg).toFixed(2) : '-'}</TableCell>
+                      <TableCell className="text-center border border-gray-300">{parseFloat(row.output) > 0 ? parseFloat(row.output).toFixed(2) : '-'}</TableCell>
                       <TableCell className="!text-center">
                         <div className="flex items-center justify-center gap-1.5">
                           <Button variant="ghost" size="icon-sm" disabled={saving} className="rounded-full bg-blue-50 text-blue-500 hover:bg-blue-100" onClick={() => onEditLoomGroup && onEditLoomGroup(row)}>
@@ -251,11 +257,11 @@ export const LoomSection = forwardRef<SectionRef, SectionProps>(({ productionDat
                   ))}
                 {rows.map((row) => (
                   <TableRow key={row.id}>
-                    <TableCell className="!text-center border border-black/10">{row.size}</TableCell>
-                    <TableCell className="w-37.5 min-w-37.5 text-center border border-black/10">{row.color}</TableCell>
-                    <TableCell className="text-center border border-black/10">{row.input.toFixed(2)}</TableCell>
-                    <TableCell className="text-center border border-black/10">{row.loomsWasteKg.toFixed(2)}</TableCell>
-                    <TableCell className="text-center border border-black/10">{row.output.toFixed(2)}</TableCell>
+                    <TableCell className="!text-center border border-gray-300">{row.size}</TableCell>
+                    <TableCell className="w-37.5 min-w-37.5 text-center border border-gray-300">{row.color}</TableCell>
+                    <TableCell className="text-center border border-gray-300">{row.input.toFixed(2)}</TableCell>
+                    <TableCell className="text-center border border-gray-300">{row.loomsWasteKg.toFixed(2)}</TableCell>
+                    <TableCell className="text-center border border-gray-300">{row.output.toFixed(2)}</TableCell>
                     {!readOnly && (
                       <TableCell className="!text-center">
                         <div className="flex items-center justify-center gap-1.5">
@@ -264,6 +270,7 @@ export const LoomSection = forwardRef<SectionRef, SectionProps>(({ productionDat
                             size="icon-sm"
                             className="rounded-full bg-blue-50 text-blue-500 hover:bg-blue-100"
                             aria-label="Edit row"
+                            disabled={!canEditProductionRecord(user, row.isApproved)}
                             onClick={() => onEditLoomGroup && onEditLoomGroup({
                               id: row.id,
                               size: row.size,
@@ -275,15 +282,17 @@ export const LoomSection = forwardRef<SectionRef, SectionProps>(({ productionDat
                           >
                             <Edit2 className="h-3.5 w-3.5" />
                           </Button>
-                          <Button
-                            variant="ghost"
-                            size="icon-sm"
-                            className="rounded-full bg-red-50 text-red-500 hover:bg-red-100"
-                            aria-label="Delete row"
-                            onClick={() => setDeleteTarget(row)}
-                          >
-                            <Trash2 className="h-3.5 w-3.5" />
-                          </Button>
+                          {canDeleteProductionRecord(user) && (
+                            <Button
+                              variant="ghost"
+                              size="icon-sm"
+                              className="rounded-full bg-red-50 text-red-500 hover:bg-red-100"
+                              aria-label="Delete row"
+                              onClick={() => setDeleteTarget(row)}
+                            >
+                              <Trash2 className="h-3.5 w-3.5" />
+                            </Button>
+                          )}
                         </div>
                       </TableCell>
                     )}
@@ -300,6 +309,7 @@ export const LoomSection = forwardRef<SectionRef, SectionProps>(({ productionDat
         </Table>
       </div>
 
+      <TableNoteFooter />
 
       <DeleteConfirmDialog
         open={!!deleteTarget}

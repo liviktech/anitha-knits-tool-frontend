@@ -47,7 +47,7 @@ function fmt(n: number): string {
 function Cell({ value }: { value: string | number }) {
   const displayValue = typeof value === 'number' ? fmt(value) : value;
   return (
-    <td className="border border-gray-200 px-2 py-1 text-right text-[12.5px] whitespace-nowrap text-gray-900">
+    <td className="border border-gray-300 px-2 py-1 text-right text-[12.5px] whitespace-nowrap text-gray-900">
       {displayValue}
     </td>
   );
@@ -173,13 +173,13 @@ export function DayWiseReportModal({ open, onOpenChange }: DayWiseReportModalPro
           <table className="border-collapse text-sm w-full">
             <thead>
               <tr>
-                <th rowSpan={3} className="border border-gray-200 bg-gray-50 px-3 py-1.5 text-left text-[12.5px] font-bold align-middle sticky left-0 z-10">
+                <th rowSpan={3} className="border border-gray-300 bg-gray-50 px-3 py-1.5 text-left text-[12.5px] font-bold align-middle sticky left-0 z-10">
                   Date
                 </th>
-                <th colSpan={18} className="border border-gray-200 px-2 py-1.5 text-center text-[13.5px] font-extrabold uppercase tracking-widest bg-gray-100 text-gray-800">
+                <th colSpan={18} className="border border-gray-300 px-2 py-1.5 text-center text-[13.5px] font-extrabold uppercase tracking-widest bg-gray-100 text-gray-800">
                   Production
                 </th>
-                <th colSpan={9} className="border border-gray-200 px-2 py-1.5 text-center text-[13.5px] font-extrabold uppercase tracking-widest bg-[#FFF4D4] text-[#8A6700]">
+                <th colSpan={9} className="border border-gray-300 px-2 py-1.5 text-center text-[13.5px] font-extrabold uppercase tracking-widest bg-[#FFF4D4] text-[#8A6700]">
                   Delivery
                 </th>
               </tr>
@@ -188,7 +188,7 @@ export function DayWiseReportModal({ open, onOpenChange }: DayWiseReportModalPro
                   <th
                     key={g.label}
                     colSpan={g.span}
-                    className="border border-gray-200 px-2 py-1.5 text-center text-[11.5px] font-bold uppercase tracking-wide"
+                    className="border border-gray-300 px-2 py-1.5 text-center text-[11.5px] font-bold uppercase tracking-wide"
                     style={{ background: g.bg, color: g.fg }}
                   >
                     {g.label}
@@ -198,7 +198,7 @@ export function DayWiseReportModal({ open, onOpenChange }: DayWiseReportModalPro
                   <th
                     key={g.label}
                     colSpan={g.span}
-                    className="border border-gray-200 px-2 py-1.5 text-center text-[11.5px] font-bold uppercase tracking-wide"
+                    className="border border-gray-300 px-2 py-1.5 text-center text-[11.5px] font-bold uppercase tracking-wide"
                     style={{ background: g.bg, color: g.fg }}
                   >
                     {g.label}
@@ -207,12 +207,12 @@ export function DayWiseReportModal({ open, onOpenChange }: DayWiseReportModalPro
               </tr>
               <tr>
                 {PROD_SUB_HEADERS.map((h, i) => (
-                  <th key={`p-${i}`} className="border border-gray-200 bg-gray-50 px-2 py-1 text-right text-[11px] font-semibold whitespace-nowrap">
+                  <th key={`p-${i}`} className="border border-gray-300 bg-gray-50 px-2 py-1 text-right text-[11px] font-semibold whitespace-nowrap">
                     {h}
                   </th>
                 ))}
                 {DEL_SUB_HEADERS.map((h, i) => (
-                  <th key={`d-${i}`} className="border border-gray-200 bg-gray-50 px-2 py-1 text-right text-[11px] font-semibold whitespace-nowrap">
+                  <th key={`d-${i}`} className="border border-gray-300 bg-gray-50 px-2 py-1 text-right text-[11px] font-semibold whitespace-nowrap">
                     {h}
                   </th>
                 ))}
@@ -233,7 +233,7 @@ export function DayWiseReportModal({ open, onOpenChange }: DayWiseReportModalPro
                 return (
                   <tr key={row.date} className="hover:bg-gray-50">
                     <td
-                      className="border border-gray-200 px-3 py-1 text-[12.5px] font-medium whitespace-nowrap sticky left-0 z-10 bg-white text-gray-900"
+                      className="border border-gray-300 px-3 py-1 text-[12.5px] font-medium whitespace-nowrap sticky left-0 z-10 bg-white text-gray-900"
                     >
                       {format(parseISO(row.date), 'd-MMM-yy')}
                     </td>
@@ -244,7 +244,7 @@ export function DayWiseReportModal({ open, onOpenChange }: DayWiseReportModalPro
                 );
               }) : (
                 <tr>
-                  <td colSpan={28} className="border border-gray-200 px-3 py-6 text-center text-gray-500">
+                  <td colSpan={28} className="border border-gray-300 px-3 py-6 text-center text-gray-500">
                     No production or delivery records found for this month.
                   </td>
                 </tr>
@@ -252,7 +252,7 @@ export function DayWiseReportModal({ open, onOpenChange }: DayWiseReportModalPro
             </tbody>
             <tfoot>
               <tr className="bg-gray-100 font-bold">
-                <td className="border border-gray-200 px-3 py-1.5 text-[12.5px] sticky left-0 bg-gray-100 z-10">TOTAL</td>
+                <td className="border border-gray-300 px-3 py-1.5 text-[12.5px] sticky left-0 bg-gray-100 z-10">TOTAL</td>
                 {[
                   apiTotals.extruder.output, apiTotals.extruder.wastage, 0,
                   0, 0, 0, apiTotals.looms.output,
@@ -265,7 +265,7 @@ export function DayWiseReportModal({ open, onOpenChange }: DayWiseReportModalPro
                 ].map((v, i) => (
                   <td
                     key={i}
-                    className="border border-gray-200 px-2 py-1.5 text-right text-[12.5px] whitespace-nowrap text-gray-900"
+                    className="border border-gray-300 px-2 py-1.5 text-right text-[12.5px] whitespace-nowrap text-gray-900"
                   >
                     {fmt(v)}
                   </td>

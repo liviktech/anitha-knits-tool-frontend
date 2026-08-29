@@ -10,8 +10,13 @@ import { ExtruderSection, LoomSection, FabricSection, FabricDeliveredSection, th
 import { TabAddModal } from './tab-add-modal';
 import type { SectionRef } from './day-entry-sections';
 import { useExtruderProductions, useLookups } from '@/features/extruder/extruder-queries';
+import { useLoomsProductions } from '@/features/looms/loom-queries';
+import { useFabricCheckingRecords } from '@/features/fabric/fabric-queries';
+import { useLoadSentRecords } from '@/features/inventory/load-sent-queries';
 import { useInventoryRecords } from '@/features/inventory/inventory-queries';
 import { useProductionHeader } from './production-details';
+import { useAuth } from '@/features/auth/auth-context';
+import { canCreateProductionRecord } from '@/lib/production-permissions';
 
 interface NewEntryProps {
   onClose: () => void;
@@ -21,6 +26,8 @@ interface NewEntryProps {
 }
 
 export function NewEntry({ onClose, defaultDate, readOnly = false }: NewEntryProps) {
+  const { user } = useAuth();
+  const canAddRow = canCreateProductionRecord(user);
   const { setHeaderRight, setShowBackButton, setOnBackClick, setHeaderTitle } = useProductionHeader();
   const isCreateMode = !defaultDate && !readOnly;
 
@@ -32,7 +39,7 @@ export function NewEntry({ onClose, defaultDate, readOnly = false }: NewEntryPro
   const [date, setDate] = useState<Date>(defaultDate ? parseISO(defaultDate) : new Date());
   const productionDate = format(date, 'yyyy-MM-dd');
   const [submitting] = useState(false);
-  const [isInventoryMinimized, setIsInventoryMinimized] = useState(false);
+  const [isInventoryMinimized, setIsInventoryMinimized] = useState(true);
 
   const [searchParams] = useSearchParams();
   const [activeTab, setActiveTab] = useState<string>(searchParams.get('tab') || 'extruder');
@@ -45,6 +52,22 @@ export function NewEntry({ onClose, defaultDate, readOnly = false }: NewEntryPro
   const { data: lookupsData } = useLookups();
   const lookups = lookupsData ?? { brands: [], colors: [], chemicals: [], sizes: [] };
 
+  // Once the selected date already has any records (added this session or
+  // already on the server), the date picker is hidden so it can't be
+  // changed out from under data that's already been saved against it.
+  const dayQuery = `?date_from=${productionDate}&date_to=${productionDate}`;
+  const { data: extruderDayData } = useExtruderProductions(dayQuery, isCreateMode);
+  const { data: loomsDayData } = useLoomsProductions(dayQuery, isCreateMode);
+  const { data: fabricDayData } = useFabricCheckingRecords(dayQuery, isCreateMode);
+  const { data: deliveredDayData } = useLoadSentRecords('?limit=100', isCreateMode);
+  const hasDataForDay = isCreateMode && (
+    (extruderDayData?.data?.length ?? 0) > 0 ||
+    (loomsDayData?.data?.length ?? 0) > 0 ||
+    (fabricDayData?.data?.length ?? 0) > 0 ||
+    (deliveredDayData?.data ?? []).some((r) => (r.productionDate ?? r.date ?? '').startsWith(productionDate))
+  );
+  const showDatePicker = isCreateMode && !hasDataForDay;
+
   useEffect(() => {
     setHeaderTitle(isCreateMode ? 'Add New Daily Production Details' : 'Edit Daily Production Details');
     setShowBackButton(true);
@@ -52,21 +75,16 @@ export function NewEntry({ onClose, defaultDate, readOnly = false }: NewEntryPro
 
     setHeaderRight(
       <div className="flex flex-wrap items-center gap-3">
-        {!isCreateMode ? (
-          <div className="flex items-center gap-2 mr-4">
-            <CalendarIcon className="w-[18px] h-[18px] text-[#004D40]" />
-            <span className="text-[15px] font-bold text-[#004D40]">{format(date, 'dd MMM, yyyy')}</span>
-          </div>
-        ) : (
+        {showDatePicker && (
           <Popover>
             <PopoverTrigger asChild>
               <Button
                 variant="outline"
                 disabled={readOnly || submitting}
-                className="flex items-center bg-white border border-gray-400 rounded-md px-4 py-2 h-auto shadow-[0_1px_2px_rgba(0,0,0,0.05)] hover:bg-gray-50 disabled:opacity-100"
+                className="flex items-center bg-white border border-gray-400 rounded-md px-4 py-2 h-auto shadow-[0_1px_2px_rgba(0,0,0,0.05)] hover:bg-gray-50 disabled:opacity-100 cursor pointer"
               >
-                <span className="text-sm font-semibold text-gray-700 mr-3">{format(date, 'dd MMM, yyyy')}</span>
-                <CalendarIcon className="w-4 h-4 text-gray-400" />
+                <span className="text-sm font-semibold text-gray-800 mr-3">{format(date, 'dd MMM, yyyy')}</span>
+                <CalendarIcon className="w-4 h-4 text-gray-800" />
               </Button>
             </PopoverTrigger>
             <PopoverContent className="w-auto p-0" align="end">
@@ -80,6 +98,19 @@ export function NewEntry({ onClose, defaultDate, readOnly = false }: NewEntryPro
             </PopoverContent>
           </Popover>
         )}
+        {!readOnly && canAddRow && (
+          <Button
+            className={`flex items-center gap-2 rounded-md px-3 py-2 h-auto text-[12px] cursor-pointer font-bold tracking-wide shadow-[0_1px_2px_rgba(0,45,35,0.2)] transition-colors duration-200 ${activeTab === 'extruder' ? `${themes.extruder.iconBg} ${themes.extruder.iconColor} ${themes.extruder.iconHoverBg} ${themes.extruder.iconHoverColor}` :
+              activeTab === 'looms' ? `${themes.looms.iconBg} ${themes.looms.iconColor} ${themes.looms.iconHoverBg} ${themes.looms.iconHoverColor}` :
+                activeTab === 'fabric' ? `${themes.fabric.iconBg} ${themes.fabric.iconColor} ${themes.fabric.iconHoverBg} ${themes.fabric.iconHoverColor}` :
+                  `${themes.fabricDelivered.iconBg} ${themes.fabricDelivered.iconColor} ${themes.fabricDelivered.iconHoverBg} ${themes.fabricDelivered.iconHoverColor}`
+              }`}
+            onClick={() => setIsAddModalOpen(true)}
+          >
+            <Plus className="w-3 h-3" />
+            ADD ROW
+          </Button>
+        )}
       </div>
     );
 
@@ -89,7 +120,7 @@ export function NewEntry({ onClose, defaultDate, readOnly = false }: NewEntryPro
       setShowBackButton(false);
       setOnBackClick(undefined);
     };
-  }, [setHeaderRight, setShowBackButton, setOnBackClick, setHeaderTitle, onClose, date, readOnly, submitting]);
+  }, [setHeaderRight, setShowBackButton, setOnBackClick, setHeaderTitle, onClose, date, readOnly, submitting, activeTab, showDatePicker, canAddRow]);
 
   // Most recent entry before the selected date — used to carry forward
   // Data for calculating live stock balances in create mode
@@ -127,31 +158,34 @@ export function NewEntry({ onClose, defaultDate, readOnly = false }: NewEntryPro
         {!readOnly && (
           <div className="rounded-xl border border-gray-400 bg-white shadow-sm mb-3 transition-all duration-500">
             <div
-              className="bg-gray-50 border-b border-gray-200 px-4 py-3 rounded-t-xl flex justify-between items-center cursor-pointer select-none"
+              className="bg-violet-100 border-b border-violet-200 px-4 py-3 rounded-t-xl flex justify-between items-center cursor-pointer select-none"
               onClick={() => setIsInventoryMinimized(!isInventoryMinimized)}
             >
-              <h3 className="text-[13px] font-extrabold uppercase tracking-wider text-gray-700 flex items-center gap-2">
+              <h3 className="text-[13px] font-extrabold uppercase tracking-wider text-violet-900 flex items-center gap-2">
                 Inventory Balances
               </h3>
-              <Button variant="ghost" size="sm" className="h-6 w-6 p-0 hover:bg-gray-200 text-gray-500">
+              <Button variant="ghost" size="sm" className="h-6 w-6 p-0 hover:bg-violet-200 text-violet-700">
                 {isInventoryMinimized ? <ChevronDown className="h-4 w-4" /> : <ChevronUp className="h-4 w-4" />}
               </Button>
             </div>
-            <div className={`px-4 grid grid-cols-1 sm:grid-cols-3 sm:divide-x divide-gray-200 transition-all duration-500 ease-in-out ${isInventoryMinimized ? 'py-3 gap-2' : 'py-4 gap-4'}`}>
+            <div className={`px-4 grid grid-cols-1 sm:grid-cols-3 sm:divide-x divide-gray-200 transition-all duration-500 ease-in-out ${isInventoryMinimized ? 'py-3 gap-2' : 'py-3 gap-3'}`}>
               <div className="flex flex-col sm:pr-4">
                 <div className="flex justify-between items-center border-b border-gray-200 pb-2">
-                  <label className="text-[11px] font-bold uppercase tracking-wide text-gray-500">HDPE Balance</label>
-                  <span className={`text-[12px] font-bold text-gray-900 transition-opacity duration-300 ${isInventoryMinimized ? 'opacity-100' : 'opacity-0'}`}>
+                  <label className="flex items-center gap-2 text-[13px] font-bold uppercase tracking-wide text-gray-500">
+                    <img src="/hdpe-in.png" alt="" className="h-8 w-8 object-contain" />
+                    HDPE Balance
+                  </label>
+                  <span className={`text-[13px] font-bold text-gray-900 transition-opacity duration-300 ${isInventoryMinimized ? 'opacity-100' : 'opacity-0'}`}>
                     {totalRawMaterial} kg
                   </span>
                 </div>
                 <div className={`grid transition-[grid-template-rows] duration-500 ease-in-out ${isInventoryMinimized ? 'grid-rows-[0fr]' : 'grid-rows-[1fr]'}`}>
                   <div className="overflow-hidden">
-                    <div className="flex flex-col gap-2 max-h-[120px] overflow-y-auto pr-1 pt-2">
+                    <div className="flex flex-col gap-2 pr-1 pt-2">
                       {lookups.brands.map((b) => (
-                        <div key={b.id} className="flex justify-between items-center text-[12.5px]">
+                        <div key={b.id} className="flex justify-between items-center rounded-lg border border-gray-100 bg-gray-50 px-3 py-2.5 text-[12.5px]">
                           <span className="text-gray-700">{b.name}</span>
-                          <span className="font-semibold text-gray-900">{getHDPEBalance(b.name)} kg</span>
+                          <span className="font-bold text-gray-900">{getHDPEBalance(b.name)} kg</span>
                         </div>
                       ))}
                     </div>
@@ -160,18 +194,21 @@ export function NewEntry({ onClose, defaultDate, readOnly = false }: NewEntryPro
               </div>
               <div className="flex flex-col sm:px-4 pt-3 sm:pt-0 border-t sm:border-t-0 border-gray-200">
                 <div className="flex justify-between items-center border-b border-gray-200 pb-2">
-                  <label className="text-[11px] font-bold uppercase tracking-wide text-gray-500">Chemical Balance</label>
-                  <span className={`text-[12px] font-bold text-gray-900 transition-opacity duration-300 ${isInventoryMinimized ? 'opacity-100' : 'opacity-0'}`}>
+                  <label className="flex items-center gap-2 text-[13px] font-bold uppercase tracking-wide text-gray-500">
+                    <img src="/chemical-in.png" alt="" className="h-8 w-8 object-contain" />
+                    Chemical Balance
+                  </label>
+                  <span className={`text-[13px] font-bold text-gray-900 transition-opacity duration-300 ${isInventoryMinimized ? 'opacity-100' : 'opacity-0'}`}>
                     {totalChemical} kg
                   </span>
                 </div>
                 <div className={`grid transition-[grid-template-rows] duration-500 ease-in-out ${isInventoryMinimized ? 'grid-rows-[0fr]' : 'grid-rows-[1fr]'}`}>
                   <div className="overflow-hidden">
-                    <div className="flex flex-col gap-2 max-h-[120px] overflow-y-auto pr-1 pt-2">
+                    <div className="flex flex-col gap-2 pr-1 pt-2">
                       {lookups.chemicals.map((c) => (
-                        <div key={c.id} className="flex justify-between items-center text-[12.5px]">
+                        <div key={c.id} className="flex justify-between items-center rounded-lg border border-gray-100 bg-gray-50 px-3 py-2.5 text-[12.5px]">
                           <span className="text-gray-700">{c.name}</span>
-                          <span className="font-semibold text-gray-900">{getChemicalBalance(c.name)} kg</span>
+                          <span className="font-bold text-gray-900">{getChemicalBalance(c.name)} kg</span>
                         </div>
                       ))}
                     </div>
@@ -180,18 +217,22 @@ export function NewEntry({ onClose, defaultDate, readOnly = false }: NewEntryPro
               </div>
               <div className="flex flex-col sm:pl-4 pt-3 sm:pt-0 border-t sm:border-t-0 border-gray-200">
                 <div className="flex justify-between items-center border-b border-gray-200 pb-2">
-                  <label className="text-[11px] font-bold uppercase tracking-wide text-gray-500">Color Balance</label>
-                  <span className={`text-[12px] font-bold text-gray-900 transition-opacity duration-300 ${isInventoryMinimized ? 'opacity-100' : 'opacity-0'}`}>
+                  <label className="flex items-center gap-2.5 text-[13px] font-bold uppercase tracking-wide text-gray-500">
+                    <img src="/color-in.png" alt="" className="h-8 w-8 object-contain" />
+                    Color Balance
+                  </label>
+                  <span className={`text-[13 So bar start
+                    px] font-bold text-gray-900 transition-opacity duration-300 ${isInventoryMinimized ? 'opacity-100' : 'opacity-0'}`}>
                     {totalColor} kg
                   </span>
                 </div>
                 <div className={`grid transition-[grid-template-rows] duration-500 ease-in-out ${isInventoryMinimized ? 'grid-rows-[0fr]' : 'grid-rows-[1fr]'}`}>
                   <div className="overflow-hidden">
-                    <div className="flex flex-col gap-2 max-h-[120px] overflow-y-auto pr-1 pt-2">
+                    <div className="flex flex-col gap-2 pr-1 pt-2">
                       {lookups.colors.map((c) => (
-                        <div key={c.id} className="flex justify-between items-center text-[12.5px]">
+                        <div key={c.id} className="flex justify-between items-center rounded-lg border border-gray-100 bg-gray-50 px-3 py-2.5 text-[12.5px]">
                           <span className="text-gray-700">{c.name}</span>
-                          <span className="font-semibold text-gray-900">{getColorBalance(c.name)} kg</span>
+                          <span className="font-bold text-gray-900">{getColorBalance(c.name)} kg</span>
                         </div>
                       ))}
                     </div>
@@ -205,7 +246,7 @@ export function NewEntry({ onClose, defaultDate, readOnly = false }: NewEntryPro
         {/* Forms Container */}
         <div className="flex flex-col gap-2.5">
           <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full flex-col gap-0">
-            <div className="flex justify-between items-end border-b border-gray-200">              <TabsList variant="folder" className="flex overflow-x-auto sm:overflow-visible">
+            <div className="flex justify-between items-end border-b border-gray-200 w-full">              <TabsList variant="folder" className="flex overflow-x-auto sm:overflow-visible p-0 m-0">
                 <TabsTrigger value="extruder" className="data-[state=active]:!bg-[#D6EEF7] data-[state=active]:!text-[#0B5566] data-[state=active]:!border-b-[#D6EEF7]">Extruder Production</TabsTrigger>
                 <TabsTrigger value="looms" className="data-[state=active]:!bg-[#FFF6BF] data-[state=active]:!text-[#7A6A00] data-[state=active]:!border-b-[#FFF6BF]">Looms Production</TabsTrigger>
                 <TabsTrigger value="fabric" className="data-[state=active]:!bg-[#DCEEDB] data-[state=active]:!text-[#2F6B2F] data-[state=active]:!border-b-[#DCEEDB]">Fabric Checking</TabsTrigger>
@@ -242,32 +283,6 @@ export function NewEntry({ onClose, defaultDate, readOnly = false }: NewEntryPro
           </Tabs>
         </div>
 
-        <div className="mt-4 mb-8 flex justify-between items-center">
-          {!readOnly ? (
-            <Button
-              size="sm"
-              className={`h-8 gap-1.5 shadow-sm transition-colors duration-200 ${activeTab === 'extruder' ? `${themes.extruder.iconBg} ${themes.extruder.iconColor} ${themes.extruder.iconHoverBg} ${themes.extruder.iconHoverColor}` :
-                activeTab === 'looms' ? `${themes.looms.iconBg} ${themes.looms.iconColor} ${themes.looms.iconHoverBg} ${themes.looms.iconHoverColor}` :
-                  activeTab === 'fabric' ? `${themes.fabric.iconBg} ${themes.fabric.iconColor} ${themes.fabric.iconHoverBg} ${themes.fabric.iconHoverColor}` :
-                    `${themes.fabricDelivered.iconBg} ${themes.fabricDelivered.iconColor} ${themes.fabricDelivered.iconHoverBg} ${themes.fabricDelivered.iconHoverColor}`
-                }`}
-              onClick={() => setIsAddModalOpen(true)}
-            >
-              <Plus className="h-4 w-4" />
-              Add Row
-            </Button>
-          ) : <span />}
-          <div className="flex items-center gap-3">
-            <Button variant="outline" onClick={onClose} className="border-gray-300 text-gray-700 bg-white" disabled={submitting}>
-              Close
-            </Button>
-            {/* {!readOnly && (
-              <Button onClick={handleSaveAll} className="bg-[#004D40] hover:bg-[#00332A] text-white" disabled={submitting}>
-                {submitting ? 'Saving All...' : 'Save'}
-              </Button>
-            )} */}
-          </div>
-        </div>
       </div>
 
       <TabAddModal

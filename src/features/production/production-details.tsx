@@ -30,7 +30,7 @@ function ProductionLayout() {
   const [showBackButton, setShowBackButton] = useState(false);
   const [onBackClick, setOnBackClick] = useState<(() => void) | undefined>(undefined);
   const [headerTitle, setHeaderTitle] = useState<string | null>(null);
-  
+
   const ctxValue = useMemo(() => ({ setHeaderRight, setShowBackButton, setOnBackClick, setHeaderTitle }), [setHeaderRight, setShowBackButton, setOnBackClick, setHeaderTitle]);
 
   return (
@@ -42,14 +42,14 @@ function ProductionLayout() {
         `}</style>
 
         {/* Unified Header */}
-        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between px-4 py-3 bg-[#F4F1E8] border-b border-gray-100 shrink-0">
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between px-4 py-3 bg-[#F4F1E8] border-b border-[#004D40] shrink-0">
           <div className="flex items-center gap-3">
             {showBackButton && (
               <Button
                 variant="ghost"
                 size="icon"
                 onClick={() => (onBackClick ? onBackClick() : navigate('/production'))}
-                className="h-8 w-8 text-gray-500 hover:text-gray-900 hover:bg-white rounded-full bg-transparent"
+                className="h-8 w-8 text-gray-900 bg-white rounded-full border border-gray-300 hover:bg-gray-100 flex items-center justify-center"
               >
                 <ArrowLeft className="h-5 w-5" />
               </Button>
@@ -115,18 +115,18 @@ function NewEntryRoute() {
   const [searchParams] = useSearchParams();
   const date = searchParams.get('date') || location.state?.editDate;
   const from = searchParams.get('from') || (location.state?.editDate ? 'details' : null);
-  
+
   return (
     <div className="h-full overflow-y-auto">
-      <NewEntry 
+      <NewEntry
         onClose={() => {
           if (date && from === 'details') {
             navigate('/production', { state: { selectedDate: date } });
           } else {
             navigate('/production');
           }
-        }} 
-        defaultDate={date} 
+        }}
+        defaultDate={date}
       />
     </div>
   );

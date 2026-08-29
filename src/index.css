@@ -167,3 +167,76 @@
     background-color: #94a3b8;
   }
 }
+
+/* Folder-notch tab shape (TabsList variant="notch"): adjacent tabs curve into
+   one another via a radial-gradient "bite" cut into each trigger's own
+   corner, instead of meeting at a hard vertical seam. --tab-fill mirrors
+   each trigger's own background so the curve into its neighbour reads as a
+   continuous, gap-free edge. Colors reuse what's already used for these
+   tabs elsewhere (slate-100 container bg, #004D40 brand teal, its 8% tint
+   for hover) — only the shape is new. */
+[data-variant="notch"] [data-slot="tabs-trigger"] {
+  --notch-r: 14px;
+  --tab-fill: #f1f5f9;
+  z-index: 1;
+}
+[data-variant="notch"] [data-slot="tabs-trigger"]:hover {
+  --tab-fill: rgba(0, 77, 64, 0.08);
+  z-index: 5;
+}
+[data-variant="notch"] [data-slot="tabs-trigger"][data-state="active"] {
+  --tab-fill: #004D40;
+  z-index: 5;
+}
+[data-variant="notch"] [data-slot="tabs-trigger"]:not(:first-child)::before,
+[data-variant="notch"] [data-slot="tabs-trigger"]:not(:last-child)::after {
+  content: "";
+  position: absolute;
+  bottom: 0;
+  width: var(--notch-r);
+  height: var(--notch-r);
+  pointer-events: none;
+  transition: background-color 200ms ease;
+}
+[data-variant="notch"] [data-slot="tabs-trigger"]:not(:first-child)::before {
+  left: calc(var(--notch-r) * -1);
+  background: radial-gradient(circle at top left, transparent var(--notch-r), var(--tab-fill) var(--notch-r));
+}
+[data-variant="notch"] [data-slot="tabs-trigger"]:not(:last-child)::after {
+  right: calc(var(--notch-r) * -1);
+  background: radial-gradient(circle at top right, transparent var(--notch-r), var(--tab-fill) var(--notch-r));
+}
+
+/* Same mechanics as "notch", mirrored vertically: rounded caps sit at the
+   bottom, the curved seam runs along the top edge instead. */
+[data-variant="notch-flip"] [data-slot="tabs-trigger"] {
+  --notch-r: 14px;
+  --tab-fill: #f1f5f9;
+  z-index: 1;
+}
+[data-variant="notch-flip"] [data-slot="tabs-trigger"]:hover {
+  --tab-fill: rgba(0, 77, 64, 0.08);
+  z-index: 5;
+}
+[data-variant="notch-flip"] [data-slot="tabs-trigger"][data-state="active"] {
+  --tab-fill: #004D40;
+  z-index: 5;
+}
+[data-variant="notch-flip"] [data-slot="tabs-trigger"]:not(:first-child)::before,
+[data-variant="notch-flip"] [data-slot="tabs-trigger"]:not(:last-child)::after {
+  content: "";
+  position: absolute;
+  top: 0;
+  width: var(--notch-r);
+  height: var(--notch-r);
+  pointer-events: none;
+  transition: background-color 200ms ease;
+}
+[data-variant="notch-flip"] [data-slot="tabs-trigger"]:not(:first-child)::before {
+  left: calc(var(--notch-r) * -1);
+  background: radial-gradient(circle at bottom left, transparent var(--notch-r), var(--tab-fill) var(--notch-r));
+}
+[data-variant="notch-flip"] [data-slot="tabs-trigger"]:not(:last-child)::after {
+  right: calc(var(--notch-r) * -1);
+  background: radial-gradient(circle at bottom right, transparent var(--notch-r), var(--tab-fill) var(--notch-r));
+}

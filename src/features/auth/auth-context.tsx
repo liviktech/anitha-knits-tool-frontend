@@ -1,5 +1,5 @@
 import { createContext, useContext, useEffect, useState, type ReactNode } from 'react';
-import { login as loginRequest, type AuthUser } from './auth-service';
+import { fetchCurrentUser, login as loginRequest, type AuthUser } from './auth-service';
 import { AUTH_STORAGE_KEY as STORAGE_KEY } from '@/lib/api-client';
 
 interface AuthContextValue {
@@ -42,6 +42,34 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     return () => window.removeEventListener('auth:session-expired', handleSessionExpired);
   }, []);
 
+  // Re-resolve a company-user session's profile/access from the server on mount, and again
+  // whenever this tab regains focus — the cached localStorage copy (and the in-memory user
+  // this component started with) goes stale the moment an admin changes this user's RoleAccess
+  // or its rights in a *different* tab/session, and a single-page app never remounts on its own
+  // to pick that up otherwise. Ignores failures (e.g. offline); a genuinely dead session is
+  // already handled by the 401 listener above.
+  useEffect(() => {
+    let cancelled = false;
+
+    function refresh() {
+      if (document.hidden) return;
+      const stored = readStoredUser();
+      if (stored?.kind !== 'company-user') return;
+      fetchCurrentUser().then((fresh) => {
+        if (!cancelled && fresh) setUser(fresh);
+      });
+    }
+
+    refresh();
+    window.addEventListener('focus', refresh);
+    document.addEventListener('visibilitychange', refresh);
+    return () => {
+      cancelled = true;
+      window.removeEventListener('focus', refresh);
+      document.removeEventListener('visibilitychange', refresh);
+    };
+  }, []);
+
   async function login(mobile: string, password: string) {
     const nextUser = await loginRequest(mobile, password);
     setUser(nextUser);
@@ -69,6 +97,5 @@ export function useAuth() {
  */
 export function defaultRouteFor(user: AuthUser): string {
   if (user.kind === 'platform-admin') return '/admin';
-  if (user.role === 'ADMIN') return '/production';
   return '/dashboard';
 }

@@ -6,13 +6,17 @@ import {
   Edit2,
   Trash2,
   Search,
-  Wallet,
-  ChevronLeft,
-  ChevronRight,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import {
   Table,
   TableBody,
@@ -30,6 +34,7 @@ import {
 } from "@/components/ui/dialog";
 import { DeleteConfirmDialog } from "@/components/shared/delete-confirm-dialog";
 import { Loader } from "@/components/shared/loader";
+import { TablePaginationControls, RowsPerPageSelect } from "@/components/shared/table-pagination-controls";
 import { apiFetch, extractApiErrorMessage } from "@/lib/api-client";
 import {
   expenseKeys,
@@ -75,26 +80,13 @@ function monthRange(monthStr: string): { from: string; to: string } {
   };
 }
 
-const PAGE_SIZE = 10;
-
-function getPageNumbers(
-  current: number,
-  total: number,
-): (number | "ellipsis")[] {
-  if (total <= 7) return Array.from({ length: total }, (_, i) => i + 1);
-  const pages = new Set([1, total, current - 1, current, current + 1]);
-  const sorted = Array.from(pages)
-    .filter((p) => p >= 1 && p <= total)
-    .sort((a, b) => a - b);
-  const result: (number | "ellipsis")[] = [];
-  let prev = 0;
-  for (const p of sorted) {
-    if (prev && p - prev > 1) result.push("ellipsis");
-    result.push(p);
-    prev = p;
-  }
-  return result;
-}
+const EXPENSE_NAME_SUGGESTIONS = [
+  "Electricity Charges",
+  "Water Charges",
+  "Machine Maintenance",
+  "Transportation",
+  "Office Supplies",
+];
 
 export function EmpExpensesPage() {
   const queryClient = useQueryClient();
@@ -102,6 +94,7 @@ export function EmpExpensesPage() {
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedMonth, setSelectedMonth] = useState<string>(currentMonthStr());
   const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState(10);
 
   // Modal dialog states
   const [isFormOpen, setIsFormOpen] = useState(false);
@@ -115,6 +108,7 @@ export function EmpExpensesPage() {
   // Form input states
   const [formDate, setFormDate] = useState(todayIso());
   const [formName, setFormName] = useState("");
+  const [expenseNameOption, setExpenseNameOption] = useState("");
   const [formAmount, setFormAmount] = useState("");
   const [formError, setFormError] = useState<string | null>(null);
 
@@ -139,9 +133,8 @@ export function EmpExpensesPage() {
   // Month + search, server-filtered (same 100-row cap) — backs the table.
   // Paginated client-side over this bounded set so the footer's "Filtered
   // Total" can sum every matching row, not just the visible page.
-  const filteredQuery = `?date_from=${from}&date_to=${to}&limit=100${
-    searchQuery.trim() ? `&name=${encodeURIComponent(searchQuery.trim())}` : ""
-  }`;
+  const filteredQuery = `?date_from=${from}&date_to=${to}&limit=100${searchQuery.trim() ? `&name=${encodeURIComponent(searchQuery.trim())}` : ""
+    }`;
   const {
     data: filteredData,
     isLoading,
@@ -150,17 +143,18 @@ export function EmpExpensesPage() {
   } = useExpenses(filteredQuery);
   const filteredExpenses = filteredData?.data ?? [];
   const totalFiltered = filteredExpenses.length;
-  const totalPages = Math.max(1, Math.ceil(totalFiltered / PAGE_SIZE));
+  const totalPages = Math.max(1, Math.ceil(totalFiltered / pageSize));
   const currentPage = Math.min(page, totalPages);
   const pagedExpenses = filteredExpenses.slice(
-    (currentPage - 1) * PAGE_SIZE,
-    currentPage * PAGE_SIZE,
+    (currentPage - 1) * pageSize,
+    currentPage * pageSize,
   );
 
   const openCreateModal = () => {
     setEditingExpense(null);
     setFormDate(todayIso());
     setFormName("");
+    setExpenseNameOption("");
     setFormAmount("");
     setFormError(null);
     setIsFormOpen(true);
@@ -170,6 +164,9 @@ export function EmpExpensesPage() {
     setEditingExpense(expense);
     setFormDate(expense.date.slice(0, 10));
     setFormName(expense.expenseName);
+    setExpenseNameOption(
+      EXPENSE_NAME_SUGGESTIONS.includes(expense.expenseName) ? expense.expenseName : "OTHER",
+    );
     setFormAmount(String(expense.amount));
     setFormError(null);
     setIsFormOpen(true);
@@ -197,15 +194,15 @@ export function EmpExpensesPage() {
       };
       const response = editingExpense
         ? await apiFetch(`/expenses/${editingExpense.id}`, {
-            method: "PATCH",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify(payload),
-          })
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(payload),
+        })
         : await apiFetch("/expenses", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify(payload),
-          });
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(payload),
+        });
 
       if (!response.ok) {
         setFormError(
@@ -242,14 +239,14 @@ export function EmpExpensesPage() {
   return (
     <div
       id="emp-expenses-layout"
-      className="flex flex-col h-full bg-[#004D40]/5 min-h-full flex-1"
+      className="flex flex-col h-full bg-[#004D40]/5 flex-1 min-h-0"
     >
       <style>{`
         #emp-expenses-layout, #emp-expenses-layout * { font-family: 'Hanken Grotesk Variable', 'Hanken Grotesk', sans-serif !important; }
       `}</style>
 
       {/* Unified Header */}
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between px-4 py-3 bg-[#F4F1E8] border-b border-gray-100 shrink-0">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between px-4 py-3 bg-[#F4F1E8] border-b border-[#004D40] shrink-0">
         <div>
           <h1 className="text-[20px] font-bold text-black leading-tight px-2">
             Expenses Summary
@@ -259,7 +256,7 @@ export function EmpExpensesPage() {
           </p>
         </div>
 
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-3">
           <Input
             type="month"
             value={selectedMonth}
@@ -268,125 +265,107 @@ export function EmpExpensesPage() {
             }}
             className="h-9 w-40 bg-white border border-gray-400 rounded-md px-3 py-2 text-sm font-semibold text-[#003140] shadow-[0_1px_2px_rgba(0,0,0,0.05)] hover:bg-gray-50 focus-visible:ring-1 focus-visible:ring-[#004D40]"
           />
+          <Button
+            className="flex items-center gap-2 bg-[#004D40] hover:bg-[#00382e] text-white rounded-md px-3 py-2 h-auto text-[12px] font-bold tracking-wide shadow-[0_1px_2px_rgba(0,45,35,0.2)]"
+            onClick={openCreateModal}
+          >
+            <Plus className="w-3 h-3" />
+            ADD EXPENSE
+          </Button>
         </div>
       </div>
 
       {/* Content Area */}
-      <div className="flex-1 overflow-y-auto relative flex flex-col">
-        <div className="flex flex-col gap-2 p-2">
-          {/* Top Stat Summary Cards — styled like Inventory tab's summary cards */}
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-2">
+      <div className="flex-1 relative flex flex-col min-h-0">
+        <div className="flex flex-col gap-2 p-2 flex-1 min-h-0">
+          {/* Top Stat Summary Cards — styled like the Employee tab's summary cards */}
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 shrink-0">
             {/* Total Expenses Card */}
-            <div className="bg-white rounded-xl border border-gray-400 shadow-sm p-4 relative overflow-hidden group/card hover:border-blue-200 transition-colors flex flex-col">
-              <div className="absolute top-0 right-0 p-4 opacity-5 group-hover/card:opacity-10 transition-opacity">
-                <img src="/wallet.png" alt="" className="w-26 h-26 object-contain" />
+            <div className="bg-white rounded-xl border border-gray-400 shadow-sm p-4 relative overflow-hidden group/card hover:border-emerald-300 transition-colors flex flex-col h-full justify-center">
+              <div className="absolute top-0 right-0 p-2 opacity-5 group-hover/card:opacity-10 transition-opacity">
+                <img src="/wallet.png" alt="" className="w-20 h-20 object-contain" />
               </div>
-              <div className="flex justify-between items-center mb-4 relative z-10">
-                <div className="flex items-center gap-2">
-                  <div><img src="/wallet.png" alt="Total Expenses" className="w-12 h-12 object-contain" /></div>
+              <div className="flex justify-between items-center relative z-10">
+                <div className="flex items-center gap-3">
+                  <div><img src="/wallet.png" alt="Total Expenses" className="w-14 h-14 object-contain" /></div>
                   <h3 className="font-extrabold text-gray-800 text-lg">Total Expenses</h3>
                 </div>
                 <div className="text-lg font-bold text-gray-800 leading-none">{formatCurrency(totalAmount)}</div>
               </div>
-              <div className="mt-auto relative z-10 pt-2 border-t border-gray-50">
-                <span className="text-xs text-gray-400 italic">Total spend this month</span>
-              </div>
             </div>
 
             {/* Recorded Entries Card */}
-            <div className="bg-white rounded-xl border border-gray-400 shadow-sm p-4 relative overflow-hidden group/card hover:border-orange-200 transition-colors flex flex-col">
-              <div className="absolute top-0 right-0 p-4 opacity-5 group-hover/card:opacity-10 transition-opacity">
-                <img src="/record.png" alt="" className="w-26 h-26 object-contain" />
+            <div className="bg-white rounded-xl border border-gray-400 shadow-sm p-4 relative overflow-hidden group/card hover:border-blue-300 transition-colors flex flex-col h-full justify-center">
+              <div className="absolute top-0 right-0 p-2 opacity-5 group-hover/card:opacity-10 transition-opacity">
+                <img src="/record.png" alt="" className="w-18 h-18 object-contain" />
               </div>
-              <div className="flex justify-between items-center mb-4 relative z-10">
-                <div className="flex items-center gap-2">
+              <div className="flex justify-between items-center relative z-10">
+                <div className="flex items-center gap-3">
                   <div><img src="/record.png" alt="Recorded Entries" className="w-12 h-12 object-contain" /></div>
                   <h3 className="font-extrabold text-gray-800 text-lg">Recorded Entries</h3>
                 </div>
                 <div className="text-lg font-bold text-gray-800 leading-none">{monthEntryCount}</div>
               </div>
-              <div className="mt-auto relative z-10 pt-2 border-t border-gray-50">
-                <span className="text-xs text-gray-400 italic">Expenses logged this month</span>
-              </div>
             </div>
 
             {/* Average / Entry Card */}
-            <div className="bg-white rounded-xl border border-gray-400 shadow-sm p-4 relative overflow-hidden group/card hover:border-purple-200 transition-colors flex flex-col">
-              <div className="absolute top-0 right-0 p-4 opacity-5 group-hover/card:opacity-10 transition-opacity">
-                <img src="/entry.png" alt="" className="w-26 h-26 object-contain" />
+            <div className="bg-white rounded-xl border border-gray-400 shadow-sm p-4 relative overflow-hidden group/card hover:border-purple-300 transition-colors flex flex-col h-full justify-center">
+              <div className="absolute top-0 right-0 p-2 opacity-5 group-hover/card:opacity-10 transition-opacity">
+                <img src="/entry.png" alt="" className="w-18 h-18 object-contain" />
               </div>
-              <div className="flex justify-between items-center mb-4 relative z-10">
-                <div className="flex items-center gap-2">
+              <div className="flex justify-between items-center relative z-10">
+                <div className="flex items-center gap-3">
                   <div><img src="/entry.png" alt="Average per Entry" className="w-12 h-12 object-contain" /></div>
                   <h3 className="font-extrabold text-gray-800 text-lg">Average / Entry</h3>
                 </div>
                 <div className="text-lg font-bold text-gray-800 leading-none">{formatCurrency(avgAmount)}</div>
               </div>
-              <div className="mt-auto relative z-10 pt-2 border-t border-gray-50">
-                <span className="text-xs text-gray-400 italic">Average cost per expense</span>
-              </div>
             </div>
           </div>
 
-          {/* Main Table Container */}
-          <div className="rounded-lg border border-gray-300 bg-white shadow-sm overflow-hidden">
+          {/* Main Table Container — styled like the Employee tab's table */}
+          <div className="rounded-xl border border-gray-400 bg-white shadow-sm overflow-hidden flex-1 flex flex-col min-h-0">
             {/* Header Bar */}
-            <div className="border-b border-gray-300 p-3 bg-white flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-              <div className="flex items-center gap-2">
-                <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md border border-emerald-200 bg-emerald-50 text-[#004D40]">
-                  <Wallet className="h-3.5 w-3.5" />
-                </div>
-                <h2 className="text-[17px] font-bold text-[#004D40] text-gray-900">
-                  Expense Log
-                </h2>
-              </div>
+            <div className="shrink-0 border-b border-emerald-400 p-3 bg-white flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+              <div className="flex items-center gap-3"></div>
 
               <div className="flex flex-wrap items-center gap-2">
                 {/* Search Input */}
                 <div className="relative">
-                  <Search className="w-3.5 h-3.5 absolute left-2.5 top-1/2 -translate-y-1/2 text-gray-400" />
+                  <Search className="w-3.5 h-3.5 absolute left-2.5 top-1/2 -translate-y-1/2 text-gray-500" />
                   <Input
                     type="text"
                     placeholder="Search expenses..."
                     value={searchQuery}
                     onChange={(e) => setSearchQuery(e.target.value)}
-                    className="h-8 w-44 sm:w-56 pl-8 bg-gray-50/50 border-gray-300 text-xs rounded-lg focus-visible:ring-[#004D40]"
+                    className="h-8 w-44 sm:w-60 pl-8 bg-gray-50/50 border-gray-400 text-xs rounded-lg focus-visible:ring-[#004D40]"
                   />
                 </div>
-
-                {/* Add Expense Button - matching #004D40 theme */}
-                <Button
-                  size="sm"
-                  className="h-8 gap-1 rounded-md bg-[#004D40] text-white hover:bg-[#00332a] px-3.5 text-xs font-medium cursor-pointer"
-                  onClick={openCreateModal}
-                >
-                  <Plus className="h-3.5 w-3.5" /> Add Expense
-                </Button>
               </div>
             </div>
 
             {/* Data Table */}
-            <div className="overflow-x-auto">
+            <div className="overflow-x-auto overflow-y-auto flex-1 min-h-0">
               <Table>
-                <TableHeader>
-                  <TableRow className="hover:bg-transparent border-b border-gray-300 bg-gray-50/60">
-                    <TableHead className="text-[12px] font-extrabold uppercase tracking-wider text-gray-800 pl-4 w-[100px] h-8 border-r border-gray-300">
+                <TableHeader className="bg-emerald-50/30 sticky top-0 z-10">
+                  <TableRow className="hover:bg-transparent border-b border-gray-300">
+                    <TableHead className="text-sm font-semibold tracking-wide text-gray-800 pl-4 w-[100px] border-r border-gray-300">
                       Expense ID
                     </TableHead>
 
-                    <TableHead className="text-[12px] font-extrabold uppercase tracking-wider text-gray-800 w-[130px] h-8 border-r border-gray-300">
+                    <TableHead className="text-sm font-semibold tracking-wide text-gray-800 w-[130px] border-r border-gray-300">
                       Date
                     </TableHead>
 
-                    <TableHead className="text-[12px] font-extrabold uppercase tracking-wider text-gray-800 h-8 border-r border-gray-300">
+                    <TableHead className="text-sm font-semibold tracking-wide text-gray-800 border-r border-gray-300">
                       Expense Name
                     </TableHead>
 
-                    <TableHead className="text-right text-[12px] font-extrabold uppercase tracking-wider text-gray-800 pr-6 w-[150px] h-8 border-r border-gray-300">
+                    <TableHead className="text-right text-sm font-semibold tracking-wide text-gray-800 pr-6 w-[150px] border-r border-gray-300">
                       Amount
                     </TableHead>
 
-                    <TableHead className="!text-center bg-gray-50 text-[12px] font-extrabold uppercase tracking-wider text-gray-500 w-[110px] h-8">
+                    <TableHead className="text-center text-sm font-semibold tracking-wide text-gray-800 pr-4 w-[110px]">
                       Actions
                     </TableHead>
                   </TableRow>
@@ -396,7 +375,7 @@ export function EmpExpensesPage() {
                     <TableRow>
                       <TableCell
                         colSpan={5}
-                        className="h-28 text-center text-gray-500 text-xs"
+                        className="h-28 text-center text-gray-500 text-sm"
                       >
                         <div className="flex items-center justify-center gap-2">
                           <Loader size="sm" /> Loading expenses...
@@ -407,7 +386,7 @@ export function EmpExpensesPage() {
                     <TableRow>
                       <TableCell
                         colSpan={5}
-                        className="h-28 text-center text-xs"
+                        className="h-28 text-center text-sm"
                       >
                         <div className="flex flex-col items-center justify-center gap-2 text-gray-500">
                           <span>
@@ -428,7 +407,7 @@ export function EmpExpensesPage() {
                     <TableRow>
                       <TableCell
                         colSpan={5}
-                        className="h-28 !text-center text-gray-500 text-xs"
+                        className="h-28 !text-center text-gray-500 text-sm"
                       >
                         No expense records found.
                       </TableCell>
@@ -437,26 +416,26 @@ export function EmpExpensesPage() {
                     pagedExpenses.map((expense) => (
                       <TableRow
                         key={expense.id}
-                        className="border-b border-gray-300 last:border-b-0 hover:bg-gray-50/60 transition-colors"
+                        className="border-b border-gray-300 hover:bg-emerald-50/30 transition-colors"
                       >
-                        <TableCell className="pl-4 py-2.5 text-xs font-bold text-gray-700 whitespace-nowrap border-r border-gray-200">
+                        <TableCell className="pl-4 text-sm font-bold text-gray-700 whitespace-nowrap border-r border-gray-300">
                           {expense.expenseId}
                         </TableCell>
-                        <TableCell className="py-2.5 text-xs font-medium text-gray-600 whitespace-nowrap border-r border-gray-200">
+                        <TableCell className="text-[13px] text-gray-600 whitespace-nowrap border-r border-gray-300">
                           {formatDateDisplay(expense.date)}
                         </TableCell>
-                        <TableCell className="py-2.5 text-xs font-semibold text-gray-900 border-r border-gray-200">
+                        <TableCell className="py-3 text-sm font-semibold text-gray-900 whitespace-nowrap border-r border-gray-300">
                           {expense.expenseName}
                         </TableCell>
-                        <TableCell className="py-2.5 text-right pr-6 font-bold text-gray-900 text-xs whitespace-nowrap border-r border-gray-200">
+                        <TableCell className="text-right pr-6 font-bold text-gray-600 text-sm whitespace-nowrap border-r border-gray-300">
                           {formatCurrency(expense.amount)}
                         </TableCell>
-                        <TableCell className="py-2.5 !text-center">
-                          <div className="flex items-center justify-center gap-1">
+                        <TableCell className="text-center pr-4">
+                          <div className="flex items-center justify-center gap-1.5">
                             <Button
                               variant="ghost"
                               size="icon-sm"
-                              className="h-7 w-7 rounded-md text-gray-500 hover:text-blue-600 hover:bg-blue-50 cursor-pointer"
+                              className="h-7 w-7 rounded-full bg-blue-50 text-blue-600 hover:bg-blue-100 cursor-pointer"
                               aria-label="Edit expense"
                               onClick={() => openEditModal(expense)}
                             >
@@ -465,7 +444,7 @@ export function EmpExpensesPage() {
                             <Button
                               variant="ghost"
                               size="icon-sm"
-                              className="h-7 w-7 rounded-md text-gray-500 hover:text-red-600 hover:bg-red-50 cursor-pointer"
+                              className="h-7 w-7 rounded-full bg-red-50 text-red-600 hover:bg-red-100 cursor-pointer"
                               aria-label="Delete expense"
                               onClick={() => setDeleteTarget(expense)}
                             >
@@ -481,67 +460,17 @@ export function EmpExpensesPage() {
             </div>
 
             {/* Table Footer */}
-            <div className="p-2.5 border-t border-gray-300 text-xs text-gray-500 flex flex-wrap justify-between items-center gap-3 px-4">
+            <div className="shrink-0 p-3 border-t border-gray-400 bg-emerald-50/20 text-xs text-gray-700 flex flex-wrap justify-between items-center gap-3 px-4">
               <span>
                 Showing{" "}
-                {totalFiltered === 0 ? 0 : (currentPage - 1) * PAGE_SIZE + 1}-
-                {Math.min(currentPage * PAGE_SIZE, totalFiltered)} of{" "}
+                {totalFiltered === 0 ? 0 : (currentPage - 1) * pageSize + 1}-
+                {Math.min(currentPage * pageSize, totalFiltered)} of{" "}
                 {totalFiltered} entries
               </span>
 
-              {totalPages > 1 && (
-                <div className="flex items-center gap-1">
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    className="h-7 w-7 rounded-md text-gray-500 hover:bg-gray-100 disabled:opacity-40"
-                    onClick={() => setPage((p) => Math.max(1, p - 1))}
-                    disabled={currentPage <= 1}
-                  >
-                    <ChevronLeft className="h-3.5 w-3.5" />
-                  </Button>
-                  {getPageNumbers(currentPage, totalPages).map((p, i) =>
-                    p === "ellipsis" ? (
-                      <span
-                        key={`ellipsis-${i}`}
-                        className="px-1.5 text-gray-400"
-                      >
-                        ...
-                      </span>
-                    ) : (
-                      <Button
-                        key={p}
-                        variant="ghost"
-                        size="icon"
-                        className={
-                          p === currentPage
-                            ? "h-7 w-7 rounded-md bg-[#004D40] text-white text-xs font-semibold hover:bg-[#00332a]"
-                            : "h-7 w-7 rounded-md text-xs text-gray-600 hover:bg-gray-100"
-                        }
-                        onClick={() => setPage(p)}
-                      >
-                        {p}
-                      </Button>
-                    ),
-                  )}
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    className="h-7 w-7 rounded-md text-gray-500 hover:bg-gray-100 disabled:opacity-40"
-                    onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
-                    disabled={currentPage >= totalPages}
-                  >
-                    <ChevronRight className="h-3.5 w-3.5" />
-                  </Button>
-                </div>
-              )}
+              <TablePaginationControls currentPage={currentPage} totalPages={totalPages} onPageChange={setPage} />
 
-              <span className="font-semibold text-gray-700">
-                Filtered Total:{" "}
-                {formatCurrency(
-                  filteredExpenses.reduce((sum, item) => sum + item.amount, 0),
-                )}
-              </span>
+              <RowsPerPageSelect pageSize={pageSize} onPageSizeChange={(size) => { setPageSize(size); setPage(1); }} />
             </div>
           </div>
 
@@ -550,9 +479,9 @@ export function EmpExpensesPage() {
             open={isFormOpen}
             onOpenChange={(next) => !isSaving && setIsFormOpen(next)}
           >
-            <DialogContent className="sm:max-w-md">
-              <DialogHeader>
-                <DialogTitle className="text-lg font-bold text-gray-900">
+            <DialogContent className="sm:max-w-md border border-gray-400">
+              <DialogHeader className="-mx-4 -mt-4 mb-2 rounded-t-xl border-b border-gray-200 bg-[#A8DCAB] px-4 py-3">
+                <DialogTitle className="text-lg font-bold text-black">
                   {editingExpense ? "Edit Expense" : "Add Expense"}
                 </DialogTitle>
               </DialogHeader>
@@ -581,13 +510,34 @@ export function EmpExpensesPage() {
                   >
                     Expense Name
                   </Label>
-                  <Input
-                    id="exp-name"
-                    placeholder="e.g. Loom Shed Electricity Bill"
-                    value={formName}
-                    onChange={(e) => setFormName(e.target.value)}
-                    className="h-9 text-xs"
-                  />
+                  <Select
+                    value={expenseNameOption || undefined}
+                    onValueChange={(val) => {
+                      setExpenseNameOption(val);
+                      setFormName(val === "OTHER" ? "" : val);
+                    }}
+                  >
+                    <SelectTrigger id="exp-name" className="w-full h-9 text-xs">
+                      <SelectValue placeholder="Select expense name" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {EXPENSE_NAME_SUGGESTIONS.map((name) => (
+                        <SelectItem key={name} value={name}>
+                          {name}
+                        </SelectItem>
+                      ))}
+                      <SelectItem value="OTHER">Other</SelectItem>
+                    </SelectContent>
+                  </Select>
+                  {expenseNameOption === "OTHER" && (
+                    <Input
+                      id="exp-name-custom"
+                      placeholder="Enter custom expense name"
+                      value={formName}
+                      onChange={(e) => setFormName(e.target.value)}
+                      className="h-9 text-xs mt-1.5"
+                    />
+                  )}
                 </div>
 
                 <div className="flex flex-col gap-1.5">
@@ -614,7 +564,7 @@ export function EmpExpensesPage() {
                 )}
               </div>
 
-              <DialogFooter>
+              <DialogFooter className="border-gray-200 bg-white">
                 <Button
                   variant="outline"
                   size="sm"
@@ -631,7 +581,7 @@ export function EmpExpensesPage() {
                   className="h-8 bg-[#004D40] hover:bg-[#00332a] text-white text-xs font-medium px-4"
                 >
                   {isSaving && <Loader size="sm" className="mr-1.5" />}
-                  {editingExpense ? "Save Changes" : "Add Expense"}
+                  {editingExpense ? "Update" : "Add"}
                 </Button>
               </DialogFooter>
             </DialogContent>
