@@ -39,6 +39,9 @@ export interface ExtruderProductionItem {
   size: MasterDataRef;
   extruder: ExtruderDetail;
   wastages: WastageRecordSummary[];
+  isApproved: boolean;
+  approvedAt: string | null;
+  approvedBy: string | null;
   createdAt: string;
   createdBy: string;
   updatedAt: string;

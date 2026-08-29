@@ -27,7 +27,7 @@ export interface EmployeeRecord {
 }
 
 import { useEmployees, useCreateEmployee, useUpdateEmployee, useDeleteEmployee } from './employee-queries';
-import type { Employee } from './employee-queries';
+import type { Employee, ManagedRole } from './employee-queries';
 
 function formatCurrency(num: number) {
   return new Intl.NumberFormat('en-IN', {
@@ -56,6 +56,18 @@ function todayIso() {
 function todayFormatted() {
   const date = new Date();
   return `Today, ${date.getDate()} ${date.toLocaleString('en-US', { month: 'short' })}`;
+}
+
+function roleLabel(role: ManagedRole) {
+  if (role === 'MANAGER') return 'Manager';
+  if (role === 'SUPERVISOR') return 'Supervisor';
+  return 'Employee';
+}
+
+function roleBadgeClass(role: ManagedRole) {
+  if (role === 'MANAGER') return 'bg-blue-50 text-blue-700 border-blue-200';
+  if (role === 'SUPERVISOR') return 'bg-purple-50 text-purple-700 border-purple-200';
+  return 'bg-slate-100 text-slate-700 border-slate-200';
 }
 
 const MAX_UPLOAD_SIZE_BYTES = 3 * 1024 * 1024;
@@ -178,6 +190,7 @@ const EmployeeDirectoryTab = forwardRef<EmployeeDirectoryTabRef>((_props, ref) =
 
   const [searchQuery, setSearchQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState<string>('ALL');
+  const [roleFilter, setRoleFilter] = useState<string>('ALL');
 
   // Modal states
   const [isFormOpen, setIsFormOpen] = useState(false);
@@ -188,6 +201,8 @@ const EmployeeDirectoryTab = forwardRef<EmployeeDirectoryTabRef>((_props, ref) =
   // Form input states
   const [formId, setFormId] = useState('');
   const [formName, setFormName] = useState('');
+  const [formRole, setFormRole] = useState<ManagedRole>('EMPLOYEE');
+  const [formPassword, setFormPassword] = useState('');
   const [formDesignation, setFormDesignation] = useState('');
   const [formMobile, setFormMobile] = useState('');
   const [formAadhar, setFormAadhar] = useState('');
@@ -214,6 +229,11 @@ const EmployeeDirectoryTab = forwardRef<EmployeeDirectoryTabRef>((_props, ref) =
     if (hasAttemptedSubmit && !formMobile.trim()) errs.mobile = "Mobile number is required";
     else if (formMobile !== '' && !/^\+?\d{10,12}$/.test(formMobile.replace(/\s/g, ''))) errs.mobile = "Invalid mobile number";
 
+    if (!editingEmployee) {
+      if (hasAttemptedSubmit && !formPassword) errs.password = "Password is required";
+      else if (formPassword !== '' && formPassword.length < 8) errs.password = "Password must be at least 8 characters";
+    }
+
     if (hasAttemptedSubmit && !formAadhar.trim()) errs.aadhar = "Aadhar number is required";
     else if (formAadhar !== '' && !/^\d{12}$/.test(formAadhar.replace(/\s/g, ''))) errs.aadhar = "Aadhar must be exactly 12 digits";
 
@@ -224,7 +244,7 @@ const EmployeeDirectoryTab = forwardRef<EmployeeDirectoryTabRef>((_props, ref) =
     if (hasAttemptedSubmit && (!formSalary || isNaN(parsedSalary) || parsedSalary < 0)) errs.salary = "Valid salary is required";
 
     return errs;
-  }, [formName, formDesignation, formMobile, formAadhar, formAddress, formSalary, hasAttemptedSubmit]);
+  }, [formName, formDesignation, formMobile, formPassword, formAadhar, formAddress, formSalary, hasAttemptedSubmit, editingEmployee]);
 
 
   // KPI Calculations
@@ -253,15 +273,18 @@ const EmployeeDirectoryTab = forwardRef<EmployeeDirectoryTabRef>((_props, ref) =
 
       const statusStr = emp.isActive ? 'Active' : 'Inactive';
       const matchesStatus = statusFilter === 'ALL' || statusStr === statusFilter;
+      const matchesRole = roleFilter === 'ALL' || emp.role === roleFilter;
 
-      return matchesSearch && matchesStatus;
+      return matchesSearch && matchesStatus && matchesRole;
     });
-  }, [employees, searchQuery, statusFilter]);
+  }, [employees, searchQuery, statusFilter, roleFilter]);
 
   const openCreateModal = () => {
     setEditingEmployee(null);
     setFormId('');
     setFormName('');
+    setFormRole('EMPLOYEE');
+    setFormPassword('');
     setFormDesignation('');
     setFormMobile('');
     setFormAadhar('');
@@ -283,6 +306,8 @@ const EmployeeDirectoryTab = forwardRef<EmployeeDirectoryTabRef>((_props, ref) =
     setEditingEmployee(emp);
     setFormId(emp.employeeDetails?.customUserId || emp.id);
     setFormName(emp.name || '');
+    setFormRole(emp.role);
+    setFormPassword('');
     setFormDesignation(emp.employeeDetails?.designation || '');
     setFormMobile(emp.mobile);
     setFormAadhar(emp.employeeDetails?.aadhaarNumber || '');
@@ -331,12 +356,18 @@ const EmployeeDirectoryTab = forwardRef<EmployeeDirectoryTabRef>((_props, ref) =
           data: { ...payload, photo: formPhoto, aadhaarFile: formAadharFile },
         });
       } else {
-        await createEmployee.mutateAsync({ ...payload, photo: formPhoto, aadhaarFile: formAadharFile });
+        await createEmployee.mutateAsync({
+          ...payload,
+          role: formRole,
+          password: formPassword,
+          photo: formPhoto,
+          aadhaarFile: formAadharFile,
+        });
       }
       setIsFormOpen(false);
     } catch (err) {
       console.error('Save failed:', err);
-      setFormError('Failed to save employee. Please try again.');
+      setFormError(err instanceof Error ? err.message : 'Failed to save employee. Please try again.');
     } finally {
       setIsSaving(false);
     }
@@ -415,6 +446,19 @@ const EmployeeDirectoryTab = forwardRef<EmployeeDirectoryTabRef>((_props, ref) =
               />
             </div>
 
+            {/* Role Dropdown Filter */}
+            <Select value={roleFilter} onValueChange={setRoleFilter}>
+              <SelectTrigger className="h-8 w-32 bg-gray-50/50 border-gray-400 text-sm rounded-lg font-hanken">
+                <SelectValue placeholder="Role" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="ALL">All Roles</SelectItem>
+                <SelectItem value="EMPLOYEE">Employee</SelectItem>
+                <SelectItem value="MANAGER">Manager</SelectItem>
+                <SelectItem value="SUPERVISOR">Supervisor</SelectItem>
+              </SelectContent>
+            </Select>
+
             {/* Status Dropdown Filter */}
             <Select value={statusFilter} onValueChange={setStatusFilter}>
               <SelectTrigger className="h-8 w-32 bg-gray-50/50 border-gray-400 text-sm rounded-lg font-hanken">
@@ -439,6 +483,9 @@ const EmployeeDirectoryTab = forwardRef<EmployeeDirectoryTabRef>((_props, ref) =
                 </TableHead>
                 <TableHead className="text-sm font-semibold tracking-wide text-gray-800 min-w-[150px]">
                   Name
+                </TableHead>
+                <TableHead className="text-sm font-semibold tracking-wide text-gray-800 min-w-[110px]">
+                  Role
                 </TableHead>
                 <TableHead className="text-sm font-semibold tracking-wide text-gray-800 min-w-[150px]">
                   Designation
@@ -483,6 +530,11 @@ const EmployeeDirectoryTab = forwardRef<EmployeeDirectoryTabRef>((_props, ref) =
                   </TableCell>
                   <TableCell className="py-3 text-sm font-semibold text-gray-900 whitespace-nowrap">
                     {emp.name || '-'}
+                  </TableCell>
+                  <TableCell className="text-sm whitespace-nowrap">
+                    <span className={`inline-flex items-center rounded-full px-2 py-0.5 text-[11px] font-medium border ${roleBadgeClass(emp.role)}`}>
+                      {roleLabel(emp.role)}
+                    </span>
                   </TableCell>
                   <TableCell className="text-sm text-gray-700 whitespace-nowrap">
                     {emp.employeeDetails?.designation || '-'}
@@ -627,6 +679,43 @@ const EmployeeDirectoryTab = forwardRef<EmployeeDirectoryTabRef>((_props, ref) =
               />
               {fieldErrors.mobile && <span className="text-[10px] text-red-500">{fieldErrors.mobile}</span>}
             </div>
+
+            <div className="flex flex-col gap-1.5">
+              <Label htmlFor="emp-role" className="text-xs font-semibold text-gray-700">Role</Label>
+              <Select
+                value={formRole}
+                onValueChange={(val) => setFormRole(val as ManagedRole)}
+                disabled={!!editingEmployee}
+              >
+                <SelectTrigger id="emp-role" className="w-full h-9 text-xs">
+                  <SelectValue placeholder="Select role" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="EMPLOYEE">Employee</SelectItem>
+                  <SelectItem value="MANAGER">Manager (max 1 active)</SelectItem>
+                  <SelectItem value="SUPERVISOR">Supervisor (max 1 active)</SelectItem>
+                </SelectContent>
+              </Select>
+              {editingEmployee && (
+                <span className="text-[10px] text-gray-400">Role can't be changed after creation.</span>
+              )}
+            </div>
+
+            {!editingEmployee && (
+              <div className="flex flex-col gap-1.5">
+                <Label htmlFor="emp-password" className={`text-xs font-semibold ${fieldErrors.password ? 'text-red-600' : 'text-gray-700'}`}>Password</Label>
+                <Input
+                  id="emp-password"
+                  type="password"
+                  placeholder="At least 8 characters"
+                  value={formPassword}
+                  onChange={(e) => setFormPassword(e.target.value)}
+                  className={`h-9 text-xs ${fieldErrors.password ? 'border-red-500 focus-visible:ring-red-500' : ''}`}
+                  autoComplete="new-password"
+                />
+                {fieldErrors.password && <span className="text-[10px] text-red-500">{fieldErrors.password}</span>}
+              </div>
+            )}
 
             <div className="flex flex-col gap-1.5">
               <Label htmlFor="emp-doj" className="text-xs font-semibold text-gray-700">Date of Joining</Label>

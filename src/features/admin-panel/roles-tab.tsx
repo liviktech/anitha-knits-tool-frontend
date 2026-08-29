@@ -1,5 +1,4 @@
 import { useEffect, useMemo, useState } from 'react';
-import { useQueryClient } from '@tanstack/react-query';
 import {
   Award,
   ChevronLeft,
@@ -21,8 +20,6 @@ import { DeleteConfirmDialog } from '@/components/shared/delete-confirm-dialog';
 import { Loader } from '@/components/shared/loader';
 import { useEmployees, type Employee } from '@/features/employee/employee-queries';
 import {
-  createTabRecord,
-  tabKeys,
   useCreateRight,
   useCreateRoleAccess,
   useDeleteRight,
@@ -35,6 +32,7 @@ import {
   useUpdateRoleAccess,
   useAssignRoleAccess,
   type ModuleRecord,
+  type RightAction as RightActionValue,
   type RightRecord,
   type RoleAccessRecord,
   type TabRecord,
@@ -44,6 +42,15 @@ function formatDate(iso: string) {
   const d = new Date(iso);
   if (isNaN(d.getTime())) return iso;
   return d.toLocaleDateString('en-GB', { day: 'numeric', month: 'numeric', year: 'numeric' });
+}
+
+function actionBadgeClass(action: RightActionValue): string {
+  switch (action) {
+    case 'VIEW': return 'bg-slate-100 text-slate-700 border-slate-200';
+    case 'ADD': return 'bg-emerald-50 text-emerald-700 border-emerald-200';
+    case 'EDIT': return 'bg-blue-50 text-blue-700 border-blue-200';
+    case 'DELETE': return 'bg-red-50 text-red-700 border-red-200';
+  }
 }
 
 const PAGE_SIZE = 5;
@@ -117,7 +124,7 @@ interface RightFormDialogProps {
   initial: RightRecord | null;
   modules: ModuleRecord[];
   tabs: TabRecord[];
-  onSubmit: (data: { moduleId: string; tabId: string | null; displayName: string; rightName: string }) => Promise<boolean>;
+  onSubmit: (data: { moduleId: string; tabId: string | null; action: RightActionValue }) => Promise<boolean>;
   isPending: boolean;
   serverError?: string | null;
 }
@@ -125,29 +132,26 @@ interface RightFormDialogProps {
 /** Sentinel Select value for "no specific tab" — Radix Select doesn't allow an empty-string item value. */
 const NO_TAB_VALUE = '__none__';
 
+const ACTION_OPTIONS: { value: RightActionValue; label: string }[] = [
+  { value: 'VIEW', label: 'View' },
+  { value: 'ADD', label: 'Add' },
+  { value: 'EDIT', label: 'Edit' },
+  { value: 'DELETE', label: 'Delete' },
+];
+
 function RightFormDialog({ open, onOpenChange, initial, modules, tabs, onSubmit, isPending, serverError }: RightFormDialogProps) {
-  const queryClient = useQueryClient();
   const [moduleId, setModuleId] = useState('');
   const [tabId, setTabId] = useState<string | null>(null);
-  const [displayName, setDisplayName] = useState('');
-  const [rightName, setRightName] = useState('');
+  const [action, setAction] = useState<RightActionValue | ''>('');
   const [formError, setFormError] = useState<string | null>(null);
-  const [isAddingTab, setIsAddingTab] = useState(false);
-  const [newTabName, setNewTabName] = useState('');
-  const [isCreatingTab, setIsCreatingTab] = useState(false);
-  const [tabCreateError, setTabCreateError] = useState<string | null>(null);
   const isEdit = initial != null;
 
   useEffect(() => {
     if (open) {
       setModuleId(initial?.moduleId ?? '');
       setTabId(initial?.tabId ?? null);
-      setDisplayName(initial?.displayName ?? '');
-      setRightName(initial?.rightName ?? '');
+      setAction(initial?.action ?? '');
       setFormError(null);
-      setIsAddingTab(false);
-      setNewTabName('');
-      setTabCreateError(null);
     }
   }, [open, initial]);
 
@@ -156,44 +160,15 @@ function RightFormDialog({ open, onOpenChange, initial, modules, tabs, onSubmit,
   const handleModuleChange = (value: string) => {
     setModuleId(value);
     if (!tabs.some((t) => t.id === tabId && t.moduleId === value)) setTabId(null);
-    setIsAddingTab(false);
-    setNewTabName('');
-    setTabCreateError(null);
-  };
-
-  const handleCreateTab = async () => {
-    if (!moduleId || !newTabName.trim()) return;
-    setIsCreatingTab(true);
-    setTabCreateError(null);
-    try {
-      const created = await createTabRecord({
-        moduleId,
-        tabCode: newTabName.trim().replace(/\s+/g, '_').toLowerCase(),
-        tabName: newTabName.trim(),
-      });
-      await queryClient.invalidateQueries({ queryKey: tabKeys.all });
-      setTabId(created.id);
-      setNewTabName('');
-      setIsAddingTab(false);
-    } catch (err) {
-      setTabCreateError(err instanceof Error ? err.message : 'Failed to create tab.');
-    } finally {
-      setIsCreatingTab(false);
-    }
   };
 
   const handleSubmit = async () => {
-    if (!moduleId || !displayName.trim() || !rightName.trim()) {
-      setFormError('Please fill in all fields.');
+    if (!moduleId || !action) {
+      setFormError('Please select a module and an action.');
       return;
     }
     setFormError(null);
-    const ok = await onSubmit({
-      moduleId,
-      tabId,
-      displayName: displayName.trim(),
-      rightName: rightName.trim().replace(/\s+/g, '_').toLowerCase(),
-    });
+    const ok = await onSubmit({ moduleId, tabId, action });
     if (ok) onOpenChange(false);
   };
 
@@ -233,7 +208,7 @@ function RightFormDialog({ open, onOpenChange, initial, modules, tabs, onSubmit,
               </Select>
             )}
 
-            {moduleId && !isAddingTab && tabsForModule.length > 0 && (
+            {moduleId && tabsForModule.length > 0 && (
               <Select value={tabId ?? NO_TAB_VALUE} onValueChange={(v) => setTabId(v === NO_TAB_VALUE ? null : v)}>
                 <SelectTrigger className="h-9 w-full text-[14px]">
                   <SelectValue />
@@ -247,78 +222,25 @@ function RightFormDialog({ open, onOpenChange, initial, modules, tabs, onSubmit,
               </Select>
             )}
 
-            {moduleId && !isAddingTab && tabsForModule.length === 0 && (
+            {moduleId && tabsForModule.length === 0 && (
               <p className="text-[13px] text-gray-500">
                 No tabs configured for this module — this right will grant access to the whole module.
               </p>
             )}
-
-            {moduleId && !isAddingTab && (
-              <button
-                type="button"
-                onClick={() => setIsAddingTab(true)}
-                className="mt-1 self-start text-[12px] font-semibold text-[#004D40] hover:underline"
-              >
-                + Add a new tab
-              </button>
-            )}
-
-            {moduleId && isAddingTab && (
-              <div className="flex flex-col gap-1.5 rounded-lg border border-gray-200 bg-gray-50 p-2">
-                <Input
-                  placeholder="e.g. Reports"
-                  value={newTabName}
-                  onChange={(e) => setNewTabName(e.target.value)}
-                  className="h-8 text-sm"
-                  autoFocus
-                />
-                {tabCreateError && <p className="text-xs text-red-600">{tabCreateError}</p>}
-                <div className="flex justify-end gap-1.5">
-                  <Button
-                    type="button"
-                    variant="outline"
-                    size="sm"
-                    className="h-7 text-xs"
-                    disabled={isCreatingTab}
-                    onClick={() => { setIsAddingTab(false); setNewTabName(''); setTabCreateError(null); }}
-                  >
-                    Cancel
-                  </Button>
-                  <Button
-                    type="button"
-                    size="sm"
-                    className="h-7 bg-[#004D40] text-xs hover:bg-[#003D33]"
-                    disabled={isCreatingTab || !newTabName.trim()}
-                    onClick={handleCreateTab}
-                  >
-                    {isCreatingTab && <Loader size="sm" className="mr-1.5" />}
-                    Create Tab
-                  </Button>
-                </div>
-              </div>
-            )}
           </div>
 
           <div className="flex flex-col gap-1">
-            <Label htmlFor="right-display-name" className="text-sm font-semibold text-gray-600">Display Name</Label>
-            <Input
-              id="right-display-name"
-              placeholder="e.g. Admin View Roles"
-              value={displayName}
-              onChange={(e) => setDisplayName(e.target.value)}
-              className="h-8 text-sm"
-            />
-          </div>
-
-          <div className="flex flex-col gap-1">
-            <Label htmlFor="right-name" className="text-sm font-semibold text-gray-600">Right Name</Label>
-            <Input
-              id="right-name"
-              placeholder="e.g. admin_view_roles"
-              value={rightName}
-              onChange={(e) => setRightName(e.target.value)}
-              className="h-8 text-sm font-mono"
-            />
+            <Label className="text-sm font-semibold text-gray-600">Action</Label>
+            <Select value={action} onValueChange={(v) => setAction(v as RightActionValue)}>
+              <SelectTrigger className="h-9 w-full text-[14px]">
+                <SelectValue placeholder="Select an action" />
+              </SelectTrigger>
+              <SelectContent>
+                {ACTION_OPTIONS.map((opt) => (
+                  <SelectItem key={opt.value} value={opt.value}>{opt.label}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
           </div>
         </div>
 
@@ -719,7 +641,7 @@ export function RolesTab() {
   const handleOpenAddRight = () => { setEditingRight(null); setIsRightDialogOpen(true); };
   const handleOpenEditRight = (right: RightRecord) => { setEditingRight(right); setIsRightDialogOpen(true); };
 
-  const handleRightSubmit = (data: { moduleId: string; tabId: string | null; displayName: string; rightName: string }) =>
+  const handleRightSubmit = (data: { moduleId: string; tabId: string | null; action: RightActionValue }) =>
     editingRight
       ? updateRight.mutate({ id: editingRight.id, ...data })
       : createRight.mutate(data);
@@ -997,8 +919,8 @@ export function RolesTab() {
                   <tr className="border-b border-gray-100 bg-gray-50/70">
                     <th className="px-5 py-3 text-left text-[12px] font-bold uppercase tracking-wide text-gray-400">Right ID</th>
                     <th className="px-4 py-3 text-left text-[12px] font-bold uppercase tracking-wide text-gray-400">Module / Tab</th>
+                    <th className="px-4 py-3 text-left text-[12px] font-bold uppercase tracking-wide text-gray-400">Action</th>
                     <th className="px-4 py-3 text-left text-[12px] font-bold uppercase tracking-wide text-gray-400">Display Name</th>
-                    <th className="px-4 py-3 text-left text-[12px] font-bold uppercase tracking-wide text-gray-400">Right Name</th>
                     <th className="px-4 py-3 text-left text-[12px] font-bold uppercase tracking-wide text-gray-400">Created At</th>
                     <th className="px-5 py-3 text-right text-[12px] font-bold uppercase tracking-wide text-gray-400">Actions</th>
                   </tr>
@@ -1019,8 +941,12 @@ export function RolesTab() {
                           {right.moduleName}
                           {right.tabName && <> <span className="text-gray-400">/</span> {right.tabName}</>}
                         </td>
+                        <td className="px-4 py-3 text-[14px]">
+                          <span className={`inline-flex items-center rounded-full px-2 py-0.5 text-[11px] font-medium border ${actionBadgeClass(right.action)}`}>
+                            {right.action}
+                          </span>
+                        </td>
                         <td className="px-4 py-3 text-[14px] font-semibold text-gray-900">{right.displayName}</td>
-                        <td className="px-4 py-3 font-mono text-[12px] text-gray-500">{right.rightName}</td>
                         <td className="px-4 py-3 text-[12px] text-gray-500">{formatDate(right.createdAt)}</td>
                         <td className="px-5 py-3">
                           <div className="flex justify-end gap-1 opacity-60 transition-opacity group-hover:opacity-100">

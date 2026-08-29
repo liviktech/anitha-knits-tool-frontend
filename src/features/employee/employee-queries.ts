@@ -1,5 +1,8 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { apiFetch, fetchJson } from '@/lib/api-client';
+import type { CompanyUserRole } from '@/features/auth/auth-service';
+
+export type ManagedRole = Extract<CompanyUserRole, 'EMPLOYEE' | 'MANAGER' | 'SUPERVISOR'>;
 
 export interface EmployeeDetails {
   customUserId?: string | null;
@@ -20,7 +23,7 @@ export interface Employee {
   companyId: string;
   name?: string | null;
   mobile: string;
-  role: string;
+  role: ManagedRole;
   isActive: boolean;
   createdAt: string;
   updatedAt: string;
@@ -92,14 +95,17 @@ export function useCreateEmployee() {
   return useMutation({
     mutationFn: async (
       data: Partial<Employee> & {
+        password: string;
         employeeDetails?: Partial<EmployeeDetails>;
       } & { photo?: File | null; aadhaarFile?: File | null },
     ) => {
-      const { name, mobile, employeeDetails, photo, aadhaarFile } = data;
+      const { name, mobile, role, password, employeeDetails, photo, aadhaarFile } = data;
       const formData = buildEmployeeFormData(
         {
           name,
           mobile,
+          role,
+          password,
           designation: employeeDetails?.designation ?? undefined,
           address: employeeDetails?.address ?? undefined,
           gender: employeeDetails?.gender ?? undefined,
