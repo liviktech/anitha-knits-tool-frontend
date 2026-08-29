@@ -5,7 +5,6 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { motion } from 'framer-motion';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { DeleteConfirmDialog } from '@/components/shared/delete-confirm-dialog';
@@ -903,48 +902,27 @@ export function EmployeePage() {
       </div>
 
       <Tabs value={activeTab} onValueChange={setActiveTab} className="flex-1 overflow-y-auto pb-1 gap-1">
-        <div className="pt-2 px-2">
-          <TabsList>
+        <div className="px-1">
+          <TabsList variant="notch-flip">
             {canSeeDirectory && (
-              <TabsTrigger value="directory" className="relative">
-                {activeTab === 'directory' && (
-                  <motion.div
-                    layoutId="activeTabPill"
-                    className="absolute inset-0 bg-[#004D40] rounded-md z-0"
-                    transition={{ type: 'spring', bounce: 0.2, duration: 0.6 }}
-                  />
-                )}
-                <span className="relative z-10 flex items-center gap-1">
+              <TabsTrigger value="directory">
+                <span className="flex items-center gap-1">
                   <UserRound className="h-4 w-4" strokeWidth={1.75} />
                   Directory
                 </span>
               </TabsTrigger>
             )}
             {canSeeAttendance && (
-              <TabsTrigger value="attendance" className="relative">
-                {activeTab === 'attendance' && (
-                  <motion.div
-                    layoutId="activeTabPill"
-                    className="absolute inset-0 bg-[#004D40] rounded-md z-0"
-                    transition={{ type: 'spring', bounce: 0.2, duration: 0.6 }}
-                  />
-                )}
-                <span className="relative z-10 flex items-center gap-1">
+              <TabsTrigger value="attendance">
+                <span className="flex items-center gap-1">
                   <Calendar className="h-4 w-4" strokeWidth={1.75} />
                   Attendance
                 </span>
               </TabsTrigger>
             )}
             {canSeePayroll && (
-              <TabsTrigger value="payroll" className="relative">
-                {activeTab === 'payroll' && (
-                  <motion.div
-                    layoutId="activeTabPill"
-                    className="absolute inset-0 bg-[#004D40] rounded-md z-0"
-                    transition={{ type: 'spring', bounce: 0.2, duration: 0.6 }}
-                  />
-                )}
-                <span className="relative z-10 flex items-center gap-1">
+              <TabsTrigger value="payroll">
+                <span className="flex items-center gap-1">
                   <Wallet className="h-4 w-4" strokeWidth={1.75} />
                   Payroll
                 </span>
@@ -953,17 +931,17 @@ export function EmployeePage() {
           </TabsList>
         </div>
         {canSeeDirectory && (
-          <TabsContent value="directory" className="mt-0 animate-in fade-in-0 duration-300">
+          <TabsContent value="directory" className="mt-0 animate-in fade-in-0 slide-in-from-bottom-4 duration-500 ease-in-out">
             <EmployeeDirectoryTab ref={directoryRef} />
           </TabsContent>
         )}
         {canSeeAttendance && (
-          <TabsContent value="attendance" className="mt-0 animate-in fade-in-0 duration-300">
+          <TabsContent value="attendance" className="mt-0 animate-in fade-in-0 slide-in-from-bottom-4 duration-500 ease-in-out">
             <AttendanceTab ref={attendanceRef} />
           </TabsContent>
         )}
         {canSeePayroll && (
-          <TabsContent value="payroll" className="mt-0 animate-in fade-in-0 duration-300">
+          <TabsContent value="payroll" className="mt-0 animate-in fade-in-0 slide-in-from-bottom-4 duration-500 ease-in-out">
             <PayrollTab />
           </TabsContent>
         )}
