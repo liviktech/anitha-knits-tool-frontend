@@ -292,14 +292,14 @@ export const PayrollTab = forwardRef<PayrollTabRef>((_, ref) => {
           <Table className="border-collapse font-hanken">
             <TableHeader className="bg-emerald-50/30 sticky top-0 z-10">
               <TableRow className="hover:bg-transparent border-b border-gray-300">
-                <TableHead className="text-sm font-semibold tracking-wide text-gray-800 w-[100px] pl-4 border-r border-gray-300">Emp ID</TableHead>
-                <TableHead className="text-sm font-semibold tracking-wide text-gray-800 border-r border-gray-300">Name</TableHead>
-                <TableHead className="text-sm font-semibold tracking-wide text-gray-800 text-right border-r border-gray-300">Base Salary</TableHead>
-                <TableHead className="text-sm font-semibold tracking-wide text-gray-800 text-center border-r border-gray-300">Days Worked</TableHead>
-                <TableHead className="text-sm font-semibold tracking-wide text-gray-800 text-right border-r border-gray-300">Gross Salary</TableHead>
-                <TableHead className="text-sm font-semibold tracking-wide text-gray-800 text-right text-amber-700 border-r border-gray-300">Advance Deducted</TableHead>
-                <TableHead className="text-sm font-semibold tracking-wide text-gray-800 text-right text-blue-700 border-r border-gray-300">Market Value Share</TableHead>
-                <TableHead className="text-sm font-extrabold tracking-wide text-gray-900 text-right pr-4">Net Payable</TableHead>
+                <TableHead className="text-sm font-semibold tracking-wide text-gray-800 w-[100px] px-5 py-2 border-r border-gray-300">Emp ID</TableHead>
+                <TableHead className="text-sm font-semibold tracking-wide text-gray-800 px-5 py-2 border-r border-gray-300">Name</TableHead>
+                <TableHead className="text-sm font-semibold tracking-wide text-gray-800 text-right px-5 py-2 border-r border-gray-300">Base Salary</TableHead>
+                <TableHead className="text-sm font-semibold tracking-wide text-gray-800 text-center px-5 py-2 border-r border-gray-300">Days Worked</TableHead>
+                <TableHead className="text-sm font-semibold tracking-wide text-gray-800 text-right px-5 py-2 border-r border-gray-300">Gross Salary</TableHead>
+                <TableHead className="text-sm font-semibold tracking-wide text-gray-800 text-right text-amber-700 px-5 py-2 border-r border-gray-300">Advance Deducted</TableHead>
+                <TableHead className="text-sm font-semibold tracking-wide text-gray-800 text-right text-blue-700 px-5 py-2 border-r border-gray-300">Market Value Share</TableHead>
+                <TableHead className="text-sm font-extrabold tracking-wide text-gray-900 text-right px-5 py-2">Net Payable</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -316,14 +316,14 @@ export const PayrollTab = forwardRef<PayrollTabRef>((_, ref) => {
               ) : (
                 pagedPayroll.map((row) => (
                   <TableRow key={row.id} className="border-b border-gray-300 hover:bg-emerald-50/30 transition-colors">
-                    <TableCell className="pl-4 text-sm font-bold text-gray-900 border-r border-gray-300">{row.customUserId || row.id}</TableCell>
-                    <TableCell className="text-sm font-semibold text-gray-800 border-r border-gray-300">{row.name}</TableCell>
-                    <TableCell className="text-sm text-right border-r border-gray-300">₹{row.baseSalary.toLocaleString()}</TableCell>
-                    <TableCell className="text-sm text-center font-medium bg-gray-50/50 border-r border-gray-300">{row.daysWorked}</TableCell>
-                    <TableCell className="text-sm text-right font-semibold text-gray-700 border-r border-gray-300">₹{row.grossSalary.toLocaleString()}</TableCell>
-                    <TableCell className="text-sm text-right font-medium text-amber-700 border-r border-gray-300">- ₹{row.advanceDeduction.toLocaleString()}</TableCell>
-                    <TableCell className="text-sm text-right font-medium text-blue-700 border-r border-gray-300">+ ₹{row.marketValueBonus.toLocaleString()}</TableCell>
-                    <TableCell className="text-sm font-extrabold text-right pr-4 text-emerald-800">₹{row.netSalary.toLocaleString()}</TableCell>
+                    <TableCell className="px-5 py-3 text-sm font-bold text-gray-900 border-r border-gray-300">{row.customUserId || row.id}</TableCell>
+                    <TableCell className="px-5 py-3 text-sm font-semibold text-gray-800 border-r border-gray-300">{row.name}</TableCell>
+                    <TableCell className="px-5 py-3 text-sm text-right border-r border-gray-300">₹{row.baseSalary.toLocaleString()}</TableCell>
+                    <TableCell className="px-5 py-3 text-sm text-center font-medium bg-gray-50/50 border-r border-gray-300">{row.daysWorked}</TableCell>
+                    <TableCell className="px-5 py-3 text-sm text-right font-semibold text-gray-700 border-r border-gray-300">₹{row.grossSalary.toLocaleString()}</TableCell>
+                    <TableCell className="px-5 py-3 text-sm text-right font-medium text-amber-700 border-r border-gray-300">- ₹{row.advanceDeduction.toLocaleString()}</TableCell>
+                    <TableCell className="px-5 py-3 text-sm text-right font-medium text-blue-700 border-r border-gray-300">+ ₹{row.marketValueBonus.toLocaleString()}</TableCell>
+                    <TableCell className="px-5 py-3 text-sm font-extrabold text-right text-emerald-800">₹{row.netSalary.toLocaleString()}</TableCell>
                   </TableRow>
                 ))
               )}
@@ -381,14 +381,14 @@ export const PayrollTab = forwardRef<PayrollTabRef>((_, ref) => {
               <Table className="border-collapse font-hanken">
                 <TableHeader className="bg-amber-50/30 sticky top-0 z-10">
                   <TableRow className="hover:bg-transparent border-b border-gray-300">
-                    <TableHead className="text-sm font-semibold tracking-wide text-gray-800 w-[100px] pl-4 border-r border-gray-300">Emp ID</TableHead>
-                    <TableHead className="text-sm font-semibold tracking-wide text-gray-800 border-r border-gray-300">Name</TableHead>
-                    <TableHead className="text-sm font-semibold tracking-wide text-gray-800 text-right border-r border-gray-300">Advance Amount</TableHead>
-                    <TableHead className="text-sm font-semibold tracking-wide text-gray-800 border-r border-gray-300">Method</TableHead>
-                    <TableHead className="text-sm font-semibold tracking-wide text-gray-800 text-center border-r border-gray-300">EMI Progress</TableHead>
-                    <TableHead className="text-sm font-semibold tracking-wide text-gray-800 text-right border-r border-gray-300">Remaining</TableHead>
-                    <TableHead className="text-sm font-semibold tracking-wide text-gray-800 border-r border-gray-300">Effective Date</TableHead>
-                    <TableHead className="text-sm font-semibold tracking-wide text-gray-800 text-center pr-4">Status</TableHead>
+                    <TableHead className="text-sm font-semibold tracking-wide text-gray-800 w-[100px] px-5 py-2 border-r border-gray-300">Emp ID</TableHead>
+                    <TableHead className="text-sm font-semibold tracking-wide text-gray-800 px-5 py-2 border-r border-gray-300">Name</TableHead>
+                    <TableHead className="text-sm font-semibold tracking-wide text-gray-800 text-right px-5 py-2 border-r border-gray-300">Advance Amount</TableHead>
+                    <TableHead className="text-sm font-semibold tracking-wide text-gray-800 px-5 py-2 border-r border-gray-300">Method</TableHead>
+                    <TableHead className="text-sm font-semibold tracking-wide text-gray-800 text-center px-5 py-2 border-r border-gray-300">EMI Progress</TableHead>
+                    <TableHead className="text-sm font-semibold tracking-wide text-gray-800 text-right px-5 py-2 border-r border-gray-300">Remaining</TableHead>
+                    <TableHead className="text-sm font-semibold tracking-wide text-gray-800 px-5 py-2 border-r border-gray-300">Effective Date</TableHead>
+                    <TableHead className="text-sm font-semibold tracking-wide text-gray-800 text-center px-5 py-2">Status</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -405,10 +405,10 @@ export const PayrollTab = forwardRef<PayrollTabRef>((_, ref) => {
                   ) : (
                     pagedAdvances.map((adv) => (
                       <TableRow key={adv.id} className="border-b border-gray-300 hover:bg-emerald-50/30 transition-colors">
-                        <TableCell className="pl-4 text-sm font-bold text-gray-900 border-r border-gray-300">{adv.customUserId || adv.employeeId}</TableCell>
-                        <TableCell className="text-sm font-semibold text-gray-800 border-r border-gray-300">{adv.employeeName || '-'}</TableCell>
-                        <TableCell className="text-sm text-right border-r border-gray-300">₹{adv.amount.toLocaleString()}</TableCell>
-                        <TableCell className="text-sm border-r border-gray-300">
+                        <TableCell className="px-5 py-3 text-sm font-bold text-gray-900 border-r border-gray-300">{adv.customUserId || adv.employeeId}</TableCell>
+                        <TableCell className="px-5 py-3 text-sm font-semibold text-gray-800 border-r border-gray-300">{adv.employeeName || '-'}</TableCell>
+                        <TableCell className="px-5 py-3 text-sm text-right border-r border-gray-300">₹{adv.amount.toLocaleString()}</TableCell>
+                        <TableCell className="px-5 py-3 text-sm border-r border-gray-300">
                           {adv.repaymentMethod === 'emi' ? (
                             <span className="inline-flex flex-col leading-tight">
                               <span className="font-medium text-gray-800">EMI</span>
@@ -418,12 +418,12 @@ export const PayrollTab = forwardRef<PayrollTabRef>((_, ref) => {
                             <span className="font-medium text-gray-800">Single Payment</span>
                           )}
                         </TableCell>
-                        <TableCell className="text-sm text-center border-r border-gray-300">
+                        <TableCell className="px-5 py-3 text-sm text-center border-r border-gray-300">
                           {adv.repaymentMethod === 'emi' ? `${adv.monthsPaid} / ${adv.totalMonths} months` : '-'}
                         </TableCell>
-                        <TableCell className="text-sm text-right font-medium text-amber-700 border-r border-gray-300">₹{adv.remainingAmount.toLocaleString()}</TableCell>
-                        <TableCell className="text-sm text-gray-700 border-r border-gray-300">{formatDateDisplay(adv.effectiveDate)}</TableCell>
-                        <TableCell className="text-center pr-4">
+                        <TableCell className="px-5 py-3 text-sm text-right font-medium text-amber-700 border-r border-gray-300">₹{adv.remainingAmount.toLocaleString()}</TableCell>
+                        <TableCell className="px-5 py-3 text-sm text-gray-700 border-r border-gray-300">{formatDateDisplay(adv.effectiveDate)}</TableCell>
+                        <TableCell className="px-5 py-3 text-center">
                           <span className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-[11px] font-semibold ${advanceStatusBadgeClass(adv.status)}`}>
                             {adv.status === 'ACTIVE' ? 'Active' : 'Completed'}
                           </span>
