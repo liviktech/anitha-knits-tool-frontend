@@ -6,8 +6,6 @@ import {
   Edit2,
   Trash2,
   Search,
-  ChevronLeft,
-  ChevronRight,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -36,6 +34,7 @@ import {
 } from "@/components/ui/dialog";
 import { DeleteConfirmDialog } from "@/components/shared/delete-confirm-dialog";
 import { Loader } from "@/components/shared/loader";
+import { TablePaginationControls, RowsPerPageSelect } from "@/components/shared/table-pagination-controls";
 import { apiFetch, extractApiErrorMessage } from "@/lib/api-client";
 import {
   expenseKeys,
@@ -81,8 +80,6 @@ function monthRange(monthStr: string): { from: string; to: string } {
   };
 }
 
-const PAGE_SIZE = 10;
-
 const EXPENSE_NAME_SUGGESTIONS = [
   "Electricity Charges",
   "Water Charges",
@@ -91,31 +88,13 @@ const EXPENSE_NAME_SUGGESTIONS = [
   "Office Supplies",
 ];
 
-function getPageNumbers(
-  current: number,
-  total: number,
-): (number | "ellipsis")[] {
-  if (total <= 7) return Array.from({ length: total }, (_, i) => i + 1);
-  const pages = new Set([1, total, current - 1, current, current + 1]);
-  const sorted = Array.from(pages)
-    .filter((p) => p >= 1 && p <= total)
-    .sort((a, b) => a - b);
-  const result: (number | "ellipsis")[] = [];
-  let prev = 0;
-  for (const p of sorted) {
-    if (prev && p - prev > 1) result.push("ellipsis");
-    result.push(p);
-    prev = p;
-  }
-  return result;
-}
-
 export function EmpExpensesPage() {
   const queryClient = useQueryClient();
 
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedMonth, setSelectedMonth] = useState<string>(currentMonthStr());
   const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState(10);
 
   // Modal dialog states
   const [isFormOpen, setIsFormOpen] = useState(false);
@@ -164,11 +143,11 @@ export function EmpExpensesPage() {
   } = useExpenses(filteredQuery);
   const filteredExpenses = filteredData?.data ?? [];
   const totalFiltered = filteredExpenses.length;
-  const totalPages = Math.max(1, Math.ceil(totalFiltered / PAGE_SIZE));
+  const totalPages = Math.max(1, Math.ceil(totalFiltered / pageSize));
   const currentPage = Math.min(page, totalPages);
   const pagedExpenses = filteredExpenses.slice(
-    (currentPage - 1) * PAGE_SIZE,
-    currentPage * PAGE_SIZE,
+    (currentPage - 1) * pageSize,
+    currentPage * pageSize,
   );
 
   const openCreateModal = () => {
@@ -484,66 +463,14 @@ export function EmpExpensesPage() {
             <div className="p-3 border-t border-gray-400 bg-emerald-50/20 text-xs text-gray-700 flex flex-wrap justify-between items-center gap-3 px-4">
               <span>
                 Showing{" "}
-                {totalFiltered === 0 ? 0 : (currentPage - 1) * PAGE_SIZE + 1}-
-                {Math.min(currentPage * PAGE_SIZE, totalFiltered)} of{" "}
+                {totalFiltered === 0 ? 0 : (currentPage - 1) * pageSize + 1}-
+                {Math.min(currentPage * pageSize, totalFiltered)} of{" "}
                 {totalFiltered} entries
               </span>
 
-              {totalPages > 1 && (
-                <div className="flex items-center gap-1">
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    className="h-7 w-7 rounded-md text-gray-500 hover:bg-gray-100 disabled:opacity-40"
-                    onClick={() => setPage((p) => Math.max(1, p - 1))}
-                    disabled={currentPage <= 1}
-                  >
-                    <ChevronLeft className="h-3.5 w-3.5" />
-                  </Button>
-                  {getPageNumbers(currentPage, totalPages).map((p, i) =>
-                    p === "ellipsis" ? (
-                      <span
-                        key={`ellipsis-${i}`}
-                        className="px-1.5 text-gray-400"
-                      >
-                        ...
-                      </span>
-                    ) : (
-                      <Button
-                        key={p}
-                        variant="ghost"
-                        size="icon"
-                        className={
-                          p === currentPage
-                            ? "h-7 w-7 rounded-md bg-[#004D40] text-white text-xs font-semibold hover:bg-[#00332a]"
-                            : "h-7 w-7 rounded-md text-xs text-gray-600 hover:bg-gray-100"
-                        }
-                        onClick={() => setPage(p)}
-                      >
-                        {p}
-                      </Button>
-                    ),
-                  )}
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    className="h-7 w-7 rounded-md text-gray-500 hover:bg-gray-100 disabled:opacity-40"
-                    onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
-                    disabled={currentPage >= totalPages}
-                  >
-                    <ChevronRight className="h-3.5 w-3.5" />
-                  </Button>
-                </div>
-              )}
+              <TablePaginationControls currentPage={currentPage} totalPages={totalPages} onPageChange={setPage} />
 
-              <span className="font-semibold text-gray-700">
-                Filtered Total:{" "}
-                <span className="text-green-600">
-                  {formatCurrency(
-                    filteredExpenses.reduce((sum, item) => sum + item.amount, 0),
-                  )}
-                </span>
-              </span>
+              <RowsPerPageSelect pageSize={pageSize} onPageSizeChange={(size) => { setPageSize(size); setPage(1); }} />
             </div>
           </div>
 

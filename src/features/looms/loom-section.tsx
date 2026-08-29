@@ -3,6 +3,7 @@ import { useQueryClient } from '@tanstack/react-query';
 import { Button } from '@/components/ui/button';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Loader } from '@/components/shared/loader';
+import { TableNoteFooter } from '@/components/shared/table-note-footer';
 import { Edit2, Trash2 } from 'lucide-react';
 import { DeleteConfirmDialog } from '@/components/shared/delete-confirm-dialog';
 import { apiFetch, extractApiErrorMessage } from '@/lib/api-client';
@@ -212,9 +213,9 @@ export const LoomSection = forwardRef<SectionRef, SectionProps>(({ productionDat
             <TableRow className="hover:!bg-transparent border-b-0">
               <TableHead className={`text-sm !text-center font-semibold tracking-wide border-b border-black/10 ${theme.headerText}`}>Size</TableHead>
               <TableHead className={`w-37.5 min-w-37.5 text-center text-sm font-semibold  tracking-wide border border-black/10 ${theme.headerText}`}>Color</TableHead>
-              <TableHead className={`text-center text-sm font-semibold  tracking-wide border border-black/10 ${theme.headerText}`}>Loom Production (kg)</TableHead>
+              <TableHead className={`text-center text-sm font-semibold  tracking-wide border border-black/10 ${theme.headerText}`}>Loom Production</TableHead>
               <TableHead className={`text-center text-sm font-semibold  tracking-wide border border-black/10 ${theme.headerText}`}>Looms/Yarn Waste</TableHead>
-              <TableHead className={`text-center text-sm font-semibold  tracking-wide border border-black/10 ${theme.headerText}`}>Fabric production (kg)</TableHead>
+              <TableHead className={`text-center text-sm font-semibold  tracking-wide border border-black/10 ${theme.headerText}`}>Fabric production</TableHead>
               {!readOnly && <TableHead className={`!text-center text-sm font-semibold  tracking-wide border border-black/10 ${theme.headerText}`}>Action</TableHead>}
             </TableRow>
           </TableHeader>
@@ -300,6 +301,7 @@ export const LoomSection = forwardRef<SectionRef, SectionProps>(({ productionDat
         </Table>
       </div>
 
+      <TableNoteFooter />
 
       <DeleteConfirmDialog
         open={!!deleteTarget}

@@ -3,6 +3,7 @@ import { useQueryClient } from '@tanstack/react-query';
 import { Button } from '@/components/ui/button';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Loader } from '@/components/shared/loader';
+import { TableNoteFooter } from '@/components/shared/table-note-footer';
 import { Edit2, Trash2 } from 'lucide-react';
 import { DeleteConfirmDialog } from '@/components/shared/delete-confirm-dialog';
 import { apiFetch, extractApiErrorMessage } from '@/lib/api-client';
@@ -204,7 +205,7 @@ export const FabricDeliveredSection = forwardRef<SectionRef, SectionProps & { on
             <TableRow className="hover:!bg-transparent border-b-0">
               <TableHead className={`text-sm !text-center font-semibold tracking-wide  ${theme.headerText}`}>Size</TableHead>
               <TableHead className={`w-37.5 min-w-37.5 text-center text-sm font-semibold tracking-wide border border-black/10 ${theme.headerText}`}>Color</TableHead>
-              <TableHead className={`text-center text-sm font-semibold tracking-wide border border-black/10 ${theme.headerText}`}>Fabric Delivered (kg)</TableHead>
+              <TableHead className={`text-center text-sm font-semibold tracking-wide border border-black/10 ${theme.headerText}`}>Fabric Delivered</TableHead>
               <TableHead className={`text-center text-sm font-semibold tracking-wide border border-black/10 ${theme.headerText}`}>Vehicle No</TableHead>
               <TableHead className={`text-center text-sm font-semibold tracking-wide border border-black/10 ${theme.headerText}`}>Driver Name</TableHead>
               {!readOnly && <TableHead className={`!text-center text-sm font-semibold tracking-wide border border-black/10 ${theme.headerText}`}>Action</TableHead>}
@@ -278,6 +279,9 @@ export const FabricDeliveredSection = forwardRef<SectionRef, SectionProps & { on
           </TableBody>
         </Table>
       </div>
+
+      <TableNoteFooter />
+
       <DeleteConfirmDialog
         open={!!deleteTarget}
         onOpenChange={(open) => !open && setDeleteTarget(null)}

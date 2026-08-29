@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import { Plus, Edit2, Trash2, PackagePlus, PackageMinus, ArrowLeft, ChevronRight } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -7,6 +7,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Loader } from '@/components/shared/loader';
 import { DeleteConfirmDialog } from '@/components/shared/delete-confirm-dialog';
+import { TablePaginationFooter } from '@/components/shared/table-pagination-footer';
 import { apiFetch } from '@/lib/api-client';
 import { useLookups } from '@/lib/lookups';
 import { formatDate, formatDateDisplay } from './inventory-utils';
@@ -432,6 +433,19 @@ function StockSummaryCard({ month, onEditDate, onDeleteDate }: { month: string; 
     }, new Map<string, InventoryRecord[]>()).entries()
   ).sort(([a], [b]) => b.localeCompare(a));
 
+  const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState(10);
+  const totalPages = Math.max(1, Math.ceil(groupedByDate.length / pageSize));
+  const currentPage = Math.min(page, totalPages);
+  const pagedGroupedByDate = useMemo(
+    () => groupedByDate.slice((currentPage - 1) * pageSize, currentPage * pageSize),
+    [groupedByDate, currentPage, pageSize],
+  );
+
+  useEffect(() => {
+    setPage(1);
+  }, [month]);
+
   const getWeight = (dayRecords: InventoryRecord[], type: InventoryType, name: string) =>
     dayRecords.filter(r => r.type === type && r.name === name).reduce((sum, r) => sum + r.weightKg, 0);
 
@@ -543,17 +557,17 @@ function StockSummaryCard({ month, onEditDate, onDeleteDate }: { month: string; 
                 <th rowSpan={2} className="border border-gray-200 px-3 py-2 text-left font-semibold text-gray-700 uppercase tracking-wide text-xs whitespace-nowrap w-28">DATE</th>
                 {hdpeNames.length > 0 && (
                   <th colSpan={hdpeNames.length + 2} className="border border-gray-200 px-3 py-2 text-center font-bold text-teal-800 uppercase tracking-wide text-xs bg-blue-100">
-                    HDPE (KG)
+                    HDPE
                   </th>
                 )}
                 {chemicalNames.length > 0 && (
                   <th colSpan={chemicalNames.length + 2} className="border border-gray-200 px-3 py-2 text-center font-bold text-yellow-800 uppercase tracking-wide text-xs bg-yellow-100">
-                    CHEMICALS (KG)
+                    CHEMICALS
                   </th>
                 )}
                 {colorNames.length > 0 && (
                   <th colSpan={colorNames.length + 2} className="border border-gray-200 px-3 py-2 text-center font-bold text-green-800 uppercase tracking-wide text-xs bg-green-100">
-                    COLORS (KG)
+                    COLORS
                   </th>
                 )}
                 {totalCols === 0 && <th className="border border-gray-200 px-3 py-1.5 text-gray-400"></th>}
@@ -592,7 +606,7 @@ function StockSummaryCard({ month, onEditDate, onDeleteDate }: { month: string; 
                   <td colSpan={2 + totalCols || 3} className="text-center py-8 text-gray-400 text-sm">No stock received this month.</td>
                 </tr>
               ) : (
-                groupedByDate.map(([date, dayRecords]) => {
+                pagedGroupedByDate.map(([date, dayRecords]) => {
                   const dayHdpeTotal = dayRecords.filter(r => r.type === 'HDPE').reduce((s, r) => s + r.weightKg, 0);
                   const dayChemicalTotal = dayRecords.filter(r => r.type === 'CHEMICAL').reduce((s, r) => s + r.weightKg, 0);
                   const dayColorTotal = dayRecords.filter(r => r.type === 'COLOR').reduce((s, r) => s + r.weightKg, 0);
@@ -699,6 +713,17 @@ function StockSummaryCard({ month, onEditDate, onDeleteDate }: { month: string; 
             </tbody>
           </table>
         </div>
+
+        <TablePaginationFooter
+          currentPage={currentPage}
+          totalPages={totalPages}
+          pageSize={pageSize}
+          onPageChange={setPage}
+          onPageSizeChange={(size) => {
+            setPageSize(size);
+            setPage(1);
+          }}
+        />
       </div>
     </div>
   );

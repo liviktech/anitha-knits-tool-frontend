@@ -10,6 +10,9 @@ import { ExtruderSection, LoomSection, FabricSection, FabricDeliveredSection, th
 import { TabAddModal } from './tab-add-modal';
 import type { SectionRef } from './day-entry-sections';
 import { useExtruderProductions, useLookups } from '@/features/extruder/extruder-queries';
+import { useLoomsProductions } from '@/features/looms/loom-queries';
+import { useFabricCheckingRecords } from '@/features/fabric/fabric-queries';
+import { useLoadSentRecords } from '@/features/inventory/load-sent-queries';
 import { useInventoryRecords } from '@/features/inventory/inventory-queries';
 import { useProductionHeader } from './production-details';
 
@@ -45,6 +48,22 @@ export function NewEntry({ onClose, defaultDate, readOnly = false }: NewEntryPro
   const { data: lookupsData } = useLookups();
   const lookups = lookupsData ?? { brands: [], colors: [], chemicals: [], sizes: [] };
 
+  // Once the selected date already has any records (added this session or
+  // already on the server), the date picker is hidden so it can't be
+  // changed out from under data that's already been saved against it.
+  const dayQuery = `?date_from=${productionDate}&date_to=${productionDate}`;
+  const { data: extruderDayData } = useExtruderProductions(dayQuery, isCreateMode);
+  const { data: loomsDayData } = useLoomsProductions(dayQuery, isCreateMode);
+  const { data: fabricDayData } = useFabricCheckingRecords(dayQuery, isCreateMode);
+  const { data: deliveredDayData } = useLoadSentRecords('?limit=100', isCreateMode);
+  const hasDataForDay = isCreateMode && (
+    (extruderDayData?.data?.length ?? 0) > 0 ||
+    (loomsDayData?.data?.length ?? 0) > 0 ||
+    (fabricDayData?.data?.length ?? 0) > 0 ||
+    (deliveredDayData?.data ?? []).some((r) => (r.productionDate ?? r.date ?? '').startsWith(productionDate))
+  );
+  const showDatePicker = isCreateMode && !hasDataForDay;
+
   useEffect(() => {
     setHeaderTitle(isCreateMode ? 'Add New Daily Production Details' : 'Edit Daily Production Details');
     setShowBackButton(true);
@@ -52,12 +71,7 @@ export function NewEntry({ onClose, defaultDate, readOnly = false }: NewEntryPro
 
     setHeaderRight(
       <div className="flex flex-wrap items-center gap-3">
-        {!isCreateMode ? (
-          <div className="flex items-center gap-2 mr-4">
-            <CalendarIcon className="w-[18px] h-[18px] text-[#004D40]" />
-            <span className="text-[15px] font-bold text-[#004D40]">{format(date, 'dd MMM, yyyy')}</span>
-          </div>
-        ) : (
+        {showDatePicker && (
           <Popover>
             <PopoverTrigger asChild>
               <Button
@@ -102,7 +116,7 @@ export function NewEntry({ onClose, defaultDate, readOnly = false }: NewEntryPro
       setShowBackButton(false);
       setOnBackClick(undefined);
     };
-  }, [setHeaderRight, setShowBackButton, setOnBackClick, setHeaderTitle, onClose, date, readOnly, submitting, activeTab]);
+  }, [setHeaderRight, setShowBackButton, setOnBackClick, setHeaderTitle, onClose, date, readOnly, submitting, activeTab, showDatePicker]);
 
   // Most recent entry before the selected date — used to carry forward
   // Data for calculating live stock balances in create mode
@@ -176,7 +190,10 @@ export function NewEntry({ onClose, defaultDate, readOnly = false }: NewEntryPro
               </div>
               <div className="flex flex-col sm:px-4 pt-3 sm:pt-0 border-t sm:border-t-0 border-gray-200">
                 <div className="flex justify-between items-center border-b border-gray-200 pb-2">
-                  <label className="text-[11px] font-bold uppercase tracking-wide text-gray-500">Chemical Balance</label>
+                  <label className="flex items-center gap-1.5 text-[11px] font-bold uppercase tracking-wide text-gray-500">
+                    <img src="/chem.png" alt="" className="h-8 w-8 object-contain" />
+                    Chemical Balance
+                  </label>
                   <span className={`text-[12px] font-bold text-gray-900 transition-opacity duration-300 ${isInventoryMinimized ? 'opacity-100' : 'opacity-0'}`}>
                     {totalChemical} kg
                   </span>
@@ -196,7 +213,10 @@ export function NewEntry({ onClose, defaultDate, readOnly = false }: NewEntryPro
               </div>
               <div className="flex flex-col sm:pl-4 pt-3 sm:pt-0 border-t sm:border-t-0 border-gray-200">
                 <div className="flex justify-between items-center border-b border-gray-200 pb-2">
-                  <label className="text-[11px] font-bold uppercase tracking-wide text-gray-500">Color Balance</label>
+                  <label className="flex items-center gap-1.5 text-[11px] font-bold uppercase tracking-wide text-gray-500">
+                    <img src="/colour.png" alt="" className="h-8 w-8 object-contain" />
+                    Color Balance
+                  </label>
                   <span className={`text-[12px] font-bold text-gray-900 transition-opacity duration-300 ${isInventoryMinimized ? 'opacity-100' : 'opacity-0'}`}>
                     {totalColor} kg
                   </span>
