@@ -155,7 +155,7 @@ export function InventoryFormDialog({ onClose, editDate, editRecords }: Inventor
         <DialogHeader className="flex flex-row items-center justify-between space-y-0 -mx-4 -mt-4 mb-2 rounded-t-xl border-b border-gray-200 bg-[#A8DCAB] px-4 py-3">
           <DialogTitle className="text-black">{isEdit ? 'Edit Stock' : 'Add Received Stock'}</DialogTitle>
           <div className="flex items-center gap-3 pr-8">
-            <Label htmlFor="inv-date" className="text-sm font-medium whitespace-nowrap text-black">Date</Label>
+            {/* <Label htmlFor="inv-date" className="text-sm font-medium whitespace-nowrap text-black">Date</Label> */}
             <Input id="inv-date" type="date" value={date} onChange={(e) => setDate(e.target.value)} className="w-40 h-8 text-sm bg-white" />
           </div>
         </DialogHeader>
