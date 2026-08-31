@@ -99,6 +99,11 @@ export function AddConfigurationDialog({
       return;
     }
 
+    if (form.date < todayIso()) {
+      setFormError('Date cannot be in the past.');
+      return;
+    }
+
     setFormError(null);
 
     const ok = await onSubmit({
@@ -177,8 +182,9 @@ export function AddConfigurationDialog({
               value={form.date}
               onChange={setField('date')}
               disabled={isPending}
+              min={todayIso()}
               aria-label="Configuration date"
-              className="w-40 h-8 text-sm bg-white"
+              className="w-40 h-8 text-sm bg-white text-[#191c1c]"
             />
           </div>
         </DialogHeader>
