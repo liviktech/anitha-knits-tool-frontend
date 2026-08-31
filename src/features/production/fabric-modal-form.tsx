@@ -93,9 +93,9 @@ export function FabricModalForm({ productionDate, initialData, isEditMode, onCan
   };
 
   return (
-    <div className="flex flex-col h-full gap-4 px-1">
-      <div className="flex gap-6">
-        <div className="flex items-center gap-3 w-56">
+    <div className="flex flex-col h-full gap-2 px-1">
+      <div className="flex gap-6 p-3 rounded-lg border border-gray-400">
+        <div className="flex items-center gap-1 w-50">
           <Label className="text-gray-600 text-xs font-semibold uppercase tracking-wider shrink-0 w-10">Size</Label>
           <Select value={draft.size} onValueChange={(v) => updateField('size', v)} disabled={isEditMode}>
             <SelectTrigger><SelectValue placeholder="Select Size" /></SelectTrigger>
@@ -111,7 +111,7 @@ export function FabricModalForm({ productionDate, initialData, isEditMode, onCan
         </div>
       </div>
 
-      <div className="space-y-2 bg-gray-100 p-3 rounded-lg border border-gray-200">
+      <div className="p-3 rounded-lg border border-gray-400">
         <h3 className={`text-xs font-semibold uppercase tracking-wider border-b pb-1.5 ${theme.headerText}`}>Production Details</h3>
         <div className="grid grid-cols-2 gap-4 pt-1">
           <div className="space-y-1.5">
@@ -132,7 +132,7 @@ export function FabricModalForm({ productionDate, initialData, isEditMode, onCan
         </div>
       </div>
 
-      <div className="space-y-2 bg-gray-100 p-3 rounded-lg border border-gray-200">
+      <div className="space-y-2 p-3 rounded-lg border border-gray-400">
         <h3 className={`text-xs font-semibold uppercase tracking-wider border-b pb-1.5 ${theme.headerText}`}>Wastage</h3>
         <div className="grid grid-cols-2 gap-4 pt-1">
           <div className="space-y-1.5">
@@ -146,8 +146,8 @@ export function FabricModalForm({ productionDate, initialData, isEditMode, onCan
         </div>
       </div>
 
-      <div className="space-y-2 bg-fuchsia-100 p-3 rounded-lg border border-fuchsia-200">
-        <h3 className="text-xs font-semibold uppercase tracking-wider text-fuchsia-800 border-b border-fuchsia-200 pb-1.5">Fabric Production</h3>
+      <div className="space-y-2 bg-fuchsia-50/30 p-3 rounded-lg border border-fuchsia-300">
+        <h3 className="text-xs font-semibold uppercase tracking-wider text-fuchsia-800 border-b border-fuchsia-200 pb-1.5">Fabric Stock</h3>
         <div className="flex items-center gap-4 pt-1 w-2/3">
           <Label className="text-fuchsia-800 text-xs font-semibold shrink-0">Total Fabric Stock (kg)</Label>
           <Input
@@ -164,7 +164,7 @@ export function FabricModalForm({ productionDate, initialData, isEditMode, onCan
         <p className="text-sm text-red-600 bg-red-50 border border-red-200 rounded-md px-3 py-2">{error}</p>
       )}
 
-      <div className="flex justify-end gap-3 mt-1 pt-2 border-t border-gray-100">
+      <div className="flex justify-end gap-3 mt-1 pt-2 border-t border-gray-200">
         <Button variant="outline" onClick={onCancel} disabled={saving} className="border-gray-300 text-gray-700">
           Cancel
         </Button>
