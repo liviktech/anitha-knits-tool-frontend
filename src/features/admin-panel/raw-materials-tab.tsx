@@ -23,6 +23,22 @@ interface CategoryMeta {
 
 const CATEGORY_META: CategoryMeta[] = [
   {
+    key: 'brands',
+    title: 'Brands',
+    singular: 'Brand',
+    description: 'Registered raw material suppliers and brands.',
+    icon: Boxes,
+    accent: 'border-blue-200 bg-blue-50 text-blue-700',
+  },
+  {
+    key: 'chemicals',
+    title: 'Chemicals',
+    singular: 'Chemical',
+    description: 'Additive chemicals used in the color masterbatch mix.',
+    icon: Droplets,
+    accent: 'border-yellow-200 bg-yellow-50 text-yellow-700',
+  },
+  {
     key: 'colors',
     title: 'Colors',
     singular: 'Color',
@@ -37,22 +53,6 @@ const CATEGORY_META: CategoryMeta[] = [
     description: 'Standard fitting sizes used across production lines.',
     icon: Ruler,
     accent: 'border-green-200 bg-green-50 text-green-700',
-  },
-  {
-    key: 'chemicals',
-    title: 'Chemicals',
-    singular: 'Chemical',
-    description: 'Additive chemicals used in the color masterbatch mix.',
-    icon: Droplets,
-    accent: 'border-yellow-200 bg-yellow-50 text-yellow-700',
-  },
-  {
-    key: 'brands',
-    title: 'Brands',
-    singular: 'Brand',
-    description: 'Registered raw material suppliers and brands.',
-    icon: Boxes,
-    accent: 'border-blue-200 bg-blue-50 text-blue-700',
   },
 ];
 
