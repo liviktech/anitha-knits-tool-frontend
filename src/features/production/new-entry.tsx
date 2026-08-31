@@ -87,19 +87,6 @@ export function NewEntry({ onClose, defaultDate, readOnly: propsReadOnly = false
             </PopoverContent>
           </Popover>
         )}
-        {!readOnly && canAddRow && (
-          <Button
-            className={`flex items-center gap-2 rounded-md px-3 py-2 h-auto text-[12px] cursor-pointer font-bold tracking-wide shadow-[0_1px_2px_rgba(0,45,35,0.2)] transition-colors duration-200 ${activeTab === 'extruder' ? `${themes.extruder.iconBg} ${themes.extruder.iconColor} ${themes.extruder.iconHoverBg} ${themes.extruder.iconHoverColor}` :
-              activeTab === 'looms' ? `${themes.looms.iconBg} ${themes.looms.iconColor} ${themes.looms.iconHoverBg} ${themes.looms.iconHoverColor}` :
-                activeTab === 'fabric' ? `${themes.fabric.iconBg} ${themes.fabric.iconColor} ${themes.fabric.iconHoverBg} ${themes.fabric.iconHoverColor}` :
-                  `${themes.fabricDelivered.iconBg} ${themes.fabricDelivered.iconColor} ${themes.fabricDelivered.iconHoverBg} ${themes.fabricDelivered.iconHoverColor}`
-              }`}
-            onClick={() => setIsAddModalOpen(true)}
-          >
-            <Plus className="w-3 h-3" />
-            ADD ROW
-          </Button>
-        )}
       </div>
     );
 
@@ -162,7 +149,7 @@ export function NewEntry({ onClose, defaultDate, readOnly: propsReadOnly = false
                 <div className="flex justify-between items-center border-b border-gray-200 pb-2">
                   <label className="flex items-center gap-2 text-[13px] font-bold uppercase tracking-wide text-gray-500">
                     <img src="/hdpe-in.png" alt="" className="h-8 w-8 object-contain" />
-                    HDPE Balance
+                    HDPE
                   </label>
                   <span className={`text-[13px] font-bold text-gray-900 transition-opacity duration-300 ${isInventoryMinimized ? 'opacity-100' : 'opacity-0'}`}>
                     {totalRawMaterial} kg
@@ -185,7 +172,7 @@ export function NewEntry({ onClose, defaultDate, readOnly: propsReadOnly = false
                 <div className="flex justify-between items-center border-b border-gray-200 pb-2">
                   <label className="flex items-center gap-2 text-[13px] font-bold uppercase tracking-wide text-gray-500">
                     <img src="/chemical-in.png" alt="" className="h-8 w-8 object-contain" />
-                    Chemical Balance
+                    Chemical
                   </label>
                   <span className={`text-[13px] font-bold text-gray-900 transition-opacity duration-300 ${isInventoryMinimized ? 'opacity-100' : 'opacity-0'}`}>
                     {totalChemical} kg
@@ -208,7 +195,7 @@ export function NewEntry({ onClose, defaultDate, readOnly: propsReadOnly = false
                 <div className="flex justify-between items-center border-b border-gray-200 pb-2">
                   <label className="flex items-center gap-2.5 text-[13px] font-bold uppercase tracking-wide text-gray-500">
                     <img src="/color-in.png" alt="" className="h-8 w-8 object-contain" />
-                    Color Balance
+                    Color
                   </label>
                   <span className={`text-[13 So bar start
                     px] font-bold text-gray-900 transition-opacity duration-300 ${isInventoryMinimized ? 'opacity-100' : 'opacity-0'}`}>
@@ -235,12 +222,27 @@ export function NewEntry({ onClose, defaultDate, readOnly: propsReadOnly = false
         {/* Forms Container */}
         <div className="flex flex-col gap-2.5">
           <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full flex-col gap-0">
-            <div className="flex justify-between items-end border-b border-gray-200 w-full">              <TabsList variant="folder" className="flex overflow-x-auto sm:overflow-visible p-0 m-0">
+            <div className="flex justify-between items-end border-b border-gray-200 w-full">
+              <TabsList variant="folder" className="flex overflow-x-auto sm:overflow-visible p-0 m-0">
                 <TabsTrigger value="extruder" className="data-[state=active]:!bg-[#D6EEF7] data-[state=active]:!text-[#0B5566] data-[state=active]:!border-b-[#D6EEF7]">Extruder Production</TabsTrigger>
                 <TabsTrigger value="looms" className="data-[state=active]:!bg-[#FFF6BF] data-[state=active]:!text-[#7A6A00] data-[state=active]:!border-b-[#FFF6BF]">Looms Production</TabsTrigger>
                 <TabsTrigger value="fabric" className="data-[state=active]:!bg-[#DCEEDB] data-[state=active]:!text-[#2F6B2F] data-[state=active]:!border-b-[#DCEEDB]">Fabric Checking</TabsTrigger>
                 <TabsTrigger value="delivered" className="data-[state=active]:!bg-[#f2caa0] data-[state=active]:!text-[#61401E] data-[state=active]:!border-b-[#f2caa0]">Fabric Delivered</TabsTrigger>
               </TabsList>
+
+              {!readOnly && canAddRow && (
+                <Button
+                  className={`flex items-center gap-2 rounded-md px-3 py-2 h-auto mb-1 text-[12px] cursor-pointer font-bold tracking-wide shadow-[0_1px_2px_rgba(0,45,35,0.2)] transition-colors duration-200 ${activeTab === 'extruder' ? `${themes.extruder.iconBg} ${themes.extruder.iconColor} ${themes.extruder.iconHoverBg} ${themes.extruder.iconHoverColor}` :
+                    activeTab === 'looms' ? `${themes.looms.iconBg} ${themes.looms.iconColor} ${themes.looms.iconHoverBg} ${themes.looms.iconHoverColor}` :
+                      activeTab === 'fabric' ? `${themes.fabric.iconBg} ${themes.fabric.iconColor} ${themes.fabric.iconHoverBg} ${themes.fabric.iconHoverColor}` :
+                        `${themes.fabricDelivered.iconBg} ${themes.fabricDelivered.iconColor} ${themes.fabricDelivered.iconHoverBg} ${themes.fabricDelivered.iconHoverColor}`
+                    }`}
+                  onClick={() => setIsAddModalOpen(true)}
+                >
+                  <Plus className="w-3 h-3" />
+                  ADD ROW
+                </Button>
+              )}
             </div>
 
             <TabsContent value="extruder" className="flex flex-col gap-4 mt-0 pt-0">
