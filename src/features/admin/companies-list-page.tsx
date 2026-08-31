@@ -1,6 +1,6 @@
 import { useState, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Plus, Pencil, Trash2, Building2, Search, AlertTriangle, SearchX } from 'lucide-react';
+import { Plus, Pencil, Trash2, Search, AlertTriangle, SearchX } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
