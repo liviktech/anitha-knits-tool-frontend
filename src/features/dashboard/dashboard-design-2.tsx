@@ -1,8 +1,10 @@
+import { useState } from 'react';
 import '@fontsource-variable/hanken-grotesk';
 import { RefreshCw } from 'lucide-react';
-import { format } from 'date-fns';
+import { format, parseISO } from 'date-fns';
 import { Loader } from '@/components/shared/loader';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Input } from '@/components/ui/input';
 import { useMonthlyDashboard } from './dashboard-queries';
 import { useExtruderProductions, useLookups } from '@/features/extruder/extruder-queries';
 import { useInventoryRecords, sumInventoryWeight } from '@/features/inventory/inventory-queries';
@@ -31,7 +33,8 @@ const FABRIC_STOCK_SIZES = ['150cm', '160cm', '170cm', '180cm', '190cm'] as cons
 const FABRIC_COLORS = ['Blue', 'Green', 'White'] as const;
 
 export function DashboardDesign2() {
-  const currentMonthStr = format(new Date(), 'yyyy-MM');
+  const [filterDate, setFilterDate] = useState<Date>(new Date());
+  const currentMonthStr = format(filterDate, 'yyyy-MM');
 
   const { dashboardData, isLoading: loadingDashboard } = useMonthlyDashboard(currentMonthStr);
 
@@ -184,20 +187,23 @@ export function DashboardDesign2() {
         {/* Header */}
         <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between border-b border-gray-200 px-2 py-1 animate-in fade-in-0 slide-in-from-top-2 duration-500 fill-mode-both">
           <div>
-            <h1 className="text-[22px] font-bold text-black leading-tight px-1">Summary</h1>
+            <h1 className="text-[22px] font-bold text-black leading-tight px-1">Welcome to LK Knits</h1>
             {/* <p className="text-[12px] font-medium text-gray-600 leading-tight mt-0.5">Production overview</p> */}
           </div>
           <div className="flex flex-wrap items-center gap-2">
-            <div className="flex items-center gap-2 px-1 text-sm font-bold text-slate-700">
-              <span>{format(new Date(), 'MMM d, yyyy')}</span>
-            </div>
+            <Input
+              type="month"
+              value={format(filterDate, 'yyyy-MM')}
+              onChange={(e) => {
+                if (e.target.value) {
+                  setFilterDate(parseISO(`${e.target.value}-01`));
+                }
+              }}
+              className="h-9 w-40 bg-white border border-gray-400 rounded-md px-3 py-2 text-[10px] font-medium text-[#003140] shadow-[0_1px_2px_rgba(0,0,0,0.05)] hover:bg-gray-50 focus-visible:ring-1 focus-visible:ring-[#004D40]"
+            />
             <button className="flex items-center justify-center border border-gray-400 rounded-lg w-9 h-9 text-slate-500 hover:bg-slate-50 transition-colors" aria-label="Refresh">
               <RefreshCw className="w-4 h-4" />
             </button>
-            {/* <button className="flex items-center gap-2 bg-[#1B7A4D] rounded-lg px-4 py-2 text-sm font-semibold text-white hover:bg-[#166841] transition-colors">
-              <Download className="w-4 h-4" />
-              Export
-            </button> */}
           </div>
         </div>
 
@@ -222,9 +228,9 @@ export function DashboardDesign2() {
                 </div>
                 <div className="mt-auto relative z-10 pt-2 border-t border-gray-50">
                   {rawMaterials.items.length > 0 ? (
-                    <div className={`flex flex-wrap items-center gap-x-6 gap-y-3 mt-1 ${rawMaterials.items.length === 1 ? 'justify-center' : 'justify-between'}`}>
+                    <div className={`flex flex-wrap items-center gap-x-12 gap-y-3 mt-1 ${rawMaterials.items.length === 1 ? 'justify-center' : 'justify-start'}`}>
                       {rawMaterials.items.map(item => (
-                        <div key={item.name} className="flex flex-col gap-0.5 text-sm">
+                        <div key={item.name} className={`flex flex-col gap-0.5 text-sm ${rawMaterials.items.length === 1 ? 'items-center text-center' : 'items-start text-left'}`}>
                           <span className="font-medium text-gray-500">{item.name}</span>
                           <span className="font-extrabold text-[#004D40]">{item.weight.toFixed(2)}<span className="text-gray-500 font-normal text-[12px] ml-0.5">kg</span></span>
                         </div>
@@ -248,9 +254,9 @@ export function DashboardDesign2() {
                 </div>
                 <div className="mt-auto relative z-10 pt-2 border-t border-gray-50">
                   {chemicals.items.length > 0 ? (
-                    <div className={`flex flex-wrap items-center gap-x-6 gap-y-3 mt-px ${chemicals.items.length === 1 ? 'justify-center' : 'justify-between'}`}>
+                    <div className={`flex flex-wrap items-center gap-x-12 gap-y-3 mt-px ${chemicals.items.length === 1 ? 'justify-center' : 'justify-start'}`}>
                       {chemicals.items.map(item => (
-                        <div key={item.name} className="flex flex-col gap-0.5 text-sm">
+                        <div key={item.name} className={`flex flex-col gap-0.5 text-sm ${chemicals.items.length === 1 ? 'items-center text-center' : 'items-start text-left'}`}>
                           <span className="font-medium text-gray-500">{item.name}</span>
                           <span className="font-extrabold text-[#004D40]">{item.weight.toFixed(2)}<span className="text-gray-500 font-normal text-[12px] ml-0.5">kg</span></span>
                         </div>
@@ -274,9 +280,9 @@ export function DashboardDesign2() {
                 </div>
                 <div className="mt-auto relative z-10 pt-2 border-t border-gray-50">
                   {invColors.items.length > 0 ? (
-                    <div className={`flex flex-wrap items-center gap-x-6 gap-y-3 mt-1 ${invColors.items.length === 1 ? 'justify-center' : 'justify-between'}`}>
+                    <div className={`flex flex-wrap items-center gap-x-12 gap-y-3 mt-1 ${invColors.items.length === 1 ? 'justify-center' : 'justify-start'}`}>
                       {invColors.items.map(item => (
-                        <div key={item.name} className="flex flex-col items-center gap-0.5 text-sm">
+                        <div key={item.name} className={`flex flex-col gap-0.5 text-sm ${invColors.items.length === 1 ? 'items-center text-center' : 'items-start text-left'}`}>
                           <span className="font-medium text-gray-500">{item.name}</span>
                           <span className="font-extrabold text-[#004D40]">{item.weight.toFixed(2)}<span className="text-gray-500 font-normal text-[12px] ml-0.5">kg</span></span>
                         </div>
@@ -289,7 +295,7 @@ export function DashboardDesign2() {
           </div>
 
           {/* Production Summary (Extruder / Looms / Fabric) — copied verbatim from production-design-2.tsx's Summary Cards block */}
-          <div className="font-hanken bg-white rounded-2xl border border-gray-400 shadow-sm p-2.5 mt-2">
+          <div className="font-hanken bg-white rounded-2xl border border-gray-400 shadow-sm p-2.5 mt-3">
             <p className="font-bold text-xl px-0.5 text-left pb-3">Production Summary</p>
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-2.5">
               <Card className="bg-[#00897B]/5 border border-[#B8DCD0] rounded-[14px] hover:shadow-md transition-all flex flex-col gap-0 self-start py-0">
@@ -358,7 +364,7 @@ export function DashboardDesign2() {
           </div>
 
           {/* Wastage */}
-          <div className="font-hanken bg-white rounded-2xl border border-gray-400 shadow-sm p-2 mt-2.5">
+          <div className="font-hanken bg-white rounded-2xl border border-gray-400 shadow-sm p-2 mt-3">
             <p className="font-bold text-xl px-1 text-left pb-3">Wastage Summary</p>
             <WastageCard
               looseWaste={looseWasteKg}

@@ -10,9 +10,7 @@ import { ExtruderSection, LoomSection, FabricSection, FabricDeliveredSection, th
 import { TabAddModal } from './tab-add-modal';
 import type { SectionRef } from './day-entry-sections';
 import { useExtruderProductions, useLookups } from '@/features/extruder/extruder-queries';
-import { useLoomsProductions } from '@/features/looms/loom-queries';
-import { useFabricCheckingRecords } from '@/features/fabric/fabric-queries';
-import { useLoadSentRecords } from '@/features/inventory/load-sent-queries';
+import { useDayWiseProduction } from './day-wise-queries';
 import { useInventoryRecords } from '@/features/inventory/inventory-queries';
 import { useProductionHeader } from './production-details';
 import { useAuth } from '@/features/auth/auth-context';
@@ -54,20 +52,9 @@ export function NewEntry({ onClose, defaultDate, readOnly: propsReadOnly = false
   const { data: lookupsData } = useLookups();
   const lookups = lookupsData ?? { brands: [], colors: [], chemicals: [], sizes: [] };
 
-  // Once the selected date already has any records (added this session or
-  // already on the server), the date picker is hidden so it can't be
-  // changed out from under data that's already been saved against it.
-  const dayQuery = `?date_from=${productionDate}&date_to=${productionDate}`;
-  const { data: extruderDayData } = useExtruderProductions(dayQuery, isCreateMode);
-  const { data: loomsDayData } = useLoomsProductions(dayQuery, isCreateMode);
-  const { data: fabricDayData } = useFabricCheckingRecords(dayQuery, isCreateMode);
-  const { data: deliveredDayData } = useLoadSentRecords('?limit=100', isCreateMode);
-  const hasDataForDay = isCreateMode && (
-    (extruderDayData?.data?.length ?? 0) > 0 ||
-    (loomsDayData?.data?.length ?? 0) > 0 ||
-    (fabricDayData?.data?.length ?? 0) > 0 ||
-    (deliveredDayData?.data ?? []).some((r) => (r.productionDate ?? r.date ?? '').startsWith(productionDate))
-  );
+  const { rows: completedDays } = useDayWiseProduction();
+  const completedDateStrings = new Set(completedDays.map(r => r.date));
+
   const showDatePicker = isCreateMode;
 
   useEffect(() => {
@@ -94,7 +81,7 @@ export function NewEntry({ onClose, defaultDate, readOnly: propsReadOnly = false
                 mode="single"
                 selected={date}
                 onSelect={(value) => value && setDate(value)}
-                disabled={(d) => d > new Date()}
+                disabled={(d) => d > new Date() || completedDateStrings.has(format(d, 'yyyy-MM-dd'))}
                 autoFocus
               />
             </PopoverContent>
