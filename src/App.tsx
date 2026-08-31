@@ -161,6 +161,9 @@ function UserFooter() {
 
 function AppShell() {
   const [mobileNavOpen, setMobileNavOpen] = useState(false);
+  const { user } = useAuth();
+  const companyName = user?.kind === 'company-user' ? user.company.name : 'LK Knits';
+  const companyNameUpper = companyName.toUpperCase();
 
   return (
     <div className="flex h-screen w-full flex-col bg-[#004D40] font-['Hanken_Grotesk',sans-serif] lg:flex-row lg:p-1 lg:gap-2">
@@ -168,7 +171,7 @@ function AppShell() {
       <aside className="hidden lg:flex w-50 shrink-0 flex-col overflow-y-auto">
         <Link to="/dashboard" className="flex items-center justify-center gap-2 py-4.5 px-4 cursor-pointer border-b border-[#F4F1E8]">
           <img src={threadIcon} alt="" className="h-8 w-8 shrink-0 object-contain brightness-0 invert" />
-          <span className="text-xl font-inter font-bold text-white tracking-widest whitespace-nowrap">LK KNITS</span>
+          <span className="text-xl font-inter font-bold text-white tracking-widest whitespace-nowrap">{companyNameUpper}</span>
         </Link>
         <NavLinks />
         <div className="p-2">
@@ -180,7 +183,7 @@ function AppShell() {
       <header className="flex items-center justify-between border-b bg-[#004D40] px-4 py-3 lg:hidden">
         <Link to="/dashboard" className="flex items-center gap-2 cursor-pointer">
           <img src={threadIcon} alt="" className="h-5 w-5 shrink-0 object-contain brightness-0 invert" />
-          <span className="text-[18px] font-['Hanken_Grotesk',sans-serif] font-bold text-white tracking-widest whitespace-nowrap">LK Knits</span>
+          <span className="text-[18px] font-['Hanken_Grotesk',sans-serif] font-bold text-white tracking-widest whitespace-nowrap">{companyName}</span>
         </Link>
         <Sheet open={mobileNavOpen} onOpenChange={setMobileNavOpen}>
           <Button variant="ghost" size="icon" className="text-white hover:bg-white/20 hover:text-white" onClick={() => setMobileNavOpen(true)}>
@@ -190,7 +193,7 @@ function AppShell() {
             <SheetHeader className="py-6 px-4">
               <SheetTitle className="flex items-center justify-center gap-2">
                 <img src={threadIcon} alt="" className="h-6 w-6 shrink-0 object-contain brightness-0 invert" />
-                <span className="text-[20px] font-['Hanken_Grotesk',sans-serif] font-bold text-white tracking-widest whitespace-nowrap">LK Knits</span>
+                <span className="text-[20px] font-['Hanken_Grotesk',sans-serif] font-bold text-white tracking-widest whitespace-nowrap">{companyName}</span>
               </SheetTitle>
             </SheetHeader>
             <NavLinks onNavigate={() => setMobileNavOpen(false)} />
