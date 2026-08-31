@@ -260,7 +260,7 @@ export function NewEntry({ onClose, defaultDate, readOnly = false }: NewEntryPro
                 productionDate={productionDate}
                 autoAdd={!readOnly}
                 readOnly={readOnly}
-                hideExisting={false}
+                hideExisting={true}
                 hideBanner={true}
                 onEditExtruderGroup={(group) => {
                   setEditingExtruderGroup(group);
@@ -270,15 +270,15 @@ export function NewEntry({ onClose, defaultDate, readOnly = false }: NewEntryPro
             </TabsContent>
 
             <TabsContent value="looms" className="flex flex-col gap-4 mt-0 pt-0">
-              <LoomSection ref={loomRef} productionDate={productionDate} autoAdd={!readOnly} readOnly={readOnly} hideExisting={false} hideBanner={true} onEditLoomGroup={(g) => { setEditingLoomGroup(g); setIsAddModalOpen(true); }} />
+              <LoomSection ref={loomRef} productionDate={productionDate} autoAdd={!readOnly} readOnly={readOnly} hideExisting={true} hideBanner={true} onEditLoomGroup={(g) => { setEditingLoomGroup(g); setIsAddModalOpen(true); }} />
             </TabsContent>
 
             <TabsContent value="fabric" className="flex flex-col gap-4 mt-0 pt-0">
-              <FabricSection ref={fabricRef} productionDate={productionDate} autoAdd={!readOnly} readOnly={readOnly} hideExisting={false} hideBanner={true} onEditFabricGroup={(g) => { setEditingFabricGroup(g); setIsAddModalOpen(true); }} />
+              <FabricSection ref={fabricRef} productionDate={productionDate} autoAdd={!readOnly} readOnly={readOnly} hideExisting={true} hideBanner={true} onEditFabricGroup={(g) => { setEditingFabricGroup(g); setIsAddModalOpen(true); }} />
             </TabsContent>
 
             <TabsContent value="delivered" className="flex flex-col gap-4 mt-0 pt-0">
-              <FabricDeliveredSection ref={fabricDeliveredRef} productionDate={productionDate} autoAdd={!readOnly} readOnly={readOnly} hideExisting={false} hideBanner={true} onEditDeliveredGroup={(g) => { setEditingDeliveredGroup(g); setIsAddModalOpen(true); }} />
+              <FabricDeliveredSection ref={fabricDeliveredRef} productionDate={productionDate} autoAdd={!readOnly} readOnly={readOnly} hideExisting={true} hideBanner={true} onEditDeliveredGroup={(g) => { setEditingDeliveredGroup(g); setIsAddModalOpen(true); }} />
             </TabsContent>
           </Tabs>
         </div>
