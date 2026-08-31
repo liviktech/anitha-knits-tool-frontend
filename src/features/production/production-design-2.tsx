@@ -17,7 +17,7 @@ import loomsIcon from '@/assets/looms-icon.png';
 import { useExtruderProductions, extruderKeys } from '@/features/extruder/extruder-queries';
 import { useLoomsProductions, loomsKeys } from '@/features/looms/loom-queries';
 import { useFabricCheckingRecords, fabricCheckingKeys } from '@/features/fabric/fabric-queries';
-import { useLoadSentRecords } from '@/features/inventory/load-sent-queries';
+import { useLoadSentRecords, loadSentKeys } from '@/features/inventory/load-sent-queries';
 import { useDayWiseProduction, dashboardProductionKey, type DayWiseRow } from './day-wise-queries';
 import { mapExtruderItem, mapLoomItem, mapFabricItem } from './day-entry-sections';
 import { DayWiseReportModal } from './day-wise-report-modal';
@@ -318,6 +318,7 @@ function DayDetailView({
         ...(extruderData?.data ?? []).map((r) => ({ path: '/production/extruder', id: r.id })),
         ...(loomsData?.data ?? []).map((r) => ({ path: '/production/looms', id: r.id })),
         ...(fabricData?.data ?? []).map((r) => ({ path: '/fabric-checking', id: r.id })),
+        ...fabricDeliveredRows.map((r) => ({ path: '/load-sent', id: r.id })),
       ];
       const results = await Promise.all(targets.map(({ path, id }) => apiFetch(`${path}/${id}`, { method: 'DELETE' })));
       if (results.some((r) => !r.ok)) throw new Error('Failed to delete one or more entries');
@@ -326,6 +327,7 @@ function DayDetailView({
         queryClient.invalidateQueries({ queryKey: extruderKeys.all }),
         queryClient.invalidateQueries({ queryKey: loomsKeys.all }),
         queryClient.invalidateQueries({ queryKey: fabricCheckingKeys.all }),
+        queryClient.invalidateQueries({ queryKey: loadSentKeys.all }),
         queryClient.invalidateQueries({ queryKey: dashboardProductionKey }),
       ]);
       setConfirmDeleteOpen(false);
@@ -518,7 +520,7 @@ function DayDetailView({
         open={confirmDeleteOpen}
         onOpenChange={setConfirmDeleteOpen}
         title="Delete this day's entries?"
-        description={`Removes every Extruder, Looms, and Fabric Checking record for ${formattedDate}. This action cannot be undone.`}
+        description={`Removes every Extruder, Looms, Fabric Checking, and Fabric Delivered record for ${formattedDate}. This action cannot be undone.`}
         isPending={deletingDay}
         onConfirm={handleDeleteDay}
       />
@@ -579,16 +581,18 @@ export function ProductionDesign2() {
     setDeletingDate(true);
     try {
       const dateQuery = `?date_from=${deleteTargetDate}&date_to=${deleteTargetDate}&limit=100`;
-      const [extruderRes, loomsRes, fabricRes] = await Promise.all([
+      const [extruderRes, loomsRes, fabricRes, loadSentRes] = await Promise.all([
         fetchJson<{ data: { id: string }[] }>(`/production/extruder${dateQuery}`),
         fetchJson<{ data: { id: string }[] }>(`/production/looms${dateQuery}`),
         fetchJson<{ data: { id: string }[] }>(`/fabric-checking${dateQuery}`),
+        fetchJson<{ data: { id: string }[] }>(`/load-sent${dateQuery}`),
       ]);
 
       const results = await Promise.all([
         ...extruderRes.data.map((r) => apiFetch(`/production/extruder/${r.id}`, { method: 'DELETE' })),
         ...loomsRes.data.map((r) => apiFetch(`/production/looms/${r.id}`, { method: 'DELETE' })),
         ...fabricRes.data.map((r) => apiFetch(`/fabric-checking/${r.id}`, { method: 'DELETE' })),
+        ...loadSentRes.data.map((r) => apiFetch(`/load-sent/${r.id}`, { method: 'DELETE' })),
       ]);
       if (results.some((r) => !r.ok)) throw new Error('Failed to delete one or more entries');
 
@@ -596,6 +600,7 @@ export function ProductionDesign2() {
         queryClient.invalidateQueries({ queryKey: extruderKeys.all }),
         queryClient.invalidateQueries({ queryKey: loomsKeys.all }),
         queryClient.invalidateQueries({ queryKey: fabricCheckingKeys.all }),
+        queryClient.invalidateQueries({ queryKey: loadSentKeys.all }),
         queryClient.invalidateQueries({ queryKey: dashboardProductionKey }),
       ]);
       setDeleteTargetDate(null);
@@ -1113,7 +1118,7 @@ export function ProductionDesign2() {
         title="Delete this day's entries?"
         description={
           deleteTargetDate
-            ? `Removes every Extruder, Looms, and Fabric Checking record for ${format(parseISO(deleteTargetDate), 'dd MMM, yyyy')}. This action cannot be undone.`
+            ? `Removes every Extruder, Looms, Fabric Checking, and Fabric Delivered record for ${format(parseISO(deleteTargetDate), 'dd MMM, yyyy')}. This action cannot be undone.`
             : undefined
         }
         isPending={deletingDate}

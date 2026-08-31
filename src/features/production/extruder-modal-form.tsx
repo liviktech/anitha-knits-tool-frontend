@@ -36,6 +36,19 @@ function computeRaw(bags: string, weightPerBag: string, looseWeight: string): st
 }
 
 /**
+ * Display-only: once the user types a bag count, the Bag Weight field shows
+ * bags × per-bag basis weight so the intermediate total is visible. This is
+ * purely cosmetic — the row's basisWeightKg (submitted as bagWeightKg, the
+ * per-bag standard) is unchanged; only what's rendered in the input differs.
+ */
+function computeBagWeightDisplay(bags: string, basisWeightKg: string): string {
+  const b = parseFloat(bags) || 0;
+  const wpb = parseFloat(basisWeightKg) || 0;
+  if (b > 0 && wpb > 0) return (b * wpb).toFixed(2);
+  return basisWeightKg;
+}
+
+/**
  * The backend requires chemicalKg/yarnOutputKg/colorConsumedKg to be
  * positive on each individual brand-row record, but this form captures them
  * once per Size+Color group (shared across however many brand rows the
@@ -357,7 +370,7 @@ export function ExtruderModalForm({ productionDate, initialData, isEditMode, onC
               </div>
               <div className="space-y-1 flex-1">
                 {idx === 0 && <Label className="text-xs text-gray-500">Bag Weight</Label>}
-                <Input type="number" placeholder="Bag Wt" disabled readOnly value={brandRow.basisWeightKg} className="h-8 text-xs w-fullborder border-gray-300" />
+                <Input type="number" placeholder="Bag Wt" disabled readOnly value={computeBagWeightDisplay(brandRow.bags, brandRow.basisWeightKg)} className="h-8 text-xs w-full border border-gray-300" />
               </div>
               <div className="space-y-1 flex-1">
                 {idx === 0 && <Label className="text-xs text-gray-500">Loose Weight</Label>}
