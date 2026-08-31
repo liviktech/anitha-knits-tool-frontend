@@ -18,7 +18,7 @@ interface InventoryFormDialogProps {
 
 export function InventoryFormDialog({ onClose, editDate, editRecords }: InventoryFormDialogProps) {
   const queryClient = useQueryClient();
-  const { data: lookupsData } = useLookups();
+  const { data: lookupsData, isLoading: isLookupsLoading, isError: isLookupsError, refetch: refetchLookups } = useLookups();
   const isEdit = !!editDate;
 
   const findDcForType = (type: InventoryType) => editRecords?.find(r => r.type === type && r.DC_NUMBER)?.DC_NUMBER ?? '';
@@ -142,6 +142,20 @@ export function InventoryFormDialog({ onClose, editDate, editRecords }: Inventor
         </DialogHeader>
 
         <div className="flex-1 overflow-auto flex flex-col py-2 px-1">
+          {isLookupsLoading ? (
+            <div className="flex items-center justify-center gap-2 text-gray-500 text-sm py-12">
+              <Loader size="sm" /> Loading form fields...
+            </div>
+          ) : isLookupsError ? (
+            <div className="flex flex-col items-center justify-center gap-2 text-gray-500 text-sm py-12">
+              <span>Unable to load HDPE, chemical and color fields.</span>
+              <Button variant="outline" size="sm" className="h-7 text-xs" onClick={() => refetchLookups()}>Retry</Button>
+            </div>
+          ) : hdpeNames.length === 0 && chemicalNames.length === 0 && colorNames.length === 0 ? (
+            <div className="flex items-center justify-center text-gray-500 text-sm py-12">
+              No HDPE, chemical or color raw materials configured yet.
+            </div>
+          ) : (
           <div className="border border-gray-200 rounded-lg overflow-x-auto shadow-sm">
             <table className="w-full text-xs border-collapse bg-white">
               <thead>
@@ -213,6 +227,7 @@ export function InventoryFormDialog({ onClose, editDate, editRecords }: Inventor
               </tbody>
             </table>
           </div>
+          )}
           {error && <p className="text-sm text-red-600 font-medium">{error}</p>}
         </div>
 

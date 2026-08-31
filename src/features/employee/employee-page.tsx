@@ -631,11 +631,11 @@ const EmployeeDirectoryTab = forwardRef<EmployeeDirectoryTabRef>((_props, ref) =
               <Loader2 className="h-4 w-4 animate-spin" /> Loading employees...
             </div>
           )}
-          {!isLoading && filteredEmployees.length === 0 && (
+          {/* {!isLoading && filteredEmployees.length === 0 && (
             <div className="flex-1 flex items-center justify-center text-gray-500 text-md">
               No employees found matching your criteria.
             </div>
-          )}
+          )} */}
         </div>
 
         {/* Table Footer */}

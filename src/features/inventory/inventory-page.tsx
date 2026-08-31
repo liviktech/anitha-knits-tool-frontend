@@ -624,7 +624,7 @@ function StockSummaryCard({ month, onEditDate, onDeleteDate }: { month: string; 
                 </tr>
               ) : groupedByDate.length === 0 ? (
                 <tr>
-                  <td colSpan={2 + totalCols || 3} className="text-center py-8 text-gray-400 text-sm">No stock received this month.</td>
+                  <td colSpan={2 + totalCols || 3} className="!text-center py-8 text-gray-400 text-sm">No stock received this month.</td>
                 </tr>
               ) : (
                 pagedGroupedByDate.map(([date, dayRecords]) => {

@@ -90,9 +90,9 @@ export function LoomModalForm({ productionDate, initialData, isEditMode, onCance
   };
 
   return (
-    <div className="flex flex-col h-full gap-4 px-1">
-      <div className="flex gap-6">
-        <div className="flex items-center gap-3 w-56">
+    <div className="flex flex-col h-full gap-2 px-1">
+      <div className="flex gap-6 p-3 rounded-lg border border-gray-400">
+        <div className="flex items-center gap-1 w-50">
           <Label className="text-gray-600 text-xs font-semibold uppercase tracking-wider shrink-0 w-10">Size</Label>
           <Select value={draft.size} onValueChange={(v) => updateField('size', v)} disabled={isEditMode}>
             <SelectTrigger><SelectValue placeholder="Select Size" /></SelectTrigger>
@@ -108,7 +108,7 @@ export function LoomModalForm({ productionDate, initialData, isEditMode, onCance
         </div>
       </div>
 
-      <div className="space-y-2 bg-gray-100 p-3 rounded-lg border border-gray-200">
+      <div className="space-y-2 p-3 rounded-lg border border-gray-400">
         <h3 className={`text-xs font-semibold uppercase tracking-wider border-b pb-1.5 ${theme.headerText}`}>Production Details</h3>
         <div className="grid grid-cols-2 gap-4 pt-1">
           <div className="space-y-1.5">
@@ -122,7 +122,7 @@ export function LoomModalForm({ productionDate, initialData, isEditMode, onCance
         </div>
       </div>
 
-      <div className="space-y-2 bg-yellow-100 p-3 rounded-lg border border-yellow-200">
+      <div className="space-y-2 bg-yellow-50/30 p-3 rounded-lg border border-yellow-300">
         <h3 className="text-xs font-semibold uppercase tracking-wider text-yellow-800 border-b border-yellow-200 pb-1.5">Fabric Production</h3>
         <div className="flex items-center gap-4 pt-1 w-2/3">
           <Label className="text-yellow-800 text-xs font-semibold shrink-0">Total Fabric Production (kg)</Label>
