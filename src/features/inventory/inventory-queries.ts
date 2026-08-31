@@ -22,6 +22,7 @@ export interface InventoryRecord {
   type: InventoryType;
   name: string;
   weightKg: number;
+  bagCount?: number;
   DC_NUMBER: string;
   brand: MasterDataRef | null;
   chemical: MasterDataRef | null;

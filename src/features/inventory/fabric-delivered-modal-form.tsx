@@ -102,7 +102,7 @@ export function FabricDeliveredModalForm({ productionDate, initialData, isEditMo
         </div>
         <div className="space-y-1.5">
           <Label className="text-gray-600 text-xs font-semibold uppercase tracking-wider">Delivered (kg)</Label>
-          <Input type="number" min="0" onKeyDown={(e) => e.key === '-' && e.preventDefault()} min="0" onKeyDown={(e) => e.key === '-' && e.preventDefault()}
+          <Input type="number" min="0" onKeyDown={(e) => e.key === '-' && e.preventDefault()}
             placeholder="0.00"
             value={draft.delivered}
             onChange={(e) => updateField('delivered', e.target.value)}

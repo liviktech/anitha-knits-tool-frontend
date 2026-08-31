@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
+
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Loader } from '@/components/shared/loader';
 import { apiFetch } from '@/lib/api-client';
@@ -151,7 +151,7 @@ export function InventoryFormDialog({ onClose, editDate, editRecords }: Inventor
 
   return (
     <Dialog open onOpenChange={(next) => !saving && !next && onClose()}>
-      <DialogContent className="max-w-[100vw] w-max lg:max-w-[1000px] overflow-hidden flex flex-col max-h-[90vh] border border-gray-400 p-4">
+      <DialogContent className="max-w-[95vw] w-max lg:max-w-none overflow-hidden flex flex-col max-h-[90vh] border border-gray-400 p-4">
         <DialogHeader className="flex flex-row items-center justify-between space-y-0 -mx-4 -mt-4 mb-2 rounded-t-xl border-b border-gray-200 bg-[#A8DCAB] px-4 py-3">
           <DialogTitle className="text-black">{isEdit ? 'Edit Stock' : 'Add Received Stock'}</DialogTitle>
           <div className="flex items-center gap-3 pr-8">
@@ -175,150 +175,113 @@ export function InventoryFormDialog({ onClose, editDate, editRecords }: Inventor
               No HDPE, chemical or color raw materials configured yet.
             </div>
           ) : (
-            <div className="flex flex-col items-center gap-4 w-full">
-              {/* HDPE TABLE */}
-              {hdpeNames.length > 0 && (
-                <div className="border border-gray-200 rounded-lg overflow-x-auto shadow-sm w-max max-w-full">
-                  <table className="text-sm border-collapse bg-white">
-                    <thead>
-                      <tr className="bg-gray-50 border-b border-gray-300">
-                        <th colSpan={hdpeNames.length * 2 + 1} className="px-3 py-2 text-center font-bold text-blue-700 uppercase tracking-wide bg-blue-50/50">
-                          HDPE
-                        </th>
-                      </tr>
-                      <tr className="bg-gray-50/80 border-b border-gray-300">
-                        <th rowSpan={2} className="border-r border-gray-300 px-3 py-2 text-center font-semibold text-blue-800 text-xs uppercase whitespace-nowrap">DC</th>
-                        {hdpeNames.map(name => (
-                          <th key={name} colSpan={2} className="border-r border-gray-300 px-3 py-2 text-center font-semibold text-blue-600 text-xs uppercase whitespace-nowrap">{name}</th>
-                        ))}
-                      </tr>
-                      <tr className="bg-gray-50/80 border-b border-gray-300">
-                        {hdpeNames.map(name => (
-                          <React.Fragment key={`${name}-sub`}>
-                            <th className="border-r border-gray-300 px-1 py-1 text-center font-semibold text-blue-600 text-[11px] uppercase whitespace-nowrap">Bags</th>
-                            <th className="border-r border-gray-300 px-1 py-1 text-center font-semibold text-blue-600 text-[11px] uppercase whitespace-nowrap">Weight (Kg)</th>
-                          </React.Fragment>
-                        ))}
-                      </tr>
-                    </thead>
-                    <tbody>
-                      <tr>
-                        <td className="border-r border-gray-300 p-2">
-                          <div className={`flex ${hdpeNames.length === 1 ? 'justify-center' : 'justify-start'}`}>
-                            <Input type="text" maxLength={8} placeholder="DC No" className="w-28 text-center h-9 text-sm placeholder:text-xs font-bold bg-blue-50 border-2 border-blue-300" value={dcHdpe} onChange={(e) => setDcHdpe(e.target.value.slice(0, 8))} />
-                          </div>
-                        </td>
-                        {hdpeNames.map(name => (
-                          <React.Fragment key={`${name}-inputs`}>
-                            <td className="border-r border-gray-300 p-1">
-                              <Input type="text" placeholder="Bags" className="w-16 text-center h-9 text-sm placeholder:text-xs font-medium bg-blue-50/10 border-2 border-blue-200 mx-auto" value={bags[`HDPE-${name}`] || ''} onChange={(e) => handleBagChange('HDPE', name, e.target.value)} />
-                            </td>
-                            <td className="border-r border-gray-300 p-1">
-                              <Input type="text" placeholder="Weight" className="w-20 text-center h-9 text-sm placeholder:text-xs font-medium bg-blue-50/10 border-2 border-blue-200 mx-auto" value={weights[`HDPE-${name}`] || ''} onChange={(e) => handleWeightChange('HDPE', name, e.target.value)} />
-                            </td>
-                          </React.Fragment>
-                        ))}
-                      </tr>
-                    </tbody>
-                  </table>
-                </div>
-              )}
+                                    <div className="flex justify-center w-full">
+              <div className="border border-gray-200 rounded-lg overflow-x-auto shadow-sm w-max max-w-[95vw]">
+                <table className="text-sm border-collapse bg-white">
+                  <thead>
+                    <tr className="bg-gray-50 border-b border-gray-300">
+                      {hdpeNames.length > 0 && <th colSpan={hdpeNames.length * 2 + 1} className="px-3 py-2 text-center font-bold text-blue-700 uppercase tracking-wide bg-blue-50/50 border-r border-gray-200">HDPE</th>}
+                      {chemicalNames.length > 0 && <th colSpan={chemicalNames.length * 1 + 1} className="px-3 py-2 text-center font-bold text-yellow-700 uppercase tracking-wide bg-yellow-50/50 border-r border-gray-200">CHEMICALS</th>}
+                      {colorNames.length > 0 && <th colSpan={colorNames.length * 1 + 1} className="px-3 py-2 text-center font-bold text-purple-700 uppercase tracking-wide bg-purple-50/50">COLORS</th>}
+                    </tr>
+                    <tr className="bg-gray-50/80 border-b border-gray-300">
+                      {hdpeNames.length > 0 && (
+                        <React.Fragment>
+                          <th rowSpan={2} className="border-r border-gray-200 px-3 py-2 text-center font-semibold text-blue-800 text-xs uppercase whitespace-nowrap">DC</th>
+                          {hdpeNames.map((name, idx) => <th key={name} colSpan={2} className={`border-r ${idx === hdpeNames.length - 1 && chemicalNames.length === 0 && colorNames.length === 0 ? 'border-transparent' : 'border-gray-200'} px-3 py-2 text-center font-semibold text-blue-600 text-xs uppercase whitespace-nowrap`}>{name}</th>)}
+                        </React.Fragment>
+                      )}
+                      {chemicalNames.length > 0 && (
+                        <React.Fragment>
+                          <th rowSpan={2} className="border-r border-gray-200 px-3 py-2 text-center font-semibold text-yellow-800 text-xs uppercase whitespace-nowrap">DC</th>
+                          {chemicalNames.map((name, idx) => <th key={name} colSpan={1} className={`border-r ${idx === chemicalNames.length - 1 && colorNames.length === 0 ? 'border-transparent' : 'border-gray-200'} px-3 py-2 text-center font-semibold text-yellow-600 text-xs uppercase whitespace-nowrap`}>{name}</th>)}
+                        </React.Fragment>
+                      )}
+                      {colorNames.length > 0 && (
+                        <React.Fragment>
+                          <th rowSpan={2} className="border-r border-gray-200 px-3 py-2 text-center font-semibold text-purple-800 text-xs uppercase whitespace-nowrap">DC</th>
+                          {colorNames.map((name, idx) => <th key={name} colSpan={1} className={`border-r ${idx === colorNames.length - 1 ? 'border-transparent' : 'border-gray-200'} px-3 py-2 text-center font-semibold text-purple-600 text-xs uppercase whitespace-nowrap`}>{name}</th>)}
+                        </React.Fragment>
+                      )}
+                    </tr>
+                    <tr className="bg-gray-50/80 border-b border-gray-300">
+                      {hdpeNames.length > 0 && hdpeNames.map((name, idx) => (
+                        <React.Fragment key={'hdpe-'+name+'-sub'}>
+                          <th className="border-r border-gray-200 px-1 py-1 text-center font-semibold text-blue-600 text-[11px] uppercase whitespace-nowrap">Bags</th>
+                          <th className={`border-r ${idx === hdpeNames.length - 1 && chemicalNames.length === 0 && colorNames.length === 0 ? 'border-transparent' : 'border-gray-200'} px-1 py-1 text-center font-semibold text-blue-600 text-[11px] uppercase whitespace-nowrap`}>Weight (Kg)</th>
+                        </React.Fragment>
+                      ))}
+                      {chemicalNames.length > 0 && chemicalNames.map((name, idx) => (
+                        <React.Fragment key={'chem-'+name+'-sub'}>
+                          <th className={`border-r ${idx === chemicalNames.length - 1 && colorNames.length === 0 ? 'border-transparent' : 'border-gray-200'} px-1 py-1 text-center font-semibold text-yellow-600 text-[11px] uppercase whitespace-nowrap`}>Weight (Kg)</th>
+                        </React.Fragment>
+                      ))}
+                      {colorNames.length > 0 && colorNames.map((name, idx) => (
+                        <React.Fragment key={'col-'+name+'-sub'}>
+                          <th className={`border-r ${idx === colorNames.length - 1 ? 'border-transparent' : 'border-gray-200'} px-1 py-1 text-center font-semibold text-purple-600 text-[11px] uppercase whitespace-nowrap`}>Weight (Kg)</th>
+                        </React.Fragment>
+                      ))}
+                    </tr>
+                  </thead>
+                  <tbody>
+                    <tr>
+                      {hdpeNames.length > 0 && (
+                        <React.Fragment>
+                          <td className="border-r border-gray-200 p-2">
+                            <div className="flex justify-center">
+                              <Input type="text" maxLength={8} placeholder="DC No" className="w-28 rounded-full text-center h-9 text-sm placeholder:text-xs font-bold bg-blue-50 border-2 border-blue-300" value={dcHdpe} onChange={(e) => setDcHdpe(e.target.value.slice(0, 8))} />
+                            </div>
+                          </td>
+                          {hdpeNames.map((name, idx) => (
+                            <React.Fragment key={'hdpe-'+name+'-inputs'}>
+                              <td className="border-r border-gray-200 p-1">
+                                <Input type="text" placeholder="Bags" className="w-16 rounded-full text-center h-9 text-sm placeholder:text-xs font-medium bg-blue-50/10 border-2 border-blue-200 mx-auto" value={bags[`HDPE-${name}`] || ''} onChange={(e) => handleBagChange('HDPE', name, e.target.value)} />
+                              </td>
+                              <td className={`border-r ${idx === hdpeNames.length - 1 && chemicalNames.length === 0 && colorNames.length === 0 ? 'border-transparent' : 'border-gray-200'} p-1`}>
+                                <Input type="text" placeholder="Weight" className="w-20 rounded-full text-center h-9 text-sm placeholder:text-xs font-medium bg-blue-50/10 border-2 border-blue-200 mx-auto" value={weights[`HDPE-${name}`] || ''} onChange={(e) => handleWeightChange('HDPE', name, e.target.value)} />
+                              </td>
+                            </React.Fragment>
+                          ))}
+                        </React.Fragment>
+                      )}
 
-              {/* CHEMICALS TABLE */}
-              {chemicalNames.length > 0 && (
-                <div className="border border-gray-200 rounded-lg overflow-x-auto shadow-sm w-max max-w-full">
-                  <table className="text-sm border-collapse bg-white">
-                    <thead>
-                      <tr className="bg-gray-50 border-b border-gray-300">
-                        <th colSpan={chemicalNames.length * 2 + 1} className="px-3 py-2 text-center font-bold text-yellow-700 uppercase tracking-wide bg-yellow-50/50">
-                          CHEMICALS
-                        </th>
-                      </tr>
-                      <tr className="bg-gray-50/80 border-b border-gray-300">
-                        <th rowSpan={2} className="border-r border-gray-300 px-3 py-2 text-center font-semibold text-yellow-800 text-xs uppercase whitespace-nowrap">DC</th>
-                        {chemicalNames.map(name => (
-                          <th key={name} colSpan={2} className="border-r border-gray-300 px-3 py-2 text-center font-semibold text-yellow-600 text-xs uppercase whitespace-nowrap">{name}</th>
-                        ))}
-                      </tr>
-                      <tr className="bg-gray-50/80 border-b border-gray-300">
-                        {chemicalNames.map(name => (
-                          <React.Fragment key={`${name}-sub`}>
-                            <th className="border-r border-gray-300 px-1 py-1 text-center font-semibold text-yellow-600 text-[11px] uppercase whitespace-nowrap">Bags</th>
-                            <th className="border-r border-gray-300 px-1 py-1 text-center font-semibold text-yellow-600 text-[11px] uppercase whitespace-nowrap">Weight (Kg)</th>
-                          </React.Fragment>
-                        ))}
-                      </tr>
-                    </thead>
-                    <tbody>
-                      <tr>
-                        <td className="border-r border-gray-300 p-2">
-                          <div className={`flex ${chemicalNames.length === 1 ? 'justify-center' : 'justify-start'}`}>
-                            <Input type="text" maxLength={8} placeholder="DC No" className="w-28 text-center h-9 text-sm placeholder:text-xs font-bold bg-yellow-50 border-2 border-yellow-300" value={dcChemical} onChange={(e) => setDcChemical(e.target.value.slice(0, 8))} />
-                          </div>
-                        </td>
-                        {chemicalNames.map(name => (
-                          <React.Fragment key={`${name}-inputs`}>
-                            <td className="border-r border-gray-300 p-1">
-                              <Input type="text" placeholder="Bags" className="w-16 text-center h-9 text-sm placeholder:text-xs font-medium bg-yellow-50/10 border-2 border-yellow-200 mx-auto" value={bags[`CHEMICAL-${name}`] || ''} onChange={(e) => handleBagChange('CHEMICAL', name, e.target.value)} />
-                            </td>
-                            <td className="border-r border-gray-300 p-1">
-                              <Input type="text" placeholder="Weight" className="w-20 text-center h-9 text-sm placeholder:text-xs font-medium bg-yellow-50/10 border-2 border-yellow-200 mx-auto" value={weights[`CHEMICAL-${name}`] || ''} onChange={(e) => handleWeightChange('CHEMICAL', name, e.target.value)} />
-                            </td>
-                          </React.Fragment>
-                        ))}
-                      </tr>
-                    </tbody>
-                  </table>
-                </div>
-              )}
+                      {chemicalNames.length > 0 && (
+                        <React.Fragment>
+                          <td className="border-r border-gray-200 p-2">
+                            <div className="flex justify-center">
+                              <Input type="text" maxLength={8} placeholder="DC No" className="w-28 rounded-full text-center h-9 text-sm placeholder:text-xs font-bold bg-yellow-50 border-2 border-yellow-300" value={dcChemical} onChange={(e) => setDcChemical(e.target.value.slice(0, 8))} />
+                            </div>
+                          </td>
+                          {chemicalNames.map((name, idx) => (
+                            <React.Fragment key={'chem-'+name+'-inputs'}>
+                              <td className={`border-r ${idx === chemicalNames.length - 1 && colorNames.length === 0 ? 'border-transparent' : 'border-gray-200'} p-1`}>
+                                <Input type="text" placeholder="Weight" className="w-20 rounded-full text-center h-9 text-sm placeholder:text-xs font-medium bg-yellow-50/10 border-2 border-yellow-200 mx-auto" value={weights[`CHEMICAL-${name}`] || ''} onChange={(e) => handleWeightChange('CHEMICAL', name, e.target.value)} />
+                              </td>
+                            </React.Fragment>
+                          ))}
+                        </React.Fragment>
+                      )}
 
-              {/* COLORS TABLE */}
-              {colorNames.length > 0 && (
-                <div className="border border-gray-200 rounded-lg overflow-x-auto shadow-sm w-max max-w-full">
-                  <table className="text-sm border-collapse bg-white">
-                    <thead>
-                      <tr className="bg-gray-50 border-b border-gray-300">
-                        <th colSpan={colorNames.length * 2 + 1} className="px-3 py-2 text-center font-bold text-purple-700 uppercase tracking-wide bg-purple-50/50">
-                          COLORS
-                        </th>
-                      </tr>
-                      <tr className="bg-gray-50/80 border-b border-gray-300">
-                        <th rowSpan={2} className="border-r border-gray-300 px-3 py-2 text-center font-semibold text-purple-800 text-xs uppercase whitespace-nowrap">DC</th>
-                        {colorNames.map(name => (
-                          <th key={name} colSpan={2} className="border-r border-gray-300 px-3 py-2 text-center font-semibold text-purple-600 text-xs uppercase whitespace-nowrap">{name}</th>
-                        ))}
-                      </tr>
-                      <tr className="bg-gray-50/80 border-b border-gray-300">
-                        {colorNames.map(name => (
-                          <React.Fragment key={`${name}-sub`}>
-                            <th className="border-r border-gray-300 px-1 py-1 text-center font-semibold text-purple-600 text-[11px] uppercase whitespace-nowrap">Bags</th>
-                            <th className="border-r border-gray-300 px-1 py-1 text-center font-semibold text-purple-600 text-[11px] uppercase whitespace-nowrap">Weight (Kg)</th>
-                          </React.Fragment>
-                        ))}
-                      </tr>
-                    </thead>
-                    <tbody>
-                      <tr>
-                        <td className="border-r border-gray-300 p-2">
-                          <div className={`flex ${colorNames.length === 1 ? 'justify-center' : 'justify-start'}`}>
-                            <Input type="text" maxLength={8} placeholder="DC No" className="w-28 text-center h-9 text-sm placeholder:text-xs font-bold bg-purple-50 border-2 border-purple-300" value={dcColor} onChange={(e) => setDcColor(e.target.value.slice(0, 8))} />
-                          </div>
-                        </td>
-                        {colorNames.map(name => (
-                          <React.Fragment key={`${name}-inputs`}>
-                            <td className="border-r border-gray-300 p-1">
-                              <Input type="text" placeholder="Bags" className="w-16 text-center h-9 text-sm placeholder:text-xs font-medium bg-purple-50/10 border-2 border-purple-200 mx-auto" value={bags[`COLOR-${name}`] || ''} onChange={(e) => handleBagChange('COLOR', name, e.target.value)} />
-                            </td>
-                            <td className="border-r border-gray-300 p-1">
-                              <Input type="text" placeholder="Weight" className="w-20 text-center h-9 text-sm placeholder:text-xs font-medium bg-purple-50/10 border-2 border-purple-200 mx-auto" value={weights[`COLOR-${name}`] || ''} onChange={(e) => handleWeightChange('COLOR', name, e.target.value)} />
-                            </td>
-                          </React.Fragment>
-                        ))}
-                      </tr>
-                    </tbody>
-                  </table>
-                </div>
-              )}
+                      {colorNames.length > 0 && (
+                        <React.Fragment>
+                          <td className="border-r border-gray-200 p-2">
+                            <div className="flex justify-center">
+                              <Input type="text" maxLength={8} placeholder="DC No" className="w-28 rounded-full text-center h-9 text-sm placeholder:text-xs font-bold bg-purple-50 border-2 border-purple-300" value={dcColor} onChange={(e) => setDcColor(e.target.value.slice(0, 8))} />
+                            </div>
+                          </td>
+                          {colorNames.map((name, idx) => (
+                            <React.Fragment key={'col-'+name+'-inputs'}>
+                              <td className={`border-r ${idx === colorNames.length - 1 ? 'border-transparent' : 'border-gray-200'} p-1`}>
+                                <Input type="text" placeholder="Weight" className="w-20 rounded-full text-center h-9 text-sm placeholder:text-xs font-medium bg-purple-50/10 border-2 border-purple-200 mx-auto" value={weights[`COLOR-${name}`] || ''} onChange={(e) => handleWeightChange('COLOR', name, e.target.value)} />
+                              </td>
+                            </React.Fragment>
+                          ))}
+                        </React.Fragment>
+                      )}
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
             </div>
           )}
           {error && <p className="text-sm text-red-600 font-medium">{error}</p>}
