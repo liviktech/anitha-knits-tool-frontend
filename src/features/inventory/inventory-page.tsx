@@ -452,17 +452,19 @@ function StockSummaryCard({ month, onEditDate, onDeleteDate }: { month: string; 
   const { data: allExtruderData } = useExtruderProductions('?limit=100');
   const extruderRecords = allExtruderData?.data ?? [];
 
+  // Balances shown on these cards are stock levels, not ledgers — they never
+  // display below 0.00 even if consumption momentarily outpaces recorded receipts.
   const getHDPEBalance = (name: string) =>
-    sumInventoryWeight(records, 'HDPE', name)
-    - extruderRecords.filter(r => r.extruder?.brand?.name === name).reduce((sum, r) => sum + (r.extruder?.rawMaterialKg ?? 0), 0);
+    Math.max(0, sumInventoryWeight(records, 'HDPE', name)
+      - extruderRecords.filter(r => r.extruder?.brand?.name === name).reduce((sum, r) => sum + (r.extruder?.rawMaterialKg ?? 0), 0));
 
   const getChemicalBalance = (name: string) =>
-    sumInventoryWeight(records, 'CHEMICAL', name)
-    - extruderRecords.filter(r => r.extruder?.chemical?.name === name).reduce((sum, r) => sum + (r.extruder?.chemicalKg ?? 0), 0);
+    Math.max(0, sumInventoryWeight(records, 'CHEMICAL', name)
+      - extruderRecords.filter(r => r.extruder?.chemical?.name === name).reduce((sum, r) => sum + (r.extruder?.chemicalKg ?? 0), 0));
 
   const getColorBalance = (name: string) =>
-    sumInventoryWeight(records, 'COLOR', name)
-    - extruderRecords.filter(r => r.color?.name === name).reduce((sum, r) => sum + (r.extruder?.colorConsumedKg ?? 0), 0);
+    Math.max(0, sumInventoryWeight(records, 'COLOR', name)
+      - extruderRecords.filter(r => r.color?.name === name).reduce((sum, r) => sum + (r.extruder?.colorConsumedKg ?? 0), 0));
 
   const rawMaterialsBalance = {
     weight: hdpeNames.reduce((sum, name) => sum + getHDPEBalance(name), 0),
@@ -503,8 +505,12 @@ function StockSummaryCard({ month, onEditDate, onDeleteDate }: { month: string; 
   const getWeight = (dayRecords: InventoryRecord[], type: InventoryType, name: string) =>
     dayRecords.filter(r => r.type === type && r.name === name).reduce((sum, r) => sum + r.weightKg, 0);
 
+  const getBags = (dayRecords: InventoryRecord[], type: InventoryType, name: string) =>
+    dayRecords.filter(r => r.type === type && r.name === name).reduce((sum, r) => sum + (r.bagCount || 0), 0);
+
   // Totals row
   const hdpeTotals = hdpeNames.map(name => monthRecords.filter(r => r.type === 'HDPE' && r.name === name).reduce((s, r) => s + r.weightKg, 0));
+  const hdpeBagTotals = hdpeNames.map(name => monthRecords.filter(r => r.type === 'HDPE' && r.name === name).reduce((s, r) => s + (r.bagCount || 0), 0));
   const chemTotals = chemicalNames.map(name => monthRecords.filter(r => r.type === 'CHEMICAL' && r.name === name).reduce((s, r) => s + r.weightKg, 0));
   const colorTotals = colorNames.map(name => monthRecords.filter(r => r.type === 'COLOR' && r.name === name).reduce((s, r) => s + r.weightKg, 0));
 
@@ -522,20 +528,20 @@ function StockSummaryCard({ month, onEditDate, onDeleteDate }: { month: string; 
           <div className="absolute top-0 right-0 p-4 opacity-5 group-hover/card:opacity-10 transition-opacity">
             <img src="/hdpe.png" alt="" className="w-26 h-26 object-contain" />
           </div>
-          <div className="flex justify-between items-center mb-4 relative z-10">
+          <div className="flex justify-between items-center mb-2 relative z-10">
             <div className="flex items-center gap-2">
               <div className=""><img src="/hdpe.png" alt="HDPE" className="w-12 h-12 object-contain" /></div>
               <h3 className="font-extrabold text-gray-800 text-lg">HDPE Materials</h3>
             </div>
             <div className="text-lg font-bold text-gray-800 leading-none">{rawMaterialsBalance.weight.toFixed(2)} <span className="text-xs font-medium text-gray-500">kg</span></div>
           </div>
-          <div className="mt-auto relative z-10 pt-2 border-t border-gray-50">
+          <div className="mt-auto relative z-10 pt-1 border-t border-gray-50">
             {rawMaterialsBalance.items.length > 0 ? (
-              <div className="flex flex-wrap items-center gap-x-6 gap-y-3 mt-2">
+              <div className={`flex flex-wrap items-center gap-x-11 gap-y-1 ${rawMaterialsBalance.items.length === 1 ? 'justify-center' : 'justify-start'}`}>
                 {rawMaterialsBalance.items.map(item => (
-                  <div key={item.name} className="flex flex-col gap-0.5">
-                    <span className="font-medium text-gray-500 text-xs">{item.name}</span>
-                    <span className="font-extrabold text-[#004D40] text-base">{item.weight.toFixed(2)}<span className="text-gray-500 font-normal text-xs ml-0.5">kg</span></span>
+                  <div key={item.name} className={`flex flex-col gap-0.5 ${rawMaterialsBalance.items.length === 1 ? 'items-center text-center' : 'items-start text-left'}`}>
+                    <span className="font-medium text-gray-500 text-sm">{item.name}</span>
+                    <span className="font-extrabold text-[#004D40] text-sm">{item.weight.toFixed(2)}<span className="text-gray-500 font-normal text-xs ml-0.5">kg</span></span>
                   </div>
                 ))}
               </div>
@@ -548,7 +554,7 @@ function StockSummaryCard({ month, onEditDate, onDeleteDate }: { month: string; 
           <div className="absolute top-0 right-0 p-4 opacity-5 group-hover/card:opacity-10 transition-opacity">
             <img src="/chemical.png" alt="" className="w-26 h-26 object-contain" />
           </div>
-          <div className="flex justify-between items-center mb-4 relative z-10">
+          <div className="flex justify-between items-center mb-2 relative z-10">
             <div className="flex items-center gap-2">
               <div className=""><img src="/chemical.png" alt="Chemicals" className="w-12 h-12 object-contain" /></div>
               <h3 className="font-extrabold text-gray-800 text-lg">Chemicals</h3>
@@ -557,11 +563,11 @@ function StockSummaryCard({ month, onEditDate, onDeleteDate }: { month: string; 
           </div>
           <div className="mt-auto relative z-10 pt-2 border-t border-gray-50">
             {chemicalsBalance.items.length > 0 ? (
-              <div className="flex flex-wrap items-center gap-x-6 gap-y-3 mt-2">
+              <div className={`flex flex-wrap items-center gap-x-11 gap-y-3 mt-2 ${chemicalsBalance.items.length === 1 ? 'justify-center' : 'justify-start'}`}>
                 {chemicalsBalance.items.map(item => (
-                  <div key={item.name} className="flex flex-col gap-0.5">
-                    <span className="font-medium text-gray-500 text-xs">{item.name}</span>
-                    <span className="font-extrabold text-[#004D40] text-base">{item.weight.toFixed(2)}<span className="text-gray-500 font-normal text-xs ml-0.5">kg</span></span>
+                  <div key={item.name} className={`flex flex-col gap-0.5 ${chemicalsBalance.items.length === 1 ? 'items-center text-center' : 'items-start text-left'}`}>
+                    <span className="font-medium text-gray-500 text-sm">{item.name}</span>
+                    <span className="font-extrabold text-[#004D40] text-sm">{item.weight.toFixed(2)}<span className="text-gray-500 font-normal text-xs ml-0.5">kg</span></span>
                   </div>
                 ))}
               </div>
@@ -574,7 +580,7 @@ function StockSummaryCard({ month, onEditDate, onDeleteDate }: { month: string; 
           <div className="absolute top-0 right-0 p-4 opacity-5 group-hover/card:opacity-10 transition-opacity">
             <img src="/color.png" alt="" className="w-26 h-26 object-contain" />
           </div>
-          <div className="flex justify-between items-center mb-4 relative z-10">
+          <div className="flex justify-between items-center mb-2 relative z-10">
             <div className="flex items-center gap-2">
               <div className=""><img src="/color.png" alt="Colors" className="w-12 h-12 object-contain" /></div>
               <h3 className="font-extrabold text-gray-800 text-lg">Colors</h3>
@@ -583,11 +589,11 @@ function StockSummaryCard({ month, onEditDate, onDeleteDate }: { month: string; 
           </div>
           <div className="mt-auto relative z-10 pt-2 border-t border-gray-50">
             {colorsBalance.items.length > 0 ? (
-              <div className="flex flex-wrap items-center gap-x-6 gap-y-3 mt-2">
+              <div className={`flex flex-wrap items-center gap-x-11 gap-y-3 mt-2 ${colorsBalance.items.length === 1 ? 'justify-center' : 'justify-start'}`}>
                 {colorsBalance.items.map(item => (
-                  <div key={item.name} className="flex flex-col gap-0.5">
-                    <span className="font-medium text-gray-500 text-xs">{item.name}</span>
-                    <span className="font-extrabold text-[#004D40] text-base">{item.weight.toFixed(2)}<span className="text-gray-500 font-normal text-xs ml-0.5">kg</span></span>
+                  <div key={item.name} className={`flex flex-col gap-0.5 ${colorsBalance.items.length === 1 ? 'items-center text-center' : 'items-start text-left'}`}>
+                    <span className="font-medium text-gray-500 text-sm">{item.name}</span>
+                    <span className="font-extrabold text-[#004D40] text-sm">{item.weight.toFixed(2)}<span className="text-gray-500 font-normal text-xs ml-0.5">kg</span></span>
                   </div>
                 ))}
               </div>
@@ -608,9 +614,9 @@ function StockSummaryCard({ month, onEditDate, onDeleteDate }: { month: string; 
           <table className="w-full border-collapse text-sm">
             <thead>
               <tr className="bg-gray-50 border-b border-gray-300">
-                <th rowSpan={2} className="border border-gray-300 px-3 py-2 text-left font-semibold text-gray-700 uppercase tracking-wide text-xs whitespace-nowrap w-28">DATE</th>
+                <th rowSpan={3} className="border border-gray-300 px-3 py-2 text-left font-semibold text-gray-700 uppercase tracking-wide text-xs whitespace-nowrap w-28">DATE</th>
                 {hdpeNames.length > 0 && (
-                  <th colSpan={hdpeNames.length + 2} className="border border-gray-300 px-3 py-2 text-center font-bold text-teal-800 uppercase tracking-wide text-xs bg-blue-100">
+                  <th colSpan={(hdpeNames.length * 2) + 3} className="border border-gray-300 px-3 py-2 text-center font-bold text-teal-800 uppercase tracking-wide text-xs bg-blue-100">
                     HDPE
                   </th>
                 )}
@@ -625,31 +631,45 @@ function StockSummaryCard({ month, onEditDate, onDeleteDate }: { month: string; 
                   </th>
                 )}
                 {totalCols === 0 && <th className="border border-gray-300 px-3 py-1.5 text-gray-400"></th>}
-                <th rowSpan={2} className="border border-gray-300 px-3 py-2 text-center font-semibold text-gray-700 uppercase tracking-wide text-xs whitespace-nowrap w-20">ACTIONS</th>
+                <th rowSpan={3} className="border border-gray-300 px-3 py-2 text-center font-semibold text-gray-700 uppercase tracking-wide text-xs whitespace-nowrap w-20">ACTIONS</th>
               </tr>
               <tr className="bg-white border-b border-gray-300">
-                {hdpeNames.length > 0 && <th className="border border-gray-300 px-3 py-1.5 text-center font-bold text-gray-800 text-xs uppercase whitespace-nowrap bg-gray-50/50">DC NO</th>}
+                {hdpeNames.length > 0 && <th rowSpan={2} className="border border-gray-300 px-3 py-1.5 text-center font-bold text-gray-800 text-xs uppercase whitespace-nowrap bg-gray-50/50">DC NO</th>}
                 {hdpeNames.map(name => (
-                  <th key={name} className="border border-gray-300 px-3 py-1.5 text-center font-bold text-gray-800 text-xs uppercase whitespace-nowrap">{name}</th>
+                  <th key={name} colSpan={2} className="border border-gray-300 px-3 py-1.5 text-center font-bold text-blue-800 text-xs uppercase whitespace-nowrap">{name}</th>
                 ))}
-                {hdpeNames.length > 0 && <th className="border border-gray-300 px-3 py-1.5 text-center font-bold text-teal-800 text-xs uppercase whitespace-nowrap bg-blue-50/70">Total</th>}
-                {chemicalNames.length > 0 && <th className="border border-gray-300 px-3 py-1.5 text-center font-bold text-gray-800 text-xs uppercase whitespace-nowrap bg-gray-50/50">DC NO</th>}
+                {hdpeNames.length > 0 && <th colSpan={2} className="border border-gray-300 px-3 py-1.5 text-center font-bold text-teal-800 text-xs uppercase whitespace-nowrap bg-blue-50/70">Total</th>}
+                
+                {chemicalNames.length > 0 && <th rowSpan={2} className="border border-gray-300 px-3 py-1.5 text-center font-bold text-gray-800 text-xs uppercase whitespace-nowrap bg-gray-50/50">DC NO</th>}
                 {chemicalNames.map(name => (
-                  <th key={name} className="border border-gray-300 px-3 py-1.5 text-center font-bold text-gray-800 text-xs uppercase whitespace-nowrap">{name}</th>
+                  <th key={name} rowSpan={2} className="border border-gray-300 px-3 py-1.5 text-center font-bold text-gray-800 text-xs uppercase whitespace-nowrap">{name}</th>
                 ))}
-                {chemicalNames.length > 0 && <th className="border border-gray-300 px-3 py-1.5 text-center font-bold text-yellow-800 text-xs uppercase whitespace-nowrap bg-yellow-50/70">Total</th>}
-                {colorNames.length > 0 && <th className="border border-gray-300 px-3 py-1.5 text-center font-bold text-gray-800 text-xs uppercase whitespace-nowrap bg-gray-50/50">DC NO</th>}
+                {chemicalNames.length > 0 && <th rowSpan={2} className="border border-gray-300 px-3 py-1.5 text-center font-bold text-yellow-800 text-xs uppercase whitespace-nowrap bg-yellow-50/70">Total</th>}
+                
+                {colorNames.length > 0 && <th rowSpan={2} className="border border-gray-300 px-3 py-1.5 text-center font-bold text-gray-800 text-xs uppercase whitespace-nowrap bg-gray-50/50">DC NO</th>}
                 {colorNames.map(name => (
-                  <th key={name} className="border border-gray-300 px-3 py-1.5 text-center font-bold text-gray-800 text-xs uppercase whitespace-nowrap">{name}</th>
+                  <th key={name} rowSpan={2} className="border border-gray-300 px-3 py-1.5 text-center font-bold text-gray-800 text-xs uppercase whitespace-nowrap">{name}</th>
                 ))}
-                {colorNames.length > 0 && <th className="border border-gray-300 px-3 py-1.5 text-center font-bold text-green-800 text-xs uppercase whitespace-nowrap bg-green-50/70">Total</th>}
-                {totalCols === 0 && <th className="border border-gray-300"></th>}
+                {colorNames.length > 0 && <th rowSpan={2} className="border border-gray-300 px-3 py-1.5 text-center font-bold text-green-800 text-xs uppercase whitespace-nowrap bg-green-50/70">Total</th>}
+                {totalCols === 0 && <th rowSpan={2} className="border border-gray-300"></th>}
+              </tr>
+              <tr className="bg-white border-b border-gray-300">
+                {hdpeNames.flatMap(name => [
+                  <th key={`${name}-bags`} className="border border-gray-300 px-3 py-1 text-center font-bold text-blue-700 text-[10px] uppercase whitespace-nowrap bg-blue-50/10">BAGS</th>,
+                  <th key={`${name}-kg`} className="border border-gray-300 px-3 py-1 text-center font-bold text-blue-700 text-[10px] uppercase whitespace-nowrap">WEIGHT (KG)</th>
+                ])}
+                {hdpeNames.length > 0 && (
+                  <>
+                    <th className="border border-gray-300 px-3 py-1 text-center font-bold text-teal-800 text-[10px] uppercase whitespace-nowrap bg-blue-50/30">BAGS</th>
+                    <th className="border border-gray-300 px-3 py-1 text-center font-bold text-teal-800 text-[10px] uppercase whitespace-nowrap bg-blue-50/30">WEIGHT (KG)</th>
+                  </>
+                )}
               </tr>
             </thead>
             <tbody>
               {isLoading ? (
                 <tr>
-                  <td colSpan={2 + totalCols || 3} className="h-28 text-center">
+                  <td colSpan={2 + (hdpeNames.length > 0 ? (hdpeNames.length * 2) + 3 : 0) + (chemicalNames.length > 0 ? chemicalNames.length + 2 : 0) + (colorNames.length > 0 ? colorNames.length + 2 : 0) + (totalCols === 0 ? 1 : 0)} className="h-28 text-center">
                     <div className="flex items-center justify-center gap-2 text-gray-500 text-sm">
                       <Loader size="sm" /> Loading stock records...
                     </div>
@@ -657,7 +677,7 @@ function StockSummaryCard({ month, onEditDate, onDeleteDate }: { month: string; 
                 </tr>
               ) : groupedByDate.length === 0 ? (
                 <tr>
-                  <td colSpan={2 + totalCols || 3} className="!text-center py-8 text-gray-400 text-sm">No stock received this month.</td>
+                  <td colSpan={2 + (hdpeNames.length > 0 ? (hdpeNames.length * 2) + 3 : 0) + (chemicalNames.length > 0 ? chemicalNames.length + 2 : 0) + (colorNames.length > 0 ? colorNames.length + 2 : 0) + (totalCols === 0 ? 1 : 0)} className="!text-center py-8 text-gray-400 text-sm">No stock received this month.</td>
                 </tr>
               ) : (
                 pagedGroupedByDate.map(([date, dayRecords]) => {
@@ -672,18 +692,27 @@ function StockSummaryCard({ month, onEditDate, onDeleteDate }: { month: string; 
                           {dayRecords.find(r => r.type === 'HDPE')?.DC_NUMBER || '-'}
                         </td>
                       )}
-                      {hdpeNames.map(name => {
+                      {hdpeNames.flatMap(name => {
                         const val = getWeight(dayRecords, 'HDPE', name);
-                        return (
-                          <td key={name} className="border border-gray-300 px-3 py-1 text-center font-medium text-gray-800 text-sm">
+                        const bags = getBags(dayRecords, 'HDPE', name);
+                        return [
+                          <td key={`${name}-bags`} className="border border-gray-300 px-3 py-1 text-center font-medium text-blue-700 text-sm bg-blue-50/10">
+                            {bags > 0 ? bags : <span className="text-gray-400">0</span>}
+                          </td>,
+                          <td key={`${name}-kg`} className="border border-gray-300 px-3 py-1 text-center font-medium text-gray-800 text-sm">
                             {val > 0 ? val.toFixed(2) : <span className="text-gray-500">0.00</span>}
                           </td>
-                        );
+                        ];
                       })}
                       {hdpeNames.length > 0 && (
-                        <td className="border border-gray-300 px-3 py-1 text-center font-bold text-gray-800 text-sm bg-blue-50/30">
-                          {dayHdpeTotal > 0 ? dayHdpeTotal.toFixed(2) : <span className="text-gray-500">0.00</span>}
-                        </td>
+                        <>
+                          <td className="border border-gray-300 px-3 py-1 text-center font-bold text-blue-800 text-sm bg-blue-50/50">
+                            {dayRecords.filter(r => r.type === 'HDPE').reduce((s, r) => s + (r.bagCount || 0), 0) > 0 ? dayRecords.filter(r => r.type === 'HDPE').reduce((s, r) => s + (r.bagCount || 0), 0) : <span className="text-gray-500">0</span>}
+                          </td>
+                          <td className="border border-gray-300 px-3 py-1 text-center font-bold text-gray-800 text-sm bg-blue-50/30">
+                            {dayHdpeTotal > 0 ? dayHdpeTotal.toFixed(2) : <span className="text-gray-500">0.00</span>}
+                          </td>
+                        </>
                       )}
                       {chemicalNames.length > 0 && (
                         <td className="border border-gray-300 px-3 py-1 text-center font-bold text-gray-800 text-sm bg-yellow-50/30">
@@ -744,11 +773,26 @@ function StockSummaryCard({ month, onEditDate, onDeleteDate }: { month: string; 
                 <tr className="bg-white border-t-2 border-gray-300 font-bold">
                   <td className="border border-gray-300 px-3 py-1.5 text-gray-800 uppercase text-sm tracking-wide font-bold">TOTAL</td>
                   {hdpeNames.length > 0 && <td className="border border-gray-300 px-3 py-1 bg-gray-50"></td>}
-                  {hdpeTotals.map((val, i) => (
-                    <td key={i} className="border border-gray-300 px-3 py-1 text-center text-gray-800 text-sm font-bold">{val > 0 ? val.toFixed(2) : <span className="text-gray-500">0.00</span>}</td>
-                  ))}
+                  {hdpeTotals.flatMap((val, i) => {
+                    const bags = hdpeBagTotals[i];
+                    return [
+                      <td key={`${i}-bags`} className="border border-gray-300 px-3 py-1 text-center text-blue-800 text-sm font-bold bg-blue-50/10">
+                        {bags > 0 ? bags : <span className="text-gray-400">0</span>}
+                      </td>,
+                      <td key={`${i}-kg`} className="border border-gray-300 px-3 py-1 text-center text-gray-800 text-sm font-bold">
+                        {val > 0 ? val.toFixed(2) : <span className="text-gray-500">0.00</span>}
+                      </td>
+                    ];
+                  })}
                   {hdpeNames.length > 0 && (
-                    <td className="border border-gray-300 px-3 py-1 text-center text-gray-800 text-sm font-bold bg-blue-50/50">{rawMaterials.weight > 0 ? rawMaterials.weight.toFixed(2) : <span className="text-gray-500">0.00</span>}</td>
+                    <>
+                      <td className="border border-gray-300 px-3 py-1 text-center text-blue-800 text-sm font-bold bg-blue-100/50">
+                        {hdpeBagTotals.reduce((a, b) => a + b, 0) > 0 ? hdpeBagTotals.reduce((a, b) => a + b, 0) : <span className="text-gray-500">0</span>}
+                      </td>
+                      <td className="border border-gray-300 px-3 py-1 text-center text-gray-800 text-sm font-bold bg-blue-50/50">
+                        {rawMaterials.weight > 0 ? rawMaterials.weight.toFixed(2) : <span className="text-gray-500">0.00</span>}
+                      </td>
+                    </>
                   )}
                   {chemicalNames.length > 0 && <td className="border border-gray-300 px-3 py-1 bg-gray-50"></td>}
                   {chemTotals.map((val, i) => (
@@ -870,13 +914,13 @@ export function InventoryPage() {
               className="h-9 w-40 bg-white border border-gray-400 rounded-md px-3 py-2 text-sm font-semibold text-[#003140] shadow-[0_1px_2px_rgba(0,0,0,0.05)] hover:bg-gray-50 focus-visible:ring-1 focus-visible:ring-[#004D40]"
             />
             {canAddStock && (
-            <Button
-              className="flex items-center gap-2 bg-[#004D40] hover:bg-[#00382e] text-white rounded-md px-3 py-2 h-auto text-[12px] font-bold tracking-wide shadow-[0_1px_2px_rgba(0,45,35,0.2)]"
-              onClick={openAdd}
-            >
-              <Plus className="w-3 h-3" />
-              ADD STOCK
-            </Button>
+              <Button
+                className="flex items-center gap-2 bg-[#004D40] hover:bg-[#00382e] text-white rounded-md px-3 py-2 h-auto text-[12px] font-bold tracking-wide shadow-[0_1px_2px_rgba(0,45,35,0.2)]"
+                onClick={openAdd}
+              >
+                <Plus className="w-3 h-3" />
+                ADD STOCK
+              </Button>
             )}
           </div>
         )}

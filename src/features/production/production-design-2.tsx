@@ -17,7 +17,7 @@ import loomsIcon from '@/assets/looms-icon.png';
 import { useExtruderProductions, extruderKeys } from '@/features/extruder/extruder-queries';
 import { useLoomsProductions, loomsKeys } from '@/features/looms/loom-queries';
 import { useFabricCheckingRecords, fabricCheckingKeys } from '@/features/fabric/fabric-queries';
-import { useLoadSentRecords } from '@/features/inventory/load-sent-queries';
+import { useLoadSentRecords, loadSentKeys } from '@/features/inventory/load-sent-queries';
 import { useDayWiseProduction, dashboardProductionKey, type DayWiseRow } from './day-wise-queries';
 import { mapExtruderItem, mapLoomItem, mapFabricItem } from './day-entry-sections';
 import { DayWiseReportModal } from './day-wise-report-modal';
@@ -318,6 +318,7 @@ function DayDetailView({
         ...(extruderData?.data ?? []).map((r) => ({ path: '/production/extruder', id: r.id })),
         ...(loomsData?.data ?? []).map((r) => ({ path: '/production/looms', id: r.id })),
         ...(fabricData?.data ?? []).map((r) => ({ path: '/fabric-checking', id: r.id })),
+        ...fabricDeliveredRows.map((r) => ({ path: '/load-sent', id: r.id })),
       ];
       const results = await Promise.all(targets.map(({ path, id }) => apiFetch(`${path}/${id}`, { method: 'DELETE' })));
       if (results.some((r) => !r.ok)) throw new Error('Failed to delete one or more entries');
@@ -326,6 +327,7 @@ function DayDetailView({
         queryClient.invalidateQueries({ queryKey: extruderKeys.all }),
         queryClient.invalidateQueries({ queryKey: loomsKeys.all }),
         queryClient.invalidateQueries({ queryKey: fabricCheckingKeys.all }),
+        queryClient.invalidateQueries({ queryKey: loadSentKeys.all }),
         queryClient.invalidateQueries({ queryKey: dashboardProductionKey }),
       ]);
       setConfirmDeleteOpen(false);
@@ -518,7 +520,7 @@ function DayDetailView({
         open={confirmDeleteOpen}
         onOpenChange={setConfirmDeleteOpen}
         title="Delete this day's entries?"
-        description={`Removes every Extruder, Looms, and Fabric Checking record for ${formattedDate}. This action cannot be undone.`}
+        description={`Removes every Extruder, Looms, Fabric Checking, and Fabric Delivered record for ${formattedDate}. This action cannot be undone.`}
         isPending={deletingDay}
         onConfirm={handleDeleteDay}
       />
@@ -579,16 +581,18 @@ export function ProductionDesign2() {
     setDeletingDate(true);
     try {
       const dateQuery = `?date_from=${deleteTargetDate}&date_to=${deleteTargetDate}&limit=100`;
-      const [extruderRes, loomsRes, fabricRes] = await Promise.all([
+      const [extruderRes, loomsRes, fabricRes, loadSentRes] = await Promise.all([
         fetchJson<{ data: { id: string }[] }>(`/production/extruder${dateQuery}`),
         fetchJson<{ data: { id: string }[] }>(`/production/looms${dateQuery}`),
         fetchJson<{ data: { id: string }[] }>(`/fabric-checking${dateQuery}`),
+        fetchJson<{ data: { id: string }[] }>(`/load-sent${dateQuery}`),
       ]);
 
       const results = await Promise.all([
         ...extruderRes.data.map((r) => apiFetch(`/production/extruder/${r.id}`, { method: 'DELETE' })),
         ...loomsRes.data.map((r) => apiFetch(`/production/looms/${r.id}`, { method: 'DELETE' })),
         ...fabricRes.data.map((r) => apiFetch(`/fabric-checking/${r.id}`, { method: 'DELETE' })),
+        ...loadSentRes.data.map((r) => apiFetch(`/load-sent/${r.id}`, { method: 'DELETE' })),
       ]);
       if (results.some((r) => !r.ok)) throw new Error('Failed to delete one or more entries');
 
@@ -596,6 +600,7 @@ export function ProductionDesign2() {
         queryClient.invalidateQueries({ queryKey: extruderKeys.all }),
         queryClient.invalidateQueries({ queryKey: loomsKeys.all }),
         queryClient.invalidateQueries({ queryKey: fabricCheckingKeys.all }),
+        queryClient.invalidateQueries({ queryKey: loadSentKeys.all }),
         queryClient.invalidateQueries({ queryKey: dashboardProductionKey }),
       ]);
       setDeleteTargetDate(null);
@@ -757,7 +762,7 @@ export function ProductionDesign2() {
       ) : (
         <div className="p-2 flex flex-col gap-2 flex-1">
           {/* Summary Cards */}
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-2.5">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-2">
             <Card className="bg-white rounded-[14px] p-2 hover:shadow-md transition-all">
               <div className="bg-[#00897B]/5 border border-[#B8DCD0] rounded-[10px] h-full flex flex-col">
                 <CardHeader className="flex flex-row items-center justify-between pb-3 pt-4 px-4">
@@ -789,10 +794,12 @@ export function ProductionDesign2() {
                       <p className="text-[10px] px-3 font-extrabold uppercase tracking-wide text-gray-600 mb-1.5">WASTE %</p>
                       <p className="text-[17px] px-3 font-bold text-gray-900 leading-none font-inter">{wastePct.toFixed(2)}%</p>
                     </div>
+                    {/* TODO: wire up a real Lums-only wastage figure, then uncomment.
                     <div className="flex-[1.7]">
                       <p className="text-[10px] px-3 font-extrabold uppercase tracking-wide text-gray-600 mb-1.5">LUMS WASTAGE (KG)</p>
-                      <p className="text-[17px] px-3 font-bold text-gray-900 leading-none font-inter">0.00</p>
+                      <p className="text-[17px] px-3 font-bold text-gray-900 leading-none font-inter">{formatNum(lumsWastageKg)}</p>
                     </div>
+                    */}
                   </div>
                 </CardContent>
               </div>
@@ -843,7 +850,7 @@ export function ProductionDesign2() {
                     Fabric Production
                   </CardTitle>
                   <div className="bg-white p-1.5 rounded-md border border-gray-100 shadow-[0_1px_2px_rgba(0,0,0,0.05)] text-[#004D40] flex items-center justify-center">
-                    <Layers className="w-[35px] h-[35px] opacity-90" />
+                    <img src="/fabric-prod.png" alt="Fabric Production" className="w-[35px] h-[35px] object-contain" />
                   </div>
                 </CardHeader>
                 <CardContent className="px-3 pb-4 pt-0 flex-1 flex flex-col justify-between">
@@ -866,10 +873,13 @@ export function ProductionDesign2() {
                       <p className="text-[10px] px-3 font-extrabold uppercase tracking-wide text-gray-600 mb-1">WASTE %</p>
                       <p className="text-[17px] px-3 font-bold text-gray-900 leading-none font-inter">{fabricWastePct.toFixed(2)}%</p>
                     </div>
+                    {/* TODO: decide what "Wastage Value" should represent (Bit Waste only? Fabric
+                    Waste only? Same as Total Wastage above?), wire it up, then uncomment.
                     <div className="flex-[1.7]">
                       <p className="text-[10px] px-3 font-extrabold uppercase tracking-wide text-gray-600 mb-1">WASTAGE VALUE (KG)</p>
                       <p className="text-[17px] px-3 font-bold text-gray-900 leading-none font-inter">0.00</p>
                     </div>
+                    */}
                   </div>
                 </CardContent>
               </div>
@@ -896,7 +906,7 @@ export function ProductionDesign2() {
               </div>
             </CardHeader>
             <div className="overflow-x-auto w-full">
-              <Table className="w-full">
+              <Table className="w-full table-fixed">
                 <TableHeader>
                   <TableRow className="hover:bg-transparent border-b border-gray-300">
                     <TableHead rowSpan={2} className="!text-center font-bold text-gray-800 align-middle border-r border-gray-300 w-[95px] min-w-[95px] px-1.5 bg-white text-xs uppercase tracking-wider">Date</TableHead>
@@ -928,20 +938,20 @@ export function ProductionDesign2() {
                   </TableRow>
                   <TableRow className="hover:bg-transparent bg-white border-b border-gray-300">
                     {/* Extruder */}
-                    <TableHead className="text-center text-gray-800 font-extrabold text-[12px] uppercase tracking-wider h-8">Input</TableHead>
-                    <TableHead className="text-center text-gray-800 font-extrabold text-[12px] uppercase tracking-wider h-8">Wastage</TableHead>
-                    <TableHead className="text-center text-gray-800 font-extrabold text-[12px] uppercase tracking-wider border-r border-gray-300 h-8">Output</TableHead>
+                    <TableHead className="w-[7.34%] !text-center text-gray-800 font-extrabold text-[12px] uppercase tracking-wider h-8">Input</TableHead>
+                    <TableHead className="w-[7.34%] !text-center text-gray-800 font-extrabold text-[12px] uppercase tracking-wider h-8">Wastage</TableHead>
+                    <TableHead className="w-[7.34%] !text-center text-gray-800 font-extrabold text-[12px] uppercase tracking-wider border-r border-gray-300 h-8">Output</TableHead>
                     {/* Looms */}
-                    <TableHead className="text-center text-gray-800 font-extrabold text-[12px] uppercase tracking-wider h-8">Input</TableHead>
-                    <TableHead className="text-center text-gray-800 font-extrabold text-[12px] uppercase tracking-wider h-8">Wastage</TableHead>
-                    <TableHead className="text-center text-gray-800 font-extrabold text-[12px] uppercase tracking-wider border-r border-gray-300 h-8">Output</TableHead>
+                    <TableHead className="w-[7.34%] !text-center text-gray-800 font-extrabold text-[12px] uppercase tracking-wider h-8">Input</TableHead>
+                    <TableHead className="w-[7.34%] !text-center text-gray-800 font-extrabold text-[12px] uppercase tracking-wider h-8">Wastage</TableHead>
+                    <TableHead className="w-[7.34%] !text-center text-gray-800 font-extrabold text-[12px] uppercase tracking-wider border-r border-gray-300 h-8">Output</TableHead>
                     {/* Fabric */}
-                    <TableHead className="text-center text-gray-800 font-extrabold text-[12px] uppercase tracking-wider h-8">Input</TableHead>
-                    <TableHead className="text-center text-gray-800 font-extrabold text-[12px] uppercase tracking-wider h-8">Wastage</TableHead>
-                    <TableHead className="text-center text-gray-800 font-extrabold text-[12px] uppercase tracking-wider border-r border-gray-300 h-8">Output</TableHead>
+                    <TableHead className="w-[7.34%] !text-center text-gray-800 font-extrabold text-[12px] uppercase tracking-wider h-8">Input</TableHead>
+                    <TableHead className="w-[7.34%] !text-center text-gray-800 font-extrabold text-[12px] uppercase tracking-wider h-8">Wastage</TableHead>
+                    <TableHead className="w-[7.34%] !text-center text-gray-800 font-extrabold text-[12px] uppercase tracking-wider border-r border-gray-300 h-8">Output</TableHead>
                     {/* Fabric Delivered */}
-                    <TableHead className="text-center text-gray-800 font-extrabold text-[12px] uppercase tracking-wider h-8">size</TableHead>
-                    <TableHead className="text-center text-gray-800 font-extrabold text-[12px] uppercase tracking-wider h-8">color</TableHead>
+                    <TableHead className="!text-center text-gray-800 font-extrabold text-[12px] uppercase tracking-wider h-8">size</TableHead>
+                    <TableHead className="!text-center text-gray-800 font-extrabold text-[12px] uppercase tracking-wider h-8">color</TableHead>
                     <TableHead className="!text-center text-gray-800 font-extrabold text-[12px] uppercase tracking-wider border-r border-gray-300 h-8">Output</TableHead>
                   </TableRow>
                 </TableHeader>
@@ -967,7 +977,7 @@ export function ProductionDesign2() {
                       return (
                         <TableRow key={row.date} className="border-b border-gray-300 hover:bg-gray-50 transition-colors group">
                           <TableCell
-                            className="text-center font-bold text-[#004D40] border-r border-gray-300 text-[14px] py-1 cursor-pointer hover:underline px-4"
+                            className="!text-center font-bold text-[#004D40] border-r border-gray-300 text-[14px] py-1 cursor-pointer hover:underline px-4"
                             onClick={() => {
                               setIsNavigating(true);
                               setTimeout(() => {
@@ -1038,7 +1048,7 @@ export function ProductionDesign2() {
                   )}
 
                   {!loadingDayWise && dayWiseRows.length > 0 && (
-                    <TableRow className="bg-white font-bold hover:bg-white border-t-2 border-gray-400">
+                    <TableRow className="bg-white font-bold hover:bg-white border-t-2 border-gray-200">
                       <TableCell className="!text-center border-r border-gray-300 text-gray-900 text-[13px] py-1 px-1.5">TOTAL</TableCell>
                       {/* Extruder Total */}
                       <TableCell className="text-center text-[#00897B] text-[14px]">{formatNum(dayWiseTotals.extruder.input)}</TableCell>
@@ -1055,7 +1065,7 @@ export function ProductionDesign2() {
                       {/* Fabric Delivered Total */}
                       <TableCell className="text-center text-[#00897B] text-[14px]">-</TableCell>
                       <TableCell className="text-center text-[#00897B] text-[14px]">-</TableCell>
-                      <TableCell className="!text-center text-[#00897B] text-[14px] border-r border-gray-300">{formatNum(selectedMonthDeliveryTotal)}</TableCell>
+                      <TableCell className="!text-center text-[#00897B] text-[14px] border-r border-gray-200">{formatNum(selectedMonthDeliveryTotal)}</TableCell>
                       <TableCell></TableCell>
                     </TableRow>
                   )}
@@ -1113,7 +1123,7 @@ export function ProductionDesign2() {
         title="Delete this day's entries?"
         description={
           deleteTargetDate
-            ? `Removes every Extruder, Looms, and Fabric Checking record for ${format(parseISO(deleteTargetDate), 'dd MMM, yyyy')}. This action cannot be undone.`
+            ? `Removes every Extruder, Looms, Fabric Checking, and Fabric Delivered record for ${format(parseISO(deleteTargetDate), 'dd MMM, yyyy')}. This action cannot be undone.`
             : undefined
         }
         isPending={deletingDate}

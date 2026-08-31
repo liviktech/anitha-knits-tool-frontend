@@ -23,6 +23,22 @@ interface CategoryMeta {
 
 const CATEGORY_META: CategoryMeta[] = [
   {
+    key: 'brands',
+    title: 'Brands',
+    singular: 'Brand',
+    description: 'Registered raw material suppliers and brands.',
+    icon: Boxes,
+    accent: 'border-blue-200 bg-blue-50 text-blue-700',
+  },
+  {
+    key: 'chemicals',
+    title: 'Chemicals',
+    singular: 'Chemical',
+    description: 'Additive chemicals used in the color masterbatch mix.',
+    icon: Droplets,
+    accent: 'border-yellow-200 bg-yellow-50 text-yellow-700',
+  },
+  {
     key: 'colors',
     title: 'Colors',
     singular: 'Color',
@@ -38,22 +54,6 @@ const CATEGORY_META: CategoryMeta[] = [
     icon: Ruler,
     accent: 'border-green-200 bg-green-50 text-green-700',
   },
-  {
-    key: 'chemicals',
-    title: 'Chemicals',
-    singular: 'Chemical',
-    description: 'Additive chemicals used in the color masterbatch mix.',
-    icon: Droplets,
-    accent: 'border-yellow-200 bg-yellow-50 text-yellow-700',
-  },
-  {
-    key: 'brands',
-    title: 'Brands',
-    singular: 'Brand',
-    description: 'Registered raw material suppliers and brands.',
-    icon: Boxes,
-    accent: 'border-blue-200 bg-blue-50 text-blue-700',
-  },
 ];
 
 function formatLastUpdated(iso: string) {
@@ -63,7 +63,7 @@ function formatLastUpdated(iso: string) {
 }
 
 export function RawMaterialsTab() {
-  const [selectedKey, setSelectedKey] = useState<LookupResource>('colors');
+  const [selectedKey, setSelectedKey] = useState<LookupResource>('brands');
   const [isAddOpen, setIsAddOpen] = useState(false);
   const [editingItem, setEditingItem] = useState<LookupItem | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<LookupItem | null>(null);

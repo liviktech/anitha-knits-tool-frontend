@@ -12,11 +12,13 @@ import {
   findIdByName,
   extruderKeys,
   useColorConsumptionStandard,
+  useExtruderProductions,
   colorGramsPerBasis,
   type Lookups,
   type ExtruderCreatePayload,
   type ExtruderUpdatePayload,
 } from '@/features/extruder/extruder-queries';
+import { useInventoryRecords, sumInventoryWeight } from '@/features/inventory/inventory-queries';
 import { dashboardProductionKey } from '@/features/production/day-wise-queries';
 import { themes } from '@/features/production/day-entry-sections';
 import type { ExtruderGroupDraft, ExtruderBrandDraft } from '@/features/extruder/extruder-section-new';
@@ -33,6 +35,19 @@ function computeRaw(bags: string, weightPerBag: string, looseWeight: string): st
   if (b > 0 && wpb > 0) return (b * wpb + lw).toFixed(2);
   if (lw > 0) return lw.toFixed(2);
   return '';
+}
+
+/**
+ * Display-only: once the user types a bag count, the Bag Weight field shows
+ * bags × per-bag basis weight so the intermediate total is visible. This is
+ * purely cosmetic — the row's basisWeightKg (submitted as bagWeightKg, the
+ * per-bag standard) is unchanged; only what's rendered in the input differs.
+ */
+function computeBagWeightDisplay(bags: string, basisWeightKg: string): string {
+  const b = parseFloat(bags) || 0;
+  const wpb = parseFloat(basisWeightKg) || 0;
+  if (b > 0 && wpb > 0) return (b * wpb).toFixed(2);
+  return basisWeightKg;
 }
 
 /**
@@ -115,6 +130,16 @@ export function ExtruderModalForm({ productionDate, initialData, isEditMode, onC
   const { data: lookupsData } = useLookups();
   const lookups: Lookups = lookupsData ?? { brands: [], colors: [], chemicals: [], sizes: [] };
   const theme = themes.extruder;
+
+  // Brands with zero or negative live stock balance (received minus already-consumed)
+  // must not be selectable in the HDPE Material rows below.
+  const { data: inventoryData } = useInventoryRecords('?limit=100');
+  const inventoryRecords = inventoryData?.data ?? [];
+  const { data: allExtruderData } = useExtruderProductions('?limit=100');
+  const allExtruderRecords = allExtruderData?.data ?? [];
+  const getBrandBalance = (name: string) =>
+    sumInventoryWeight(inventoryRecords, 'HDPE', name)
+    - allExtruderRecords.filter((r) => r.extruder?.brand?.name === name).reduce((sum, r) => sum + (r.extruder?.rawMaterialKg ?? 0), 0);
 
   const [group, setGroup] = useState<ExtruderGroupDraft>(initialData || emptyGroupDraft());
   const [outputManuallyEdited, setOutputManuallyEdited] = useState(!!initialData);
@@ -348,24 +373,33 @@ export function ExtruderModalForm({ productionDate, initialData, isEditMode, onC
                 {idx === 0 && <Label className="text-xs text-gray-500">Brand</Label>}
                 <Select value={brandRow.brand} onValueChange={(v) => updateBrandField(brandRow.key, 'brand', v)}>
                   <SelectTrigger className="h-8 text-xs w-full"><SelectValue placeholder="Brand" /></SelectTrigger>
-                  <SelectContent>{lookups.brands?.map((b) => <SelectItem key={b.id} value={b.name}>{b.name}</SelectItem>)}</SelectContent>
+                  <SelectContent>
+                    {lookups.brands?.map((b) => {
+                      const outOfStock = getBrandBalance(b.name) <= 0 && b.name !== brandRow.brand;
+                      return (
+                        <SelectItem key={b.id} value={b.name} disabled={outOfStock}>
+                          {b.name}{outOfStock ? ' (no stock)' : ''}
+                        </SelectItem>
+                      );
+                    })}
+                  </SelectContent>
                 </Select>
               </div>
               <div className="space-y-1 flex-1">
                 {idx === 0 && <Label className="text-xs text-gray-500">Bags</Label>}
-                <Input type="number" placeholder="Bags" value={brandRow.bags} onChange={(e) => updateBrandField(brandRow.key, 'bags', e.target.value)} className="h-8 text-xs w-full" />
+                <Input type="number" min="0" onKeyDown={(e) => e.key === '-' && e.preventDefault()} placeholder="Bags" value={brandRow.bags} onChange={(e) => updateBrandField(brandRow.key, 'bags', e.target.value)} className="h-8 text-xs w-full" />
               </div>
               <div className="space-y-1 flex-1">
-                {idx === 0 && <Label className="text-xs text-gray-500">Bag Weight</Label>}
-                <Input type="number" placeholder="Bag Wt" disabled readOnly value={brandRow.basisWeightKg} className="h-8 text-xs w-fullborder border-gray-300" />
+                {idx === 0 && <Label className="text-xs text-gray-500">Bag Weight(kg)</Label>}
+                <Input type="number" min="0" onKeyDown={(e) => e.key === '-' && e.preventDefault()} placeholder="Bag Wt" disabled readOnly value={computeBagWeightDisplay(brandRow.bags, brandRow.basisWeightKg)} className="h-8 text-xs w-full border border-gray-400 disabled:opacity-100" />
               </div>
               <div className="space-y-1 flex-1">
-                {idx === 0 && <Label className="text-xs text-gray-500">Loose Weight</Label>}
-                <Input type="number" placeholder="Loose Wt" value={brandRow.looseWeight} onChange={(e) => updateBrandField(brandRow.key, 'looseWeight', e.target.value)} className="h-8 text-xs w-full" />
+                {idx === 0 && <Label className="text-xs text-gray-500 whitespace-nowrap">Loose Weight(kg)</Label>}
+                <Input type="number" min="0" onKeyDown={(e) => e.key === '-' && e.preventDefault()} placeholder="Loose Wt" value={brandRow.looseWeight} onChange={(e) => updateBrandField(brandRow.key, 'looseWeight', e.target.value)} className="h-8 text-xs w-full" />
               </div>
               <div className="space-y-1 flex-1">
                 {idx === 0 && <Label className="text-xs text-gray-500">Total (kg)</Label>}
-                <Input type="number" placeholder="Total" readOnly className="h-8 text-xs w-full bg-white font-medium" value={brandRow.raw} />
+                <Input type="number" min="0" onKeyDown={(e) => e.key === '-' && e.preventDefault()} placeholder="Total" readOnly className="h-8 text-xs w-full bg-white font-medium" value={brandRow.raw} />
               </div>
               <div className={`flex items-center ${idx === 0 ? 'pb-0.5' : ''}`}>
                 <Button
@@ -392,21 +426,27 @@ export function ExtruderModalForm({ productionDate, initialData, isEditMode, onC
         <div className="space-y-2 p-3 rounded-lg border border-gray-400">
           <h3 className={`text-xs font-semibold uppercase tracking-wider border-b pb-1.5 ${theme.headerText}`}>Chemicals & Colors</h3>
           <div className="space-y-2">
-            <div className="space-y-1.5">
-              <Label className="text-gray-600 text-xs font-semibold">Chemical Type</Label>
-              <Select value={group.chemical} onValueChange={(v) => updateGroupField('chemical', v)} disabled={isEditMode}>
-                <SelectTrigger className="h-8 text-xs"><SelectValue placeholder="Select Chem" /></SelectTrigger>
-                <SelectContent>{lookups.chemicals?.map((c) => <SelectItem key={c.id} value={c.name}>{c.name}</SelectItem>)}</SelectContent>
-              </Select>
+            <div className="grid grid-cols-2 gap-2">
+              <div className="space-y-1.5">
+                <Label className="text-gray-600 text-xs font-semibold">Chemical Type</Label>
+                <Select value={group.chemical} onValueChange={(v) => updateGroupField('chemical', v)} disabled={isEditMode}>
+                  <SelectTrigger className="h-8 text-xs"><SelectValue placeholder="Select Chem" /></SelectTrigger>
+                  <SelectContent>{lookups.chemicals?.map((c) => <SelectItem key={c.id} value={c.name}>{c.name}</SelectItem>)}</SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-1.5">
+                <Label className="text-gray-600 text-xs font-semibold">Chem Weight(kg)</Label>
+                <Input type="number" min="0" onKeyDown={(e) => e.key === '-' && e.preventDefault()} placeholder="0.00" className="h-8 text-xs bg-gray-100 border border-gray-400 disabled:opacity-100" value={standardChemicalConsumedKg !== undefined ? standardChemicalConsumedKg.toFixed(2) : ''} disabled readOnly />
+              </div>
             </div>
             <div className="grid grid-cols-2 gap-2">
               <div className="space-y-1.5">
-                <Label className="text-gray-600 text-xs font-semibold">Chem Wt (kg)</Label>
-                <Input type="number" placeholder="0.00" className="h-8 text-xs bg-gray-100" value={standardChemicalConsumedKg !== undefined ? standardChemicalConsumedKg.toFixed(2) : ''} disabled readOnly />
+                <Label className="text-gray-600 text-xs font-semibold">Color</Label>
+                <Input type="text" placeholder="Select color above" className="h-8 text-xs bg-gray-100 border border-gray-400 disabled:opacity-100" value={group.color} disabled readOnly />
               </div>
               <div className="space-y-1.5">
-                <Label className="text-gray-600 text-xs font-semibold">Color Wt (kg)</Label>
-                <Input type="number" placeholder="0.00" className="h-8 text-xs bg-gray-100" value={standardColorConsumedKg !== undefined ? standardColorConsumedKg.toFixed(2) : ''} disabled readOnly />
+                <Label className="text-gray-600 text-xs font-semibold">Color Weight (kg)</Label>
+                <Input type="number" min="0" onKeyDown={(e) => e.key === '-' && e.preventDefault()} placeholder="0.00" className="h-8 text-xs bg-gray-100 border border-gray-400 disabled:opacity-100" value={standardColorConsumedKg !== undefined ? standardColorConsumedKg.toFixed(2) : ''} disabled readOnly />
               </div>
             </div>
           </div>
@@ -418,11 +458,11 @@ export function ExtruderModalForm({ productionDate, initialData, isEditMode, onC
           <div className="space-y-2 pt-0.5">
             <div className="space-y-1.5">
               <Label className="text-gray-600 text-xs font-semibold">Lumps (kg)</Label>
-              <Input type="number" placeholder="0.00" className="h-8 text-xs" value={group.lumpsKg} onChange={(e) => updateGroupField('lumpsKg', e.target.value)} />
+              <Input type="number" min="0" onKeyDown={(e) => e.key === '-' && e.preventDefault()} placeholder="0.00" className="h-8 text-xs" value={group.lumpsKg} onChange={(e) => updateGroupField('lumpsKg', e.target.value)} />
             </div>
             <div className="space-y-1.5">
               <Label className="text-gray-600 text-xs font-semibold">Looms Waste (kg)</Label>
-              <Input type="number" placeholder="0.00" className="h-8 text-xs" value={group.yarnWasteKg} onChange={(e) => updateGroupField('yarnWasteKg', e.target.value)} />
+              <Input type="number" min="0" onKeyDown={(e) => e.key === '-' && e.preventDefault()} placeholder="0.00" className="h-8 text-xs" value={group.yarnWasteKg} onChange={(e) => updateGroupField('yarnWasteKg', e.target.value)} />
             </div>
           </div>
         </div>
@@ -430,10 +470,10 @@ export function ExtruderModalForm({ productionDate, initialData, isEditMode, onC
 
       {/* Loom Production */}
       <div className="space-y-2 bg-green-50/30 p-3 rounded-lg border border-green-300">
-        <h3 className="text-xs font-semibold uppercase tracking-wider text-green-800 border-b border-green-200 pb-1.5">Loom Production</h3>
+        <h3 className="text-xs font-semibold uppercase tracking-wider text-green-800 border-b border-green-200 pb-1.5">Looms Production</h3>
         <div className="flex items-center gap-4 pt-1 w-2/3">
-          <Label className="text-green-800 text-xs font-semibold shrink-0">Total Loom Production (kg)</Label>
-          <Input type="number" className="h-8 text-xs border-green-200 focus-visible:ring-green-400 font-bold text-green-700 bg-white w-48" placeholder="0.00" value={displayedOutputKg} onChange={(e) => handleOutputChange(e.target.value)} />
+          <Label className="text-green-800 text-xs font-semibold shrink-0">Total Looms Production (kg)</Label>
+          <Input type="number" min="0" onKeyDown={(e) => e.key === '-' && e.preventDefault()} className="h-8 text-xs border-green-200 focus-visible:ring-green-400 font-bold text-green-700 bg-white w-48" placeholder="0.00" value={displayedOutputKg} onChange={(e) => handleOutputChange(e.target.value)} />
         </div>
       </div>
 

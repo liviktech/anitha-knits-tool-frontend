@@ -78,7 +78,7 @@ export function suggestFabricOutput(draft: Pick<FabricDraft, 'input'>): string {
   return inputKg > 0 ? inputKg.toFixed(2) : '';
 }
 
-export const FabricSection = forwardRef<SectionRef, SectionProps>(({ productionDate, readOnly, hideExisting, hideBanner, onEditFabricGroup }, ref) => {
+export const FabricSection = forwardRef<SectionRef, SectionProps>(({ productionDate, readOnly, hideExisting, sessionStartTime, hideBanner, onEditFabricGroup }, ref) => {
   const queryClient = useQueryClient();
   const { user } = useAuth();
   const { data, isLoading } = useFabricCheckingRecords(
@@ -87,7 +87,7 @@ export const FabricSection = forwardRef<SectionRef, SectionProps>(({ productionD
   );
   const { data: lookupsData } = useLookups();
   const lookups: Lookups = lookupsData ?? { brands: [], colors: [], chemicals: [], sizes: [] };
-  const { data: koraBalanceData } = useKoraBalances(!hideExisting);
+  const { data: koraBalanceData } = useKoraBalances();
   const koraBalances = koraBalanceData?.data;
 
   const [newRows, setNewRows] = useState<FabricDraft[]>([]);
@@ -99,15 +99,16 @@ export const FabricSection = forwardRef<SectionRef, SectionProps>(({ productionD
   const pendingIds = useMemo(() => new Set(newRows.map((r) => r.id).filter(Boolean)), [newRows]);
 
   const rows = useMemo(() => {
-    if (hideExisting) return [];
+    if (hideExisting || !data?.data) return [];
     const items = data?.data ?? [];
     return items
       .filter((item) => !productionDate || item.productionDate.startsWith(productionDate))
+      .filter((item) => !sessionStartTime || new Date(item.createdAt).getTime() >= sessionStartTime)
       .filter((item) => !pendingIds.has(item.id))
       .map(mapFabricItem)
       .map((row) => ({ ...row, kora: (findKoraBalanceKg(koraBalances, row.size, row.color) ?? 0).toFixed(2) }))
       .filter((row) => row.input > 0 || row.firstGrade > 0 || row.secondGrade > 0 || row.fwKg > 0 || row.bwKg > 0);
-  }, [data, productionDate, hideExisting, pendingIds, koraBalances]);
+  }, [data, productionDate, hideExisting, sessionStartTime, pendingIds, koraBalances]);
 
   const removeNewRow = (key: string) => {
     setNewRows((current) => current.filter((row) => row.key !== key));

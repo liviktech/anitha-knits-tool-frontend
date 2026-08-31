@@ -3,6 +3,15 @@ import { format, parseISO } from 'date-fns';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Loader } from '@/components/shared/loader';
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableFooter,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from '@/components/ui/table';
 import { useDayWiseProduction } from './day-wise-queries';
 import { useLoadSentRecords } from '@/features/inventory/load-sent-queries';
 
@@ -12,9 +21,8 @@ interface DayWiseReportModalProps {
 }
 
 const PRODUCTION_GROUPS = [
-  { label: 'Extruder Production', span: 3, bg: '#D6EEF7', fg: '#0B5566' },
+  { label: 'Extruder Production', span: 4, bg: '#D6EEF7', fg: '#0B5566' },
   { label: 'Looms Production', span: 4, bg: '#FFF6BF', fg: '#7A6A00' },
-  { label: 'Looms Waste', span: 3, bg: '#FBE0C8', fg: '#8A4B12' },
   { label: 'Fabric Checking', span: 3, bg: '#DCEEDB', fg: '#2F6B2F' },
   { label: 'Fabric Waste', span: 5, bg: '#EAE1F5', fg: '#5B3E8A' },
 ];
@@ -26,9 +34,8 @@ const DELIVERY_GROUPS = [
 ];
 
 const PROD_SUB_HEADERS = [
-  'DN+', 'Waste', 'LUMS',
+  'HDPE', 'Looms Waste', 'LUMS', 'Total',
   '180', 'DN+180', '180', 'Total',
-  'White', 'Blue', 'Total',
   'White', 'Blue', 'Total',
   'FW White 180', 'FW Blue 180', 'White', 'Blue', 'W Total',
 ];
@@ -44,12 +51,12 @@ function fmt(n: number): string {
   return n === 0 ? '' : n.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 }
 
-function Cell({ value }: { value: string | number }) {
+function Cell({ value, isLast }: { value: string | number; isLast?: boolean }) {
   const displayValue = typeof value === 'number' ? fmt(value) : value;
   return (
-    <td className="border border-gray-300 px-2 py-1 text-right text-[12.5px] whitespace-nowrap text-gray-900">
+    <TableCell className={`${isLast ? '' : 'border-r'} border-gray-100 px-2 py-1 text-right text-[12.5px] whitespace-nowrap text-gray-900`}>
       {displayValue}
-    </td>
+    </TableCell>
   );
 }
 
@@ -117,7 +124,12 @@ export function DayWiseReportModal({ open, onOpenChange }: DayWiseReportModalPro
         date: dateStr,
         isHighlighted,
         hasData: !!apiRow || deliveryByDate[dateStr],
-        extruder: { dnPlus: apiRow?.extruder.output || 0, waste: apiRow?.extruder.wastage || 0, lums: 0 },
+        extruder: { 
+          hdpe: apiRow?.extruder.input || 0, 
+          loomsWaste: apiRow?.extruder.yarnWasteKg || 0, 
+          lums: apiRow?.extruder.lumpsKg || 0,
+          total: apiRow?.extruder.output || 0
+        },
         loomsProduction: { c180A: 0, dnPlus180: 0, c180B: 0, total: apiRow?.looms.output || 0 },
         loomsWaste: { white: 0, blue: 0, total: apiRow?.looms.wastage || 0 },
         fabricChecking: { white: 0, blue: 0, total: apiRow?.fabric.output || 0 },
@@ -169,61 +181,60 @@ export function DayWiseReportModal({ open, onOpenChange }: DayWiseReportModalPro
           </div>
         </DialogHeader>
 
-        <div className="overflow-auto border border-gray-200 rounded-md">
-          <table className="border-collapse text-sm w-full">
-            <thead>
-              <tr>
-                <th rowSpan={3} className="border border-gray-300 bg-gray-50 px-3 py-1.5 text-left text-[12.5px] font-bold align-middle sticky left-0 z-10">
+        <div className="flex-1 min-h-0 overflow-x-auto overflow-y-auto rounded-2xl border border-gray-100 shadow-sm bg-white">
+          <Table className="text-sm">
+            <TableHeader>
+              <TableRow className="hover:bg-transparent">
+                <TableHead rowSpan={3} className="h-auto border-r border-gray-100 bg-gray-50 px-3 py-1.5 text-left text-[12.5px] font-extrabold uppercase tracking-wide text-gray-500 align-middle sticky left-0 z-10">
                   Date
-                </th>
-                <th colSpan={18} className="border border-gray-300 px-2 py-1.5 text-center text-[13.5px] font-extrabold uppercase tracking-widest bg-gray-100 text-gray-800">
+                </TableHead>
+                <TableHead colSpan={18} className="h-auto border-r border-gray-100 px-2 py-1.5 text-center text-[13.5px] font-extrabold uppercase tracking-widest bg-gray-100 text-gray-800">
                   Production
-                </th>
-                <th colSpan={9} className="border border-gray-300 px-2 py-1.5 text-center text-[13.5px] font-extrabold uppercase tracking-widest bg-[#FFF4D4] text-[#8A6700]">
+                </TableHead>
+                <TableHead colSpan={9} className="h-auto px-2 py-1.5 text-center text-[13.5px] font-extrabold uppercase tracking-widest bg-[#FFF4D4] text-[#8A6700]">
                   Delivery
-                </th>
-              </tr>
-              <tr>
+                </TableHead>
+              </TableRow>
+              <TableRow className="hover:bg-transparent">
                 {PRODUCTION_GROUPS.map((g) => (
-                  <th
+                  <TableHead
                     key={g.label}
                     colSpan={g.span}
-                    className="border border-gray-300 px-2 py-1.5 text-center text-[11.5px] font-bold uppercase tracking-wide"
+                    className="h-auto border-r border-gray-100 px-2 py-1.5 text-center text-[11.5px] font-extrabold uppercase tracking-wide"
                     style={{ background: g.bg, color: g.fg }}
                   >
                     {g.label}
-                  </th>
+                  </TableHead>
                 ))}
-                {DELIVERY_GROUPS.map((g) => (
-                  <th
+                {DELIVERY_GROUPS.map((g, i) => (
+                  <TableHead
                     key={g.label}
                     colSpan={g.span}
-                    className="border border-gray-300 px-2 py-1.5 text-center text-[11.5px] font-bold uppercase tracking-wide"
+                    className={`h-auto ${i === DELIVERY_GROUPS.length - 1 ? '' : 'border-r'} border-gray-100 px-2 py-1.5 text-center text-[11.5px] font-extrabold uppercase tracking-wide`}
                     style={{ background: g.bg, color: g.fg }}
                   >
                     {g.label}
-                  </th>
+                  </TableHead>
                 ))}
-              </tr>
-              <tr>
+              </TableRow>
+              <TableRow className="hover:bg-transparent">
                 {PROD_SUB_HEADERS.map((h, i) => (
-                  <th key={`p-${i}`} className="border border-gray-300 bg-gray-50 px-2 py-1 text-right text-[11px] font-semibold whitespace-nowrap">
+                  <TableHead key={`p-${i}`} className="h-auto border-r border-gray-100 bg-gray-50 px-2 py-1 text-right text-[10.5px] font-extrabold uppercase tracking-wide text-gray-500 whitespace-nowrap">
                     {h}
-                  </th>
+                  </TableHead>
                 ))}
                 {DEL_SUB_HEADERS.map((h, i) => (
-                  <th key={`d-${i}`} className="border border-gray-300 bg-gray-50 px-2 py-1 text-right text-[11px] font-semibold whitespace-nowrap">
+                  <TableHead key={`d-${i}`} className={`h-auto ${i === DEL_SUB_HEADERS.length - 1 ? '' : 'border-r'} border-gray-100 bg-gray-50 px-2 py-1 text-right text-[10.5px] font-extrabold uppercase tracking-wide text-gray-500 whitespace-nowrap`}>
                     {h}
-                  </th>
+                  </TableHead>
                 ))}
-              </tr>
-            </thead>
-            <tbody>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
               {rows.length > 0 ? rows.map((row) => {
                 const values = [
-                  row.extruder.dnPlus, row.extruder.waste, row.extruder.lums,
+                  row.extruder.hdpe, row.extruder.loomsWaste, row.extruder.lums, row.extruder.total,
                   row.loomsProduction.c180A, row.loomsProduction.dnPlus180, row.loomsProduction.c180B, row.loomsProduction.total,
-                  row.loomsWaste.white, row.loomsWaste.blue, row.loomsWaste.total,
                   row.fabricChecking.white, row.fabricChecking.blue, row.fabricChecking.total,
                   row.fabricWaste.fwWhite180, row.fabricWaste.fwBlue180, row.fabricWaste.white, row.fabricWaste.blue, row.fabricWaste.total,
                   row.delivery.blue, row.delivery.white, row.delivery.green,
@@ -231,48 +242,45 @@ export function DayWiseReportModal({ open, onOpenChange }: DayWiseReportModalPro
                   row.delivery.output
                 ];
                 return (
-                  <tr key={row.date} className="hover:bg-gray-50">
-                    <td
-                      className="border border-gray-300 px-3 py-1 text-[12.5px] font-medium whitespace-nowrap sticky left-0 z-10 bg-white text-gray-900"
-                    >
+                  <TableRow key={row.date} className="hover:bg-gray-50/70">
+                    <TableCell className="border-r border-gray-100 px-3 py-1 text-[12.5px] font-medium whitespace-nowrap sticky left-0 z-10 bg-white text-gray-900">
                       {format(parseISO(row.date), 'd-MMM-yy')}
-                    </td>
+                    </TableCell>
                     {values.map((v, i) => (
-                      <Cell key={i} value={v} />
+                      <Cell key={i} value={v} isLast={i === values.length - 1} />
                     ))}
-                  </tr>
+                  </TableRow>
                 );
               }) : (
-                <tr>
-                  <td colSpan={28} className="border border-gray-300 px-3 py-6 text-center text-gray-500">
+                <TableRow>
+                  <TableCell colSpan={28} className="px-3 py-6 text-center text-gray-500">
                     No production or delivery records found for this month.
-                  </td>
-                </tr>
+                  </TableCell>
+                </TableRow>
               )}
-            </tbody>
-            <tfoot>
-              <tr className="bg-gray-100 font-bold">
-                <td className="border border-gray-300 px-3 py-1.5 text-[12.5px] sticky left-0 bg-gray-100 z-10">TOTAL</td>
+            </TableBody>
+            <TableFooter>
+              <TableRow className="bg-gray-50 font-bold hover:bg-gray-50">
+                <TableCell className="border-r border-gray-100 px-3 py-1.5 text-[12.5px] sticky left-0 bg-gray-50 z-10">TOTAL</TableCell>
                 {[
-                  apiTotals.extruder.output, apiTotals.extruder.wastage, 0,
+                  apiTotals.extruder.input, apiTotals.extruder.yarnWasteKg || 0, apiTotals.extruder.lumpsKg || 0, apiTotals.extruder.output,
                   0, 0, 0, apiTotals.looms.output,
-                  0, 0, apiTotals.looms.wastage,
                   0, 0, apiTotals.fabric.output,
                   0, 0, 0, 0, apiTotals.fabric.wastage,
                   deliveryTotals.blue, deliveryTotals.white, deliveryTotals.green,
                   deliveryTotals.s150, deliveryTotals.s160, deliveryTotals.s170, deliveryTotals.s180, deliveryTotals.s190,
                   deliveryTotals.output
-                ].map((v, i) => (
-                  <td
+                ].map((v, i, arr) => (
+                  <TableCell
                     key={i}
-                    className="border border-gray-300 px-2 py-1.5 text-right text-[12.5px] whitespace-nowrap text-gray-900"
+                    className={`${i === arr.length - 1 ? '' : 'border-r'} border-gray-100 px-2 py-1.5 text-right text-[12.5px] whitespace-nowrap text-gray-900`}
                   >
                     {fmt(v)}
-                  </td>
+                  </TableCell>
                 ))}
-              </tr>
-            </tfoot>
-          </table>
+              </TableRow>
+            </TableFooter>
+          </Table>
         </div>
       </DialogContent>
     </Dialog>

@@ -56,7 +56,7 @@ function mapLoadSentRecord(record: LoadSentProductionRecord): FabricDeliveredRow
   };
 }
 
-export const FabricDeliveredSection = forwardRef<SectionRef, SectionProps & { onEditDeliveredGroup?: (draft: FabricDeliveredDraft) => void }>(({ productionDate, readOnly, hideExisting, hideBanner, onEditDeliveredGroup }, ref) => {
+export const FabricDeliveredSection = forwardRef<SectionRef, SectionProps & { onEditDeliveredGroup?: (draft: FabricDeliveredDraft) => void }>(({ productionDate, readOnly, hideExisting, sessionStartTime, hideBanner, onEditDeliveredGroup }, ref) => {
   const queryClient = useQueryClient();
   const { user } = useAuth();
   const { data: lookupsData } = useLookups();
@@ -72,12 +72,13 @@ export const FabricDeliveredSection = forwardRef<SectionRef, SectionProps & { on
   const pendingIds = useMemo(() => new Set(newRows.map((r) => r.id).filter(Boolean)), [newRows]);
 
   const rows = useMemo(() => {
-    if (hideExisting) return [];
+    if (hideExisting || !data?.data) return [];
     return (data?.data ?? [])
       .filter((record) => !productionDate || (record as LoadSentProductionRecord).productionDate?.startsWith(productionDate) || record.date?.startsWith(productionDate))
+      .filter((record) => !sessionStartTime || new Date(record.createdAt).getTime() >= sessionStartTime)
       .filter((record) => !pendingIds.has(record.id))
       .map((record) => mapLoadSentRecord(record as LoadSentProductionRecord));
-  }, [data, productionDate, hideExisting, pendingIds]);
+  }, [data, productionDate, hideExisting, sessionStartTime, pendingIds]);
 
   const removeNewRow = (key: string) => {
     setNewRows((current) => current.filter((row) => row.key !== key));

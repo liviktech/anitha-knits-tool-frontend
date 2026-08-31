@@ -29,7 +29,7 @@ export function TablePaginationControls({ currentPage, totalPages, onPageChange 
       <Button
         variant="outline"
         size="icon"
-        className="h-8 w-8 rounded-md border-gray-200 text-gray-600"
+        className="h-8 w-8 rounded-md border-gray-200 text-gray-900"
         onClick={() => onPageChange(Math.max(1, currentPage - 1))}
         disabled={currentPage <= 1}
       >
@@ -43,7 +43,7 @@ export function TablePaginationControls({ currentPage, totalPages, onPageChange 
             key={p}
             variant={p === currentPage ? 'outline' : 'ghost'}
             size="icon"
-            className={p === currentPage ? 'h-6 w-6 rounded-md bg-[#004D40] text-white text-sm hover:bg-[#00382e] border-[#004D40]' : 'h-6 w-6 rounded-md text-sm text-gray-600 hover:bg-gray-100'}
+            className={p === currentPage ? 'h-5 w-5 rounded-sm bg-[#004D40] text-white text-xs hover:bg-[#00382e] border-[#004D40]' : 'h-5 w-5 rounded-sm text-xs text-gray-600 hover:bg-gray-100'}
             onClick={() => onPageChange(p)}
           >
             {p}
@@ -53,7 +53,7 @@ export function TablePaginationControls({ currentPage, totalPages, onPageChange 
       <Button
         variant="outline"
         size="icon"
-        className="h-8 w-8 rounded-md border-gray-200 text-gray-600"
+        className="h-8 w-8 rounded-md border-gray-200 text-gray-900"
         onClick={() => onPageChange(Math.min(totalPages, currentPage + 1))}
         disabled={currentPage >= totalPages}
       >
@@ -71,10 +71,10 @@ interface RowsPerPageSelectProps {
 
 export function RowsPerPageSelect({ pageSize, onPageSizeChange, options = [10, 20, 50] }: RowsPerPageSelectProps) {
   return (
-    <div className="flex items-center gap-2 font-medium text-gray-600 text-xs">
-      Rows per page:
+    <div className="flex items-center gap-2 font-medium text-gray-900 text-xs">
+      Rows per page :
       <select
-        className="border border-gray-200 rounded-md px-2 py-1.5 text-gray-700 font-semibold bg-white"
+        className="border border-gray-400 rounded-md px-2 py-1.5 text-gray-700 font-semibold bg-white"
         value={pageSize}
         onChange={(e) => onPageSizeChange(Number(e.target.value))}
       >

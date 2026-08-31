@@ -1,4 +1,7 @@
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { format, parseISO } from 'date-fns';
+import { X } from 'lucide-react';
+import { Dialog, DialogClose, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { Button } from '@/components/ui/button';
 import { themes, type Theme } from '@/features/production/day-entry-sections';
 import { ExtruderModalForm } from './extruder-modal-form';
 import type { ExtruderGroupDraft } from '@/features/extruder/extruder-section-new';
@@ -47,11 +50,24 @@ export function TabAddModal({
 
   return (
     <Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
-      <DialogContent aria-describedby={undefined} className={`!bg-white shadow-2xl ${maxWidth} max-h-[90vh] flex flex-col border-2 ${theme.border} p-0 overflow-hidden`}>
+      <DialogContent showCloseButton={false} aria-describedby={undefined} className={`!bg-white shadow-2xl ${maxWidth} max-h-[90vh] flex flex-col border-2 ${theme.border} p-0 overflow-hidden`}>
         <DialogHeader className={`p-3 pb-2 border-b border-gray-200 ${theme.headerBg} shrink-0`}>
-          <DialogTitle className={`text-lg font-extrabold tracking-wider ${theme.headerText}`}>
-            {getTitle()}
-          </DialogTitle>
+          <div className="flex items-center justify-between gap-3">
+            <DialogTitle className={`text-lg font-extrabold tracking-wider ${theme.headerText}`}>
+              {getTitle()}
+            </DialogTitle>
+            <div className="flex items-center gap-2 shrink-0">
+              <span className={`shrink-0 text-xs font-semibold ${theme.headerText} bg-white/70 border ${theme.border} rounded-md px-2.5 py-1`}>
+                {format(parseISO(productionDate), 'dd MMM, yyyy')}
+              </span>
+              <DialogClose asChild>
+                <Button variant="ghost" size="icon-sm" className={`${theme.headerText} hover:bg-white/50`}>
+                  <X className="h-4 w-4" />
+                  <span className="sr-only">Close</span>
+                </Button>
+              </DialogClose>
+            </div>
+          </div>
         </DialogHeader>
 
         <div className="flex-1 overflow-y-auto p-2.5">

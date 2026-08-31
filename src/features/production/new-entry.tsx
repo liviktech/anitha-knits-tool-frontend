@@ -10,9 +10,7 @@ import { ExtruderSection, LoomSection, FabricSection, FabricDeliveredSection, th
 import { TabAddModal } from './tab-add-modal';
 import type { SectionRef } from './day-entry-sections';
 import { useExtruderProductions, useLookups } from '@/features/extruder/extruder-queries';
-import { useLoomsProductions } from '@/features/looms/loom-queries';
-import { useFabricCheckingRecords } from '@/features/fabric/fabric-queries';
-import { useLoadSentRecords } from '@/features/inventory/load-sent-queries';
+import { useDayWiseProduction } from './day-wise-queries';
 import { useInventoryRecords } from '@/features/inventory/inventory-queries';
 import { useProductionHeader } from './production-details';
 import { useAuth } from '@/features/auth/auth-context';
@@ -25,9 +23,11 @@ interface NewEntryProps {
   readOnly?: boolean;
 }
 
-export function NewEntry({ onClose, defaultDate, readOnly = false }: NewEntryProps) {
+export function NewEntry({ onClose, defaultDate, readOnly: propsReadOnly = false }: NewEntryProps) {
   const { user } = useAuth();
+  const [sessionStartTime] = useState(() => Date.now());
   const canAddRow = canCreateProductionRecord(user);
+  const readOnly = propsReadOnly || !canAddRow;
   const { setHeaderRight, setShowBackButton, setOnBackClick, setHeaderTitle } = useProductionHeader();
   const isCreateMode = !defaultDate && !readOnly;
 
@@ -52,21 +52,10 @@ export function NewEntry({ onClose, defaultDate, readOnly = false }: NewEntryPro
   const { data: lookupsData } = useLookups();
   const lookups = lookupsData ?? { brands: [], colors: [], chemicals: [], sizes: [] };
 
-  // Once the selected date already has any records (added this session or
-  // already on the server), the date picker is hidden so it can't be
-  // changed out from under data that's already been saved against it.
-  const dayQuery = `?date_from=${productionDate}&date_to=${productionDate}`;
-  const { data: extruderDayData } = useExtruderProductions(dayQuery, isCreateMode);
-  const { data: loomsDayData } = useLoomsProductions(dayQuery, isCreateMode);
-  const { data: fabricDayData } = useFabricCheckingRecords(dayQuery, isCreateMode);
-  const { data: deliveredDayData } = useLoadSentRecords('?limit=100', isCreateMode);
-  const hasDataForDay = isCreateMode && (
-    (extruderDayData?.data?.length ?? 0) > 0 ||
-    (loomsDayData?.data?.length ?? 0) > 0 ||
-    (fabricDayData?.data?.length ?? 0) > 0 ||
-    (deliveredDayData?.data ?? []).some((r) => (r.productionDate ?? r.date ?? '').startsWith(productionDate))
-  );
-  const showDatePicker = isCreateMode && !hasDataForDay;
+  const { rows: completedDays } = useDayWiseProduction();
+  const completedDateStrings = new Set(completedDays.map(r => r.date));
+
+  const showDatePicker = isCreateMode;
 
   useEffect(() => {
     setHeaderTitle(isCreateMode ? 'Add New Daily Production Details' : 'Edit Daily Production Details');
@@ -92,24 +81,11 @@ export function NewEntry({ onClose, defaultDate, readOnly = false }: NewEntryPro
                 mode="single"
                 selected={date}
                 onSelect={(value) => value && setDate(value)}
-                disabled={(d) => d < new Date(new Date().setHours(0, 0, 0, 0))}
+                disabled={(d) => d > new Date() || completedDateStrings.has(format(d, 'yyyy-MM-dd'))}
                 autoFocus
               />
             </PopoverContent>
           </Popover>
-        )}
-        {!readOnly && canAddRow && (
-          <Button
-            className={`flex items-center gap-2 rounded-md px-3 py-2 h-auto text-[12px] cursor-pointer font-bold tracking-wide shadow-[0_1px_2px_rgba(0,45,35,0.2)] transition-colors duration-200 ${activeTab === 'extruder' ? `${themes.extruder.iconBg} ${themes.extruder.iconColor} ${themes.extruder.iconHoverBg} ${themes.extruder.iconHoverColor}` :
-              activeTab === 'looms' ? `${themes.looms.iconBg} ${themes.looms.iconColor} ${themes.looms.iconHoverBg} ${themes.looms.iconHoverColor}` :
-                activeTab === 'fabric' ? `${themes.fabric.iconBg} ${themes.fabric.iconColor} ${themes.fabric.iconHoverBg} ${themes.fabric.iconHoverColor}` :
-                  `${themes.fabricDelivered.iconBg} ${themes.fabricDelivered.iconColor} ${themes.fabricDelivered.iconHoverBg} ${themes.fabricDelivered.iconHoverColor}`
-              }`}
-            onClick={() => setIsAddModalOpen(true)}
-          >
-            <Plus className="w-3 h-3" />
-            ADD ROW
-          </Button>
         )}
       </div>
     );
@@ -129,22 +105,24 @@ export function NewEntry({ onClose, defaultDate, readOnly = false }: NewEntryPro
   const inventoryRecords = allInvData?.data ?? [];
   const extruderRecords = allExtruderData?.data ?? [];
 
+  // Balances shown here are stock levels, not ledgers — they never display
+  // below 0.00 even if consumption momentarily outpaces recorded receipts.
   const getHDPEBalance = (name: string) => {
     const received = inventoryRecords.filter(r => r.type === 'HDPE' && r.name === name).reduce((sum, r) => sum + r.weightKg, 0);
     const consumed = extruderRecords.filter(r => r.extruder?.brand?.name === name).reduce((sum, r) => sum + (r.extruder?.rawMaterialKg ?? 0), 0);
-    return (received - consumed).toFixed(2);
+    return Math.max(0, received - consumed).toFixed(2);
   };
 
   const getChemicalBalance = (name: string) => {
     const received = inventoryRecords.filter(r => r.type === 'CHEMICAL' && r.name === name).reduce((sum, r) => sum + r.weightKg, 0);
     const consumed = extruderRecords.filter(r => r.extruder?.chemical?.name === name).reduce((sum, r) => sum + (r.extruder?.chemicalKg ?? 0), 0);
-    return (received - consumed).toFixed(2);
+    return Math.max(0, received - consumed).toFixed(2);
   };
 
   const getColorBalance = (name: string) => {
     const received = inventoryRecords.filter(r => r.type === 'COLOR' && r.name === name).reduce((sum, r) => sum + r.weightKg, 0);
     const consumed = extruderRecords.filter(r => r.color?.name === name).reduce((sum, r) => sum + (r.extruder?.colorConsumedKg ?? 0), 0);
-    return (received - consumed).toFixed(2);
+    return Math.max(0, received - consumed).toFixed(2);
   };
 
   const totalRawMaterial = lookups.brands.reduce((sum, b) => sum + parseFloat(getHDPEBalance(b.name) || '0'), 0).toFixed(2);
@@ -173,7 +151,7 @@ export function NewEntry({ onClose, defaultDate, readOnly = false }: NewEntryPro
                 <div className="flex justify-between items-center border-b border-gray-200 pb-2">
                   <label className="flex items-center gap-2 text-[13px] font-bold uppercase tracking-wide text-gray-500">
                     <img src="/hdpe-in.png" alt="" className="h-8 w-8 object-contain" />
-                    HDPE Balance
+                    HDPE
                   </label>
                   <span className={`text-[13px] font-bold text-gray-900 transition-opacity duration-300 ${isInventoryMinimized ? 'opacity-100' : 'opacity-0'}`}>
                     {totalRawMaterial} kg
@@ -196,7 +174,7 @@ export function NewEntry({ onClose, defaultDate, readOnly = false }: NewEntryPro
                 <div className="flex justify-between items-center border-b border-gray-200 pb-2">
                   <label className="flex items-center gap-2 text-[13px] font-bold uppercase tracking-wide text-gray-500">
                     <img src="/chemical-in.png" alt="" className="h-8 w-8 object-contain" />
-                    Chemical Balance
+                    Chemical
                   </label>
                   <span className={`text-[13px] font-bold text-gray-900 transition-opacity duration-300 ${isInventoryMinimized ? 'opacity-100' : 'opacity-0'}`}>
                     {totalChemical} kg
@@ -219,7 +197,7 @@ export function NewEntry({ onClose, defaultDate, readOnly = false }: NewEntryPro
                 <div className="flex justify-between items-center border-b border-gray-200 pb-2">
                   <label className="flex items-center gap-2.5 text-[13px] font-bold uppercase tracking-wide text-gray-500">
                     <img src="/color-in.png" alt="" className="h-8 w-8 object-contain" />
-                    Color Balance
+                    Color
                   </label>
                   <span className={`text-[13 So bar start
                     px] font-bold text-gray-900 transition-opacity duration-300 ${isInventoryMinimized ? 'opacity-100' : 'opacity-0'}`}>
@@ -246,12 +224,27 @@ export function NewEntry({ onClose, defaultDate, readOnly = false }: NewEntryPro
         {/* Forms Container */}
         <div className="flex flex-col gap-2.5">
           <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full flex-col gap-0">
-            <div className="flex justify-between items-end border-b border-gray-200 w-full">              <TabsList variant="folder" className="flex overflow-x-auto sm:overflow-visible p-0 m-0">
+            <div className="flex justify-between items-end border-b border-gray-200 w-full">
+              <TabsList variant="folder" className="flex overflow-x-auto sm:overflow-visible p-0 m-0">
                 <TabsTrigger value="extruder" className="data-[state=active]:!bg-[#D6EEF7] data-[state=active]:!text-[#0B5566] data-[state=active]:!border-b-[#D6EEF7]">Extruder Production</TabsTrigger>
                 <TabsTrigger value="looms" className="data-[state=active]:!bg-[#FFF6BF] data-[state=active]:!text-[#7A6A00] data-[state=active]:!border-b-[#FFF6BF]">Looms Production</TabsTrigger>
                 <TabsTrigger value="fabric" className="data-[state=active]:!bg-[#DCEEDB] data-[state=active]:!text-[#2F6B2F] data-[state=active]:!border-b-[#DCEEDB]">Fabric Checking</TabsTrigger>
                 <TabsTrigger value="delivered" className="data-[state=active]:!bg-[#f2caa0] data-[state=active]:!text-[#61401E] data-[state=active]:!border-b-[#f2caa0]">Fabric Delivered</TabsTrigger>
               </TabsList>
+
+              {!readOnly && canAddRow && (
+                <Button
+                  className={`flex items-center gap-2 rounded-md px-3 py-2 h-auto mb-1 text-[12px] cursor-pointer font-bold tracking-wide shadow-[0_1px_2px_rgba(0,45,35,0.2)] transition-colors duration-200 ${activeTab === 'extruder' ? `${themes.extruder.iconBg} ${themes.extruder.iconColor} ${themes.extruder.iconHoverBg} ${themes.extruder.iconHoverColor}` :
+                    activeTab === 'looms' ? `${themes.looms.iconBg} ${themes.looms.iconColor} ${themes.looms.iconHoverBg} ${themes.looms.iconHoverColor}` :
+                      activeTab === 'fabric' ? `${themes.fabric.iconBg} ${themes.fabric.iconColor} ${themes.fabric.iconHoverBg} ${themes.fabric.iconHoverColor}` :
+                        `${themes.fabricDelivered.iconBg} ${themes.fabricDelivered.iconColor} ${themes.fabricDelivered.iconHoverBg} ${themes.fabricDelivered.iconHoverColor}`
+                    }`}
+                  onClick={() => setIsAddModalOpen(true)}
+                >
+                  <Plus className="w-3 h-3" />
+                  ADD ROW
+                </Button>
+              )}
             </div>
 
             <TabsContent value="extruder" className="flex flex-col gap-4 mt-0 pt-0">
@@ -261,6 +254,7 @@ export function NewEntry({ onClose, defaultDate, readOnly = false }: NewEntryPro
                 autoAdd={!readOnly}
                 readOnly={readOnly}
                 hideExisting={false}
+                sessionStartTime={sessionStartTime}
                 hideBanner={true}
                 onEditExtruderGroup={(group) => {
                   setEditingExtruderGroup(group);
@@ -270,15 +264,15 @@ export function NewEntry({ onClose, defaultDate, readOnly = false }: NewEntryPro
             </TabsContent>
 
             <TabsContent value="looms" className="flex flex-col gap-4 mt-0 pt-0">
-              <LoomSection ref={loomRef} productionDate={productionDate} autoAdd={!readOnly} readOnly={readOnly} hideExisting={false} hideBanner={true} onEditLoomGroup={(g) => { setEditingLoomGroup(g); setIsAddModalOpen(true); }} />
+              <LoomSection ref={loomRef} productionDate={productionDate} autoAdd={!readOnly} readOnly={readOnly} hideExisting={false} sessionStartTime={sessionStartTime} hideBanner={true} onEditLoomGroup={(g) => { setEditingLoomGroup(g); setIsAddModalOpen(true); }} />
             </TabsContent>
 
             <TabsContent value="fabric" className="flex flex-col gap-4 mt-0 pt-0">
-              <FabricSection ref={fabricRef} productionDate={productionDate} autoAdd={!readOnly} readOnly={readOnly} hideExisting={false} hideBanner={true} onEditFabricGroup={(g) => { setEditingFabricGroup(g); setIsAddModalOpen(true); }} />
+              <FabricSection ref={fabricRef} productionDate={productionDate} autoAdd={!readOnly} readOnly={readOnly} hideExisting={false} sessionStartTime={sessionStartTime} hideBanner={true} onEditFabricGroup={(g) => { setEditingFabricGroup(g); setIsAddModalOpen(true); }} />
             </TabsContent>
 
             <TabsContent value="delivered" className="flex flex-col gap-4 mt-0 pt-0">
-              <FabricDeliveredSection ref={fabricDeliveredRef} productionDate={productionDate} autoAdd={!readOnly} readOnly={readOnly} hideExisting={false} hideBanner={true} onEditDeliveredGroup={(g) => { setEditingDeliveredGroup(g); setIsAddModalOpen(true); }} />
+              <FabricDeliveredSection ref={fabricDeliveredRef} productionDate={productionDate} autoAdd={!readOnly} readOnly={readOnly} hideExisting={false} sessionStartTime={sessionStartTime} hideBanner={true} onEditDeliveredGroup={(g) => { setEditingDeliveredGroup(g); setIsAddModalOpen(true); }} />
             </TabsContent>
           </Tabs>
         </div>
