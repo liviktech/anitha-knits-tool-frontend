@@ -21,9 +21,8 @@ interface DayWiseReportModalProps {
 }
 
 const PRODUCTION_GROUPS = [
-  { label: 'Extruder Production', span: 3, bg: '#D6EEF7', fg: '#0B5566' },
+  { label: 'Extruder Production', span: 4, bg: '#D6EEF7', fg: '#0B5566' },
   { label: 'Looms Production', span: 4, bg: '#FFF6BF', fg: '#7A6A00' },
-  { label: 'Looms Waste', span: 3, bg: '#FBE0C8', fg: '#8A4B12' },
   { label: 'Fabric Checking', span: 3, bg: '#DCEEDB', fg: '#2F6B2F' },
   { label: 'Fabric Waste', span: 5, bg: '#EAE1F5', fg: '#5B3E8A' },
 ];
@@ -35,9 +34,8 @@ const DELIVERY_GROUPS = [
 ];
 
 const PROD_SUB_HEADERS = [
-  'HDPE', 'Waste', 'LUMS',
+  'HDPE', 'Looms Waste', 'LUMS', 'Total',
   '180', 'DN+180', '180', 'Total',
-  'White', 'Blue', 'Total',
   'White', 'Blue', 'Total',
   'FW White 180', 'FW Blue 180', 'White', 'Blue', 'W Total',
 ];
@@ -126,7 +124,12 @@ export function DayWiseReportModal({ open, onOpenChange }: DayWiseReportModalPro
         date: dateStr,
         isHighlighted,
         hasData: !!apiRow || deliveryByDate[dateStr],
-        extruder: { dnPlus: apiRow?.extruder.output || 0, waste: apiRow?.extruder.wastage || 0, lums: 0 },
+        extruder: { 
+          hdpe: apiRow?.extruder.input || 0, 
+          loomsWaste: apiRow?.extruder.yarnWasteKg || 0, 
+          lums: apiRow?.extruder.lumpsKg || 0,
+          total: apiRow?.extruder.output || 0
+        },
         loomsProduction: { c180A: 0, dnPlus180: 0, c180B: 0, total: apiRow?.looms.output || 0 },
         loomsWaste: { white: 0, blue: 0, total: apiRow?.looms.wastage || 0 },
         fabricChecking: { white: 0, blue: 0, total: apiRow?.fabric.output || 0 },
@@ -230,9 +233,8 @@ export function DayWiseReportModal({ open, onOpenChange }: DayWiseReportModalPro
             <TableBody>
               {rows.length > 0 ? rows.map((row) => {
                 const values = [
-                  row.extruder.dnPlus, row.extruder.waste, row.extruder.lums,
+                  row.extruder.hdpe, row.extruder.loomsWaste, row.extruder.lums, row.extruder.total,
                   row.loomsProduction.c180A, row.loomsProduction.dnPlus180, row.loomsProduction.c180B, row.loomsProduction.total,
-                  row.loomsWaste.white, row.loomsWaste.blue, row.loomsWaste.total,
                   row.fabricChecking.white, row.fabricChecking.blue, row.fabricChecking.total,
                   row.fabricWaste.fwWhite180, row.fabricWaste.fwBlue180, row.fabricWaste.white, row.fabricWaste.blue, row.fabricWaste.total,
                   row.delivery.blue, row.delivery.white, row.delivery.green,
@@ -261,9 +263,8 @@ export function DayWiseReportModal({ open, onOpenChange }: DayWiseReportModalPro
               <TableRow className="bg-gray-50 font-bold hover:bg-gray-50">
                 <TableCell className="border-r border-gray-100 px-3 py-1.5 text-[12.5px] sticky left-0 bg-gray-50 z-10">TOTAL</TableCell>
                 {[
-                  apiTotals.extruder.output, apiTotals.extruder.wastage, 0,
+                  apiTotals.extruder.input, apiTotals.extruder.yarnWasteKg || 0, apiTotals.extruder.lumpsKg || 0, apiTotals.extruder.output,
                   0, 0, 0, apiTotals.looms.output,
-                  0, 0, apiTotals.looms.wastage,
                   0, 0, apiTotals.fabric.output,
                   0, 0, 0, 0, apiTotals.fabric.wastage,
                   deliveryTotals.blue, deliveryTotals.white, deliveryTotals.green,

@@ -9,6 +9,8 @@ interface StageInOut {
 interface StageTotals extends StageInOut {
   wastage: number;
   wastePct: number;
+  yarnWasteKg?: number;
+  lumpsKg?: number;
 }
 
 export interface DayWiseRow {
@@ -24,6 +26,8 @@ interface ApiStageTotals {
   wastageKg: number;
   wastePct: number;
   efficiencyPct?: number;
+  yarnWasteKg?: number;
+  lumpsKg?: number;
 }
 
 interface DashboardProductionResponse {
@@ -44,7 +48,7 @@ interface DashboardProductionResponse {
   };
 }
 
-const emptyTotals: StageTotals = { input: 0, output: 0, wastage: 0, wastePct: 0 };
+const emptyTotals: StageTotals = { input: 0, output: 0, wastage: 0, wastePct: 0, yarnWasteKg: 0, lumpsKg: 0 };
 
 export const dashboardProductionKey = ['dashboard', 'production'] as const;
 
@@ -72,6 +76,8 @@ export function useDayWiseProduction(monthStr?: string) {
         output: d.extruder.outputKg,
         wastage: d.extruder.wastageKg,
         wastePct: d.extruder.wastePct,
+        yarnWasteKg: d.extruder.yarnWasteKg || 0,
+        lumpsKg: d.extruder.lumpsKg || 0,
       },
       looms: {
         input: d.looms.inputKg,
@@ -96,6 +102,8 @@ export function useDayWiseProduction(monthStr?: string) {
           output: data.data.summary.extruder.outputKg,
           wastage: data.data.summary.extruder.wastageKg,
           wastePct: data.data.summary.extruder.wastePct,
+          yarnWasteKg: data.data.summary.extruder.yarnWasteKg || 0,
+          lumpsKg: data.data.summary.extruder.lumpsKg || 0,
         },
         looms: {
           input: data.data.summary.looms.inputKg,
