@@ -789,10 +789,12 @@ export function ProductionDesign2() {
                       <p className="text-[10px] px-3 font-extrabold uppercase tracking-wide text-gray-600 mb-1.5">WASTE %</p>
                       <p className="text-[17px] px-3 font-bold text-gray-900 leading-none font-inter">{wastePct.toFixed(2)}%</p>
                     </div>
+                    {/* TODO: wire up a real Lums-only wastage figure, then uncomment.
                     <div className="flex-[1.7]">
                       <p className="text-[10px] px-3 font-extrabold uppercase tracking-wide text-gray-600 mb-1.5">LUMS WASTAGE (KG)</p>
-                      <p className="text-[17px] px-3 font-bold text-gray-900 leading-none font-inter">0.00</p>
+                      <p className="text-[17px] px-3 font-bold text-gray-900 leading-none font-inter">{formatNum(lumsWastageKg)}</p>
                     </div>
+                    */}
                   </div>
                 </CardContent>
               </div>
@@ -866,10 +868,13 @@ export function ProductionDesign2() {
                       <p className="text-[10px] px-3 font-extrabold uppercase tracking-wide text-gray-600 mb-1">WASTE %</p>
                       <p className="text-[17px] px-3 font-bold text-gray-900 leading-none font-inter">{fabricWastePct.toFixed(2)}%</p>
                     </div>
+                    {/* TODO: decide what "Wastage Value" should represent (Bit Waste only? Fabric
+                    Waste only? Same as Total Wastage above?), wire it up, then uncomment.
                     <div className="flex-[1.7]">
                       <p className="text-[10px] px-3 font-extrabold uppercase tracking-wide text-gray-600 mb-1">WASTAGE VALUE (KG)</p>
                       <p className="text-[17px] px-3 font-bold text-gray-900 leading-none font-inter">0.00</p>
                     </div>
+                    */}
                   </div>
                 </CardContent>
               </div>
@@ -896,7 +901,7 @@ export function ProductionDesign2() {
               </div>
             </CardHeader>
             <div className="overflow-x-auto w-full">
-              <Table className="w-full">
+              <Table className="w-full table-fixed">
                 <TableHeader>
                   <TableRow className="hover:bg-transparent border-b border-gray-300">
                     <TableHead rowSpan={2} className="!text-center font-bold text-gray-800 align-middle border-r border-gray-300 w-[95px] min-w-[95px] px-1.5 bg-white text-xs uppercase tracking-wider">Date</TableHead>
@@ -928,17 +933,17 @@ export function ProductionDesign2() {
                   </TableRow>
                   <TableRow className="hover:bg-transparent bg-white border-b border-gray-300">
                     {/* Extruder */}
-                    <TableHead className="text-center text-gray-800 font-extrabold text-[12px] uppercase tracking-wider h-8">Input</TableHead>
-                    <TableHead className="text-center text-gray-800 font-extrabold text-[12px] uppercase tracking-wider h-8">Wastage</TableHead>
-                    <TableHead className="text-center text-gray-800 font-extrabold text-[12px] uppercase tracking-wider border-r border-gray-300 h-8">Output</TableHead>
+                    <TableHead className="w-[7.34%] text-center text-gray-800 font-extrabold text-[12px] uppercase tracking-wider h-8">Input</TableHead>
+                    <TableHead className="w-[7.34%] text-center text-gray-800 font-extrabold text-[12px] uppercase tracking-wider h-8">Wastage</TableHead>
+                    <TableHead className="w-[7.34%] text-center text-gray-800 font-extrabold text-[12px] uppercase tracking-wider border-r border-gray-300 h-8">Output</TableHead>
                     {/* Looms */}
-                    <TableHead className="text-center text-gray-800 font-extrabold text-[12px] uppercase tracking-wider h-8">Input</TableHead>
-                    <TableHead className="text-center text-gray-800 font-extrabold text-[12px] uppercase tracking-wider h-8">Wastage</TableHead>
-                    <TableHead className="text-center text-gray-800 font-extrabold text-[12px] uppercase tracking-wider border-r border-gray-300 h-8">Output</TableHead>
+                    <TableHead className="w-[7.34%] text-center text-gray-800 font-extrabold text-[12px] uppercase tracking-wider h-8">Input</TableHead>
+                    <TableHead className="w-[7.34%] text-center text-gray-800 font-extrabold text-[12px] uppercase tracking-wider h-8">Wastage</TableHead>
+                    <TableHead className="w-[7.34%] text-center text-gray-800 font-extrabold text-[12px] uppercase tracking-wider border-r border-gray-300 h-8">Output</TableHead>
                     {/* Fabric */}
-                    <TableHead className="text-center text-gray-800 font-extrabold text-[12px] uppercase tracking-wider h-8">Input</TableHead>
-                    <TableHead className="text-center text-gray-800 font-extrabold text-[12px] uppercase tracking-wider h-8">Wastage</TableHead>
-                    <TableHead className="text-center text-gray-800 font-extrabold text-[12px] uppercase tracking-wider border-r border-gray-300 h-8">Output</TableHead>
+                    <TableHead className="w-[7.34%] text-center text-gray-800 font-extrabold text-[12px] uppercase tracking-wider h-8">Input</TableHead>
+                    <TableHead className="w-[7.34%] text-center text-gray-800 font-extrabold text-[12px] uppercase tracking-wider h-8">Wastage</TableHead>
+                    <TableHead className="w-[7.34%] text-center text-gray-800 font-extrabold text-[12px] uppercase tracking-wider border-r border-gray-300 h-8">Output</TableHead>
                     {/* Fabric Delivered */}
                     <TableHead className="text-center text-gray-800 font-extrabold text-[12px] uppercase tracking-wider h-8">size</TableHead>
                     <TableHead className="text-center text-gray-800 font-extrabold text-[12px] uppercase tracking-wider h-8">color</TableHead>
@@ -967,7 +972,7 @@ export function ProductionDesign2() {
                       return (
                         <TableRow key={row.date} className="border-b border-gray-300 hover:bg-gray-50 transition-colors group">
                           <TableCell
-                            className="text-center font-bold text-[#004D40] border-r border-gray-300 text-[14px] py-1 cursor-pointer hover:underline px-4"
+                            className="!text-center font-bold text-[#004D40] border-r border-gray-300 text-[14px] py-1 cursor-pointer hover:underline px-4"
                             onClick={() => {
                               setIsNavigating(true);
                               setTimeout(() => {
@@ -1038,7 +1043,7 @@ export function ProductionDesign2() {
                   )}
 
                   {!loadingDayWise && dayWiseRows.length > 0 && (
-                    <TableRow className="bg-white font-bold hover:bg-white border-t-2 border-gray-400">
+                    <TableRow className="bg-white font-bold hover:bg-white border-t-2 border-gray-200">
                       <TableCell className="!text-center border-r border-gray-300 text-gray-900 text-[13px] py-1 px-1.5">TOTAL</TableCell>
                       {/* Extruder Total */}
                       <TableCell className="text-center text-[#00897B] text-[14px]">{formatNum(dayWiseTotals.extruder.input)}</TableCell>
@@ -1055,7 +1060,7 @@ export function ProductionDesign2() {
                       {/* Fabric Delivered Total */}
                       <TableCell className="text-center text-[#00897B] text-[14px]">-</TableCell>
                       <TableCell className="text-center text-[#00897B] text-[14px]">-</TableCell>
-                      <TableCell className="!text-center text-[#00897B] text-[14px] border-r border-gray-300">{formatNum(selectedMonthDeliveryTotal)}</TableCell>
+                      <TableCell className="!text-center text-[#00897B] text-[14px] border-r border-gray-200">{formatNum(selectedMonthDeliveryTotal)}</TableCell>
                       <TableCell></TableCell>
                     </TableRow>
                   )}
