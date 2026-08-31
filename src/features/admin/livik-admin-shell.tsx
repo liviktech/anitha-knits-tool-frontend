@@ -49,15 +49,15 @@ export function LivikAdminShell() {
   return (
     <div className="flex h-screen w-full bg-[#F4F1E8] font-['Hanken_Grotesk',sans-serif]">
       <aside className="hidden lg:flex w-60 shrink-0 bg-[#233327] flex-col">
-        <div className="flex items-center gap-2 px-5 py-5 border-b border-white/10">
+        <div className="flex items-center gap-2 px-5 py-3 border-b border-white/10">
           <InfinityIcon className="w-7 h-7 text-[#9AC08A] shrink-0" strokeWidth={2} />
           <div className="leading-tight">
-            <div className="text-white font-bold text-[15px] tracking-wide">INFINITY</div>
-            <div className="text-white/70 text-2xs tracking-[0.2em]">TEXTILES</div>
+            <div className="text-white font-bold text-[20px] tracking-wide">LK SPACE</div>
+            <div className="text-white/70 text-2xs tracking-[0.2em]"></div>
           </div>
         </div>
 
-        <nav className="flex-1 px-3 py-3 space-y-0.5 overflow-y-auto">
+        <nav className="flex-1 px-2 py-2 space-y-1.5 overflow-y-auto">
           {navItems.map((item) => {
             const Icon = item.icon;
             return (
@@ -65,12 +65,11 @@ export function LivikAdminShell() {
                 key={item.to}
                 to={item.to}
                 className={({ isActive }) =>
-                  `flex items-center gap-3 px-3 py-2.5 text-[13px] font-medium rounded-md transition-colors ${
-                    isActive ? 'bg-[#3A5240] text-white' : 'text-white/70 hover:bg-white/5 hover:text-white'
+                  `flex items-center gap-3 px-3 py-2.5 text-[14.5px] font-medium rounded-md transition-colors ${isActive ? 'bg-[#3A5240] text-white' : 'text-white/70 hover:bg-white/5 hover:text-white'
                   }`
                 }
               >
-                <Icon className="w-4 h-4 shrink-0" strokeWidth={1.75} />
+                <Icon className="w-5 h-5 shrink-0" strokeWidth={1.75} />
                 {item.label}
               </NavLink>
             );
