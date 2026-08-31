@@ -34,7 +34,16 @@ const FABRIC_COLORS = ['Blue', 'Green', 'White'] as const;
 
 export function DashboardDesign2() {
   const [filterDate, setFilterDate] = useState<Date>(new Date());
+  const [isManualRefreshing, setIsManualRefreshing] = useState(false);
   const currentMonthStr = format(filterDate, 'yyyy-MM');
+
+  const handleRefresh = () => {
+    if (isManualRefreshing) return;
+    setIsManualRefreshing(true);
+    setTimeout(() => {
+      setIsManualRefreshing(false);
+    }, 2000);
+  };
 
   const { dashboardData, isLoading: loadingDashboard } = useMonthlyDashboard(currentMonthStr);
 
@@ -199,16 +208,24 @@ export function DashboardDesign2() {
                   setFilterDate(parseISO(`${e.target.value}-01`));
                 }
               }}
-              className="h-9 w-40 bg-white border border-gray-400 rounded-md px-3 py-2 text-[10px] font-medium text-[#003140] shadow-[0_1px_2px_rgba(0,0,0,0.05)] hover:bg-gray-50 focus-visible:ring-1 focus-visible:ring-[#004D40]"
+              className="font-hanken h-9 w-40 bg-white border border-gray-400 rounded-md px-3 py-2 text-[10px] font-medium text-[#003140] shadow-[0_1px_2px_rgba(0,0,0,0.05)] hover:bg-gray-50 focus-visible:ring-1 focus-visible:ring-[#004D40]"
             />
-            <button className="flex items-center justify-center border border-gray-400 rounded-lg w-9 h-9 text-slate-500 hover:bg-slate-50 transition-colors" aria-label="Refresh">
-              <RefreshCw className="w-4 h-4" />
+            <button onClick={handleRefresh} disabled={isManualRefreshing} className="flex items-center justify-center border border-gray-400 rounded-lg w-9 h-9 text-slate-500 hover:bg-slate-50 transition-colors" aria-label="Refresh">
+              <RefreshCw className={`w-4 h-4 ${isManualRefreshing ? 'animate-spin text-[#004D40]' : ''}`} />
             </button>
           </div>
         </div>
 
         {/* White content surface wrapping everything below the header */}
-        <div className="">
+        {isManualRefreshing ? (
+          <div className="flex-1 flex items-center justify-center py-32 animate-in fade-in-0 duration-300">
+            <div className="flex flex-col items-center gap-3 text-[#004D40]">
+              <Loader size="xl" />
+              <p className="text-sm font-medium animate-pulse">Refreshing dashboard...</p>
+            </div>
+          </div>
+        ) : (
+          <div className="animate-in fade-in-0 slide-in-from-bottom-4 duration-700 fill-mode-both">
 
           {/* Inventory Summary Mini Cards */}
           <div className="bg-white rounded-2xl border border-gray-400 shadow-sm p-2.5" style={{ fontFamily: "'Hanken Grotesk Variable', 'Hanken Grotesk', sans-serif" }}>
@@ -295,7 +312,7 @@ export function DashboardDesign2() {
           </div>
 
           {/* Production Summary (Extruder / Looms / Fabric) — copied verbatim from production-design-2.tsx's Summary Cards block */}
-          <div className="font-hanken bg-white rounded-2xl border border-gray-400 shadow-sm p-2.5 mt-3">
+          <div className="font-hanken bg-white rounded-2xl border border-gray-400 shadow-sm p-2.5 mt-4">
             <p className="font-bold text-xl px-0.5 text-left pb-3">Production Summary</p>
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-2.5">
               <Card className="bg-[#00897B]/5 border border-[#B8DCD0] rounded-[14px] hover:shadow-md transition-all flex flex-col gap-0 self-start py-0">
@@ -364,7 +381,7 @@ export function DashboardDesign2() {
           </div>
 
           {/* Wastage */}
-          <div className="font-hanken bg-white rounded-2xl border border-gray-400 shadow-sm p-2 mt-3">
+          <div className="font-hanken bg-white rounded-2xl border border-gray-400 shadow-sm p-2 mt-4">
             <p className="font-bold text-xl px-1 text-left pb-3">Wastage Summary</p>
             <WastageCard
               looseWaste={looseWasteKg}
@@ -387,7 +404,7 @@ export function DashboardDesign2() {
           {/* Fabric Delivered (own horizontal section, below Fabric Stock) */}
           <div className="w-full">
             {/* <p className="font-bold text-xl px-0.5 text-left">Fabric Delivered Overview</p> */}
-            <Card className="font-hanken w-full bg-white border border-gray-400 shadow-lg shadow-slate-200/50 rounded-3xl p-2 md:p-2 gap-2 flex flex-col transition-shadow duration-300 hover:shadow-xl hover:shadow-slate-300/40 animate-in fade-in-0 slide-in-from-bottom-3 duration-700 fill-mode-both">
+            <Card className="font-hanken w-full bg-white border border-gray-400 shadow-lg shadow-slate-200/50 rounded-3xl p-2 md:p-2 gap-2 flex flex-col transition-shadow duration-300 hover:shadow-xl hover:shadow-slate-300/40 animate-in fade-in-0 slide-in-from-bottom-3 duration-700 fill-mode-both mt-2">
               <CardHeader className="p-0 flex flex-row items-center justify-between border-b border-gray-400 pt-0 pb-0!">
                 <CardTitle className="font-hanken font-bold text-xl px-1">
                   {/* <div
@@ -457,6 +474,7 @@ export function DashboardDesign2() {
 
 
         </div>
+        )}
       </div>
     </div>
   );
@@ -470,7 +488,7 @@ function FabricStockCard({
   total: number;
 }) {
   return (
-    <Card className="font-hanken bg-white border border-gray-400 shadow-lg shadow-slate-200/50 rounded-3xl p-2 md:p-2 gap-2 flex flex-col transition-shadow duration-300 hover:shadow-xl hover:shadow-slate-300/40 animate-in fade-in-0 slide-in-from-bottom-3 duration-700 fill-mode-both">
+    <Card className="font-hanken bg-white border border-gray-400 shadow-lg shadow-slate-200/50 rounded-3xl p-2 md:p-2 gap-2 flex flex-col transition-shadow duration-300 hover:shadow-xl hover:shadow-slate-300/40 animate-in fade-in-0 slide-in-from-bottom-3 duration-700 fill-mode-both mt-2">
       <CardHeader className="p-0 flex flex-row items-center justify-between border-b border-gray-400 pt-0 pb-0!">
         <CardTitle className="font-hanken font-bold text-xl px-1">
           {/* <img src="/stock.png" alt="" className="w-6 h-6 object-contain" /> */}

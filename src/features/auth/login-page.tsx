@@ -1,6 +1,6 @@
 import { useState, type FormEvent, useEffect } from 'react';
 import { Navigate, useNavigate } from 'react-router-dom';
-import { User, Lock } from 'lucide-react';
+import { User, Lock, Eye, EyeOff } from 'lucide-react';
 import { useAuth, defaultRouteFor } from './auth-context';
 
 export function LoginPage() {
@@ -10,6 +10,7 @@ export function LoginPage() {
   // Internal state 'mobile' for auth, but label is 'Email ID' per requirement
   const [mobile, setMobile] = useState('');
   const [password, setPassword] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [mounted, setMounted] = useState(false);
@@ -117,13 +118,25 @@ export function LoginPage() {
                 <Lock className="w-[20px] h-[20px] text-gray-500" strokeWidth={2} />
               </div>
               <input
-                type="password"
+                type={showPassword ? 'text' : 'password'}
                 placeholder="Password"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
-                className="w-full h-full bg-transparent outline-none px-4 text-gray-700 text-[16px] placeholder:text-gray-400 font-medium"
+                className="w-full h-full bg-transparent outline-none pl-4 pr-12 text-gray-700 text-[16px] placeholder:text-gray-400 font-medium"
                 required
               />
+              <button
+                type="button"
+                onClick={() => setShowPassword(!showPassword)}
+                className="absolute right-3 top-1/2 -translate-y-1/2 p-1 text-gray-400 hover:text-gray-600 focus:outline-none transition-colors"
+                aria-label={showPassword ? "Hide password" : "Show password"}
+              >
+                {showPassword ? (
+                  <EyeOff className="w-[20px] h-[20px]" strokeWidth={2} />
+                ) : (
+                  <Eye className="w-[20px] h-[20px]" strokeWidth={2} />
+                )}
+              </button>
             </div>
           </div>
 

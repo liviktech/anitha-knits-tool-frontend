@@ -522,7 +522,7 @@ function StockSummaryCard({ month, onEditDate, onDeleteDate }: { month: string; 
           <div className="absolute top-0 right-0 p-4 opacity-5 group-hover/card:opacity-10 transition-opacity">
             <img src="/hdpe.png" alt="" className="w-26 h-26 object-contain" />
           </div>
-          <div className="flex justify-between items-center mb-4 relative z-10">
+          <div className="flex justify-between items-center mb-2 relative z-10">
             <div className="flex items-center gap-2">
               <div className=""><img src="/hdpe.png" alt="HDPE" className="w-12 h-12 object-contain" /></div>
               <h3 className="font-extrabold text-gray-800 text-lg">HDPE Materials</h3>
@@ -534,8 +534,8 @@ function StockSummaryCard({ month, onEditDate, onDeleteDate }: { month: string; 
               <div className={`flex flex-wrap items-center gap-x-11 gap-y-1 ${rawMaterialsBalance.items.length === 1 ? 'justify-center' : 'justify-start'}`}>
                 {rawMaterialsBalance.items.map(item => (
                   <div key={item.name} className={`flex flex-col gap-0.5 ${rawMaterialsBalance.items.length === 1 ? 'items-center text-center' : 'items-start text-left'}`}>
-                    <span className="font-medium text-gray-500 text-xs">{item.name}</span>
-                    <span className="font-extrabold text-[#004D40] text-base">{item.weight.toFixed(2)}<span className="text-gray-500 font-normal text-xs ml-0.5">kg</span></span>
+                    <span className="font-medium text-gray-500 text-sm">{item.name}</span>
+                    <span className="font-extrabold text-[#004D40] text-sm">{item.weight.toFixed(2)}<span className="text-gray-500 font-normal text-xs ml-0.5">kg</span></span>
                   </div>
                 ))}
               </div>
@@ -548,7 +548,7 @@ function StockSummaryCard({ month, onEditDate, onDeleteDate }: { month: string; 
           <div className="absolute top-0 right-0 p-4 opacity-5 group-hover/card:opacity-10 transition-opacity">
             <img src="/chemical.png" alt="" className="w-26 h-26 object-contain" />
           </div>
-          <div className="flex justify-between items-center mb-4 relative z-10">
+          <div className="flex justify-between items-center mb-2 relative z-10">
             <div className="flex items-center gap-2">
               <div className=""><img src="/chemical.png" alt="Chemicals" className="w-12 h-12 object-contain" /></div>
               <h3 className="font-extrabold text-gray-800 text-lg">Chemicals</h3>
@@ -560,8 +560,8 @@ function StockSummaryCard({ month, onEditDate, onDeleteDate }: { month: string; 
               <div className={`flex flex-wrap items-center gap-x-11 gap-y-3 mt-2 ${chemicalsBalance.items.length === 1 ? 'justify-center' : 'justify-start'}`}>
                 {chemicalsBalance.items.map(item => (
                   <div key={item.name} className={`flex flex-col gap-0.5 ${chemicalsBalance.items.length === 1 ? 'items-center text-center' : 'items-start text-left'}`}>
-                    <span className="font-medium text-gray-500 text-xs">{item.name}</span>
-                    <span className="font-extrabold text-[#004D40] text-base">{item.weight.toFixed(2)}<span className="text-gray-500 font-normal text-xs ml-0.5">kg</span></span>
+                    <span className="font-medium text-gray-500 text-sm">{item.name}</span>
+                    <span className="font-extrabold text-[#004D40] text-sm">{item.weight.toFixed(2)}<span className="text-gray-500 font-normal text-xs ml-0.5">kg</span></span>
                   </div>
                 ))}
               </div>
@@ -574,7 +574,7 @@ function StockSummaryCard({ month, onEditDate, onDeleteDate }: { month: string; 
           <div className="absolute top-0 right-0 p-4 opacity-5 group-hover/card:opacity-10 transition-opacity">
             <img src="/color.png" alt="" className="w-26 h-26 object-contain" />
           </div>
-          <div className="flex justify-between items-center mb-4 relative z-10">
+          <div className="flex justify-between items-center mb-2 relative z-10">
             <div className="flex items-center gap-2">
               <div className=""><img src="/color.png" alt="Colors" className="w-12 h-12 object-contain" /></div>
               <h3 className="font-extrabold text-gray-800 text-lg">Colors</h3>
@@ -586,8 +586,8 @@ function StockSummaryCard({ month, onEditDate, onDeleteDate }: { month: string; 
               <div className={`flex flex-wrap items-center gap-x-11 gap-y-3 mt-2 ${colorsBalance.items.length === 1 ? 'justify-center' : 'justify-start'}`}>
                 {colorsBalance.items.map(item => (
                   <div key={item.name} className={`flex flex-col gap-0.5 ${colorsBalance.items.length === 1 ? 'items-center text-center' : 'items-start text-left'}`}>
-                    <span className="font-medium text-gray-500 text-xs">{item.name}</span>
-                    <span className="font-extrabold text-[#004D40] text-base">{item.weight.toFixed(2)}<span className="text-gray-500 font-normal text-xs ml-0.5">kg</span></span>
+                    <span className="font-medium text-gray-500 text-sm">{item.name}</span>
+                    <span className="font-extrabold text-[#004D40] text-sm">{item.weight.toFixed(2)}<span className="text-gray-500 font-normal text-xs ml-0.5">kg</span></span>
                   </div>
                 ))}
               </div>
