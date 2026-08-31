@@ -176,6 +176,8 @@ export function FabricModalForm({ productionDate, initialData, isEditMode, onCan
             <Label className="text-gray-600 text-xs font-semibold">Fabric Production (kg)</Label>
             <Input
               type="number"
+              min="0"
+              onKeyDown={(e) => e.key === '-' && e.preventDefault()}
               placeholder="0.00"
               value={draft.input}
               onChange={(e) => updateField('input', e.target.value)}
@@ -215,11 +217,11 @@ export function FabricModalForm({ productionDate, initialData, isEditMode, onCan
         <div className="grid grid-cols-2 gap-4 pt-1">
           <div className="space-y-1.5">
             <Label className="text-gray-600 text-xs font-semibold">Fabric Waste (kg)</Label>
-            <Input type="number" placeholder="0.00" value={draft.fwKg} onChange={(e) => updateField('fwKg', e.target.value)} />
+            <Input type="number" min="0" onKeyDown={(e) => e.key === '-' && e.preventDefault()} placeholder="0.00" value={draft.fwKg} onChange={(e) => updateField('fwKg', e.target.value)} />
           </div>
           <div className="space-y-1.5">
             <Label className="text-gray-600 text-xs font-semibold">Bit Waste (kg)</Label>
-            <Input type="number" placeholder="0.00" value={draft.bwKg} onChange={(e) => updateField('bwKg', e.target.value)} />
+            <Input type="number" min="0" onKeyDown={(e) => e.key === '-' && e.preventDefault()} placeholder="0.00" value={draft.bwKg} onChange={(e) => updateField('bwKg', e.target.value)} />
           </div>
         </div>
       </div>
@@ -228,8 +230,7 @@ export function FabricModalForm({ productionDate, initialData, isEditMode, onCan
         <h3 className="text-xs font-semibold uppercase tracking-wider text-fuchsia-800 border-b border-fuchsia-200 pb-1.5">Fabric Stock</h3>
         <div className="flex items-center gap-4 pt-1 w-2/3">
           <Label className="text-fuchsia-800 text-xs font-semibold shrink-0">Total Fabric Stock (kg)</Label>
-          <Input
-            type="number"
+          <Input type="number" min="0" onKeyDown={(e) => e.key === '-' && e.preventDefault()}
             className="h-8 text-xs border-fuchsia-200 focus-visible:ring-fuchsia-400 font-bold text-fuchsia-700 bg-white w-48"
             placeholder="0.00"
             value={draft.output}

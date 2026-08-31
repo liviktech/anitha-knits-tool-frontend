@@ -63,7 +63,7 @@ function formatLastUpdated(iso: string) {
 }
 
 export function RawMaterialsTab() {
-  const [selectedKey, setSelectedKey] = useState<LookupResource>('colors');
+  const [selectedKey, setSelectedKey] = useState<LookupResource>('brands');
   const [isAddOpen, setIsAddOpen] = useState(false);
   const [editingItem, setEditingItem] = useState<LookupItem | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<LookupItem | null>(null);
