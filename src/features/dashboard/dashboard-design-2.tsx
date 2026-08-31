@@ -57,17 +57,19 @@ export function DashboardDesign2() {
   const inventoryRecords = allInvData?.data ?? [];
   const extruderRecords = allExtruderData?.data ?? [];
 
+  // Balances shown on these cards are stock levels, not ledgers — they never
+  // display below 0.00 even if consumption momentarily outpaces recorded receipts.
   const getHDPEBalance = (name: string) =>
-    sumInventoryWeight(inventoryRecords, 'HDPE', name)
-    - extruderRecords.filter(r => r.extruder?.brand?.name === name).reduce((sum, r) => sum + (r.extruder?.rawMaterialKg ?? 0), 0);
+    Math.max(0, sumInventoryWeight(inventoryRecords, 'HDPE', name)
+      - extruderRecords.filter(r => r.extruder?.brand?.name === name).reduce((sum, r) => sum + (r.extruder?.rawMaterialKg ?? 0), 0));
 
   const getChemicalBalance = (name: string) =>
-    sumInventoryWeight(inventoryRecords, 'CHEMICAL', name)
-    - extruderRecords.filter(r => r.extruder?.chemical?.name === name).reduce((sum, r) => sum + (r.extruder?.chemicalKg ?? 0), 0);
+    Math.max(0, sumInventoryWeight(inventoryRecords, 'CHEMICAL', name)
+      - extruderRecords.filter(r => r.extruder?.chemical?.name === name).reduce((sum, r) => sum + (r.extruder?.chemicalKg ?? 0), 0));
 
   const getColorBalance = (name: string) =>
-    sumInventoryWeight(inventoryRecords, 'COLOR', name)
-    - extruderRecords.filter(r => r.color?.name === name).reduce((sum, r) => sum + (r.extruder?.colorConsumedKg ?? 0), 0);
+    Math.max(0, sumInventoryWeight(inventoryRecords, 'COLOR', name)
+      - extruderRecords.filter(r => r.color?.name === name).reduce((sum, r) => sum + (r.extruder?.colorConsumedKg ?? 0), 0));
 
   const isLoading = loadingDashboard;
 
