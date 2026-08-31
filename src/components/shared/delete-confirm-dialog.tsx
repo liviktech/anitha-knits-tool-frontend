@@ -29,22 +29,23 @@ export function DeleteConfirmDialog({
 }: DeleteConfirmDialogProps) {
   return (
     <AlertDialog open={open} onOpenChange={isPending ? undefined : onOpenChange}>
-      <AlertDialogContent>
-        <AlertDialogHeader>
-          <AlertDialogTitle>{title}</AlertDialogTitle>
-          <AlertDialogDescription>{description}</AlertDialogDescription>
+      <AlertDialogContent className="sm:max-w-md border border-gray-400">
+        <AlertDialogHeader className="-mx-4 -mt-4 mb-2 flex items-center text-left rounded-t-xl border-b border-gray-200 bg-[#A8DCAB] px-4 py-3">
+          <AlertDialogTitle className="text-lg font-bold text-black">{title}</AlertDialogTitle>
         </AlertDialogHeader>
-        <AlertDialogFooter>
-          <AlertDialogCancel disabled={isPending}>Cancel</AlertDialogCancel>
+        <AlertDialogDescription className="text-sm text-gray-600">{description}</AlertDialogDescription>
+        <AlertDialogFooter className="border-gray-200 bg-white">
+          <AlertDialogCancel disabled={isPending} className="h-8 text-xs">Cancel</AlertDialogCancel>
           <AlertDialogAction
             variant="destructive"
             disabled={isPending}
+            className="h-8 text-xs"
             onClick={(e) => {
               e.preventDefault();
               onConfirm();
             }}
           >
-            {isPending && <Loader className="mr-2" />}
+            {isPending && <Loader size="sm" className="mr-1.5" />}
             {isPending ? 'Deleting...' : 'Delete'}
           </AlertDialogAction>
         </AlertDialogFooter>
