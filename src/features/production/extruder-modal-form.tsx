@@ -345,15 +345,15 @@ export function ExtruderModalForm({ productionDate, initialData, isEditMode, onC
           {computedBrands.map((brandRow, idx) => (
             <div key={brandRow.key} className="flex items-end gap-2">
               <div className="space-y-1 flex-1">
-                {idx === 0 && <Label className="text-xs text-gray-500">Bags</Label>}
-                <Input type="number" placeholder="Bags" value={brandRow.bags} onChange={(e) => updateBrandField(brandRow.key, 'bags', e.target.value)} className="h-8 text-xs w-full" />
-              </div>
-              <div className="space-y-1 flex-1">
                 {idx === 0 && <Label className="text-xs text-gray-500">Brand</Label>}
                 <Select value={brandRow.brand} onValueChange={(v) => updateBrandField(brandRow.key, 'brand', v)}>
                   <SelectTrigger className="h-8 text-xs w-full"><SelectValue placeholder="Brand" /></SelectTrigger>
                   <SelectContent>{lookups.brands?.map((b) => <SelectItem key={b.id} value={b.name}>{b.name}</SelectItem>)}</SelectContent>
                 </Select>
+              </div>
+              <div className="space-y-1 flex-1">
+                {idx === 0 && <Label className="text-xs text-gray-500">Bags</Label>}
+                <Input type="number" placeholder="Bags" value={brandRow.bags} onChange={(e) => updateBrandField(brandRow.key, 'bags', e.target.value)} className="h-8 text-xs w-full" />
               </div>
               <div className="space-y-1 flex-1">
                 {idx === 0 && <Label className="text-xs text-gray-500">Bag Weight</Label>}

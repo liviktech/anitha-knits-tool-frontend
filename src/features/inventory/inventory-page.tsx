@@ -19,11 +19,13 @@ import { InventoryFormDialog } from './inventory-form-dialog';
 import { LoadSentFormDialog } from './load-sent-form-dialog';
 import {
   useInventoryRecords,
+  sumInventoryWeight,
   inventoryKeys,
   inventoryTypeLabels,
   type InventoryRecord,
   type InventoryType,
 } from './inventory-queries';
+import { useExtruderProductions } from '@/features/extruder/extruder-queries';
 import {
   useLoadSentRecords,
   loadSentKeys,
@@ -444,6 +446,37 @@ function StockSummaryCard({ month, onEditDate, onDeleteDate }: { month: string; 
   const chemicalNames = (lookupsData?.chemicals ?? []).map(c => c.name).sort();
   const colorNames = (lookupsData?.colors ?? []).map(c => c.name).sort();
 
+  // Top summary cards show the live balance (all-time received minus all-time production
+  // consumption) rather than what was received this month — same calculation as the
+  // Production page's Inventory Balances panel and the Dashboard's Raw Materials cards.
+  const { data: allExtruderData } = useExtruderProductions('?limit=100');
+  const extruderRecords = allExtruderData?.data ?? [];
+
+  const getHDPEBalance = (name: string) =>
+    sumInventoryWeight(records, 'HDPE', name)
+    - extruderRecords.filter(r => r.extruder?.brand?.name === name).reduce((sum, r) => sum + (r.extruder?.rawMaterialKg ?? 0), 0);
+
+  const getChemicalBalance = (name: string) =>
+    sumInventoryWeight(records, 'CHEMICAL', name)
+    - extruderRecords.filter(r => r.extruder?.chemical?.name === name).reduce((sum, r) => sum + (r.extruder?.chemicalKg ?? 0), 0);
+
+  const getColorBalance = (name: string) =>
+    sumInventoryWeight(records, 'COLOR', name)
+    - extruderRecords.filter(r => r.color?.name === name).reduce((sum, r) => sum + (r.extruder?.colorConsumedKg ?? 0), 0);
+
+  const rawMaterialsBalance = {
+    weight: hdpeNames.reduce((sum, name) => sum + getHDPEBalance(name), 0),
+    items: hdpeNames.map(name => ({ name, weight: getHDPEBalance(name) })),
+  };
+  const chemicalsBalance = {
+    weight: chemicalNames.reduce((sum, name) => sum + getChemicalBalance(name), 0),
+    items: chemicalNames.map(name => ({ name, weight: getChemicalBalance(name) })),
+  };
+  const colorsBalance = {
+    weight: colorNames.reduce((sum, name) => sum + getColorBalance(name), 0),
+    items: colorNames.map(name => ({ name, weight: getColorBalance(name) })),
+  };
+
   // Build date-grouped rows
   const groupedByDate = Array.from(
     monthRecords.reduce((map, r) => {
@@ -494,19 +527,19 @@ function StockSummaryCard({ month, onEditDate, onDeleteDate }: { month: string; 
               <div className=""><img src="/hdpe.png" alt="HDPE" className="w-12 h-12 object-contain" /></div>
               <h3 className="font-extrabold text-gray-800 text-lg">HDPE Materials</h3>
             </div>
-            <div className="text-lg font-bold text-gray-800 leading-none">{rawMaterials.weight.toFixed(2)} <span className="text-xs font-medium text-gray-500">kg</span></div>
+            <div className="text-lg font-bold text-gray-800 leading-none">{rawMaterialsBalance.weight.toFixed(2)} <span className="text-xs font-medium text-gray-500">kg</span></div>
           </div>
           <div className="mt-auto relative z-10 pt-2 border-t border-gray-50">
-            {rawMaterials.items.length > 0 ? (
+            {rawMaterialsBalance.items.length > 0 ? (
               <div className="flex flex-wrap items-center gap-x-6 gap-y-3 mt-2">
-                {rawMaterials.items.map(item => (
+                {rawMaterialsBalance.items.map(item => (
                   <div key={item.name} className="flex flex-col gap-0.5">
                     <span className="font-medium text-gray-500 text-xs">{item.name}</span>
                     <span className="font-extrabold text-[#004D40] text-base">{item.weight.toFixed(2)}<span className="text-gray-500 font-normal text-xs ml-0.5">kg</span></span>
                   </div>
                 ))}
               </div>
-            ) : <span className="text-xs text-gray-400 italic">No HDPE this month</span>}
+            ) : <span className="text-xs text-gray-400 italic">No HDPE brands configured</span>}
           </div>
         </div>
 
@@ -520,19 +553,19 @@ function StockSummaryCard({ month, onEditDate, onDeleteDate }: { month: string; 
               <div className=""><img src="/chemical.png" alt="Chemicals" className="w-12 h-12 object-contain" /></div>
               <h3 className="font-extrabold text-gray-800 text-lg">Chemicals</h3>
             </div>
-            <div className="text-lg font-bold text-gray-800 leading-none">{chemicals.weight.toFixed(2)} <span className="text-xs font-medium text-gray-500">kg</span></div>
+            <div className="text-lg font-bold text-gray-800 leading-none">{chemicalsBalance.weight.toFixed(2)} <span className="text-xs font-medium text-gray-500">kg</span></div>
           </div>
           <div className="mt-auto relative z-10 pt-2 border-t border-gray-50">
-            {chemicals.items.length > 0 ? (
+            {chemicalsBalance.items.length > 0 ? (
               <div className="flex flex-wrap items-center gap-x-6 gap-y-3 mt-2">
-                {chemicals.items.map(item => (
+                {chemicalsBalance.items.map(item => (
                   <div key={item.name} className="flex flex-col gap-0.5">
                     <span className="font-medium text-gray-500 text-xs">{item.name}</span>
                     <span className="font-extrabold text-[#004D40] text-base">{item.weight.toFixed(2)}<span className="text-gray-500 font-normal text-xs ml-0.5">kg</span></span>
                   </div>
                 ))}
               </div>
-            ) : <span className="text-xs text-gray-400 italic">No chemicals this month</span>}
+            ) : <span className="text-xs text-gray-400 italic">No chemicals configured</span>}
           </div>
         </div>
 
@@ -546,19 +579,19 @@ function StockSummaryCard({ month, onEditDate, onDeleteDate }: { month: string; 
               <div className=""><img src="/color.png" alt="Colors" className="w-12 h-12 object-contain" /></div>
               <h3 className="font-extrabold text-gray-800 text-lg">Colors</h3>
             </div>
-            <div className="text-lg font-bold text-gray-800 leading-none">{colors.weight.toFixed(2)} <span className="text-xs font-medium text-gray-500">kg</span></div>
+            <div className="text-lg font-bold text-gray-800 leading-none">{colorsBalance.weight.toFixed(2)} <span className="text-xs font-medium text-gray-500">kg</span></div>
           </div>
           <div className="mt-auto relative z-10 pt-2 border-t border-gray-50">
-            {colors.items.length > 0 ? (
+            {colorsBalance.items.length > 0 ? (
               <div className="flex flex-wrap items-center gap-x-6 gap-y-3 mt-2">
-                {colors.items.map(item => (
+                {colorsBalance.items.map(item => (
                   <div key={item.name} className="flex flex-col gap-0.5">
                     <span className="font-medium text-gray-500 text-xs">{item.name}</span>
                     <span className="font-extrabold text-[#004D40] text-base">{item.weight.toFixed(2)}<span className="text-gray-500 font-normal text-xs ml-0.5">kg</span></span>
                   </div>
                 ))}
               </div>
-            ) : <span className="text-xs text-gray-400 italic">No colors this month</span>}
+            ) : <span className="text-xs text-gray-400 italic">No colors configured</span>}
           </div>
         </div>
 

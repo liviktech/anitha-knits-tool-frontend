@@ -37,7 +37,7 @@ export function FabricModalForm({ productionDate, initialData, isEditMode, onCan
   const updateField = (field: keyof FabricDraft, value: string) => {
     setDraft(prev => {
       const next = { ...prev, [field]: value };
-      if (!outputManuallyEdited && (field === 'input' || field === 'fwKg' || field === 'bwKg')) {
+      if (!outputManuallyEdited && field === 'input') {
         next.output = suggestFabricOutput(next);
       }
       return next;
