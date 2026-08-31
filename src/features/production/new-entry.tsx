@@ -105,13 +105,7 @@ export function NewEntry({ onClose, defaultDate, readOnly = false }: NewEntryPro
                 activeTab === 'fabric' ? `${themes.fabric.iconBg} ${themes.fabric.iconColor} ${themes.fabric.iconHoverBg} ${themes.fabric.iconHoverColor}` :
                   `${themes.fabricDelivered.iconBg} ${themes.fabricDelivered.iconColor} ${themes.fabricDelivered.iconHoverBg} ${themes.fabricDelivered.iconHoverColor}`
               }`}
-            onClick={() => {
-              setEditingExtruderGroup(null);
-              setEditingLoomGroup(null);
-              setEditingFabricGroup(null);
-              setEditingDeliveredGroup(null);
-              setIsAddModalOpen(true);
-            }}
+            onClick={() => setIsAddModalOpen(true)}
           >
             <Plus className="w-3 h-3" />
             ADD ROW
