@@ -105,22 +105,24 @@ export function NewEntry({ onClose, defaultDate, readOnly: propsReadOnly = false
   const inventoryRecords = allInvData?.data ?? [];
   const extruderRecords = allExtruderData?.data ?? [];
 
+  // Balances shown here are stock levels, not ledgers — they never display
+  // below 0.00 even if consumption momentarily outpaces recorded receipts.
   const getHDPEBalance = (name: string) => {
     const received = inventoryRecords.filter(r => r.type === 'HDPE' && r.name === name).reduce((sum, r) => sum + r.weightKg, 0);
     const consumed = extruderRecords.filter(r => r.extruder?.brand?.name === name).reduce((sum, r) => sum + (r.extruder?.rawMaterialKg ?? 0), 0);
-    return (received - consumed).toFixed(2);
+    return Math.max(0, received - consumed).toFixed(2);
   };
 
   const getChemicalBalance = (name: string) => {
     const received = inventoryRecords.filter(r => r.type === 'CHEMICAL' && r.name === name).reduce((sum, r) => sum + r.weightKg, 0);
     const consumed = extruderRecords.filter(r => r.extruder?.chemical?.name === name).reduce((sum, r) => sum + (r.extruder?.chemicalKg ?? 0), 0);
-    return (received - consumed).toFixed(2);
+    return Math.max(0, received - consumed).toFixed(2);
   };
 
   const getColorBalance = (name: string) => {
     const received = inventoryRecords.filter(r => r.type === 'COLOR' && r.name === name).reduce((sum, r) => sum + r.weightKg, 0);
     const consumed = extruderRecords.filter(r => r.color?.name === name).reduce((sum, r) => sum + (r.extruder?.colorConsumedKg ?? 0), 0);
-    return (received - consumed).toFixed(2);
+    return Math.max(0, received - consumed).toFixed(2);
   };
 
   const totalRawMaterial = lookups.brands.reduce((sum, b) => sum + parseFloat(getHDPEBalance(b.name) || '0'), 0).toFixed(2);
