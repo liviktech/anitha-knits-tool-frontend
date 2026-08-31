@@ -369,11 +369,11 @@ export function ExtruderModalForm({ productionDate, initialData, isEditMode, onC
                 <Input type="number" placeholder="Bags" value={brandRow.bags} onChange={(e) => updateBrandField(brandRow.key, 'bags', e.target.value)} className="h-8 text-xs w-full" />
               </div>
               <div className="space-y-1 flex-1">
-                {idx === 0 && <Label className="text-xs text-gray-500">Bag Weight</Label>}
-                <Input type="number" placeholder="Bag Wt" disabled readOnly value={computeBagWeightDisplay(brandRow.bags, brandRow.basisWeightKg)} className="h-8 text-xs w-full border border-gray-300" />
+                {idx === 0 && <Label className="text-xs text-gray-500">Bag Weight(kg)</Label>}
+                <Input type="number" placeholder="Bag Wt" disabled readOnly value={computeBagWeightDisplay(brandRow.bags, brandRow.basisWeightKg)} className="h-8 text-xs w-full border border-gray-400 disabled:opacity-100" />
               </div>
               <div className="space-y-1 flex-1">
-                {idx === 0 && <Label className="text-xs text-gray-500">Loose Weight</Label>}
+                {idx === 0 && <Label className="text-xs text-gray-500 whitespace-nowrap">Loose Weight(kg)</Label>}
                 <Input type="number" placeholder="Loose Wt" value={brandRow.looseWeight} onChange={(e) => updateBrandField(brandRow.key, 'looseWeight', e.target.value)} className="h-8 text-xs w-full" />
               </div>
               <div className="space-y-1 flex-1">
@@ -405,21 +405,27 @@ export function ExtruderModalForm({ productionDate, initialData, isEditMode, onC
         <div className="space-y-2 p-3 rounded-lg border border-gray-400">
           <h3 className={`text-xs font-semibold uppercase tracking-wider border-b pb-1.5 ${theme.headerText}`}>Chemicals & Colors</h3>
           <div className="space-y-2">
-            <div className="space-y-1.5">
-              <Label className="text-gray-600 text-xs font-semibold">Chemical Type</Label>
-              <Select value={group.chemical} onValueChange={(v) => updateGroupField('chemical', v)} disabled={isEditMode}>
-                <SelectTrigger className="h-8 text-xs"><SelectValue placeholder="Select Chem" /></SelectTrigger>
-                <SelectContent>{lookups.chemicals?.map((c) => <SelectItem key={c.id} value={c.name}>{c.name}</SelectItem>)}</SelectContent>
-              </Select>
+            <div className="grid grid-cols-2 gap-2">
+              <div className="space-y-1.5">
+                <Label className="text-gray-600 text-xs font-semibold">Chemical Type</Label>
+                <Select value={group.chemical} onValueChange={(v) => updateGroupField('chemical', v)} disabled={isEditMode}>
+                  <SelectTrigger className="h-8 text-xs"><SelectValue placeholder="Select Chem" /></SelectTrigger>
+                  <SelectContent>{lookups.chemicals?.map((c) => <SelectItem key={c.id} value={c.name}>{c.name}</SelectItem>)}</SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-1.5">
+                <Label className="text-gray-600 text-xs font-semibold">Chem Weight(kg)</Label>
+                <Input type="number" placeholder="0.00" className="h-8 text-xs bg-gray-100 border border-gray-400 disabled:opacity-100" value={standardChemicalConsumedKg !== undefined ? standardChemicalConsumedKg.toFixed(2) : ''} disabled readOnly />
+              </div>
             </div>
             <div className="grid grid-cols-2 gap-2">
               <div className="space-y-1.5">
-                <Label className="text-gray-600 text-xs font-semibold">Chem Wt (kg)</Label>
-                <Input type="number" placeholder="0.00" className="h-8 text-xs bg-gray-100" value={standardChemicalConsumedKg !== undefined ? standardChemicalConsumedKg.toFixed(2) : ''} disabled readOnly />
+                <Label className="text-gray-600 text-xs font-semibold">Color</Label>
+                <Input type="text" placeholder="Select color above" className="h-8 text-xs bg-gray-100 border border-gray-400 disabled:opacity-100" value={group.color} disabled readOnly />
               </div>
               <div className="space-y-1.5">
-                <Label className="text-gray-600 text-xs font-semibold">Color Wt (kg)</Label>
-                <Input type="number" placeholder="0.00" className="h-8 text-xs bg-gray-100" value={standardColorConsumedKg !== undefined ? standardColorConsumedKg.toFixed(2) : ''} disabled readOnly />
+                <Label className="text-gray-600 text-xs font-semibold">Color Weight (kg)</Label>
+                <Input type="number" placeholder="0.00" className="h-8 text-xs bg-gray-100 border border-gray-400 disabled:opacity-100" value={standardColorConsumedKg !== undefined ? standardColorConsumedKg.toFixed(2) : ''} disabled readOnly />
               </div>
             </div>
           </div>
@@ -443,9 +449,9 @@ export function ExtruderModalForm({ productionDate, initialData, isEditMode, onC
 
       {/* Loom Production */}
       <div className="space-y-2 bg-green-50/30 p-3 rounded-lg border border-green-300">
-        <h3 className="text-xs font-semibold uppercase tracking-wider text-green-800 border-b border-green-200 pb-1.5">Loom Production</h3>
+        <h3 className="text-xs font-semibold uppercase tracking-wider text-green-800 border-b border-green-200 pb-1.5">Looms Production</h3>
         <div className="flex items-center gap-4 pt-1 w-2/3">
-          <Label className="text-green-800 text-xs font-semibold shrink-0">Total Loom Production (kg)</Label>
+          <Label className="text-green-800 text-xs font-semibold shrink-0">Total Looms Production (kg)</Label>
           <Input type="number" className="h-8 text-xs border-green-200 focus-visible:ring-green-400 font-bold text-green-700 bg-white w-48" placeholder="0.00" value={displayedOutputKg} onChange={(e) => handleOutputChange(e.target.value)} />
         </div>
       </div>
