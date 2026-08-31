@@ -48,6 +48,7 @@ export function CompanyDetailsPage() {
         <p className="text-gray-500 text-sm">Unable to load this company.</p>
         <Link to="/admin/companies" className="text-[#4C7A50] text-sm font-semibold hover:underline">
           Back to Companies
+          {/* back */}
         </Link>
       </div>
     );
