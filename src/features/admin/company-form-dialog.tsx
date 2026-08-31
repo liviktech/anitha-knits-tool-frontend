@@ -152,7 +152,7 @@ export function CompanyFormDialog({ onClose, company }: CompanyFormDialogProps) 
                 <Label htmlFor="company-status">Status</Label>
                 <Select value={isActive ? 'Active' : 'Inactive'} onValueChange={(value) => setIsActive(value === 'Active')}>
                   <SelectTrigger id="company-status" className="w-full"><SelectValue /></SelectTrigger>
-                  <SelectContent>
+                  <SelectContent position="popper">
                     <SelectItem value="Active">Active</SelectItem>
                     <SelectItem value="Inactive">Inactive</SelectItem>
                   </SelectContent>
