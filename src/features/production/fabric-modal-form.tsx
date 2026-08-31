@@ -60,11 +60,13 @@ export function FabricModalForm({ productionDate, initialData, isEditMode, onCan
       return;
     }
 
+    const finalFabricInput = parseInt(draft.input) + (koraBalanceKg || 0);
+
     const payload: FabricCheckingCreatePayload = {
       productionDate,
       colorId,
       sizeId,
-      fabricInputKg: parseFloat(draft.input) || 0,
+      fabricInputKg: parseFloat(finalFabricInput.toFixed(2)) || 0,
       outputKg: parseFloat(draft.output) || 0,
       fwKg: parseFloat(draft.fwKg) || 0,
       bwKg: parseFloat(draft.bwKg) || 0,
@@ -117,6 +119,11 @@ export function FabricModalForm({ productionDate, initialData, isEditMode, onCan
       <div className="p-3 rounded-lg border border-gray-400">
         <h3 className={`text-xs font-semibold uppercase tracking-wider border-b pb-1.5 ${theme.headerText}`}>Production Details</h3>
         <div className="grid grid-cols-2 gap-4 pt-1">
+
+          <div className="space-y-1.5">
+            <Label className="text-gray-600 text-xs font-semibold">Fabric Production (kg)</Label>
+            <Input type="number" placeholder="0.00" value={draft.input} onChange={(e) => updateField('input', e.target.value)} />
+          </div>
           <div className="space-y-1.5">
             <Label className="text-gray-600 text-xs font-semibold">Kora Balance (kg)</Label>
             <Input
@@ -127,10 +134,6 @@ export function FabricModalForm({ productionDate, initialData, isEditMode, onCan
               readOnly
               className="bg-gray-100"
             />
-          </div>
-          <div className="space-y-1.5">
-            <Label className="text-gray-600 text-xs font-semibold">Fabric Production (kg)</Label>
-            <Input type="number" placeholder="0.00" value={draft.input} onChange={(e) => updateField('input', e.target.value)} />
           </div>
         </div>
       </div>
