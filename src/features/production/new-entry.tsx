@@ -66,7 +66,7 @@ export function NewEntry({ onClose, defaultDate, readOnly = false }: NewEntryPro
     (fabricDayData?.data?.length ?? 0) > 0 ||
     (deliveredDayData?.data ?? []).some((r) => (r.productionDate ?? r.date ?? '').startsWith(productionDate))
   );
-  const showDatePicker = isCreateMode && !hasDataForDay;
+  const showDatePicker = isCreateMode;
 
   useEffect(() => {
     setHeaderTitle(isCreateMode ? 'Add New Daily Production Details' : 'Edit Daily Production Details');
@@ -92,7 +92,7 @@ export function NewEntry({ onClose, defaultDate, readOnly = false }: NewEntryPro
                 mode="single"
                 selected={date}
                 onSelect={(value) => value && setDate(value)}
-                disabled={(d) => d < new Date(new Date().setHours(0, 0, 0, 0))}
+                disabled={(d) => d > new Date()}
                 autoFocus
               />
             </PopoverContent>
