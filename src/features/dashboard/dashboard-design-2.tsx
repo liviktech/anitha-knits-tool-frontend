@@ -4,6 +4,8 @@ import { format } from 'date-fns';
 import { Loader } from '@/components/shared/loader';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { useMonthlyDashboard } from './dashboard-queries';
+import { useExtruderProductions, useLookups } from '@/features/extruder/extruder-queries';
+import { useInventoryRecords, sumInventoryWeight } from '@/features/inventory/inventory-queries';
 
 function formatNum(n: number): string {
   return n.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
@@ -32,6 +34,28 @@ export function DashboardDesign2() {
   const currentMonthStr = format(new Date(), 'yyyy-MM');
 
   const { dashboardData, isLoading: loadingDashboard } = useMonthlyDashboard(currentMonthStr);
+
+  // Raw Materials balances — all-time received minus all-time production consumption, the
+  // same client-side calculation the "Add New Daily Production Details" page's Inventory
+  // Balances panel uses (new-entry.tsx), so both places stay in sync as production is recorded.
+  const { data: lookupsData } = useLookups();
+  const lookups = lookupsData ?? { brands: [], colors: [], chemicals: [], sizes: [] };
+  const { data: allInvData } = useInventoryRecords('?limit=100');
+  const { data: allExtruderData } = useExtruderProductions('?limit=100');
+  const inventoryRecords = allInvData?.data ?? [];
+  const extruderRecords = allExtruderData?.data ?? [];
+
+  const getHDPEBalance = (name: string) =>
+    sumInventoryWeight(inventoryRecords, 'HDPE', name)
+    - extruderRecords.filter(r => r.extruder?.brand?.name === name).reduce((sum, r) => sum + (r.extruder?.rawMaterialKg ?? 0), 0);
+
+  const getChemicalBalance = (name: string) =>
+    sumInventoryWeight(inventoryRecords, 'CHEMICAL', name)
+    - extruderRecords.filter(r => r.extruder?.chemical?.name === name).reduce((sum, r) => sum + (r.extruder?.chemicalKg ?? 0), 0);
+
+  const getColorBalance = (name: string) =>
+    sumInventoryWeight(inventoryRecords, 'COLOR', name)
+    - extruderRecords.filter(r => r.color?.name === name).reduce((sum, r) => sum + (r.extruder?.colorConsumedKg ?? 0), 0);
 
   const isLoading = loadingDashboard;
 
@@ -102,11 +126,18 @@ export function DashboardDesign2() {
     0,
   );
 
-  const toInventoryItems = (items: { name: string; weightKg: number }[] | undefined) =>
-    (items || []).map(i => ({ name: i.name, weight: i.weightKg }));
-  const rawMaterials = { weight: dashboardData?.inventory.HDPE.totalWeightKg || 0, items: toInventoryItems(dashboardData?.inventory.HDPE.items) };
-  const chemicals = { weight: dashboardData?.inventory.CHEMICAL.totalWeightKg || 0, items: toInventoryItems(dashboardData?.inventory.CHEMICAL.items) };
-  const invColors = { weight: dashboardData?.inventory.COLOR.totalWeightKg || 0, items: toInventoryItems(dashboardData?.inventory.COLOR.items) };
+  const rawMaterials = {
+    weight: lookups.brands.reduce((sum, b) => sum + getHDPEBalance(b.name), 0),
+    items: lookups.brands.map(b => ({ name: b.name, weight: getHDPEBalance(b.name) })),
+  };
+  const chemicals = {
+    weight: lookups.chemicals.reduce((sum, c) => sum + getChemicalBalance(c.name), 0),
+    items: lookups.chemicals.map(c => ({ name: c.name, weight: getChemicalBalance(c.name) })),
+  };
+  const invColors = {
+    weight: lookups.colors.reduce((sum, c) => sum + getColorBalance(c.name), 0),
+    items: lookups.colors.map(c => ({ name: c.name, weight: getColorBalance(c.name) })),
+  };
 
   const monthDeliveriesByColor = FABRIC_COLORS.map(color => {
     const deliveries = (dashboardData?.loadSent.items || [])
