@@ -757,7 +757,7 @@ export function ProductionDesign2() {
       ) : (
         <div className="p-2 flex flex-col gap-2 flex-1">
           {/* Summary Cards */}
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-2.5">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-2">
             <Card className="bg-white rounded-[14px] p-2 hover:shadow-md transition-all">
               <div className="bg-[#00897B]/5 border border-[#B8DCD0] rounded-[10px] h-full flex flex-col">
                 <CardHeader className="flex flex-row items-center justify-between pb-3 pt-4 px-4">
@@ -843,7 +843,7 @@ export function ProductionDesign2() {
                     Fabric Production
                   </CardTitle>
                   <div className="bg-white p-1.5 rounded-md border border-gray-100 shadow-[0_1px_2px_rgba(0,0,0,0.05)] text-[#004D40] flex items-center justify-center">
-                    <Layers className="w-[35px] h-[35px] opacity-90" />
+                    <img src="/fabric-prod.png" alt="Fabric Production" className="w-[35px] h-[35px] object-contain" />
                   </div>
                 </CardHeader>
                 <CardContent className="px-3 pb-4 pt-0 flex-1 flex flex-col justify-between">
