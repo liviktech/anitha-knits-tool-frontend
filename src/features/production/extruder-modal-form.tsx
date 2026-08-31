@@ -12,11 +12,13 @@ import {
   findIdByName,
   extruderKeys,
   useColorConsumptionStandard,
+  useExtruderProductions,
   colorGramsPerBasis,
   type Lookups,
   type ExtruderCreatePayload,
   type ExtruderUpdatePayload,
 } from '@/features/extruder/extruder-queries';
+import { useInventoryRecords, sumInventoryWeight } from '@/features/inventory/inventory-queries';
 import { dashboardProductionKey } from '@/features/production/day-wise-queries';
 import { themes } from '@/features/production/day-entry-sections';
 import type { ExtruderGroupDraft, ExtruderBrandDraft } from '@/features/extruder/extruder-section-new';
@@ -128,6 +130,16 @@ export function ExtruderModalForm({ productionDate, initialData, isEditMode, onC
   const { data: lookupsData } = useLookups();
   const lookups: Lookups = lookupsData ?? { brands: [], colors: [], chemicals: [], sizes: [] };
   const theme = themes.extruder;
+
+  // Brands with zero or negative live stock balance (received minus already-consumed)
+  // must not be selectable in the HDPE Material rows below.
+  const { data: inventoryData } = useInventoryRecords('?limit=100');
+  const inventoryRecords = inventoryData?.data ?? [];
+  const { data: allExtruderData } = useExtruderProductions('?limit=100');
+  const allExtruderRecords = allExtruderData?.data ?? [];
+  const getBrandBalance = (name: string) =>
+    sumInventoryWeight(inventoryRecords, 'HDPE', name)
+    - allExtruderRecords.filter((r) => r.extruder?.brand?.name === name).reduce((sum, r) => sum + (r.extruder?.rawMaterialKg ?? 0), 0);
 
   const [group, setGroup] = useState<ExtruderGroupDraft>(initialData || emptyGroupDraft());
   const [outputManuallyEdited, setOutputManuallyEdited] = useState(!!initialData);
@@ -361,7 +373,16 @@ export function ExtruderModalForm({ productionDate, initialData, isEditMode, onC
                 {idx === 0 && <Label className="text-xs text-gray-500">Brand</Label>}
                 <Select value={brandRow.brand} onValueChange={(v) => updateBrandField(brandRow.key, 'brand', v)}>
                   <SelectTrigger className="h-8 text-xs w-full"><SelectValue placeholder="Brand" /></SelectTrigger>
-                  <SelectContent>{lookups.brands?.map((b) => <SelectItem key={b.id} value={b.name}>{b.name}</SelectItem>)}</SelectContent>
+                  <SelectContent>
+                    {lookups.brands?.map((b) => {
+                      const outOfStock = getBrandBalance(b.name) <= 0 && b.name !== brandRow.brand;
+                      return (
+                        <SelectItem key={b.id} value={b.name} disabled={outOfStock}>
+                          {b.name}{outOfStock ? ' (no stock)' : ''}
+                        </SelectItem>
+                      );
+                    })}
+                  </SelectContent>
                 </Select>
               </div>
               <div className="space-y-1 flex-1">
