@@ -72,8 +72,11 @@ export function FabricModalForm({ productionDate, initialData, isEditMode, onCan
 
     setSaving(true);
     try {
-      const response = await apiFetch('/fabric-checking', {
-        method: 'POST',
+      const url = isEditMode && draft.id ? `/fabric-checking/${draft.id}` : '/fabric-checking';
+      const method = isEditMode && draft.id ? 'PUT' : 'POST';
+
+      const response = await apiFetch(url, {
+        method,
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload),
       });

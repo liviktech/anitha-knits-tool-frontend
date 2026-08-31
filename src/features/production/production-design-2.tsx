@@ -933,20 +933,20 @@ export function ProductionDesign2() {
                   </TableRow>
                   <TableRow className="hover:bg-transparent bg-white border-b border-gray-300">
                     {/* Extruder */}
-                    <TableHead className="w-[7.34%] text-center text-gray-800 font-extrabold text-[12px] uppercase tracking-wider h-8">Input</TableHead>
-                    <TableHead className="w-[7.34%] text-center text-gray-800 font-extrabold text-[12px] uppercase tracking-wider h-8">Wastage</TableHead>
-                    <TableHead className="w-[7.34%] text-center text-gray-800 font-extrabold text-[12px] uppercase tracking-wider border-r border-gray-300 h-8">Output</TableHead>
+                    <TableHead className="w-[7.34%] !text-center text-gray-800 font-extrabold text-[12px] uppercase tracking-wider h-8">Input</TableHead>
+                    <TableHead className="w-[7.34%] !text-center text-gray-800 font-extrabold text-[12px] uppercase tracking-wider h-8">Wastage</TableHead>
+                    <TableHead className="w-[7.34%] !text-center text-gray-800 font-extrabold text-[12px] uppercase tracking-wider border-r border-gray-300 h-8">Output</TableHead>
                     {/* Looms */}
-                    <TableHead className="w-[7.34%] text-center text-gray-800 font-extrabold text-[12px] uppercase tracking-wider h-8">Input</TableHead>
-                    <TableHead className="w-[7.34%] text-center text-gray-800 font-extrabold text-[12px] uppercase tracking-wider h-8">Wastage</TableHead>
-                    <TableHead className="w-[7.34%] text-center text-gray-800 font-extrabold text-[12px] uppercase tracking-wider border-r border-gray-300 h-8">Output</TableHead>
+                    <TableHead className="w-[7.34%] !text-center text-gray-800 font-extrabold text-[12px] uppercase tracking-wider h-8">Input</TableHead>
+                    <TableHead className="w-[7.34%] !text-center text-gray-800 font-extrabold text-[12px] uppercase tracking-wider h-8">Wastage</TableHead>
+                    <TableHead className="w-[7.34%] !text-center text-gray-800 font-extrabold text-[12px] uppercase tracking-wider border-r border-gray-300 h-8">Output</TableHead>
                     {/* Fabric */}
-                    <TableHead className="w-[7.34%] text-center text-gray-800 font-extrabold text-[12px] uppercase tracking-wider h-8">Input</TableHead>
-                    <TableHead className="w-[7.34%] text-center text-gray-800 font-extrabold text-[12px] uppercase tracking-wider h-8">Wastage</TableHead>
-                    <TableHead className="w-[7.34%] text-center text-gray-800 font-extrabold text-[12px] uppercase tracking-wider border-r border-gray-300 h-8">Output</TableHead>
+                    <TableHead className="w-[7.34%] !text-center text-gray-800 font-extrabold text-[12px] uppercase tracking-wider h-8">Input</TableHead>
+                    <TableHead className="w-[7.34%] !text-center text-gray-800 font-extrabold text-[12px] uppercase tracking-wider h-8">Wastage</TableHead>
+                    <TableHead className="w-[7.34%] !text-center text-gray-800 font-extrabold text-[12px] uppercase tracking-wider border-r border-gray-300 h-8">Output</TableHead>
                     {/* Fabric Delivered */}
-                    <TableHead className="text-center text-gray-800 font-extrabold text-[12px] uppercase tracking-wider h-8">size</TableHead>
-                    <TableHead className="text-center text-gray-800 font-extrabold text-[12px] uppercase tracking-wider h-8">color</TableHead>
+                    <TableHead className="!text-center text-gray-800 font-extrabold text-[12px] uppercase tracking-wider h-8">size</TableHead>
+                    <TableHead className="!text-center text-gray-800 font-extrabold text-[12px] uppercase tracking-wider h-8">color</TableHead>
                     <TableHead className="!text-center text-gray-800 font-extrabold text-[12px] uppercase tracking-wider border-r border-gray-300 h-8">Output</TableHead>
                   </TableRow>
                 </TableHeader>
