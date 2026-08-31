@@ -216,6 +216,47 @@ export function AddConfigurationDialog({
               />
             </div>
 
+            {/* HDPE Base */}
+            <div className="flex flex-col gap-2">
+              <Label
+                htmlFor="config-hdpe"
+                className="
+                  text-[12px]
+                  font-medium
+                  leading-none
+                  text-[#404945]
+                "
+              >
+                HDPE Bag Weight (kg)
+              </Label>
+
+              <Input
+                id="config-hdpe"
+                type="number"
+                step="0.01"
+                placeholder="Enter HDPE weight"
+                value={form.basisWeightKg}
+                onChange={setField('basisWeightKg')}
+                disabled={isPending}
+                className="
+                  h-10
+                  w-full
+                  rounded-lg
+                  border-[#bfc9c3]
+                  bg-white
+                  px-3
+                  text-[14px]
+                  font-normal
+                  text-[#191c1c]
+                  shadow-none
+                  transition-colors
+                  placeholder:text-[#404945]/50
+                  focus:border-[#002f23]
+                  focus:ring-1
+                  focus:ring-[#002f23]
+                "
+              />
+            </div>
             {/* Chemical */}
             <div className="flex flex-col gap-2">
               <Label
@@ -237,89 +278,6 @@ export function AddConfigurationDialog({
                 placeholder="Enter chemical weight"
                 value={form.chemicalWeight}
                 onChange={setField('chemicalWeight')}
-                disabled={isPending}
-                className="
-                  h-10
-                  w-full
-                  rounded-lg
-                  border-[#bfc9c3]
-                  bg-white
-                  px-3
-                  text-[14px]
-                  font-normal
-                  text-[#191c1c]
-                  shadow-none
-                  transition-colors
-                  placeholder:text-[#404945]/50
-                  focus:border-[#002f23]
-                  focus:ring-1
-                  focus:ring-[#002f23]
-                "
-              />
-            </div>
-
-            {/* Bags */}
-            <div className="flex flex-col gap-2">
-              <Label
-                htmlFor="config-bags"
-                className="
-                  text-[12px]
-                  font-medium
-                  leading-none
-                  text-[#404945]
-                "
-              >
-                Bags
-              </Label>
-
-              <Input
-                id="config-bags"
-                type="number"
-                placeholder="Enter bag count"
-                value={form.hdpematerialbag}
-                onChange={setField('hdpematerialbag')}
-                disabled={isPending}
-                className="
-                  h-10
-                  w-full
-                  rounded-lg
-                  border-[#bfc9c3]
-                  bg-white
-                  px-3
-                  text-[14px]
-                  font-normal
-                  text-[#191c1c]
-                  shadow-none
-                  transition-colors
-                  placeholder:text-[#404945]/50
-                  focus:border-[#002f23]
-                  focus:ring-1
-                  focus:ring-[#002f23]
-                "
-              />
-            </div>
-
-            {/* HDPE Base */}
-            <div className="flex flex-col gap-2">
-              <Label
-                htmlFor="config-hdpe"
-                className="
-                  text-[12px]
-                  font-medium
-                  leading-none
-                  text-[#404945]
-                "
-              >
-                HDPE Base (kg)
-              </Label>
-
-              <Input
-                id="config-hdpe"
-                type="number"
-                step="0.01"
-                placeholder="Enter HDPE weight"
-                value={form.basisWeightKg}
-                onChange={setField('basisWeightKg')}
                 disabled={isPending}
                 className="
                   h-10

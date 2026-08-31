@@ -522,20 +522,20 @@ function StockSummaryCard({ month, onEditDate, onDeleteDate }: { month: string; 
           <div className="absolute top-0 right-0 p-4 opacity-5 group-hover/card:opacity-10 transition-opacity">
             <img src="/hdpe.png" alt="" className="w-26 h-26 object-contain" />
           </div>
-          <div className="flex justify-between items-center mb-4 relative z-10">
+          <div className="flex justify-between items-center mb-2 relative z-10">
             <div className="flex items-center gap-2">
               <div className=""><img src="/hdpe.png" alt="HDPE" className="w-12 h-12 object-contain" /></div>
               <h3 className="font-extrabold text-gray-800 text-lg">HDPE Materials</h3>
             </div>
             <div className="text-lg font-bold text-gray-800 leading-none">{rawMaterialsBalance.weight.toFixed(2)} <span className="text-xs font-medium text-gray-500">kg</span></div>
           </div>
-          <div className="mt-auto relative z-10 pt-2 border-t border-gray-50">
+          <div className="mt-auto relative z-10 pt-1 border-t border-gray-50">
             {rawMaterialsBalance.items.length > 0 ? (
-              <div className="flex flex-wrap items-center gap-x-6 gap-y-3 mt-2">
+              <div className={`flex flex-wrap items-center gap-x-11 gap-y-1 ${rawMaterialsBalance.items.length === 1 ? 'justify-center' : 'justify-start'}`}>
                 {rawMaterialsBalance.items.map(item => (
-                  <div key={item.name} className="flex flex-col gap-0.5">
-                    <span className="font-medium text-gray-500 text-xs">{item.name}</span>
-                    <span className="font-extrabold text-[#004D40] text-base">{item.weight.toFixed(2)}<span className="text-gray-500 font-normal text-xs ml-0.5">kg</span></span>
+                  <div key={item.name} className={`flex flex-col gap-0.5 ${rawMaterialsBalance.items.length === 1 ? 'items-center text-center' : 'items-start text-left'}`}>
+                    <span className="font-medium text-gray-500 text-sm">{item.name}</span>
+                    <span className="font-extrabold text-[#004D40] text-sm">{item.weight.toFixed(2)}<span className="text-gray-500 font-normal text-xs ml-0.5">kg</span></span>
                   </div>
                 ))}
               </div>
@@ -548,7 +548,7 @@ function StockSummaryCard({ month, onEditDate, onDeleteDate }: { month: string; 
           <div className="absolute top-0 right-0 p-4 opacity-5 group-hover/card:opacity-10 transition-opacity">
             <img src="/chemical.png" alt="" className="w-26 h-26 object-contain" />
           </div>
-          <div className="flex justify-between items-center mb-4 relative z-10">
+          <div className="flex justify-between items-center mb-2 relative z-10">
             <div className="flex items-center gap-2">
               <div className=""><img src="/chemical.png" alt="Chemicals" className="w-12 h-12 object-contain" /></div>
               <h3 className="font-extrabold text-gray-800 text-lg">Chemicals</h3>
@@ -557,11 +557,11 @@ function StockSummaryCard({ month, onEditDate, onDeleteDate }: { month: string; 
           </div>
           <div className="mt-auto relative z-10 pt-2 border-t border-gray-50">
             {chemicalsBalance.items.length > 0 ? (
-              <div className="flex flex-wrap items-center gap-x-6 gap-y-3 mt-2">
+              <div className={`flex flex-wrap items-center gap-x-11 gap-y-3 mt-2 ${chemicalsBalance.items.length === 1 ? 'justify-center' : 'justify-start'}`}>
                 {chemicalsBalance.items.map(item => (
-                  <div key={item.name} className="flex flex-col gap-0.5">
-                    <span className="font-medium text-gray-500 text-xs">{item.name}</span>
-                    <span className="font-extrabold text-[#004D40] text-base">{item.weight.toFixed(2)}<span className="text-gray-500 font-normal text-xs ml-0.5">kg</span></span>
+                  <div key={item.name} className={`flex flex-col gap-0.5 ${chemicalsBalance.items.length === 1 ? 'items-center text-center' : 'items-start text-left'}`}>
+                    <span className="font-medium text-gray-500 text-sm">{item.name}</span>
+                    <span className="font-extrabold text-[#004D40] text-sm">{item.weight.toFixed(2)}<span className="text-gray-500 font-normal text-xs ml-0.5">kg</span></span>
                   </div>
                 ))}
               </div>
@@ -574,7 +574,7 @@ function StockSummaryCard({ month, onEditDate, onDeleteDate }: { month: string; 
           <div className="absolute top-0 right-0 p-4 opacity-5 group-hover/card:opacity-10 transition-opacity">
             <img src="/color.png" alt="" className="w-26 h-26 object-contain" />
           </div>
-          <div className="flex justify-between items-center mb-4 relative z-10">
+          <div className="flex justify-between items-center mb-2 relative z-10">
             <div className="flex items-center gap-2">
               <div className=""><img src="/color.png" alt="Colors" className="w-12 h-12 object-contain" /></div>
               <h3 className="font-extrabold text-gray-800 text-lg">Colors</h3>
@@ -583,11 +583,11 @@ function StockSummaryCard({ month, onEditDate, onDeleteDate }: { month: string; 
           </div>
           <div className="mt-auto relative z-10 pt-2 border-t border-gray-50">
             {colorsBalance.items.length > 0 ? (
-              <div className="flex flex-wrap items-center gap-x-6 gap-y-3 mt-2">
+              <div className={`flex flex-wrap items-center gap-x-11 gap-y-3 mt-2 ${colorsBalance.items.length === 1 ? 'justify-center' : 'justify-start'}`}>
                 {colorsBalance.items.map(item => (
-                  <div key={item.name} className="flex flex-col gap-0.5">
-                    <span className="font-medium text-gray-500 text-xs">{item.name}</span>
-                    <span className="font-extrabold text-[#004D40] text-base">{item.weight.toFixed(2)}<span className="text-gray-500 font-normal text-xs ml-0.5">kg</span></span>
+                  <div key={item.name} className={`flex flex-col gap-0.5 ${colorsBalance.items.length === 1 ? 'items-center text-center' : 'items-start text-left'}`}>
+                    <span className="font-medium text-gray-500 text-sm">{item.name}</span>
+                    <span className="font-extrabold text-[#004D40] text-sm">{item.weight.toFixed(2)}<span className="text-gray-500 font-normal text-xs ml-0.5">kg</span></span>
                   </div>
                 ))}
               </div>
@@ -870,13 +870,13 @@ export function InventoryPage() {
               className="h-9 w-40 bg-white border border-gray-400 rounded-md px-3 py-2 text-sm font-semibold text-[#003140] shadow-[0_1px_2px_rgba(0,0,0,0.05)] hover:bg-gray-50 focus-visible:ring-1 focus-visible:ring-[#004D40]"
             />
             {canAddStock && (
-            <Button
-              className="flex items-center gap-2 bg-[#004D40] hover:bg-[#00382e] text-white rounded-md px-3 py-2 h-auto text-[12px] font-bold tracking-wide shadow-[0_1px_2px_rgba(0,45,35,0.2)]"
-              onClick={openAdd}
-            >
-              <Plus className="w-3 h-3" />
-              ADD STOCK
-            </Button>
+              <Button
+                className="flex items-center gap-2 bg-[#004D40] hover:bg-[#00382e] text-white rounded-md px-3 py-2 h-auto text-[12px] font-bold tracking-wide shadow-[0_1px_2px_rgba(0,45,35,0.2)]"
+                onClick={openAdd}
+              >
+                <Plus className="w-3 h-3" />
+                ADD STOCK
+              </Button>
             )}
           </div>
         )}
