@@ -2,7 +2,6 @@ import { useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
 import {
   Users,
-  ChevronRight,
   ChevronLeft,
   FileText,
 } from 'lucide-react';
@@ -94,7 +93,7 @@ export function CompanyDetailsPage() {
         <div className="grid grid-cols-1 gap-2">
           {/* Left column / Content Container */}
           <div className="flex flex-col xl:flex-row gap-2 min-w-0">
-            <Card className="rounded-xl border-t-4 border-t-[#004D40] border-x-0 border-b-0 shadow-sm bg-white p-5 relative overflow-hidden flex-1">
+            <Card className="rounded-xl border border-gray-400 border-t-4 border-t-[#004D40] shadow-sm bg-white p-5 relative overflow-hidden flex-1 gap-1">
               <div className="flex items-center gap-2 mb-5">
                 <FileText className="w-[18px] h-[18px] text-gray-700" />
                 <h2 className="font-bold text-gray-900 text-[15px]">Company Information</h2>
@@ -127,8 +126,8 @@ export function CompanyDetailsPage() {
             </Card>
 
 
-            <Card className="rounded-xl border-t-4 border-t-[#004D40] border-x-0 border-b-0 shadow-sm bg-white overflow-hidden p-0 flex-1">
-              <div className="border-b border-gray-100 bg-[#FAFAFA] p-3 space-y-1">
+            <Card className="rounded-xl border border-gray-400 border-t-4 border-t-[#004D40] shadow-sm bg-white overflow-hidden p-0 flex-1 gap-0.5">
+              <div className="border-b border-gray-100 bg-[#FAFAFA] p-2">
                 <h2 className="font-bold text-gray-900 text-[15px]">Company Users</h2>
                 <p className="text-[13px] text-gray-500">Users associated with this company</p>
               </div>
@@ -142,7 +141,7 @@ export function CompanyDetailsPage() {
                 ) : users.length === 0 ? (
                   <div className="text-center py-8 text-sm text-gray-500">No users found for this company.</div>
                 ) : (
-                  <div className="flex flex-col gap-4">
+                  <div className="flex flex-col gap-1.5">
                     {users.map(user => (
                       <div key={user.id} className="flex items-center justify-between p-2 border border-gray-400 rounded-lg">
                         <div className="flex items-center gap-3">
