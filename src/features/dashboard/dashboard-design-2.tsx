@@ -38,27 +38,44 @@ export function DashboardDesign2() {
   const looseWasteKg = dashboardData?.wastage.byType.find(w => w.code === 'YARN_WASTE')?.quantityKg || 0;
   const lumsWasteKg = dashboardData?.wastage.byType.find(w => w.code === 'LUMPS')?.quantityKg || 0;
 
-  const extruderWasteByColor = (dashboardData?.extruderProduction || []).map(r => ({ color: r.color.name, lums: r.lumsKg, yarnWaste: r.yarnWasteKg }));
-  const loomsWasteByColor = (dashboardData?.loomsProduction || []).map(r => ({ color: r.color.name, loomsWaste: r.waste }));
+  // Statically listed by color (like fabricWasteByColor below) so every card always shows
+  // all colors with "--" for anything not yet recorded, instead of an empty-state message.
+  const extruderByColorMap = new Map((dashboardData?.extruderProduction || []).map(r => [r.color.name, r]));
+  const extruderWasteByColor = FABRIC_COLORS.map(color => {
+    const r = extruderByColorMap.get(color);
+    return { color, lums: r?.lumsKg ?? 0, yarnWaste: r?.yarnWasteKg ?? 0 };
+  });
+  const extruderSummaryByColor = FABRIC_COLORS.map(color => {
+    const r = extruderByColorMap.get(color);
+    return { color, production: r?.production ?? 0 };
+  });
+  const extruderGrandTotal = extruderSummaryByColor.reduce((sum, row) => sum + row.production, 0);
+
+  const loomsByColorMap = new Map((dashboardData?.loomsProduction || []).map(r => [r.color.name, r]));
+  const loomsWasteByColor = FABRIC_COLORS.map(color => {
+    const r = loomsByColorMap.get(color);
+    return { color, loomsWaste: r?.waste ?? 0 };
+  });
+  const loomsSummaryByColor = FABRIC_COLORS.map(color => {
+    const r = loomsByColorMap.get(color);
+    return { color, production: r?.production ?? 0 };
+  });
+  const loomsGrandTotal = loomsSummaryByColor.reduce((sum, row) => sum + row.production, 0);
 
   const fabricByColorMap = new Map((dashboardData?.fabricProduction.byColor || []).map(r => [r.color.name, r]));
   const fabricWasteByColor = FABRIC_COLORS.map(color => {
     const r = fabricByColorMap.get(color);
     return { color, fabricWaste: r?.fwWasteKg ?? 0, bitWaste: r?.bwWasteKg ?? 0 };
   });
-
-  const extruderSummaryByColor = (dashboardData?.extruderProduction || []).map(r => ({ ...r, color: r.color.name }));
-  const extruderGrandTotal = extruderSummaryByColor.reduce((sum, row) => sum + row.production, 0);
-
-  const loomsSummaryByColor = (dashboardData?.loomsProduction || []).map(r => ({ ...r, color: r.color.name }));
-  const loomsGrandTotal = loomsSummaryByColor.reduce((sum, row) => sum + row.production, 0);
-
-  const fabricSummaryByColor = (dashboardData?.fabricProduction.byColor || []).map(r => ({
-    color: r.color.name,
-    production: r.production,
-    waste: r.fwWasteKg + r.bwWasteKg,
-    total: r.total,
-  }));
+  const fabricSummaryByColor = FABRIC_COLORS.map(color => {
+    const r = fabricByColorMap.get(color);
+    return {
+      color,
+      production: r?.production ?? 0,
+      waste: (r?.fwWasteKg ?? 0) + (r?.bwWasteKg ?? 0),
+      total: r?.total ?? 0,
+    };
+  });
   const fabricGrandTotal = dashboardData?.fabricProduction.overall.outputKg || 0;
 
   // Fabric Stock — no persisted "current stock" field exists anywhere in the API
@@ -245,30 +262,23 @@ export function DashboardDesign2() {
             <p className="font-bold text-xl px-0.5 text-left pb-3">Production Summary</p>
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-2.5">
               <Card className="bg-[#00897B]/5 border border-[#B8DCD0] rounded-[14px] hover:shadow-md transition-all flex flex-col gap-0 self-start py-0">
-                <CardHeader className="flex flex-row items-center justify-between pb-3! pt-3 px-4">
+                <CardHeader className="flex flex-row items-center justify-between pb-1! pt-3 px-4">
                   <CardTitle className="text-[17px] font-extrabold text-[#0B5566] flex items-center gap-3">
                     Extruder Production
                   </CardTitle>
                   <span className="text-[14px] font-bold text-[#0B5566]">Total : <span className="font-inter">{formatNum(extruderGrandTotal)}</span> kg</span>
                 </CardHeader>
                 <CardContent className="px-2 pb-2 pt-0 flex flex-col">
-                  {extruderSummaryByColor.length === 0 ? (
-                    <div className="w-full border border-gray-400 rounded-lg py-4">
-                      <p className="text-center text-xs text-gray-400 italic">No extruder production recorded yet.</p>
+                  <div className="w-full">
+                    <div className="space-y-2">
+                      {extruderSummaryByColor.map((row) => (
+                        <div key={row.color} className="flex items-center justify-between border border-gray-400 rounded-md px-3 py-2 bg-white">
+                          <span className={`font-semibold text-[13.5px] ${deliveryColorClass(row.color)}`}>{row.color}</span>
+                          <span className="font-bold font-inter text-gray-900">{row.production > 0 ? `${formatNum(row.production)} kg` : '--'}</span>
+                        </div>
+                      ))}
                     </div>
-                  ) : (
-                    <div className="w-full">
-
-                      <div className="space-y-2">
-                        {extruderSummaryByColor.map((row) => (
-                          <div key={row.color} className="flex items-center justify-between border border-gray-400 rounded-md px-3 py-2 bg-white">
-                            <span className={`font-semibold text-[13.5px] ${deliveryColorClass(row.color)}`}>{row.color}</span>
-                            <span className="font-bold font-inter text-gray-900">{row.production > 0 ? `${formatNum(row.production)} kg` : '--'}</span>
-                          </div>
-                        ))}
-                      </div>
-                    </div>
-                  )}
+                  </div>
                 </CardContent>
               </Card>
 
@@ -280,24 +290,16 @@ export function DashboardDesign2() {
                   <span className="text-[14px] font-bold text-[#7A6A00]">Total : <span className="font-inter">{formatNum(loomsGrandTotal)}</span> kg</span>
                 </CardHeader>
                 <CardContent className="px-2 pb-2 pt-0 flex flex-col">
-                  {loomsSummaryByColor.length === 0 ? (
-                    <div className="w-full border border-gray-400 rounded-lg py-4">
-                      <p className="text-center text-xs text-gray-400 italic">No looms production recorded yet.</p>
+                  <div className="w-full">
+                    <div className="space-y-2">
+                      {loomsSummaryByColor.map((row) => (
+                        <div key={row.color} className="flex items-center justify-between border border-gray-400 rounded-md px-3 py-2 bg-white">
+                          <span className={`font-semibold text-[13px] ${deliveryColorClass(row.color)}`}>{row.color}</span>
+                          <span className="font-bold font-inter text-gray-900">{row.production > 0 ? `${formatNum(row.production)} kg` : '--'}</span>
+                        </div>
+                      ))}
                     </div>
-                  ) : (
-                    <div className="w-full">
-                      <div className="flex items-center justify-end px-3 py-1">
-                      </div>
-                      <div className="space-y-2">
-                        {loomsSummaryByColor.map((row) => (
-                          <div key={row.color} className="flex items-center justify-between border border-gray-400 rounded-md px-3 py-2 bg-white">
-                            <span className={`font-semibold text-[13px] ${deliveryColorClass(row.color)}`}>{row.color}</span>
-                            <span className="font-bold font-inter text-gray-900">{row.production > 0 ? `${formatNum(row.production)} kg` : '--'}</span>
-                          </div>
-                        ))}
-                      </div>
-                    </div>
-                  )}
+                  </div>
                 </CardContent>
               </Card>
 
@@ -309,24 +311,16 @@ export function DashboardDesign2() {
                   <span className="text-[14px] font-bold text-[#2F6B2F]">Total : <span className="font-inter">{formatNum(fabricGrandTotal)}</span> kg</span>
                 </CardHeader>
                 <CardContent className="px-2 pb-2 pt-0 flex flex-col">
-                  {fabricSummaryByColor.length === 0 ? (
-                    <div className="w-full border border-gray-400 rounded-lg py-4">
-                      <p className="text-center text-xs text-gray-400 italic">No fabric production recorded yet.</p>
+                  <div className="w-full">
+                    <div className="space-y-2">
+                      {fabricSummaryByColor.map((row) => (
+                        <div key={row.color} className="flex items-center justify-between border border-gray-400 rounded-md px-3 py-2 bg-white">
+                          <span className={`font-semibold text-[13px] ${deliveryColorClass(row.color)}`}>{row.color}</span>
+                          <span className="font-bold font-inter text-gray-900">{row.production > 0 ? `${formatNum(row.production)} kg` : '--'}</span>
+                        </div>
+                      ))}
                     </div>
-                  ) : (
-                    <div className="w-full">
-                      <div className="flex items-center justify-end px-3 py-1">
-                      </div>
-                      <div className="space-y-2">
-                        {fabricSummaryByColor.map((row) => (
-                          <div key={row.color} className="flex items-center justify-between border border-gray-400 rounded-md px-3 py-2 bg-white">
-                            <span className={`font-semibold text-[13px] ${deliveryColorClass(row.color)}`}>{row.color}</span>
-                            <span className="font-bold font-inter text-gray-900">{row.production > 0 ? `${formatNum(row.production)} kg` : '--'}</span>
-                          </div>
-                        ))}
-                      </div>
-                    </div>
-                  )}
+                  </div>
                 </CardContent>
               </Card>
             </div>
@@ -522,35 +516,29 @@ function WastageCard({
           <span className="text-[14px] font-bold text-[#0B5566]">Total : <span className="font-inter">{formatNum(lums + looseWaste)}</span> kg</span>
         </CardHeader>
         <CardContent className="px-2 pb-2 flex flex-col">
-          {extruderWasteByColor.length === 0 ? (
-            <div className="w-full border border-gray-400 rounded-lg py-4">
-              <p className="text-center text-xs text-gray-400 italic">No extruder wastage recorded yet.</p>
+          <div className="w-full">
+            {/* Color header row */}
+            <div className="flex items-center px-2 py-2">
+              <span className="w-20 shrink-0" />
+              {extruderWasteByColor.map((row) => (
+                <span key={row.color} className={`flex-1 text-center font-bold text-[13.5px] ${deliveryColorClass(row.color)}`}>{row.color}</span>
+              ))}
             </div>
-          ) : (
-            <div className="w-full">
-              {/* Color header row */}
-              <div className="flex items-center px-2 py-2">
-                <span className="w-20 shrink-0" />
+            <div className="space-y-1.5">
+              <div className="flex items-center border border-gray-400 rounded-md px-2 py-2 bg-white">
+                <span className="w-20 shrink-0 font-semibold text-gray-700 text-[13px]">Lums Waste</span>
                 {extruderWasteByColor.map((row) => (
-                  <span key={row.color} className={`flex-1 text-center font-bold text-[13.5px] ${deliveryColorClass(row.color)}`}>{row.color}</span>
+                  <span key={row.color} className="flex-1 text-center font-inter text-gray-900">{row.lums > 0 ? formatNum(row.lums) : '--'}</span>
                 ))}
               </div>
-              <div className="space-y-1.5">
-                <div className="flex items-center border border-gray-400 rounded-md px-2 py-2 bg-white">
-                  <span className="w-20 shrink-0 font-semibold text-gray-700 text-[13px]">Lums Waste</span>
-                  {extruderWasteByColor.map((row) => (
-                    <span key={row.color} className="flex-1 text-center font-inter text-gray-900">{row.lums > 0 ? formatNum(row.lums) : '--'}</span>
-                  ))}
-                </div>
-                <div className="flex items-center border border-gray-400 rounded-md px-3 py-2 bg-white">
-                  <span className="w-20 shrink-0 font-semibold text-gray-700 text-[13px]">Loose Waste</span>
-                  {extruderWasteByColor.map((row) => (
-                    <span key={row.color} className="flex-1 text-center font-inter text-gray-900">{row.yarnWaste > 0 ? formatNum(row.yarnWaste) : '--'}</span>
-                  ))}
-                </div>
+              <div className="flex items-center border border-gray-400 rounded-md px-3 py-2 bg-white">
+                <span className="w-20 shrink-0 font-semibold text-gray-700 text-[13px]">Loose Waste</span>
+                {extruderWasteByColor.map((row) => (
+                  <span key={row.color} className="flex-1 text-center font-inter text-gray-900">{row.yarnWaste > 0 ? formatNum(row.yarnWaste) : '--'}</span>
+                ))}
               </div>
             </div>
-          )}
+          </div>
         </CardContent>
       </Card>
 
@@ -564,28 +552,22 @@ function WastageCard({
           <span className="text-[14px] font-bold text-[#7A6A00]">Total : <span className="font-inter">{formatNum(loomsWasteTotal)}</span> kg</span>
         </CardHeader>
         <CardContent className="px-2 pb-2 flex flex-col">
-          {loomsWasteByColor.length === 0 ? (
-            <div className="w-full border border-gray-400 rounded-lg py-4">
-              <p className="text-center text-xs text-gray-400 italic">No looms wastage recorded yet.</p>
+          <div className="w-full overflow-hidden">
+            <div className="flex items-center px-2 py-2">
+              <span className="w-24 shrink-0" />
+              {loomsWasteByColor.map((row) => (
+                <span key={row.color} className={`flex-1 text-center font-bold text-[13.5px] ${deliveryColorClass(row.color)}`}>{row.color}</span>
+              ))}
             </div>
-          ) : (
-            <div className="w-full overflow-hidden">
-              <div className="flex items-center px-2 py-2">
-                <span className="w-24 shrink-0" />
+            <div className="">
+              <div className="flex items-center border border-gray-400 rounded-md px-2 py-2 bg-white">
+                <span className="w-24 shrink-0 font-semibold text-gray-700 text-[13px]">Looms Waste</span>
                 {loomsWasteByColor.map((row) => (
-                  <span key={row.color} className={`flex-1 text-center font-bold text-[13.5px] ${deliveryColorClass(row.color)}`}>{row.color}</span>
+                  <span key={row.color} className="flex-1 text-center font-inter text-gray-900">{row.loomsWaste > 0 ? formatNum(row.loomsWaste) : '--'}</span>
                 ))}
               </div>
-              <div className="">
-                <div className="flex items-center border border-gray-400 rounded-md px-2 py-2 bg-white">
-                  <span className="w-24 shrink-0 font-semibold text-gray-700 text-[13px]">Looms Waste</span>
-                  {loomsWasteByColor.map((row) => (
-                    <span key={row.color} className="flex-1 text-center font-inter text-gray-900">{row.loomsWaste > 0 ? formatNum(row.loomsWaste) : '--'}</span>
-                  ))}
-                </div>
-              </div>
             </div>
-          )}
+          </div>
         </CardContent>
       </Card>
 
@@ -599,34 +581,28 @@ function WastageCard({
           <span className="text-[14px] font-bold text-[#2F6B2F]">Total : <span className="font-inter">{formatNum(fabricWasteTotal)}</span> kg</span>
         </CardHeader>
         <CardContent className="px-2 pb-2 flex flex-col">
-          {fabricWasteByColor.length === 0 ? (
-            <div className="w-full border border-gray-400 rounded-lg py-4">
-              <p className="text-center text-xs text-gray-400 italic">No fabric checking wastage recorded yet.</p>
+          <div className="w-full">
+            <div className="flex items-center px-3 py-2">
+              <span className="w-24 shrink-0" />
+              {fabricWasteByColor.map((row) => (
+                <span key={row.color} className={`flex-1 text-center font-bold text-[13.5px] ${deliveryColorClass(row.color)}`}>{row.color}</span>
+              ))}
             </div>
-          ) : (
-            <div className="w-full">
-              <div className="flex items-center px-3 py-2">
-                <span className="w-24 shrink-0" />
+            <div className="space-y-2">
+              <div className="flex items-center border border-gray-400 rounded-md px-2 py-2 bg-white">
+                <span className="w-24 shrink-0 font-semibold text-gray-700 text-[13px]">Fabric Waste</span>
                 {fabricWasteByColor.map((row) => (
-                  <span key={row.color} className={`flex-1 text-center font-bold text-[13.5px] ${deliveryColorClass(row.color)}`}>{row.color}</span>
+                  <span key={row.color} className="flex-1 text-center font-inter text-gray-900">{row.fabricWaste > 0 ? formatNum(row.fabricWaste) : '--'}</span>
                 ))}
               </div>
-              <div className="space-y-2">
-                <div className="flex items-center border border-gray-400 rounded-md px-2 py-2 bg-white">
-                  <span className="w-24 shrink-0 font-semibold text-gray-700 text-[13px]">Fabric Waste</span>
-                  {fabricWasteByColor.map((row) => (
-                    <span key={row.color} className="flex-1 text-center font-inter text-gray-900">{row.fabricWaste > 0 ? formatNum(row.fabricWaste) : '--'}</span>
-                  ))}
-                </div>
-                <div className="flex items-center border border-gray-400 rounded-md px-2 py-2 bg-white">
-                  <span className="w-24 shrink-0 font-semibold text-gray-700 text-[13px]">Bit Waste</span>
-                  {fabricWasteByColor.map((row) => (
-                    <span key={row.color} className="flex-1 text-center font-inter text-gray-900">{row.bitWaste > 0 ? formatNum(row.bitWaste) : '--'}</span>
-                  ))}
-                </div>
+              <div className="flex items-center border border-gray-400 rounded-md px-2 py-2 bg-white">
+                <span className="w-24 shrink-0 font-semibold text-gray-700 text-[13px]">Bit Waste</span>
+                {fabricWasteByColor.map((row) => (
+                  <span key={row.color} className="flex-1 text-center font-inter text-gray-900">{row.bitWaste > 0 ? formatNum(row.bitWaste) : '--'}</span>
+                ))}
               </div>
             </div>
-          )}
+          </div>
         </CardContent>
       </Card>
     </div>
