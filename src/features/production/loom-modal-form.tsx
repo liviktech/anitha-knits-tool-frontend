@@ -113,11 +113,11 @@ export function LoomModalForm({ productionDate, initialData, isEditMode, onCance
         <div className="grid grid-cols-2 gap-4 pt-1">
           <div className="space-y-1.5">
             <Label className="text-gray-600 text-xs font-semibold">Loom Production (kg)</Label>
-            <Input type="number" placeholder="0.00" value={draft.input} onChange={(e) => updateField('input', e.target.value)} />
+            <Input type="number" min="0" onKeyDown={(e) => e.key === '-' && e.preventDefault()} min="0" onKeyDown={(e) => e.key === '-' && e.preventDefault()} placeholder="0.00" value={draft.input} onChange={(e) => updateField('input', e.target.value)} />
           </div>
           <div className="space-y-1.5">
             <Label className="text-gray-600 text-xs font-semibold">Looms/Yarn Waste (kg)</Label>
-            <Input type="number" placeholder="0.00" value={draft.loomsWasteKg} onChange={(e) => updateField('loomsWasteKg', e.target.value)} />
+            <Input type="number" min="0" onKeyDown={(e) => e.key === '-' && e.preventDefault()} min="0" onKeyDown={(e) => e.key === '-' && e.preventDefault()} placeholder="0.00" value={draft.loomsWasteKg} onChange={(e) => updateField('loomsWasteKg', e.target.value)} />
           </div>
         </div>
       </div>
@@ -126,8 +126,7 @@ export function LoomModalForm({ productionDate, initialData, isEditMode, onCance
         <h3 className="text-xs font-semibold uppercase tracking-wider text-yellow-800 border-b border-yellow-200 pb-1.5">Fabric Production</h3>
         <div className="flex items-center gap-4 pt-1 w-2/3">
           <Label className="text-yellow-800 text-xs font-semibold shrink-0">Total Fabric Production (kg)</Label>
-          <Input
-            type="number"
+          <Input type="number" min="0" onKeyDown={(e) => e.key === '-' && e.preventDefault()} min="0" onKeyDown={(e) => e.key === '-' && e.preventDefault()}
             className="h-8 text-xs border-yellow-200 focus-visible:ring-yellow-400 font-bold text-yellow-700 bg-white w-48"
             placeholder="0.00"
             value={draft.output}
