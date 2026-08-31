@@ -8,6 +8,7 @@ import { Input } from '@/components/ui/input';
 import { useMonthlyDashboard } from './dashboard-queries';
 import { useExtruderProductions, useLookups } from '@/features/extruder/extruder-queries';
 import { useInventoryRecords, sumInventoryWeight } from '@/features/inventory/inventory-queries';
+import { useAuth } from '@/features/auth/auth-context';
 
 function formatNum(n: number): string {
   return n.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
@@ -33,6 +34,8 @@ const FABRIC_STOCK_SIZES = ['150cm', '160cm', '170cm', '180cm', '190cm'] as cons
 const FABRIC_COLORS = ['Blue', 'Green', 'White'] as const;
 
 export function DashboardDesign2() {
+  const { user } = useAuth();
+  const companyName = user?.kind === 'company-user' ? user.company.name : 'LK Knits';
   const [filterDate, setFilterDate] = useState<Date>(new Date());
   const [isManualRefreshing, setIsManualRefreshing] = useState(false);
   const currentMonthStr = format(filterDate, 'yyyy-MM');
@@ -195,11 +198,9 @@ export function DashboardDesign2() {
       <div className="pointer-events-none absolute bottom-0 right-1/4 w-96 h-64 rounded-full bg-green-200/30 blur-3xl motion-safe:[animation:dashFloatC_10s_ease-in-out_infinite]" />
 
       <div className="relative z-10 p-1.5 md:p-1.5 flex flex-col gap-2 bg-[#F4F1E8]">
-        {/* Header */}
         <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between border-b border-gray-200 px-2 py-1 animate-in fade-in-0 slide-in-from-top-2 duration-500 fill-mode-both">
           <div>
-            <h1 className="text-[22px] font-bold text-black leading-tight px-1">Welcome to LK Knits</h1>
-            {/* <p className="text-[12px] font-medium text-gray-600 leading-tight mt-0.5">Production overview</p> */}
+            <h1 className="text-[22px] font-bold text-black leading-tight px-1">Welcome to {companyName}</h1>
           </div>
           <div className="flex flex-wrap items-center gap-2">
             <Input
