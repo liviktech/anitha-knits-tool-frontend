@@ -61,7 +61,7 @@ export interface ExtruderGroupDraft {
   isApproved?: boolean;
 }
 
-export const ExtruderSection = forwardRef<SectionRef, SectionProps>(({ productionDate, readOnly, hideExisting, hideBanner, onEditExtruderGroup }, ref) => {
+export const ExtruderSection = forwardRef<SectionRef, SectionProps>(({ productionDate, readOnly, hideExisting, sessionStartTime, hideBanner, onEditExtruderGroup }, ref) => {
   const queryClient = useQueryClient();
   const { user } = useAuth();
   const { data, isLoading } = useExtruderProductions(
@@ -83,6 +83,7 @@ export const ExtruderSection = forwardRef<SectionRef, SectionProps>(({ productio
 
     data.data.forEach((item) => {
       if (productionDate && !item.productionDate.startsWith(productionDate)) return;
+      if (sessionStartTime && new Date(item.createdAt).getTime() < sessionStartTime) return;
 
       const sizeName = item.size?.name ?? '';
       const colorName = item.color?.name ?? '';

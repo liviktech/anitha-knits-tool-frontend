@@ -59,7 +59,7 @@ export function suggestLoomOutput(draft: Pick<LoomDraft, 'input' | 'loomsWasteKg
   return suggested > 0 ? suggested.toFixed(2) : '';
 }
 
-export const LoomSection = forwardRef<SectionRef, SectionProps>(({ productionDate, readOnly, hideExisting, hideBanner, onEditLoomGroup }, ref) => {
+export const LoomSection = forwardRef<SectionRef, SectionProps>(({ productionDate, readOnly, hideExisting, sessionStartTime, hideBanner, onEditLoomGroup }, ref) => {
   const queryClient = useQueryClient();
   const { user } = useAuth();
   const { data, isLoading } = useLoomsProductions(
@@ -78,14 +78,14 @@ export const LoomSection = forwardRef<SectionRef, SectionProps>(({ productionDat
   const pendingIds = useMemo(() => new Set(newRows.map((r) => r.id).filter(Boolean)), [newRows]);
 
   const rows = useMemo(() => {
-    if (hideExisting) return [];
-    const items = data?.data ?? [];
-    return items
+    if (hideExisting || !data?.data) return [];
+    return data.data
       .filter((item) => !productionDate || item.productionDate.startsWith(productionDate))
+      .filter((item) => !sessionStartTime || new Date(item.createdAt).getTime() >= sessionStartTime)
       .filter((item) => !pendingIds.has(item.id))
       .map(mapLoomItem)
       .filter((row) => row.input > 0 || row.output > 0 || row.loomsWasteKg > 0);
-  }, [data, productionDate, hideExisting, pendingIds]);
+  }, [data, productionDate, hideExisting, sessionStartTime, pendingIds]);
 
   const removeNewRow = (key: string) => {
     setNewRows((current) => current.filter((row) => row.key !== key));

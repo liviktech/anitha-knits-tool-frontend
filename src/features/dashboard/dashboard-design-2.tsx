@@ -222,7 +222,7 @@ export function DashboardDesign2() {
                 </div>
                 <div className="mt-auto relative z-10 pt-2 border-t border-gray-50">
                   {rawMaterials.items.length > 0 ? (
-                    <div className="flex flex-wrap items-center justify-between gap-x-6 gap-y-3 mt-1">
+                    <div className={`flex flex-wrap items-center gap-x-6 gap-y-3 mt-1 ${rawMaterials.items.length === 1 ? 'justify-center' : 'justify-between'}`}>
                       {rawMaterials.items.map(item => (
                         <div key={item.name} className="flex flex-col gap-0.5 text-sm">
                           <span className="font-medium text-gray-500">{item.name}</span>
@@ -248,7 +248,7 @@ export function DashboardDesign2() {
                 </div>
                 <div className="mt-auto relative z-10 pt-2 border-t border-gray-50">
                   {chemicals.items.length > 0 ? (
-                    <div className="flex flex-wrap items-center justify-center gap-x-6 gap-y-3 mt-px">
+                    <div className={`flex flex-wrap items-center gap-x-6 gap-y-3 mt-px ${chemicals.items.length === 1 ? 'justify-center' : 'justify-between'}`}>
                       {chemicals.items.map(item => (
                         <div key={item.name} className="flex flex-col gap-0.5 text-sm">
                           <span className="font-medium text-gray-500">{item.name}</span>
@@ -274,7 +274,7 @@ export function DashboardDesign2() {
                 </div>
                 <div className="mt-auto relative z-10 pt-2 border-t border-gray-50">
                   {invColors.items.length > 0 ? (
-                    <div className="flex flex-wrap items-center justify-center gap-x-6 gap-y-3 mt-1">
+                    <div className={`flex flex-wrap items-center gap-x-6 gap-y-3 mt-1 ${invColors.items.length === 1 ? 'justify-center' : 'justify-between'}`}>
                       {invColors.items.map(item => (
                         <div key={item.name} className="flex flex-col items-center gap-0.5 text-sm">
                           <span className="font-medium text-gray-500">{item.name}</span>

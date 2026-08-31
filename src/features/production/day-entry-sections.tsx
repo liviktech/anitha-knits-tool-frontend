@@ -197,6 +197,8 @@ export interface SectionProps {
    * be confused with the Edit flow.
    */
   hideExisting?: boolean;
+  /** Timestamp indicating when the session started, used to hide historical records while keeping newly added ones visible */
+  sessionStartTime?: number;
   /** Hides the colored title banner when rendered inside a tab. */
   hideBanner?: boolean;
   onEditExtruderGroup?: (group: any) => void;
