@@ -117,6 +117,7 @@ export function ExtruderModalForm({ productionDate, initialData, isEditMode, onC
   const theme = themes.extruder;
 
   const [group, setGroup] = useState<ExtruderGroupDraft>(initialData || emptyGroupDraft());
+  const [outputManuallyEdited, setOutputManuallyEdited] = useState(!!initialData);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -153,8 +154,27 @@ export function ExtruderModalForm({ productionDate, initialData, isEditMode, onC
     return roundKg(chemicalWeightStandard * (totalRawKg / basisWeightKg));
   }, [chemicalWeightStandard, basisWeightKg, totalRawKg]);
 
+  // Total Loom Production suggestion — raw material + chemical + colour consumed, minus
+  // recorded wastage. Mirrors suggestExtruderOutput() in day-entry-sections.tsx; recomputed
+  // here rather than reused directly since this form tracks raw/chemical/colour as derived
+  // memos (from brand rows + the color-consumption standard) rather than group state.
+  const suggestedOutputKg = useMemo(() => {
+    const inputMassKg = totalRawKg + (standardChemicalConsumedKg ?? 0) + (standardColorConsumedKg ?? 0);
+    const wasteKg = (parseFloat(group.lumpsKg) || 0) + (parseFloat(group.yarnWasteKg) || 0);
+    const suggested = Math.max(0, inputMassKg - wasteKg);
+    return suggested > 0 ? suggested.toFixed(2) : '';
+  }, [totalRawKg, standardChemicalConsumedKg, standardColorConsumedKg, group.lumpsKg, group.yarnWasteKg]);
+
+  // Auto-filled from the calculation above until the user types into the field directly.
+  const displayedOutputKg = outputManuallyEdited ? group.output : suggestedOutputKg;
+
   const updateGroupField = (field: keyof ExtruderGroupDraft, value: string) => {
     setGroup(prev => ({ ...prev, [field]: value }));
+  };
+
+  const handleOutputChange = (value: string) => {
+    setOutputManuallyEdited(true);
+    updateGroupField('output', value);
   };
 
   const updateBrandField = (brandKey: string, field: keyof ExtruderBrandDraft, value: string) => {
@@ -192,7 +212,7 @@ export function ExtruderModalForm({ productionDate, initialData, isEditMode, onC
       return;
     }
 
-    if ((standardChemicalConsumedKg ?? 0) <= 0 || (parseFloat(group.output) || 0) <= 0) {
+    if ((standardChemicalConsumedKg ?? 0) <= 0 || (parseFloat(displayedOutputKg) || 0) <= 0) {
       setError('Chemical weight and total loom production must both be greater than 0.');
       return;
     }
@@ -201,6 +221,7 @@ export function ExtruderModalForm({ productionDate, initialData, isEditMode, onC
     try {
       const shares = splitGroupTotals({
         ...group,
+        output: displayedOutputKg,
         chemicalKg: String(standardChemicalConsumedKg ?? 0),
         colorConsumedKg: String(standardColorConsumedKg ?? 0),
         brands: computedBrands,
@@ -412,7 +433,7 @@ export function ExtruderModalForm({ productionDate, initialData, isEditMode, onC
         <h3 className="text-xs font-semibold uppercase tracking-wider text-green-800 border-b border-green-200 pb-1.5">Loom Production</h3>
         <div className="flex items-center gap-4 pt-1 w-2/3">
           <Label className="text-green-800 text-xs font-semibold shrink-0">Total Loom Production (kg)</Label>
-          <Input type="number" className="h-8 text-xs border-green-200 focus-visible:ring-green-400 font-bold text-green-700 bg-white w-48" placeholder="0.00" value={group.output} onChange={(e) => updateGroupField('output', e.target.value)} />
+          <Input type="number" className="h-8 text-xs border-green-200 focus-visible:ring-green-400 font-bold text-green-700 bg-white w-48" placeholder="0.00" value={displayedOutputKg} onChange={(e) => handleOutputChange(e.target.value)} />
         </div>
       </div>
 
