@@ -8,21 +8,7 @@ import { ProductionDesign2 } from './production-design-2';
 import { NewEntry } from './new-entry';
 import { ArrowLeft } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-
-interface ProductionHeaderContextType {
-  setHeaderRight: (node: ReactNode) => void;
-  setShowBackButton: (show: boolean) => void;
-  setOnBackClick: (cb: (() => void) | undefined) => void;
-  setHeaderTitle: (title: string | null) => void;
-}
-
-const ProductionHeaderContext = createContext<ProductionHeaderContextType | null>(null);
-
-export function useProductionHeader() {
-  const ctx = useContext(ProductionHeaderContext);
-  if (!ctx) throw new Error('useProductionHeader must be used within ProductionLayout');
-  return ctx;
-}
+import { ProductionHeaderContext } from './production-context';
 
 function ProductionLayout() {
   const navigate = useNavigate();

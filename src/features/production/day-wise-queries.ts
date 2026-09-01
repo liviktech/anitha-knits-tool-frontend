@@ -15,6 +15,7 @@ interface StageTotals extends StageInOut {
 
 export interface DayWiseRow {
   date: string; // yyyy-MM-dd
+  isApproved?: boolean;
   extruder: StageTotals;
   looms: StageTotals;
   fabric: StageTotals;
@@ -44,6 +45,7 @@ interface DashboardProductionResponse {
       extruder: ApiStageTotals;
       looms: ApiStageTotals;
       fabricChecking: ApiStageTotals;
+      isApproved?: boolean;
     }>;
   };
 }
@@ -71,6 +73,7 @@ export function useDayWiseProduction(monthStr?: string) {
   const rows = (data?.data?.daily ?? [])
     .map((d) => ({
       date: d.date,
+      isApproved: d.isApproved,
       extruder: {
         input: d.extruder.inputKg,
         output: d.extruder.outputKg,

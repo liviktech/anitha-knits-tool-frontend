@@ -12,7 +12,7 @@ import type { SectionRef } from './day-entry-sections';
 import { useExtruderProductions, useLookups } from '@/features/extruder/extruder-queries';
 import { useDayWiseProduction } from './day-wise-queries';
 import { useInventoryRecords } from '@/features/inventory/inventory-queries';
-import { useProductionHeader } from './production-details';
+import { useProductionHeader } from './production-context';
 import { useAuth } from '@/features/auth/auth-context';
 import { canCreateProductionRecord } from '@/lib/production-permissions';
 
