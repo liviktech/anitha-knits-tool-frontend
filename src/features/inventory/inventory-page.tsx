@@ -828,6 +828,9 @@ export function InventoryPage() {
   const [stockFormOpen, setStockFormOpen] = useState(false);
   const [editTargetGroup, setEditTargetGroup] = useState<{ date: string, groupId: string, records: InventoryRecord[] } | null>(null);
 
+  const { data: allInvData } = useInventoryRecords('?limit=100');
+  const existingDates = Array.from(new Set((allInvData?.data ?? []).map(r => r.date.split('T')[0])));
+
   const openAdd = () => {
     setEditTargetGroup(null);
     setStockFormOpen(true);
@@ -888,10 +891,9 @@ export function InventoryPage() {
           editGroupId={editTargetGroup?.groupId ?? undefined}
           editRecords={editTargetGroup?.records ?? undefined}
           selectedMonth={month}
+          existingDates={existingDates}
         />
       )}
     </div>
   );
 }
-
-

@@ -21,9 +21,10 @@ interface InventoryFormDialogProps {
   editGroupId?: string;
   editRecords?: InventoryRecord[];
   selectedMonth?: string;
+  existingDates?: string[];
 }
 
-export function InventoryFormDialog({ onClose, editDate, editGroupId, editRecords, selectedMonth }: InventoryFormDialogProps) {
+export function InventoryFormDialog({ onClose, editDate, editGroupId, editRecords, selectedMonth, existingDates }: InventoryFormDialogProps) {
   const queryClient = useQueryClient();
   const { data: lookupsData, isLoading: isLookupsLoading, isError: isLookupsError, refetch: refetchLookups } = useLookups();
   const { data: latestConfig } = useLatestProductionConfig();
@@ -232,6 +233,7 @@ export function InventoryFormDialog({ onClose, editDate, editGroupId, editRecord
                       setIsCalendarOpen(false);
                     }
                   }}
+                  disabled={(d) => d > new Date() || (existingDates ? existingDates.includes(format(d, 'yyyy-MM-dd')) && format(d, 'yyyy-MM-dd') !== editDate : false)}
                   autoFocus
                 />
               </PopoverContent>

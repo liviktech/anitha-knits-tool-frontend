@@ -678,7 +678,7 @@ export const PayrollTab = forwardRef<PayrollTabRef>((_, ref) => {
                     setCurrentMonth(parseInt(m, 10));
                   }
                 }}
-                className="h-8 text-sm w-40 border-gray-400 bg-white"
+                className="h-8 text-sm w-42 border-gray-400 bg-white"
               />
             </DialogTitle>
           </DialogHeader>
@@ -686,11 +686,11 @@ export const PayrollTab = forwardRef<PayrollTabRef>((_, ref) => {
             <Table className="border-collapse">
               <TableHeader className="bg-gray-50/50 sticky top-0 z-10">
                 <TableRow className="border-b border-gray-300">
-                  <TableHead colSpan={6} className="text-sm font-bold text-gray-800 text-center border-r border-gray-300">Employee Details</TableHead>
+                  <TableHead colSpan={6} className="text-sm font-bold text-gray-800 !text-center border-r border-gray-300">Employee Details</TableHead>
                   <TableHead colSpan={3} className="text-sm font-bold text-blue-700 text-center border-r border-gray-300 bg-blue-50/30">Bonuses</TableHead>
                   <TableHead colSpan={1} className="text-sm font-bold text-gray-800 text-center border-r border-gray-300 bg-emerald-50/30">Gross</TableHead>
                   <TableHead colSpan={2} className="text-sm font-bold text-red-700 text-center border-r border-gray-300 bg-red-50/30">Deductions</TableHead>
-                  <TableHead colSpan={1} className="text-sm font-bold text-gray-800 text-center bg-emerald-50/30">Final</TableHead>
+                  <TableHead colSpan={1} className="text-sm font-bold text-gray-800 !text-center bg-emerald-50/30">Final</TableHead>
                 </TableRow>
                 <TableRow className="border-b border-gray-300">
                   <TableHead className="text-xs font-semibold text-gray-800 border-r border-gray-300">Emp ID</TableHead>
