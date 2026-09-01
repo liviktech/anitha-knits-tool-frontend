@@ -29,6 +29,7 @@ interface ApiStageTotals {
   efficiencyPct?: number;
   yarnWasteKg?: number;
   lumpsKg?: number;
+  isApproved?: boolean;
 }
 
 interface DashboardProductionResponse {
@@ -73,7 +74,10 @@ export function useDayWiseProduction(monthStr?: string) {
   const rows = (data?.data?.daily ?? [])
     .map((d) => ({
       date: d.date,
-      isApproved: d.isApproved,
+      // A day is considered fully approved when all 3 stages are approved.
+      // The API returns isApproved per stage (extruder/looms/fabricChecking),
+      // not as a top-level field on the daily object.
+      isApproved: !!(d.extruder.isApproved && d.looms.isApproved && d.fabricChecking.isApproved),
       extruder: {
         input: d.extruder.inputKg,
         output: d.extruder.outputKg,

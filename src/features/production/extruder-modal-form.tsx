@@ -328,10 +328,10 @@ export function ExtruderModalForm({ productionDate, initialData, isEditMode, onC
         } else {
           const payload: ExtruderCreatePayload = {
             productionDate,
-            colorId,
-            sizeId,
+            colorId: colorId!,
+            sizeId: sizeId!,
             brandId,
-            chemicalId,
+            chemicalId: chemicalId!,
             rawMaterialKg: parseFloat(brandRow.raw) || 0,
             chemicalKg: share.chemicalKg,
             colorConsumedKg: share.colorConsumedKg > 0 ? share.colorConsumedKg : undefined,

@@ -1,11 +1,10 @@
 import { useState, useMemo, forwardRef, useImperativeHandle } from 'react';
-import { Search, Edit2, Calendar as CalendarIcon } from 'lucide-react';
+import { Search, Edit2 } from 'lucide-react';
 import { format } from 'date-fns';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Calendar } from '@/components/ui/calendar';
-import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Loader } from '@/components/shared/loader';
 import { TablePaginationControls, RowsPerPageSelect } from '@/components/shared/table-pagination-controls';
@@ -14,8 +13,9 @@ import { EmployeeAttendanceDetailsModal } from './employee-attendance-details-mo
 import { useEmployees } from './employee-queries';
 import { useAttendanceRecords, useUpsertAttendance } from './attendance-queries';
 
-const MONTHS = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
-const YEARS = ['2024', '2025', '2026'];
+
+
+
 const ROLES = ['Knitting Operator', 'Supervisor', 'Helper', 'Quality Checker'];
 
 export interface AttendanceRecord {
@@ -34,8 +34,7 @@ export interface AttendanceTabRef {
 }
 
 export const AttendanceTab = forwardRef<AttendanceTabRef>((_props, ref) => {
-  const currentMonthName = MONTHS[new Date().getMonth()];
-  const currentYearStr = new Date().getFullYear().toString();
+
 
   const [searchQuery, setSearchQuery] = useState('');
   const [monthFilter, setMonthFilter] = useState(() => format(new Date(), 'yyyy-MM'));

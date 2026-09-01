@@ -53,6 +53,25 @@ export function useLatestProductionConfig() {
   });
 }
 
+/**
+ * Fetches the production config that was effective on the given date.
+ * Uses the same /latest endpoint but passes ?date= to get the config
+ * whose effectiveDate is <= the given date (most recent match).
+ */
+export function useConfigForDate(date: string | null | undefined) {
+  return useQuery({
+    queryKey: [...productionConfigKeys.all, 'for-date', date ?? 'none'] as const,
+    queryFn: async () => {
+      const url = date
+        ? `/color-consumption-standard/latest?date=${date}`
+        : '/color-consumption-standard/latest';
+      const res = await fetchJson<{ data: ColorConsumptionStandard | null }>(url);
+      return res.data;
+    },
+    enabled: true,
+  });
+}
+
 export function useProductionConfigHistory(query: string = '') {
   return useQuery({
     queryKey: productionConfigKeys.list(query),
