@@ -1,4 +1,4 @@
-import { useState, useMemo, type ReactNode, createContext, useContext } from 'react';
+import { useState, useMemo, type ReactNode } from 'react';
 import { useNavigate, useSearchParams, useLocation, Routes, Route, Outlet } from 'react-router-dom';
 import { ExtruderEntry } from '@/features/extruder/extruder-entry';
 import { LoomEntry } from '@/features/looms/loom-entry';
@@ -8,21 +8,7 @@ import { ProductionDesign2 } from './production-design-2';
 import { NewEntry } from './new-entry';
 import { ArrowLeft } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-
-interface ProductionHeaderContextType {
-  setHeaderRight: (node: ReactNode) => void;
-  setShowBackButton: (show: boolean) => void;
-  setOnBackClick: (cb: (() => void) | undefined) => void;
-  setHeaderTitle: (title: string | null) => void;
-}
-
-const ProductionHeaderContext = createContext<ProductionHeaderContextType | null>(null);
-
-export function useProductionHeader() {
-  const ctx = useContext(ProductionHeaderContext);
-  if (!ctx) throw new Error('useProductionHeader must be used within ProductionLayout');
-  return ctx;
-}
+import { ProductionHeaderContext } from './production-context';
 
 function ProductionLayout() {
   const navigate = useNavigate();

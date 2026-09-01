@@ -18,11 +18,12 @@ import { useLatestProductionConfig } from '../admin-panel/production-config-quer
 interface InventoryFormDialogProps {
   onClose: () => void;
   editDate?: string;
+  editGroupId?: string;
   editRecords?: InventoryRecord[];
   selectedMonth?: string;
 }
 
-export function InventoryFormDialog({ onClose, editDate, editRecords, selectedMonth }: InventoryFormDialogProps) {
+export function InventoryFormDialog({ onClose, editDate, editGroupId, editRecords, selectedMonth }: InventoryFormDialogProps) {
   const queryClient = useQueryClient();
   const { data: lookupsData, isLoading: isLookupsLoading, isError: isLookupsError, refetch: refetchLookups } = useLookups();
   const { data: latestConfig } = useLatestProductionConfig();
@@ -98,7 +99,6 @@ export function InventoryFormDialog({ onClose, editDate, editRecords, selectedMo
     setError(null);
 
     try {
-      const promises: Promise<unknown>[] = [];
       const types = [
         { type: 'HDPE' as InventoryType, names: hdpeNames, dc: dcHdpe },
         { type: 'CHEMICAL' as InventoryType, names: chemicalNames, dc: dcChemical },
@@ -118,6 +118,8 @@ export function InventoryFormDialog({ onClose, editDate, editRecords, selectedMo
         }
       }
 
+      const items: any[] = [];
+
       for (const t of types) {
         for (const name of t.names) {
           const key = `${t.type}-${name}`;
@@ -125,44 +127,71 @@ export function InventoryFormDialog({ onClose, editDate, editRecords, selectedMo
           const val = parseFloat(str);
           const bagValStr = bags[key];
           const bagVal = parseInt(bagValStr, 10);
-          const existing = editRecords?.find(r => r.type === t.type && r.name === name);
 
           if (!isNaN(val) && val > 0) {
-            if (existing) {
-              const dc = t.dc.trim();
-              if (existing.weightKg !== val || (dc && existing.DC_NUMBER !== dc) || (existing as any).bagCount !== bagVal) {
-                promises.push(apiFetch(`/inventory/${existing.id}`, {
-                  method: 'PATCH',
-                  headers: { 'Content-Type': 'application/json' },
-                  body: JSON.stringify({ weightKg: val, date, ...(dc && { DC: dc }), ...(!isNaN(bagVal) && bagVal > 0 && { bagCount: bagVal }) }),
-                }));
-              }
-            } else {
-              let lookupId = '';
-              if (t.type === 'HDPE') lookupId = lookupsData?.brands.find(b => b.name === name)?.id || '';
-              if (t.type === 'CHEMICAL') lookupId = lookupsData?.chemicals.find(b => b.name === name)?.id || '';
-              if (t.type === 'COLOR') lookupId = lookupsData?.colors.find(b => b.name === name)?.id || '';
+            let lookupId = '';
+            if (t.type === 'HDPE') lookupId = lookupsData?.brands.find(b => b.name === name)?.id || '';
+            if (t.type === 'CHEMICAL') lookupId = lookupsData?.chemicals.find(b => b.name === name)?.id || '';
+            if (t.type === 'COLOR') lookupId = lookupsData?.colors.find(b => b.name === name)?.id || '';
 
-              promises.push(apiFetch('/inventory', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                  date, type: t.type, quantityKg: val,
-                  DC: t.dc,
-                  ...(!isNaN(bagVal) && bagVal > 0 && { bagCount: bagVal }),
-                  ...(t.type === 'HDPE' && { brandId: lookupId }),
-                  ...(t.type === 'CHEMICAL' && { chemicalId: lookupId }),
-                  ...(t.type === 'COLOR' && { colorId: lookupId }),
-                }),
-              }));
-            }
-          } else if (existing) {
-            promises.push(apiFetch(`/inventory/${existing.id}`, { method: 'DELETE' }));
+            items.push({
+              type: t.type,
+              quantityKg: val,
+              DC: t.dc.trim(),
+              ...(!isNaN(bagVal) && bagVal > 0 && { bagCount: bagVal }),
+              ...(t.type === 'HDPE' && { brandId: lookupId }),
+              ...(t.type === 'CHEMICAL' && { chemicalId: lookupId }),
+              ...(t.type === 'COLOR' && { colorId: lookupId }),
+            });
           }
         }
       }
 
-      await Promise.all(promises);
+      if (items.length === 0 && !editGroupId) {
+         setError('Please enter at least one quantity.');
+         setSaving(false);
+         return;
+      }
+
+      let response;
+      if (editGroupId) {
+        const isLegacy = !editGroupId.match(/^[0-9a-fA-F]{8}-/);
+        
+        if (items.length === 0) {
+          if (isLegacy) {
+            await Promise.all((editRecords || []).map(r => apiFetch(`/inventory/${r.id}`, { method: 'DELETE' })));
+            response = { ok: true };
+          } else {
+            response = await apiFetch(`/inventory/batch/${editGroupId}`, { method: 'DELETE' });
+          }
+        } else {
+          if (isLegacy) {
+            await Promise.all((editRecords || []).map(r => apiFetch(`/inventory/${r.id}`, { method: 'DELETE' })));
+            response = await apiFetch('/inventory/batch', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ date, items }),
+            });
+          } else {
+            response = await apiFetch(`/inventory/batch/${editGroupId}`, {
+              method: 'PUT',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ date, items }),
+            });
+          }
+        }
+      } else {
+        response = await apiFetch('/inventory/batch', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ date, items }),
+        });
+      }
+
+      if (!response.ok) {
+        throw new Error('Failed to save');
+      }
+
       await queryClient.invalidateQueries({ queryKey: inventoryKeys.all });
       onClose();
     } catch (e) {

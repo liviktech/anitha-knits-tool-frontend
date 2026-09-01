@@ -21,7 +21,7 @@ import { useLoadSentRecords, loadSentKeys } from '@/features/inventory/load-sent
 import { useDayWiseProduction, dashboardProductionKey, type DayWiseRow } from './day-wise-queries';
 import { mapExtruderItem, mapLoomItem, mapFabricItem } from './day-entry-sections';
 import { DayWiseReportModal } from './day-wise-report-modal';
-import { useProductionHeader } from './production-details';
+import { useProductionHeader } from './production-context';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -1020,8 +1020,9 @@ export function ProductionDesign2() {
                                 (<Button
                                   variant="outline"
                                   size="icon"
-                                  className="h-6 w-6 text-emerald-600 "
+                                  className="h-6 w-6 text-emerald-600 disabled:opacity-50"
                                   onClick={() => setApproveTargetDate(row.date)}
+                                  disabled={row.isApproved}
                                 >
                                   <CheckCircle2 className="h-[13px] w-[13px]" />
                                 </Button>)
