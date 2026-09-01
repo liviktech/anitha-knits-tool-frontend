@@ -13,7 +13,7 @@ import { apiFetch } from '@/lib/api-client';
 import { useLookups } from '@/lib/lookups';
 import { todayIso } from './inventory-utils';
 import { inventoryKeys, type InventoryRecord, type InventoryType } from './inventory-queries';
-import { useLatestProductionConfig } from '../admin-panel/production-config-queries';
+import { useColorConsumptionStandard } from '@/features/extruder/extruder-queries';
 
 interface InventoryFormDialogProps {
   onClose: () => void;
@@ -27,7 +27,6 @@ interface InventoryFormDialogProps {
 export function InventoryFormDialog({ onClose, editDate, editGroupId, editRecords, selectedMonth, existingDates }: InventoryFormDialogProps) {
   const queryClient = useQueryClient();
   const { data: lookupsData, isLoading: isLookupsLoading, isError: isLookupsError, refetch: refetchLookups } = useLookups();
-  const { data: latestConfig } = useLatestProductionConfig();
   const isEdit = !!editDate;
 
   const findDcForType = (type: InventoryType) => editRecords?.find(r => r.type === type && r.DC_NUMBER)?.DC_NUMBER ?? '';
@@ -39,6 +38,9 @@ export function InventoryFormDialog({ onClose, editDate, editGroupId, editRecord
     }
     return todayIso();
   });
+
+  const { data: configData } = useColorConsumptionStandard(date);
+  const configForDate = configData?.data;
   const [dcHdpe, setDcHdpe] = useState(() => findDcForType('HDPE'));
   const [dcChemical, setDcChemical] = useState(() => findDcForType('CHEMICAL'));
   const [dcColor, setDcColor] = useState(() => findDcForType('COLOR'));
@@ -80,10 +82,10 @@ export function InventoryFormDialog({ onClose, editDate, editGroupId, editRecord
     const cleaned = val.replace(/[^0-9]/g, '');
     setBags(prev => ({ ...prev, [`${type}-${name}`]: cleaned }));
 
-    if (type === 'HDPE' && latestConfig?.basisWeightKg) {
+    if (type === 'HDPE' && configForDate?.basisWeightKg) {
       const numBags = parseInt(cleaned, 10);
       if (!isNaN(numBags)) {
-        const weight = numBags * latestConfig.basisWeightKg;
+        const weight = numBags * parseFloat(String(configForDate.basisWeightKg));
         setWeights(prev => ({ ...prev, [`${type}-${name}`]: String(weight) }));
       } else {
         setWeights(prev => ({ ...prev, [`${type}-${name}`]: '' }));

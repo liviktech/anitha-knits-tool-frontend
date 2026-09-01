@@ -55,10 +55,7 @@ function todayIso() {
   return new Date().toISOString().slice(0, 10);
 }
 
-function todayFormatted() {
-  const date = new Date();
-  return `Today, ${date.getDate()} ${date.toLocaleString('en-US', { month: 'short' })}`;
-}
+
 
 function roleLabel(role: ManagedRole) {
   if (role === 'MANAGER') return 'Manager';

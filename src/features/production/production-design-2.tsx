@@ -1017,15 +1017,17 @@ export function ProductionDesign2() {
                           <TableCell className="py-1">
                             <div className="flex items-center justify-center gap-2">
                               {user?.role === 'ADMIN' &&
-                                (<Button
-                                  variant="outline"
-                                  size="icon"
-                                  className="h-6 w-6 text-emerald-600 disabled:opacity-50"
-                                  onClick={() => setApproveTargetDate(row.date)}
-                                  disabled={row.isApproved}
-                                >
-                                  <CheckCircle2 className="h-[13px] w-[13px]" />
-                                </Button>)
+                                (<span title={row.isApproved ? 'Already Approved' : 'Approve'} className="inline-flex">
+                                  <Button
+                                    variant="outline"
+                                    size="icon"
+                                    className="h-6 w-6 text-emerald-600 disabled:opacity-50 disabled:pointer-events-none"
+                                    onClick={() => setApproveTargetDate(row.date)}
+                                    disabled={row.isApproved}
+                                  >
+                                    <CheckCircle2 className="h-[13px] w-[13px]" />
+                                  </Button>
+                                </span>)
                               }
                               <Button
                                 variant="outline"
