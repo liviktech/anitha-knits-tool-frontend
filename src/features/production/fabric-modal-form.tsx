@@ -89,7 +89,7 @@ export function FabricModalForm({ productionDate, initialData, isEditMode, onCan
       return;
     }
 
-    const finalFabricInput = parseInt(draft.input) + (koraBalanceKg || 0);
+    const finalFabricInput = parseInt(draft.input);
 
     const payload: FabricCheckingCreatePayload = {
       productionDate,
