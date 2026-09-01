@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect, useRef } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -190,8 +190,15 @@ export function ExtruderModalForm({ productionDate, initialData, isEditMode, onC
     return suggested > 0 ? suggested.toFixed(2) : '';
   }, [totalRawKg, standardChemicalConsumedKg, standardColorConsumedKg, group.lumpsKg, group.yarnWasteKg]);
 
-  // Auto-filled from the calculation above until the user types into the field directly.
   const displayedOutputKg = outputManuallyEdited ? group.output : suggestedOutputKg;
+
+  const prevSuggestedOutput = useRef(suggestedOutputKg);
+  useEffect(() => {
+    if (suggestedOutputKg !== prevSuggestedOutput.current) {
+      setOutputManuallyEdited(false);
+      prevSuggestedOutput.current = suggestedOutputKg;
+    }
+  }, [suggestedOutputKg]);
 
   const updateGroupField = (field: keyof ExtruderGroupDraft, value: string) => {
     setGroup(prev => ({ ...prev, [field]: value }));
@@ -227,13 +234,37 @@ export function ExtruderModalForm({ productionDate, initialData, isEditMode, onC
     const sizeId = findIdByName(lookups.sizes, group.size);
     const chemicalId = findIdByName(lookups.chemicals, group.chemical);
 
-    if (!colorId || !sizeId || !chemicalId) {
-      setError('Please select a valid size, color, and chemical.');
+    if (!sizeId) {
+      setError('Please select a valid size.');
+      return;
+    }
+    if (!colorId) {
+      setError('Please select a valid color.');
+      return;
+    }
+    if (!chemicalId) {
+      setError('Please select a valid chemical type.');
       return;
     }
 
     if (computedBrands.length === 0) {
       setError('At least one HDPE brand is required.');
+      return;
+    }
+
+    for (const b of computedBrands) {
+      if (!b.brand) {
+        setError('Please select a brand for all HDPE materials.');
+        return;
+      }
+      if (!b.bags || b.bags.trim() === '') {
+        setError('Please enter the number of bags for all HDPE materials (enter 0 if none).');
+        return;
+      }
+    }
+
+    if (!group.yarnWasteKg || group.yarnWasteKg.trim() === '') {
+      setError('Please enter the looms waste (enter 0 if none).');
       return;
     }
 

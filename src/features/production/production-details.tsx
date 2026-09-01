@@ -1,4 +1,4 @@
-import { useState, useMemo, type ReactNode } from 'react';
+import { useState, useMemo, useEffect, type ReactNode, createContext, useContext } from 'react';
 import { useNavigate, useSearchParams, useLocation, Routes, Route, Outlet } from 'react-router-dom';
 import { ExtruderEntry } from '@/features/extruder/extruder-entry';
 import { LoomEntry } from '@/features/looms/loom-entry';
@@ -16,6 +16,12 @@ function ProductionLayout() {
   const [showBackButton, setShowBackButton] = useState(false);
   const [onBackClick, setOnBackClick] = useState<(() => void) | undefined>(undefined);
   const [headerTitle, setHeaderTitle] = useState<string | null>(null);
+
+  useEffect(() => {
+    return () => {
+      sessionStorage.removeItem('productionMonthFilter');
+    };
+  }, []);
 
   const ctxValue = useMemo(() => ({ setHeaderRight, setShowBackButton, setOnBackClick, setHeaderTitle }), [setHeaderRight, setShowBackButton, setOnBackClick, setHeaderTitle]);
 
