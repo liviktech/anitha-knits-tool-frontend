@@ -10,7 +10,7 @@ import { ExtruderSection, LoomSection, FabricSection, FabricDeliveredSection, th
 import { TabAddModal } from './tab-add-modal';
 import type { SectionRef } from './day-entry-sections';
 import { useExtruderProductions, useLookups } from '@/features/extruder/extruder-queries';
-import { useDayWiseProduction } from './day-wise-queries';
+
 import { useInventoryRecords } from '@/features/inventory/inventory-queries';
 import { useProductionHeader } from './production-context';
 import { useAuth } from '@/features/auth/auth-context';
@@ -65,10 +65,12 @@ export function NewEntry({ onClose, defaultDate, readOnly: propsReadOnly = false
   const { data: lookupsData } = useLookups();
   const lookups = lookupsData ?? { brands: [], colors: [], chemicals: [], sizes: [] };
 
-  const { rows: completedDays } = useDayWiseProduction();
-  const completedDateStrings = new Set(completedDays.map(r => r.date));
+  const { data: allExtruderData } = useExtruderProductions('?limit=100', !readOnly);
+  const completedDateStrings = new Set(
+    (allExtruderData?.data ?? []).map(r => r.productionDate?.split('T')[0]).filter(Boolean) as string[]
+  );
 
-  const showDatePicker = isCreateMode;
+  const showDatePicker = !readOnly;
 
   useEffect(() => {
     setHeaderTitle(isCreateMode ? 'Add New Daily Production Details' : 'Edit Daily Production Details');
@@ -99,7 +101,7 @@ export function NewEntry({ onClose, defaultDate, readOnly: propsReadOnly = false
                     setIsCalendarOpen(false);
                   }
                 }}
-                disabled={(d) => d > new Date() || completedDateStrings.has(format(d, 'yyyy-MM-dd'))}
+                disabled={(d) => d > new Date() || (completedDateStrings.has(format(d, 'yyyy-MM-dd')) && format(d, 'yyyy-MM-dd') !== defaultDate)}
                 defaultMonth={date}
                 autoFocus
               />
@@ -120,7 +122,6 @@ export function NewEntry({ onClose, defaultDate, readOnly: propsReadOnly = false
   // Most recent entry before the selected date — used to carry forward
   // Data for calculating live stock balances in create mode
   const { data: allInvData } = useInventoryRecords('?limit=100', !readOnly);
-  const { data: allExtruderData } = useExtruderProductions('?limit=100', !readOnly);
   const inventoryRecords = allInvData?.data ?? [];
   const extruderRecords = allExtruderData?.data ?? [];
 

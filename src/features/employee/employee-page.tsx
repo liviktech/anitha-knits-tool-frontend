@@ -469,7 +469,7 @@ const EmployeeDirectoryTab = forwardRef<EmployeeDirectoryTabRef>((_props, ref) =
               <SelectTrigger className="h-8 w-32 bg-gray-50/50 border-gray-400 text-sm rounded-lg font-hanken">
                 <SelectValue placeholder="Role" />
               </SelectTrigger>
-              <SelectContent>
+              <SelectContent position="popper">
                 <SelectItem value="ALL">All Roles</SelectItem>
                 <SelectItem value="EMPLOYEE">Employee</SelectItem>
                 <SelectItem value="MANAGER">Manager</SelectItem>
@@ -482,7 +482,7 @@ const EmployeeDirectoryTab = forwardRef<EmployeeDirectoryTabRef>((_props, ref) =
               <SelectTrigger className="h-8 w-32 bg-gray-50/50 border-gray-400 text-sm rounded-lg font-hanken">
                 <SelectValue placeholder="Status" />
               </SelectTrigger>
-              <SelectContent>
+              <SelectContent position="popper">
                 <SelectItem value="ALL">All Status</SelectItem>
                 <SelectItem value="Active">Active</SelectItem>
                 <SelectItem value="Inactive">Inactive</SelectItem>
@@ -571,7 +571,7 @@ const EmployeeDirectoryTab = forwardRef<EmployeeDirectoryTabRef>((_props, ref) =
                     <TableCell className="text-[13px] text-gray-700 whitespace-nowrap border-r border-gray-300">
                       {emp.mobile}
                     </TableCell>
-                    <TableCell className="text-[13px] text-gray-600 font-mono whitespace-nowrap border-r border-gray-300">
+                    <TableCell className="text-[13px] text-gray-700 whitespace-nowrap border-r border-gray-300">
                       {emp.employeeDetails?.aadhaarNumber || '-'}
                     </TableCell>
                     <TableCell className="text-[13px] text-gray-600 whitespace-nowrap border-r border-gray-300">
@@ -626,11 +626,7 @@ const EmployeeDirectoryTab = forwardRef<EmployeeDirectoryTabRef>((_props, ref) =
               )}
             </TableBody>
           </Table>
-          {isLoading && (
-            <div className="flex-1 flex items-center justify-center gap-2 text-gray-500 text-md py-8">
-              <Loader2 className="h-4 w-4 animate-spin" /> Loading employees...
-            </div>
-          )}
+
           {/* {!isLoading && filteredEmployees.length === 0 && (
             <div className="flex-1 flex items-center justify-center text-gray-500 text-md">
               No employees found matching your criteria.
@@ -709,7 +705,7 @@ const EmployeeDirectoryTab = forwardRef<EmployeeDirectoryTabRef>((_props, ref) =
                 <Label htmlFor="emp-mobile" className={`text-xs font-semibold ${fieldErrors.mobile ? 'text-red-600' : 'text-gray-700'}`}>Mobile Number</Label>
                 <Input
                   id="emp-mobile"
-                  placeholder="e.g. +91 98765 43210"
+                  placeholder="e.g. 98765 43210"
                   value={formMobile}
                   onChange={(e) => setFormMobile(e.target.value)}
                   className={`h-9 text-xs ${fieldErrors.mobile ? 'border-red-500 focus-visible:ring-red-500' : ''}`}
@@ -727,7 +723,7 @@ const EmployeeDirectoryTab = forwardRef<EmployeeDirectoryTabRef>((_props, ref) =
                   <SelectTrigger id="emp-role" className="w-full h-9 text-xs">
                     <SelectValue placeholder="Select role" />
                   </SelectTrigger>
-                  <SelectContent>
+                  <SelectContent position="popper">
                     <SelectItem value="EMPLOYEE">Employee</SelectItem>
                     <SelectItem value="MANAGER">Manager (max 1 active)</SelectItem>
                     <SelectItem value="SUPERVISOR">Supervisor (max 1 active)</SelectItem>
@@ -773,7 +769,7 @@ const EmployeeDirectoryTab = forwardRef<EmployeeDirectoryTabRef>((_props, ref) =
                   min="0"
                   placeholder="e.g. 25000"
                   value={formSalary}
-                  onChange={(e) => setFormSalary(e.target.value)}
+                  onChange={(e) => setFormSalary(e.target.value.replace(/-/g, ''))}
                   className={`h-9 text-xs ${fieldErrors.salary ? 'border-red-500 focus-visible:ring-red-500' : ''}`}
                 />
                 {fieldErrors.salary && <span className="text-[10px] text-red-500">{fieldErrors.salary}</span>}
@@ -785,7 +781,7 @@ const EmployeeDirectoryTab = forwardRef<EmployeeDirectoryTabRef>((_props, ref) =
                   <SelectTrigger id="emp-gender" className="w-full h-9 text-xs">
                     <SelectValue placeholder="Select gender" />
                   </SelectTrigger>
-                  <SelectContent>
+                  <SelectContent position="popper">
                     <SelectItem value="MALE">Male</SelectItem>
                     <SelectItem value="FEMALE">Female</SelectItem>
                     <SelectItem value="OTHER">Other</SelectItem>
@@ -799,7 +795,7 @@ const EmployeeDirectoryTab = forwardRef<EmployeeDirectoryTabRef>((_props, ref) =
                   <SelectTrigger id="emp-status" className="w-full h-9 text-xs">
                     <SelectValue placeholder="Select status" />
                   </SelectTrigger>
-                  <SelectContent>
+                  <SelectContent position="popper">
                     <SelectItem value="Active">Active</SelectItem>
                     <SelectItem value="Inactive">Inactive</SelectItem>
                   </SelectContent>
@@ -983,10 +979,10 @@ export function EmployeePage() {
         </div>
         {activeTab === 'attendance' && canSeeAttendance && (
           <div className="flex items-center gap-3">
-            <div className="flex items-center gap-2 rounded-full border border-gray-200 bg-white px-3 py-1.5 shadow-sm pointer-events-none">
+            {/* <div className="flex items-center gap-2 rounded-full border border-gray-200 bg-white px-3 py-1.5 shadow-sm pointer-events-none">
               <span className="text-sm font-medium text-gray-700">{todayFormatted()}</span>
               <Calendar className="h-4 w-4 text-gray-500" />
-            </div>
+            </div> */}
             {canMarkAttendance && (
               <Button
                 className="flex items-center gap-2 bg-[#004D40] hover:bg-[#00382e] text-white rounded-md px-3 py-2 h-auto text-[12px] font-bold tracking-wide shadow-[0_1px_2px_rgba(0,45,35,0.2)]"

@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { format, parseISO } from 'date-fns';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
@@ -82,7 +83,7 @@ export function EmployeeAttendanceDetailsModal({ isOpen, onClose, employeeId, em
                     return (
                       <TableRow key={rec.id} className="border-b border-gray-300 hover:bg-gray-50/50">
                         <TableCell className="py-3 px-5 w-1/2">
-                          <span className="text-sm font-medium text-gray-900">{rec.date}</span>
+                          <span className="text-sm font-medium text-gray-900">{format(parseISO(rec.date), 'dd MMM yyyy')}</span>
                         </TableCell>
                         <TableCell className="py-3 px-5">
                           <Select
@@ -92,7 +93,7 @@ export function EmployeeAttendanceDetailsModal({ isOpen, onClose, employeeId, em
                             <SelectTrigger className="w-full h-8 bg-white border-gray-200">
                               <SelectValue />
                             </SelectTrigger>
-                            <SelectContent>
+                            <SelectContent position="popper">
                               <SelectItem value="Day shift">Day shift</SelectItem>
                               <SelectItem value="Night shift">Night shift</SelectItem>
                               <SelectItem value="Absent">Absent</SelectItem>
@@ -110,15 +111,15 @@ export function EmployeeAttendanceDetailsModal({ isOpen, onClose, employeeId, em
           </div>
         </div>
 
-        <DialogFooter className="px-6 py-4 border-t border-gray-200 bg-white flex justify-between items-center w-full sm:justify-between">
-          <Button onClick={onClose} variant="outline" className="bg-white text-gray-700 hover:bg-gray-50 rounded-lg h-9">
+        <DialogFooter className="px-6 py-5 border-t border-gray-200 bg-white flex justify-between items-center w-full sm:justify-between">
+          <Button onClick={onClose} variant="outline" className="bg-white text-gray-700 hover:bg-gray-50 rounded-lg h-9 px-6">
             Cancel
           </Button>
           {onSave && (
             <Button
               onClick={handleSave}
               disabled={!hasChanges || isSaving}
-              className="bg-[#004D40] text-white hover:bg-[#00332a] rounded-lg h-9"
+              className="bg-[#004D40] text-white hover:bg-[#00332a] rounded-lg h-9 px-6"
             >
               Update
               {isSaving && <Loader2 className="ml-2 h-4 w-4 animate-spin" />}
