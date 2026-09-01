@@ -364,7 +364,7 @@ export const PayrollTab = forwardRef<PayrollTabRef>((_, ref) => {
                   <SelectTrigger className="h-8 w-32 bg-gray-50/50 border-gray-400 text-sm rounded-lg font-hanken">
                     <SelectValue placeholder="Status" />
                   </SelectTrigger>
-                  <SelectContent>
+                  <SelectContent position="popper">
                     <SelectItem value="ALL">All</SelectItem>
                     <SelectItem value="ACTIVE">Active</SelectItem>
                     <SelectItem value="COMPLETED">Completed</SelectItem>
@@ -463,7 +463,7 @@ export const PayrollTab = forwardRef<PayrollTabRef>((_, ref) => {
               <Label className="text-xs font-semibold text-gray-700">Select Employee</Label>
               <Select value={advanceEmployeeId} onValueChange={setAdvanceEmployeeId}>
                 <SelectTrigger className="h-9 text-xs"><SelectValue placeholder="Choose Employee..." /></SelectTrigger>
-                <SelectContent>
+                <SelectContent position="popper">
                   {employees.map(emp => (
                     <SelectItem key={emp.id} value={emp.id}>{emp.employeeDetails?.customUserId || emp.id} - {emp.name || 'Unnamed'}</SelectItem>
                   ))}
@@ -486,7 +486,7 @@ export const PayrollTab = forwardRef<PayrollTabRef>((_, ref) => {
               <Label className="text-xs font-semibold text-gray-700">Repayment Method</Label>
               <Select value={advanceType} onValueChange={(v) => setAdvanceType(v as 'single' | 'emi')}>
                 <SelectTrigger className="h-9 text-xs"><SelectValue /></SelectTrigger>
-                <SelectContent>
+                <SelectContent position="popper">
                   <SelectItem value="single">Single Payment (Deduct in next payroll)</SelectItem>
                   <SelectItem value="emi">EMI (Equated Monthly Installment)</SelectItem>
                 </SelectContent>

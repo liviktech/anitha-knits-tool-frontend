@@ -1,8 +1,11 @@
 import { useState, useMemo, forwardRef, useImperativeHandle } from 'react';
-import { Search, Edit2 } from 'lucide-react';
+import { Search, Edit2, Calendar as CalendarIcon } from 'lucide-react';
+import { format } from 'date-fns';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Calendar } from '@/components/ui/calendar';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Loader } from '@/components/shared/loader';
 import { TablePaginationControls, RowsPerPageSelect } from '@/components/shared/table-pagination-controls';
@@ -35,8 +38,7 @@ export const AttendanceTab = forwardRef<AttendanceTabRef>((_props, ref) => {
   const currentYearStr = new Date().getFullYear().toString();
 
   const [searchQuery, setSearchQuery] = useState('');
-  const [monthFilter, setMonthFilter] = useState(currentMonthName);
-  const [yearFilter, setYearFilter] = useState(currentYearStr);
+  const [monthFilter, setMonthFilter] = useState(() => format(new Date(), 'yyyy-MM'));
   const [roleFilter, setRoleFilter] = useState('ALL');
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isDetailsModalOpen, setIsDetailsModalOpen] = useState(false);
@@ -72,23 +74,16 @@ export const AttendanceTab = forwardRef<AttendanceTabRef>((_props, ref) => {
     let dateFrom: string | undefined;
     let dateTo: string | undefined;
     
-    if (yearFilter !== 'ALL' && monthFilter !== 'ALL') {
-      const monthIndex = MONTHS.indexOf(monthFilter);
-      const yearNum = Number(yearFilter);
-      dateFrom = `${yearNum}-${(monthIndex + 1).toString().padStart(2, '0')}-01`;
-      const lastDay = new Date(yearNum, monthIndex + 1, 0).getDate();
-      dateTo = `${yearNum}-${(monthIndex + 1).toString().padStart(2, '0')}-${lastDay}`;
-    } else if (yearFilter !== 'ALL') {
-      dateFrom = `${yearFilter}-01-01`;
-      dateTo = `${yearFilter}-12-31`;
-    } else {
-      // Both are ALL: fetch for a wide range (e.g. past 2 years)
-      const currentYear = new Date().getFullYear();
-      dateFrom = `${currentYear - 2}-01-01`;
-      dateTo = `${currentYear + 1}-12-31`;
+    if (monthFilter) {
+      const [year, month] = monthFilter.split('-');
+      const yearNum = Number(year);
+      const monthNum = Number(month);
+      dateFrom = `${yearNum}-${month.padStart(2, '0')}-01`;
+      const lastDay = new Date(yearNum, monthNum, 0).getDate();
+      dateTo = `${yearNum}-${month.padStart(2, '0')}-${lastDay}`;
     }
     return { dateFrom, dateTo };
-  }, [monthFilter, yearFilter]);
+  }, [monthFilter]);
 
   const { data: attendanceData, isLoading } = useAttendanceRecords(queryParams.dateFrom, queryParams.dateTo);
   const upsertMutation = useUpsertAttendance();
@@ -118,12 +113,10 @@ export const AttendanceTab = forwardRef<AttendanceTabRef>((_props, ref) => {
     });
   }, [attendanceData]);
 
-  const filteredRecords = records.filter((r) => {
-    const [year, month] = r.date.split('-');
-    const matchesMonth = monthFilter === 'ALL' || MONTHS[Number(month) - 1] === monthFilter;
-    const matchesYear = yearFilter === 'ALL' || year === yearFilter;
-    return matchesMonth && matchesYear;
-  });
+  const filteredRecords = useMemo(() => {
+    if (!monthFilter) return records;
+    return records.filter((r) => r.date.startsWith(monthFilter));
+  }, [records, monthFilter]);
 
   const presentCount = filteredRecords.filter(r => r.status === 'Day shift' || r.status === 'Night shift').length;
   const absentCount = filteredRecords.filter(r => r.status === 'Absent').length;
@@ -243,33 +236,18 @@ export const AttendanceTab = forwardRef<AttendanceTabRef>((_props, ref) => {
                 className="h-8 w-44 sm:w-60 pl-8 bg-gray-50/50 border-gray-400 text-xs rounded-lg font-hanken"
               />
             </div>
-            <Select value={monthFilter} onValueChange={setMonthFilter}>
-              <SelectTrigger className="h-8 w-32 bg-gray-50/50 border-gray-400 text-sm rounded-lg font-hanken">
-                <SelectValue placeholder="Month" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="ALL">All Months</SelectItem>
-                {MONTHS.map((m) => (
-                  <SelectItem key={m} value={m}>{m}</SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-            <Select value={yearFilter} onValueChange={setYearFilter}>
-              <SelectTrigger className="h-8 w-28 bg-gray-50/50 border-gray-400 text-sm rounded-lg font-hanken">
-                <SelectValue placeholder="Year" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="ALL">All Years</SelectItem>
-                {YEARS.map((y) => (
-                  <SelectItem key={y} value={y}>{y}</SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+            <Input
+              type="month"
+              value={monthFilter}
+              max={`${new Date().getFullYear()}-${(new Date().getMonth() + 1).toString().padStart(2, '0')}`}
+              onChange={(e) => setMonthFilter(e.target.value)}
+              className="h-8 w-40 bg-gray-50/50 border-gray-400 text-sm rounded-lg font-hanken"
+            />
             <Select value={roleFilter} onValueChange={setRoleFilter}>
               <SelectTrigger className="h-8 w-40 bg-gray-50/50 border-gray-400 text-sm rounded-lg font-hanken">
                 <SelectValue placeholder="Role" />
               </SelectTrigger>
-              <SelectContent>
+              <SelectContent position="popper">
                 <SelectItem value="ALL">All Roles</SelectItem>
                 {ROLES.map((r) => (
                   <SelectItem key={r} value={r}>{r}</SelectItem>

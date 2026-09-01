@@ -93,7 +93,7 @@ export function EmployeeAttendanceDetailsModal({ isOpen, onClose, employeeId, em
                             <SelectTrigger className="w-full h-8 bg-white border-gray-200">
                               <SelectValue />
                             </SelectTrigger>
-                            <SelectContent>
+                            <SelectContent position="popper">
                               <SelectItem value="Day shift">Day shift</SelectItem>
                               <SelectItem value="Night shift">Night shift</SelectItem>
                               <SelectItem value="Absent">Absent</SelectItem>

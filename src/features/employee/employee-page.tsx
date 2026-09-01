@@ -469,7 +469,7 @@ const EmployeeDirectoryTab = forwardRef<EmployeeDirectoryTabRef>((_props, ref) =
               <SelectTrigger className="h-8 w-32 bg-gray-50/50 border-gray-400 text-sm rounded-lg font-hanken">
                 <SelectValue placeholder="Role" />
               </SelectTrigger>
-              <SelectContent>
+              <SelectContent position="popper">
                 <SelectItem value="ALL">All Roles</SelectItem>
                 <SelectItem value="EMPLOYEE">Employee</SelectItem>
                 <SelectItem value="MANAGER">Manager</SelectItem>
@@ -482,7 +482,7 @@ const EmployeeDirectoryTab = forwardRef<EmployeeDirectoryTabRef>((_props, ref) =
               <SelectTrigger className="h-8 w-32 bg-gray-50/50 border-gray-400 text-sm rounded-lg font-hanken">
                 <SelectValue placeholder="Status" />
               </SelectTrigger>
-              <SelectContent>
+              <SelectContent position="popper">
                 <SelectItem value="ALL">All Status</SelectItem>
                 <SelectItem value="Active">Active</SelectItem>
                 <SelectItem value="Inactive">Inactive</SelectItem>
@@ -626,7 +626,7 @@ const EmployeeDirectoryTab = forwardRef<EmployeeDirectoryTabRef>((_props, ref) =
               )}
             </TableBody>
           </Table>
-          
+
           {/* {!isLoading && filteredEmployees.length === 0 && (
             <div className="flex-1 flex items-center justify-center text-gray-500 text-md">
               No employees found matching your criteria.
@@ -723,7 +723,7 @@ const EmployeeDirectoryTab = forwardRef<EmployeeDirectoryTabRef>((_props, ref) =
                   <SelectTrigger id="emp-role" className="w-full h-9 text-xs">
                     <SelectValue placeholder="Select role" />
                   </SelectTrigger>
-                  <SelectContent>
+                  <SelectContent position="popper">
                     <SelectItem value="EMPLOYEE">Employee</SelectItem>
                     <SelectItem value="MANAGER">Manager (max 1 active)</SelectItem>
                     <SelectItem value="SUPERVISOR">Supervisor (max 1 active)</SelectItem>
@@ -781,7 +781,7 @@ const EmployeeDirectoryTab = forwardRef<EmployeeDirectoryTabRef>((_props, ref) =
                   <SelectTrigger id="emp-gender" className="w-full h-9 text-xs">
                     <SelectValue placeholder="Select gender" />
                   </SelectTrigger>
-                  <SelectContent>
+                  <SelectContent position="popper">
                     <SelectItem value="MALE">Male</SelectItem>
                     <SelectItem value="FEMALE">Female</SelectItem>
                     <SelectItem value="OTHER">Other</SelectItem>
@@ -795,7 +795,7 @@ const EmployeeDirectoryTab = forwardRef<EmployeeDirectoryTabRef>((_props, ref) =
                   <SelectTrigger id="emp-status" className="w-full h-9 text-xs">
                     <SelectValue placeholder="Select status" />
                   </SelectTrigger>
-                  <SelectContent>
+                  <SelectContent position="popper">
                     <SelectItem value="Active">Active</SelectItem>
                     <SelectItem value="Inactive">Inactive</SelectItem>
                   </SelectContent>
@@ -979,10 +979,10 @@ export function EmployeePage() {
         </div>
         {activeTab === 'attendance' && canSeeAttendance && (
           <div className="flex items-center gap-3">
-            <div className="flex items-center gap-2 rounded-full border border-gray-200 bg-white px-3 py-1.5 shadow-sm pointer-events-none">
+            {/* <div className="flex items-center gap-2 rounded-full border border-gray-200 bg-white px-3 py-1.5 shadow-sm pointer-events-none">
               <span className="text-sm font-medium text-gray-700">{todayFormatted()}</span>
               <Calendar className="h-4 w-4 text-gray-500" />
-            </div>
+            </div> */}
             {canMarkAttendance && (
               <Button
                 className="flex items-center gap-2 bg-[#004D40] hover:bg-[#00382e] text-white rounded-md px-3 py-2 h-auto text-[12px] font-bold tracking-wide shadow-[0_1px_2px_rgba(0,45,35,0.2)]"
