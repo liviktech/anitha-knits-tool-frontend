@@ -504,7 +504,7 @@ function StockSummaryCard({ month, onEditDate, onDeleteDate }: { month: string; 
           </div>
           <div className="mt-auto relative z-10 pt-1 border-t border-gray-50">
             {rawMaterials.items.length > 0 ? (
-              <div className={`flex flex-wrap items-center gap-x-11 gap-y-1 ${rawMaterials.items.length === 1 ? 'justify-center' : 'justify-start'}`}>
+              <div className={`flex flex-wrap items-center gap-x-9 gap-y-1 ${rawMaterials.items.length === 1 ? 'justify-center' : 'justify-start'}`}>
                 {rawMaterials.items.map(item => (
                   <div key={item.name} className={`flex flex-col gap-0.5 ${rawMaterials.items.length === 1 ? 'items-center text-center' : 'items-start text-left'}`}>
                     <span className="font-medium text-gray-500 text-sm">{item.name}</span>
@@ -530,7 +530,7 @@ function StockSummaryCard({ month, onEditDate, onDeleteDate }: { month: string; 
           </div>
           <div className="mt-auto relative z-10 pt-2 border-t border-gray-50">
             {chemicals.items.length > 0 ? (
-              <div className={`flex flex-wrap items-center gap-x-11 gap-y-3 mt-2 ${chemicals.items.length === 1 ? 'justify-center' : 'justify-start'}`}>
+              <div className={`flex flex-wrap items-center gap-x-9 gap-y-3 mt-2 ${chemicals.items.length === 1 ? 'justify-center' : 'justify-start'}`}>
                 {chemicals.items.map(item => (
                   <div key={item.name} className={`flex flex-col gap-0.5 ${chemicals.items.length === 1 ? 'items-center text-center' : 'items-start text-left'}`}>
                     <span className="font-medium text-gray-500 text-sm">{item.name}</span>
@@ -556,7 +556,7 @@ function StockSummaryCard({ month, onEditDate, onDeleteDate }: { month: string; 
           </div>
           <div className="mt-auto relative z-10 pt-2 border-t border-gray-50">
             {colors.items.length > 0 ? (
-              <div className={`flex flex-wrap items-center gap-x-11 gap-y-3 mt-2 ${colors.items.length === 1 ? 'justify-center' : 'justify-start'}`}>
+              <div className={`flex flex-wrap items-center gap-x-9 gap-y-3 mt-2 ${colors.items.length === 1 ? 'justify-center' : 'justify-start'}`}>
                 {colors.items.map(item => (
                   <div key={item.name} className={`flex flex-col gap-0.5 ${colors.items.length === 1 ? 'items-center text-center' : 'items-start text-left'}`}>
                     <span className="font-medium text-gray-500 text-sm">{item.name}</span>

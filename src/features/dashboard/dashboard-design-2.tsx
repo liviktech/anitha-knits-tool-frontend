@@ -226,7 +226,7 @@ export function DashboardDesign2() {
                 </div>
                 <div className="mt-auto relative z-10 pt-2 border-t border-gray-50">
                   {rawMaterials.items.length > 0 ? (
-                    <div className={`flex flex-wrap items-center gap-x-12 gap-y-3 mt-1 ${rawMaterials.items.length === 1 ? 'justify-center' : 'justify-start'}`}>
+                    <div className={`flex flex-wrap items-center gap-x-9 gap-y-3 mt-1 ${rawMaterials.items.length === 1 ? 'justify-center' : 'justify-start'}`}>
                       {rawMaterials.items.map(item => (
                         <div key={item.name} className={`flex flex-col gap-0.5 text-sm ${rawMaterials.items.length === 1 ? 'items-center text-center' : 'items-start text-left'}`}>
                           <span className="font-medium text-gray-500">{item.name}</span>
@@ -252,7 +252,7 @@ export function DashboardDesign2() {
                 </div>
                 <div className="mt-auto relative z-10 pt-2 border-t border-gray-50">
                   {chemicals.items.length > 0 ? (
-                    <div className={`flex flex-wrap items-center gap-x-12 gap-y-3 mt-px ${chemicals.items.length === 1 ? 'justify-center' : 'justify-start'}`}>
+                    <div className={`flex flex-wrap items-center gap-x-9 gap-y-3 mt-px ${chemicals.items.length === 1 ? 'justify-center' : 'justify-start'}`}>
                       {chemicals.items.map(item => (
                         <div key={item.name} className={`flex flex-col gap-0.5 text-sm ${chemicals.items.length === 1 ? 'items-center text-center' : 'items-start text-left'}`}>
                           <span className="font-medium text-gray-500">{item.name}</span>
@@ -278,7 +278,7 @@ export function DashboardDesign2() {
                 </div>
                 <div className="mt-auto relative z-10 pt-2 border-t border-gray-50">
                   {invColors.items.length > 0 ? (
-                    <div className={`flex flex-wrap items-center gap-x-12 gap-y-3 mt-1 ${invColors.items.length === 1 ? 'justify-center' : 'justify-start'}`}>
+                    <div className={`flex flex-wrap items-center gap-x-9 gap-y-3 mt-1 ${invColors.items.length === 1 ? 'justify-center' : 'justify-start'}`}>
                       {invColors.items.map(item => (
                         <div key={item.name} className={`flex flex-col gap-0.5 text-sm ${invColors.items.length === 1 ? 'items-center text-center' : 'items-start text-left'}`}>
                           <span className="font-medium text-gray-500">{item.name}</span>
