@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect, useRef } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -190,8 +190,15 @@ export function ExtruderModalForm({ productionDate, initialData, isEditMode, onC
     return suggested > 0 ? suggested.toFixed(2) : '';
   }, [totalRawKg, standardChemicalConsumedKg, standardColorConsumedKg, group.lumpsKg, group.yarnWasteKg]);
 
-  // Auto-filled from the calculation above until the user types into the field directly.
   const displayedOutputKg = outputManuallyEdited ? group.output : suggestedOutputKg;
+
+  const prevSuggestedOutput = useRef(suggestedOutputKg);
+  useEffect(() => {
+    if (suggestedOutputKg !== prevSuggestedOutput.current) {
+      setOutputManuallyEdited(false);
+      prevSuggestedOutput.current = suggestedOutputKg;
+    }
+  }, [suggestedOutputKg]);
 
   const updateGroupField = (field: keyof ExtruderGroupDraft, value: string) => {
     setGroup(prev => ({ ...prev, [field]: value }));

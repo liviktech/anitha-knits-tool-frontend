@@ -446,9 +446,6 @@ function StockSummaryCard({ month, onEditDate, onDeleteDate }: { month: string; 
   const chemicalNames = (lookupsData?.chemicals ?? []).map(c => c.name).sort();
   const colorNames = (lookupsData?.colors ?? []).map(c => c.name).sort();
 
-  // We are displaying the monthly received values instead of the all-time live balance.
-  // The monthly totals are already calculated above in rawMaterials, chemicals, and colors.
-
   // Build date-grouped rows
   const groupedByDate = Array.from(
     monthRecords.reduce((map, r) => {
@@ -507,7 +504,7 @@ function StockSummaryCard({ month, onEditDate, onDeleteDate }: { month: string; 
           </div>
           <div className="mt-auto relative z-10 pt-1 border-t border-gray-50">
             {rawMaterials.items.length > 0 ? (
-              <div className={`flex flex-wrap items-center gap-x-11 gap-y-1 ${rawMaterials.items.length === 1 ? 'justify-center' : 'justify-start'}`}>
+              <div className={`flex flex-wrap items-center gap-x-9 gap-y-1 ${rawMaterials.items.length === 1 ? 'justify-center' : 'justify-start'}`}>
                 {rawMaterials.items.map(item => (
                   <div key={item.name} className={`flex flex-col gap-0.5 ${rawMaterials.items.length === 1 ? 'items-center text-center' : 'items-start text-left'}`}>
                     <span className="font-medium text-gray-500 text-sm">{item.name}</span>
@@ -533,7 +530,7 @@ function StockSummaryCard({ month, onEditDate, onDeleteDate }: { month: string; 
           </div>
           <div className="mt-auto relative z-10 pt-2 border-t border-gray-50">
             {chemicals.items.length > 0 ? (
-              <div className={`flex flex-wrap items-center gap-x-11 gap-y-3 mt-2 ${chemicals.items.length === 1 ? 'justify-center' : 'justify-start'}`}>
+              <div className={`flex flex-wrap items-center gap-x-9 gap-y-3 mt-2 ${chemicals.items.length === 1 ? 'justify-center' : 'justify-start'}`}>
                 {chemicals.items.map(item => (
                   <div key={item.name} className={`flex flex-col gap-0.5 ${chemicals.items.length === 1 ? 'items-center text-center' : 'items-start text-left'}`}>
                     <span className="font-medium text-gray-500 text-sm">{item.name}</span>
@@ -559,7 +556,7 @@ function StockSummaryCard({ month, onEditDate, onDeleteDate }: { month: string; 
           </div>
           <div className="mt-auto relative z-10 pt-2 border-t border-gray-50">
             {colors.items.length > 0 ? (
-              <div className={`flex flex-wrap items-center gap-x-11 gap-y-3 mt-2 ${colors.items.length === 1 ? 'justify-center' : 'justify-start'}`}>
+              <div className={`flex flex-wrap items-center gap-x-9 gap-y-3 mt-2 ${colors.items.length === 1 ? 'justify-center' : 'justify-start'}`}>
                 {colors.items.map(item => (
                   <div key={item.name} className={`flex flex-col gap-0.5 ${colors.items.length === 1 ? 'items-center text-center' : 'items-start text-left'}`}>
                     <span className="font-medium text-gray-500 text-sm">{item.name}</span>
@@ -584,7 +581,7 @@ function StockSummaryCard({ month, onEditDate, onDeleteDate }: { month: string; 
           <table className="w-full border-collapse text-sm">
             <thead>
               <tr className="bg-gray-50 border-b border-gray-300">
-                <th rowSpan={3} className="border border-gray-300 px-2 py-2 text-center font-semibold text-gray-700 uppercase tracking-wide text-xs whitespace-nowrap w-1">DATE</th>
+                <th rowSpan={3} className="sticky left-0 z-20 bg-gray-50 border border-gray-300 px-2 py-2 text-center font-semibold text-gray-700 uppercase tracking-wide text-xs whitespace-nowrap w-1 shadow-[1px_0_0_0_#d1d5db]">DATE</th>
                 {hdpeNames.length > 0 && (
                   <th colSpan={(hdpeNames.length * 2) + 3} className="border border-gray-300 px-3 py-2 text-center font-bold text-teal-800 uppercase tracking-wide text-xs bg-blue-100">
                     HDPE
@@ -656,7 +653,7 @@ function StockSummaryCard({ month, onEditDate, onDeleteDate }: { month: string; 
                   const dayColorTotal = dayRecords.filter(r => r.type === 'COLOR').reduce((s, r) => s + r.weightKg, 0);
                   return (
                     <tr key={date} className="hover:bg-green-50/40 transition-colors group">
-                      <td className="border border-gray-300 px-3 py-1 font-bold text-gray-800 whitespace-nowrap text-sm">{formatDateDisplay(date).replace(/,?\s*\d{4}$/, '')}</td>
+                      <td className="sticky left-0 z-10 bg-white group-hover:bg-[#e4f1e5] transition-colors border border-gray-300 px-3 py-1 font-bold text-gray-800 whitespace-nowrap text-sm shadow-[1px_0_0_0_#d1d5db]">{formatDateDisplay(date).replace(/,?\s*\d{4}$/, '')}</td>
                       {hdpeNames.length > 0 && (
                         <td className="border border-gray-300 px-3 py-1 text-center font-bold text-gray-800 text-sm bg-blue-50/30">
                           {dayRecords.find(r => r.type === 'HDPE')?.DC_NUMBER || '-'}
@@ -741,7 +738,7 @@ function StockSummaryCard({ month, onEditDate, onDeleteDate }: { month: string; 
               )}
               {groupedByDate.length > 0 && (
                 <tr className="bg-white border-t-2 border-gray-300 font-bold">
-                  <td className="border border-gray-300 px-3 py-1.5 text-gray-800 uppercase text-sm tracking-wide font-bold">TOTAL</td>
+                  <td className="sticky left-0 z-10 bg-white border border-gray-300 px-3 py-1.5 text-gray-800 uppercase text-sm tracking-wide font-bold shadow-[1px_0_0_0_#d1d5db]">TOTAL</td>
                   {hdpeNames.length > 0 && <td className="border border-gray-300 px-3 py-1 bg-gray-50"></td>}
                   {hdpeTotals.flatMap((val, i) => {
                     const bags = hdpeBagTotals[i];

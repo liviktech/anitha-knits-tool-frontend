@@ -148,9 +148,9 @@ export function NewEntry({ onClose, defaultDate, readOnly: propsReadOnly = false
             </div>
             <div className={`px-4 grid grid-cols-1 sm:grid-cols-3 sm:divide-x divide-gray-200 transition-all duration-500 ease-in-out ${isInventoryMinimized ? 'py-3 gap-2' : 'py-3 gap-3'}`}>
               <div className="flex flex-col sm:pr-4">
-                <div className="flex justify-between items-center border-b border-gray-200 pb-2">
+                <div className="flex justify-between items-center border-b border-gray-200 pb-1">
                   <label className="flex items-center gap-2 text-[13px] font-bold uppercase tracking-wide text-gray-500">
-                    <img src="/hdpe-in.png" alt="" className="h-8 w-8 object-contain" />
+                    <img src="/hdpe-in.png" alt="" className="h-9 w-9 object-contain" />
                     HDPE
                   </label>
                   <span className={`text-[13px] font-bold text-gray-900 transition-opacity duration-300 ${isInventoryMinimized ? 'opacity-100' : 'opacity-0'}`}>
