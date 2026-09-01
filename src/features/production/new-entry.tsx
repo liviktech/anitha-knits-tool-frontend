@@ -12,7 +12,7 @@ import type { SectionRef } from './day-entry-sections';
 import { useExtruderProductions, useLookups } from '@/features/extruder/extruder-queries';
 import { useDayWiseProduction } from './day-wise-queries';
 import { useInventoryRecords } from '@/features/inventory/inventory-queries';
-import { useProductionHeader } from './production-details';
+import { useProductionHeader } from './production-context';
 import { useAuth } from '@/features/auth/auth-context';
 import { canCreateProductionRecord } from '@/lib/production-permissions';
 
@@ -36,7 +36,19 @@ export function NewEntry({ onClose, defaultDate, readOnly: propsReadOnly = false
   const fabricRef = useRef<SectionRef>(null);
   const fabricDeliveredRef = useRef<SectionRef>(null);
 
-  const [date, setDate] = useState<Date>(defaultDate ? parseISO(defaultDate) : new Date());
+  const [date, setDate] = useState<Date>(() => {
+    if (defaultDate) return parseISO(defaultDate);
+    const saved = sessionStorage.getItem('productionMonthFilter');
+    if (saved) {
+      const savedDate = parseISO(`${saved}-01`);
+      const today = new Date();
+      if (savedDate.getFullYear() === today.getFullYear() && savedDate.getMonth() === today.getMonth()) {
+        return today;
+      }
+      return savedDate;
+    }
+    return new Date();
+  });
   const productionDate = format(date, 'yyyy-MM-dd');
   const [submitting] = useState(false);
   const [isInventoryMinimized, setIsInventoryMinimized] = useState(true);
@@ -44,6 +56,7 @@ export function NewEntry({ onClose, defaultDate, readOnly: propsReadOnly = false
   const [searchParams] = useSearchParams();
   const [activeTab, setActiveTab] = useState<string>(searchParams.get('tab') || 'extruder');
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
+  const [isCalendarOpen, setIsCalendarOpen] = useState(false);
   const [editingExtruderGroup, setEditingExtruderGroup] = useState<any>(null);
   const [editingLoomGroup, setEditingLoomGroup] = useState<any>(null);
   const [editingFabricGroup, setEditingFabricGroup] = useState<any>(null);
@@ -65,7 +78,7 @@ export function NewEntry({ onClose, defaultDate, readOnly: propsReadOnly = false
     setHeaderRight(
       <div className="flex flex-wrap items-center gap-3">
         {showDatePicker && (
-          <Popover>
+          <Popover open={isCalendarOpen} onOpenChange={setIsCalendarOpen}>
             <PopoverTrigger asChild>
               <Button
                 variant="outline"
@@ -80,8 +93,14 @@ export function NewEntry({ onClose, defaultDate, readOnly: propsReadOnly = false
               <Calendar
                 mode="single"
                 selected={date}
-                onSelect={(value) => value && setDate(value)}
+                onSelect={(value) => {
+                  if (value) {
+                    setDate(value);
+                    setIsCalendarOpen(false);
+                  }
+                }}
                 disabled={(d) => d > new Date() || completedDateStrings.has(format(d, 'yyyy-MM-dd'))}
+                defaultMonth={date}
                 autoFocus
               />
             </PopoverContent>
@@ -96,7 +115,7 @@ export function NewEntry({ onClose, defaultDate, readOnly: propsReadOnly = false
       setShowBackButton(false);
       setOnBackClick(undefined);
     };
-  }, [setHeaderRight, setShowBackButton, setOnBackClick, setHeaderTitle, onClose, date, readOnly, submitting, activeTab, showDatePicker, canAddRow]);
+  }, [setHeaderRight, setShowBackButton, setOnBackClick, setHeaderTitle, onClose, date, readOnly, submitting, activeTab, showDatePicker, canAddRow, isCalendarOpen]);
 
   // Most recent entry before the selected date — used to carry forward
   // Data for calculating live stock balances in create mode

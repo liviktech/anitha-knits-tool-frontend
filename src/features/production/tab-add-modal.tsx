@@ -39,12 +39,13 @@ export function TabAddModal({
   const maxWidth = activeTab === 'extruder' ? 'sm:max-w-[600px]' : 'sm:max-w-[500px]';
 
   const getTitle = () => {
+    const prefix = isEditMode ? 'Edit' : 'Add';
     switch (activeTab) {
-      case 'extruder': return 'Add Extruder Production Details';
-      case 'looms': return 'Add Looms Production Details';
-      case 'fabric': return 'Add Fabric Checking Details';
-      case 'delivered': return 'Add Fabric Delivered Details';
-      default: return 'Add Details';
+      case 'extruder': return `${prefix} Extruder Production Details`;
+      case 'looms': return `${prefix} Looms Production Details`;
+      case 'fabric': return `${prefix} Fabric Checking Details`;
+      case 'delivered': return `${prefix} Fabric Delivered Details`;
+      default: return `${prefix} Details`;
     }
   };
 
