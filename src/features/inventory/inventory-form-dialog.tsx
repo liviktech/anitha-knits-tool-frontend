@@ -63,6 +63,7 @@ export function InventoryFormDialog({ onClose, editDate, editRecords, selectedMo
 
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [isCalendarOpen, setIsCalendarOpen] = useState(false);
 
   const hdpeNames = (lookupsData?.brands ?? []).map(b => b.name).sort();
   const chemicalNames = (lookupsData?.chemicals ?? []).map(c => c.name).sort();
@@ -179,7 +180,7 @@ export function InventoryFormDialog({ onClose, editDate, editRecords, selectedMo
           <DialogTitle className="text-black">{isEdit ? 'Edit Stock' : 'Add Received Stock'}</DialogTitle>
           <div className="flex items-center gap-3">
             {/* <Label htmlFor="inv-date" className="text-sm font-medium whitespace-nowrap text-black">Date</Label> */}
-            <Popover>
+            <Popover open={isCalendarOpen} onOpenChange={setIsCalendarOpen}>
               <PopoverTrigger asChild>
                 <Button
                   variant="outline"
@@ -195,7 +196,13 @@ export function InventoryFormDialog({ onClose, editDate, editRecords, selectedMo
                 <Calendar
                   mode="single"
                   selected={date ? parseISO(date) : undefined}
-                  onSelect={(d) => d && setDate(format(d, 'yyyy-MM-dd'))}
+                  defaultMonth={date ? parseISO(date) : undefined}
+                  onSelect={(d) => {
+                    if (d) {
+                      setDate(format(d, 'yyyy-MM-dd'));
+                      setIsCalendarOpen(false);
+                    }
+                  }}
                   autoFocus
                 />
               </PopoverContent>
