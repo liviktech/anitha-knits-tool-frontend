@@ -614,7 +614,7 @@ function StockSummaryCard({ month, onEditDate, onDeleteDate }: { month: string; 
           <table className="w-full border-collapse text-sm">
             <thead>
               <tr className="bg-gray-50 border-b border-gray-300">
-                <th rowSpan={3} className="border border-gray-300 px-3 py-2 text-left font-semibold text-gray-700 uppercase tracking-wide text-xs whitespace-nowrap w-28">DATE</th>
+                <th rowSpan={3} className="border border-gray-300 px-2 py-2 text-center font-semibold text-gray-700 uppercase tracking-wide text-xs whitespace-nowrap w-1">DATE</th>
                 {hdpeNames.length > 0 && (
                   <th colSpan={(hdpeNames.length * 2) + 3} className="border border-gray-300 px-3 py-2 text-center font-bold text-teal-800 uppercase tracking-wide text-xs bg-blue-100">
                     HDPE
