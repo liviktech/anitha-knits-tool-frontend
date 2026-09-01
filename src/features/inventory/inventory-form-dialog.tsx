@@ -3,13 +3,17 @@ import { useQueryClient } from '@tanstack/react-query';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 
-import { X } from 'lucide-react';
+import { X, Calendar as CalendarIcon } from 'lucide-react';
+import { format, parseISO } from 'date-fns';
+import { Calendar } from '@/components/ui/calendar';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Dialog, DialogClose, DialogContent, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Loader } from '@/components/shared/loader';
 import { apiFetch } from '@/lib/api-client';
 import { useLookups } from '@/lib/lookups';
 import { todayIso } from './inventory-utils';
 import { inventoryKeys, type InventoryRecord, type InventoryType } from './inventory-queries';
+import { useLatestProductionConfig } from '../admin-panel/production-config-queries';
 
 interface InventoryFormDialogProps {
   onClose: () => void;
@@ -21,6 +25,7 @@ interface InventoryFormDialogProps {
 export function InventoryFormDialog({ onClose, editDate, editRecords, selectedMonth }: InventoryFormDialogProps) {
   const queryClient = useQueryClient();
   const { data: lookupsData, isLoading: isLookupsLoading, isError: isLookupsError, refetch: refetchLookups } = useLookups();
+  const { data: latestConfig } = useLatestProductionConfig();
   const isEdit = !!editDate;
 
   const findDcForType = (type: InventoryType) => editRecords?.find(r => r.type === type && r.DC_NUMBER)?.DC_NUMBER ?? '';
@@ -71,6 +76,16 @@ export function InventoryFormDialog({ onClose, editDate, editRecords, selectedMo
   const handleBagChange = (type: InventoryType, name: string, val: string) => {
     const cleaned = val.replace(/[^0-9]/g, '');
     setBags(prev => ({ ...prev, [`${type}-${name}`]: cleaned }));
+
+    if (type === 'HDPE' && latestConfig?.basisWeightKg) {
+      const numBags = parseInt(cleaned, 10);
+      if (!isNaN(numBags)) {
+        const weight = numBags * latestConfig.basisWeightKg;
+        setWeights(prev => ({ ...prev, [`${type}-${name}`]: String(weight) }));
+      } else {
+        setWeights(prev => ({ ...prev, [`${type}-${name}`]: '' }));
+      }
+    }
   };
 
   const handleSubmit = async () => {
@@ -164,7 +179,27 @@ export function InventoryFormDialog({ onClose, editDate, editRecords, selectedMo
           <DialogTitle className="text-black">{isEdit ? 'Edit Stock' : 'Add Received Stock'}</DialogTitle>
           <div className="flex items-center gap-3">
             {/* <Label htmlFor="inv-date" className="text-sm font-medium whitespace-nowrap text-black">Date</Label> */}
-            <Input id="inv-date" type="date" value={date} onChange={(e) => setDate(e.target.value)} className="w-40 h-8 text-sm bg-white" />
+            <Popover>
+              <PopoverTrigger asChild>
+                <Button
+                  variant="outline"
+                  className="flex items-center bg-white border border-gray-400 rounded-md px-3 py-1 h-8 shadow-sm hover:bg-gray-50"
+                >
+                  <span className="text-sm font-medium text-gray-800 mr-2">
+                    {date ? format(parseISO(date), 'dd/MM/yyyy') : 'Select Date'}
+                  </span>
+                  <CalendarIcon className="w-4 h-4 text-gray-600" />
+                </Button>
+              </PopoverTrigger>
+              <PopoverContent className="w-auto p-0" align="end">
+                <Calendar
+                  mode="single"
+                  selected={date ? parseISO(date) : undefined}
+                  onSelect={(d) => d && setDate(format(d, 'yyyy-MM-dd'))}
+                  autoFocus
+                />
+              </PopoverContent>
+            </Popover>
             <DialogClose asChild>
               <Button variant="ghost" size="icon-sm" className="text-black hover:bg-white/50">
                 <X className="h-4 w-4" />
