@@ -43,7 +43,7 @@ export function LivikAdminShell() {
 
   function handleLogout() {
     logout();
-    navigate('/login', { replace: true });
+    navigate('/admin-login', { replace: true });
   }
 
   return (
