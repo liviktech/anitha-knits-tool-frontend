@@ -109,3 +109,17 @@ export async function fetchCurrentUser(): Promise<CompanyUserProfile | null> {
     return null;
   }
 }
+
+/**
+ * Clears the httpOnly cookies for both company users and platform admins.
+ */
+export async function logoutRequest(): Promise<void> {
+  try {
+    await Promise.allSettled([
+      postJson('/company/auth/logout', {}),
+      postJson('/platform/admin/logout', {}),
+    ]);
+  } catch {
+    // Ignore errors (e.g., if one session wasn't active anyway)
+  }
+}

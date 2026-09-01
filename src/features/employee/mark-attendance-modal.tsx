@@ -11,7 +11,7 @@ export interface AttendanceEmployeeOption {
   customUserId?: string;
 }
 
-export type DailyStatus = 'Present' | 'Absent' | 'Half-day' | 'Company Holiday';
+export type DailyStatus = 'Day shift' | 'Night shift' | 'Absent' | 'Half-day' | 'Company Holiday';
 
 export interface DailyAttendanceEntry {
   employeeId: string;
@@ -32,7 +32,8 @@ export interface MarkAttendanceModalProps {
 }
 
 const STATUS_OPTIONS: { value: DailyStatus; label: string; activeClass: string }[] = [
-  { value: 'Present', label: 'Present', activeClass: 'bg-emerald-100 text-emerald-800 border-emerald-300' },
+  { value: 'Day shift', label: 'Day Shift', activeClass: 'bg-emerald-100 text-emerald-800 border-emerald-300' },
+  { value: 'Night shift', label: 'Night Shift', activeClass: 'bg-teal-100 text-teal-800 border-teal-300' },
   { value: 'Absent', label: 'Absent', activeClass: 'bg-red-100 text-red-800 border-red-300' },
   { value: 'Half-day', label: 'Half Day', activeClass: 'bg-blue-100 text-blue-800 border-blue-300' },
   { value: 'Company Holiday', label: 'Company Holiday', activeClass: 'bg-amber-100 text-amber-800 border-amber-300' },
@@ -98,8 +99,8 @@ export function MarkAttendanceModal({ isOpen, onClose, onSave, employees, defaul
             <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
             <Input placeholder="Search employee..." value={search} onChange={(e) => setSearch(e.target.value)} className="pl-9 h-10" />
           </div>
-          {/* <Button variant="link" onClick={markAllPresent} className="text-blue-600 font-semibold whitespace-nowrap px-0">
-            Mark All Present
+          {/* <Button variant="link" onClick={markAllDayShift} className="text-blue-600 font-semibold whitespace-nowrap px-0">
+            Mark All Day Shift
           </Button> */}
         </div>
 
