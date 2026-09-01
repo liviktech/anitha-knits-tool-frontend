@@ -10,9 +10,9 @@ import { ExtruderSection, LoomSection, FabricSection, FabricDeliveredSection, th
 import { TabAddModal } from './tab-add-modal';
 import type { SectionRef } from './day-entry-sections';
 import { useExtruderProductions, useLookups } from '@/features/extruder/extruder-queries';
-import { useDayWiseProduction } from './day-wise-queries';
+
 import { useInventoryRecords } from '@/features/inventory/inventory-queries';
-import { useProductionHeader } from './production-details';
+import { useProductionHeader } from './production-context';
 import { useAuth } from '@/features/auth/auth-context';
 import { canCreateProductionRecord } from '@/lib/production-permissions';
 
@@ -36,7 +36,19 @@ export function NewEntry({ onClose, defaultDate, readOnly: propsReadOnly = false
   const fabricRef = useRef<SectionRef>(null);
   const fabricDeliveredRef = useRef<SectionRef>(null);
 
-  const [date, setDate] = useState<Date>(defaultDate ? parseISO(defaultDate) : new Date());
+  const [date, setDate] = useState<Date>(() => {
+    if (defaultDate) return parseISO(defaultDate);
+    const saved = sessionStorage.getItem('productionMonthFilter');
+    if (saved) {
+      const savedDate = parseISO(`${saved}-01`);
+      const today = new Date();
+      if (savedDate.getFullYear() === today.getFullYear() && savedDate.getMonth() === today.getMonth()) {
+        return today;
+      }
+      return savedDate;
+    }
+    return new Date();
+  });
   const productionDate = format(date, 'yyyy-MM-dd');
   const [submitting] = useState(false);
   const [isInventoryMinimized, setIsInventoryMinimized] = useState(true);
@@ -44,6 +56,7 @@ export function NewEntry({ onClose, defaultDate, readOnly: propsReadOnly = false
   const [searchParams] = useSearchParams();
   const [activeTab, setActiveTab] = useState<string>(searchParams.get('tab') || 'extruder');
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
+  const [isCalendarOpen, setIsCalendarOpen] = useState(false);
   const [editingExtruderGroup, setEditingExtruderGroup] = useState<any>(null);
   const [editingLoomGroup, setEditingLoomGroup] = useState<any>(null);
   const [editingFabricGroup, setEditingFabricGroup] = useState<any>(null);
@@ -52,10 +65,12 @@ export function NewEntry({ onClose, defaultDate, readOnly: propsReadOnly = false
   const { data: lookupsData } = useLookups();
   const lookups = lookupsData ?? { brands: [], colors: [], chemicals: [], sizes: [] };
 
-  const { rows: completedDays } = useDayWiseProduction();
-  const completedDateStrings = new Set(completedDays.map(r => r.date));
+  const { data: allExtruderData } = useExtruderProductions('?limit=100', !readOnly);
+  const completedDateStrings = new Set(
+    (allExtruderData?.data ?? []).map(r => r.productionDate?.split('T')[0]).filter(Boolean) as string[]
+  );
 
-  const showDatePicker = isCreateMode;
+  const showDatePicker = !readOnly;
 
   useEffect(() => {
     setHeaderTitle(isCreateMode ? 'Add New Daily Production Details' : 'Edit Daily Production Details');
@@ -65,7 +80,7 @@ export function NewEntry({ onClose, defaultDate, readOnly: propsReadOnly = false
     setHeaderRight(
       <div className="flex flex-wrap items-center gap-3">
         {showDatePicker && (
-          <Popover>
+          <Popover open={isCalendarOpen} onOpenChange={setIsCalendarOpen}>
             <PopoverTrigger asChild>
               <Button
                 variant="outline"
@@ -80,8 +95,14 @@ export function NewEntry({ onClose, defaultDate, readOnly: propsReadOnly = false
               <Calendar
                 mode="single"
                 selected={date}
-                onSelect={(value) => value && setDate(value)}
-                disabled={(d) => d > new Date() || completedDateStrings.has(format(d, 'yyyy-MM-dd'))}
+                onSelect={(value) => {
+                  if (value) {
+                    setDate(value);
+                    setIsCalendarOpen(false);
+                  }
+                }}
+                disabled={(d) => d > new Date() || (completedDateStrings.has(format(d, 'yyyy-MM-dd')) && format(d, 'yyyy-MM-dd') !== defaultDate)}
+                defaultMonth={date}
                 autoFocus
               />
             </PopoverContent>
@@ -96,12 +117,11 @@ export function NewEntry({ onClose, defaultDate, readOnly: propsReadOnly = false
       setShowBackButton(false);
       setOnBackClick(undefined);
     };
-  }, [setHeaderRight, setShowBackButton, setOnBackClick, setHeaderTitle, onClose, date, readOnly, submitting, activeTab, showDatePicker, canAddRow]);
+  }, [setHeaderRight, setShowBackButton, setOnBackClick, setHeaderTitle, onClose, date, readOnly, submitting, activeTab, showDatePicker, canAddRow, isCalendarOpen]);
 
   // Most recent entry before the selected date — used to carry forward
   // Data for calculating live stock balances in create mode
   const { data: allInvData } = useInventoryRecords('?limit=100', !readOnly);
-  const { data: allExtruderData } = useExtruderProductions('?limit=100', !readOnly);
   const inventoryRecords = allInvData?.data ?? [];
   const extruderRecords = allExtruderData?.data ?? [];
 
@@ -148,9 +168,9 @@ export function NewEntry({ onClose, defaultDate, readOnly: propsReadOnly = false
             </div>
             <div className={`px-4 grid grid-cols-1 sm:grid-cols-3 sm:divide-x divide-gray-200 transition-all duration-500 ease-in-out ${isInventoryMinimized ? 'py-3 gap-2' : 'py-3 gap-3'}`}>
               <div className="flex flex-col sm:pr-4">
-                <div className="flex justify-between items-center border-b border-gray-200 pb-2">
+                <div className="flex justify-between items-center border-b border-gray-200 pb-1">
                   <label className="flex items-center gap-2 text-[13px] font-bold uppercase tracking-wide text-gray-500">
-                    <img src="/hdpe-in.png" alt="" className="h-8 w-8 object-contain" />
+                    <img src="/hdpe-in.png" alt="" className="h-9 w-9 object-contain" />
                     HDPE
                   </label>
                   <span className={`text-[13px] font-bold text-gray-900 transition-opacity duration-300 ${isInventoryMinimized ? 'opacity-100' : 'opacity-0'}`}>
@@ -199,8 +219,7 @@ export function NewEntry({ onClose, defaultDate, readOnly: propsReadOnly = false
                     <img src="/color-in.png" alt="" className="h-8 w-8 object-contain" />
                     Color
                   </label>
-                  <span className={`text-[13 So bar start
-                    px] font-bold text-gray-900 transition-opacity duration-300 ${isInventoryMinimized ? 'opacity-100' : 'opacity-0'}`}>
+                  <span className={`text-[13px] font-bold text-gray-900 transition-opacity duration-300 ${isInventoryMinimized ? 'opacity-100' : 'opacity-0'}`}>
                     {totalColor} kg
                   </span>
                 </div>

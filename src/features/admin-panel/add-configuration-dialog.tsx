@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+﻿import { useEffect, useState } from 'react';
 import {
   Dialog,
   DialogContent,
@@ -87,20 +87,14 @@ export function AddConfigurationDialog({
       'chemicalWeight',
     ] as const;
 
-    if (
-      !form.date ||
-      numericFields.some(
-        (key) =>
-          form[key].trim() === '' ||
-          Number.isNaN(Number(form[key])),
-      )
-    ) {
-      setFormError('Please fill in every field with a valid value.');
-      return;
-    }
+    const hasInvalidNumber = numericFields.some((key) => {
+      const rawValue = form[key];
+      const value = String(rawValue ?? '').trim();
+      return value === '' || Number.isNaN(Number(value));
+    });
 
-    if (form.date < todayIso()) {
-      setFormError('Date cannot be in the past.');
+    if (!form.date || hasInvalidNumber) {
+      setFormError('Please fill in every field with a valid value.');
       return;
     }
 
@@ -182,7 +176,7 @@ export function AddConfigurationDialog({
               value={form.date}
               onChange={setField('date')}
               disabled={isPending}
-              min={todayIso()}
+              
               aria-label="Configuration date"
               className="w-40 h-8 text-sm bg-white text-[#191c1c]"
             />
@@ -299,7 +293,7 @@ export function AddConfigurationDialog({
             </div>
           </div>
           {/* ================================================= */}
-          {/* COLORS CARD — White, Blue, Green in one card       */}
+          {/* COLORS CARD â€” White, Blue, Green in one card       */}
           {/* ================================================= */}
 
           <div className="rounded-lg border border-[#bfc9c3] bg-white p-4">
@@ -522,3 +516,5 @@ export function AddConfigurationDialog({
     </Dialog>
   );
 }
+
+

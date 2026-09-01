@@ -11,7 +11,7 @@ export interface AttendanceEmployeeOption {
   customUserId?: string;
 }
 
-export type DailyStatus = 'Present' | 'Absent' | 'Half-day' | 'Company Holiday';
+export type DailyStatus = 'Day shift' | 'Night shift' | 'Absent' | 'Half-day' | 'Company Holiday';
 
 export interface DailyAttendanceEntry {
   employeeId: string;
@@ -32,7 +32,8 @@ export interface MarkAttendanceModalProps {
 }
 
 const STATUS_OPTIONS: { value: DailyStatus; label: string; activeClass: string }[] = [
-  { value: 'Present', label: 'Present', activeClass: 'bg-emerald-100 text-emerald-800 border-emerald-300' },
+  { value: 'Day shift', label: 'Day Shift', activeClass: 'bg-emerald-100 text-emerald-800 border-emerald-300' },
+  { value: 'Night shift', label: 'Night Shift', activeClass: 'bg-teal-100 text-teal-800 border-teal-300' },
   { value: 'Absent', label: 'Absent', activeClass: 'bg-red-100 text-red-800 border-red-300' },
   { value: 'Half-day', label: 'Half Day', activeClass: 'bg-blue-100 text-blue-800 border-blue-300' },
   { value: 'Company Holiday', label: 'Company Holiday', activeClass: 'bg-amber-100 text-amber-800 border-amber-300' },
@@ -57,7 +58,7 @@ export function MarkAttendanceModal({ isOpen, onClose, onSave, employees, defaul
     if (isOpen) {
       const initialStatusMap: Record<string, DailyStatus> = {};
       const targetDate = date || defaultDate || new Date().toISOString().slice(0, 10);
-      
+
       existingRecords.forEach(r => {
         if (r.date.split('T')[0] === targetDate) {
           // r.employeeId is the customUserId or rawId, we need to map it to the employee option id
@@ -73,8 +74,8 @@ export function MarkAttendanceModal({ isOpen, onClose, onSave, employees, defaul
   }, [date, isOpen, existingRecords, employees]);
 
   const filtered = employees.filter(
-    (e) => e.name.toLowerCase().includes(search.toLowerCase()) || 
-           (e.customUserId || e.id).toLowerCase().includes(search.toLowerCase())
+    (e) => e.name.toLowerCase().includes(search.toLowerCase()) ||
+      (e.customUserId || e.id).toLowerCase().includes(search.toLowerCase())
   );
 
   const handleSubmit = () => {
@@ -93,13 +94,13 @@ export function MarkAttendanceModal({ isOpen, onClose, onSave, employees, defaul
         </DialogHeader>
 
         <div className="flex flex-wrap items-center gap-3 px-6 py-4 border-b border-gray-100">
-          <Input type="date" value={date} onChange={(e) => setDate(e.target.value)} className="w-44 h-10" />
-          <div className="relative flex-1 min-w-45">
+          <Input type="date" value={date} onChange={(e) => setDate(e.target.value)} className="w-40 h-10" />
+          <div className="relative w-64">
             <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
             <Input placeholder="Search employee..." value={search} onChange={(e) => setSearch(e.target.value)} className="pl-9 h-10" />
           </div>
-          {/* <Button variant="link" onClick={markAllPresent} className="text-blue-600 font-semibold whitespace-nowrap px-0">
-            Mark All Present
+          {/* <Button variant="link" onClick={markAllDayShift} className="text-blue-600 font-semibold whitespace-nowrap px-0">
+            Mark All Day Shift
           </Button> */}
         </div>
 
@@ -126,9 +127,8 @@ export function MarkAttendanceModal({ isOpen, onClose, onSave, employees, defaul
                           key={opt.value}
                           type="button"
                           onClick={() => setStatusMap((m) => ({ ...m, [emp.id]: opt.value }))}
-                          className={`rounded-full border px-3 py-1 text-xs font-medium transition-colors ${
-                            statusMap[emp.id] === opt.value ? opt.activeClass : 'bg-white text-gray-600 border-gray-200 hover:bg-gray-50'
-                          }`}
+                          className={`rounded-full border px-3 py-1 text-xs font-medium transition-colors ${statusMap[emp.id] === opt.value ? opt.activeClass : 'bg-white text-gray-600 border-gray-200 hover:bg-gray-50'
+                            }`}
                         >
                           {opt.label}
                         </button>

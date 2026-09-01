@@ -111,7 +111,7 @@ export function CompaniesListPage() {
                   <TableHead className="text-[11px] font-bold uppercase tracking-wide text-gray-500 text-center">GST Number</TableHead>
                   <TableHead className="text-[11px] font-bold uppercase tracking-wide text-gray-500 text-center">Admin Mobile</TableHead>
                   <TableHead className="text-[11px] font-bold uppercase tracking-wide text-gray-500 text-center">Status</TableHead>
-                  <TableHead className="text-[11px] font-bold uppercase tracking-wide text-gray-500 text-center">Created At</TableHead>
+                  <TableHead className="text-[11px] font-bold uppercase tracking-wide text-gray-500 text-center">Last-Login</TableHead>
                   <TableHead className="text-[11px] font-bold uppercase tracking-wide text-gray-500 text-right pr-5">Actions</TableHead>
                 </TableRow>
               </TableHeader>
@@ -170,7 +170,7 @@ export function CompaniesListPage() {
                           {company.isActive ? 'Active' : 'Inactive'}
                         </span>
                       </TableCell>
-                      <TableCell className="text-gray-500 text-[13px] text-center">{formatCompanyDate(company.createdAt)}</TableCell>
+                      <TableCell className="text-gray-500 text-[13px] text-center">{formatCompanyDate(company.updatedAt)}</TableCell>
                       <TableCell className="pr-3">
                         <div className="flex items-center justify-end gap-2">
                           <Button

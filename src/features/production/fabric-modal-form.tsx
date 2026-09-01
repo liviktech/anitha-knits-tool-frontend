@@ -79,8 +79,15 @@ export function FabricModalForm({ productionDate, initialData, isEditMode, onCan
     const colorId = findIdByName(lookups.colors, draft.color);
     const sizeId = findIdByName(lookups.sizes, draft.size);
 
-    if (!colorId || !sizeId) {
-      setError('Please select a valid size and color.');
+    const missingFields: string[] = [];
+    if (!sizeId) missingFields.push('Size');
+    if (!colorId) missingFields.push('Color');
+    if (!draft.input || draft.input.trim() === '') missingFields.push('Fabric Production');
+    if (!draft.fwKg || draft.fwKg.trim() === '') missingFields.push('Fabric Waste');
+    if (!draft.bwKg || draft.bwKg.trim() === '') missingFields.push('Bit Wastage');
+
+    if (missingFields.length > 0) {
+      setError(`Please fill in the following required fields: ${missingFields.join(', ')}.`);
       return;
     }
 
@@ -89,12 +96,12 @@ export function FabricModalForm({ productionDate, initialData, isEditMode, onCan
       return;
     }
 
-    const finalFabricInput = parseInt(draft.input) + (koraBalanceKg || 0);
+    const finalFabricInput = parseInt(draft.input);
 
     const payload: FabricCheckingCreatePayload = {
       productionDate,
-      colorId,
-      sizeId,
+      colorId: colorId!,
+      sizeId: sizeId!,
       fabricInputKg: parseFloat(finalFabricInput.toFixed(2)) || 0,
       outputKg: parseFloat(draft.output) || 0,
       fwKg: parseFloat(draft.fwKg) || 0,
@@ -104,7 +111,7 @@ export function FabricModalForm({ productionDate, initialData, isEditMode, onCan
     setSaving(true);
     try {
       const url = isEditMode && draft.id ? `/fabric-checking/${draft.id}` : '/fabric-checking';
-      const method = isEditMode && draft.id ? 'PUT' : 'POST';
+      const method = isEditMode && draft.id ? 'PATCH' : 'POST';
 
       const response = await apiFetch(url, {
         method,
@@ -133,14 +140,14 @@ export function FabricModalForm({ productionDate, initialData, isEditMode, onCan
           <Label className="text-gray-600 text-xs font-semibold uppercase tracking-wider shrink-0 w-10">Size</Label>
           <Select value={draft.size} onValueChange={(v) => updateField('size', v)} disabled={isEditMode}>
             <SelectTrigger><SelectValue placeholder="Select Size" /></SelectTrigger>
-            <SelectContent>{lookups.sizes?.map((s) => <SelectItem key={s.id} value={s.name}>{s.name}</SelectItem>)}</SelectContent>
+            <SelectContent position="popper">{lookups.sizes?.map((s) => <SelectItem key={s.id} value={s.name}>{s.name}</SelectItem>)}</SelectContent>
           </Select>
         </div>
         <div className="flex items-center gap-3 w-56">
           <Label className="text-gray-600 text-xs font-semibold uppercase tracking-wider shrink-0 w-12">Color</Label>
           <Select value={draft.color} onValueChange={(v) => updateField('color', v)} disabled={isEditMode}>
             <SelectTrigger><SelectValue placeholder="Select Color" /></SelectTrigger>
-            <SelectContent>{lookups.colors?.map((c) => <SelectItem key={c.id} value={c.name}>{c.name}</SelectItem>)}</SelectContent>
+            <SelectContent position="popper">{lookups.colors?.map((c) => <SelectItem key={c.id} value={c.name}>{c.name}</SelectItem>)}</SelectContent>
           </Select>
         </div>
       </div>

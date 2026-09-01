@@ -277,7 +277,7 @@ export const PayrollTab = forwardRef<PayrollTabRef>((_, ref) => {
                       setCurrentMonth(parseInt(m, 10));
                     }
                   }}
-                  className="h-8 text-xs w-32 border-gray-400 bg-gray-50/50"
+                  className="h-8 text-xs w-40 border-gray-400 bg-gray-50/50"
                 />
                 <Button size="sm" variant="outline" className="h-8 text-sm font-semibold bg-[#004D40] hover:bg-[#00382e] hover:text-white text-white" onClick={() => setIsAdvanceModalOpen(true)}>
                   <Banknote className="w-3.5 h-3.5 mr-1" /> Salary Advance
@@ -364,7 +364,7 @@ export const PayrollTab = forwardRef<PayrollTabRef>((_, ref) => {
                   <SelectTrigger className="h-8 w-32 bg-gray-50/50 border-gray-400 text-sm rounded-lg font-hanken">
                     <SelectValue placeholder="Status" />
                   </SelectTrigger>
-                  <SelectContent>
+                  <SelectContent position="popper">
                     <SelectItem value="ALL">All</SelectItem>
                     <SelectItem value="ACTIVE">Active</SelectItem>
                     <SelectItem value="COMPLETED">Completed</SelectItem>
@@ -463,7 +463,7 @@ export const PayrollTab = forwardRef<PayrollTabRef>((_, ref) => {
               <Label className="text-xs font-semibold text-gray-700">Select Employee</Label>
               <Select value={advanceEmployeeId} onValueChange={setAdvanceEmployeeId}>
                 <SelectTrigger className="h-9 text-xs"><SelectValue placeholder="Choose Employee..." /></SelectTrigger>
-                <SelectContent>
+                <SelectContent position="popper">
                   {employees.map(emp => (
                     <SelectItem key={emp.id} value={emp.id}>{emp.employeeDetails?.customUserId || emp.id} - {emp.name || 'Unnamed'}</SelectItem>
                   ))}
@@ -486,7 +486,7 @@ export const PayrollTab = forwardRef<PayrollTabRef>((_, ref) => {
               <Label className="text-xs font-semibold text-gray-700">Repayment Method</Label>
               <Select value={advanceType} onValueChange={(v) => setAdvanceType(v as 'single' | 'emi')}>
                 <SelectTrigger className="h-9 text-xs"><SelectValue /></SelectTrigger>
-                <SelectContent>
+                <SelectContent position="popper">
                   <SelectItem value="single">Single Payment (Deduct in next payroll)</SelectItem>
                   <SelectItem value="emi">EMI (Equated Monthly Installment)</SelectItem>
                 </SelectContent>
@@ -678,7 +678,7 @@ export const PayrollTab = forwardRef<PayrollTabRef>((_, ref) => {
                     setCurrentMonth(parseInt(m, 10));
                   }
                 }}
-                className="h-8 text-sm w-40 border-gray-400 bg-white"
+                className="h-8 text-sm w-42 border-gray-400 bg-white"
               />
             </DialogTitle>
           </DialogHeader>
@@ -686,11 +686,11 @@ export const PayrollTab = forwardRef<PayrollTabRef>((_, ref) => {
             <Table className="border-collapse">
               <TableHeader className="bg-gray-50/50 sticky top-0 z-10">
                 <TableRow className="border-b border-gray-300">
-                  <TableHead colSpan={6} className="text-sm font-bold text-gray-800 text-center border-r border-gray-300">Employee Details</TableHead>
+                  <TableHead colSpan={6} className="text-sm font-bold text-gray-800 !text-center border-r border-gray-300">Employee Details</TableHead>
                   <TableHead colSpan={3} className="text-sm font-bold text-blue-700 text-center border-r border-gray-300 bg-blue-50/30">Bonuses</TableHead>
                   <TableHead colSpan={1} className="text-sm font-bold text-gray-800 text-center border-r border-gray-300 bg-emerald-50/30">Gross</TableHead>
                   <TableHead colSpan={2} className="text-sm font-bold text-red-700 text-center border-r border-gray-300 bg-red-50/30">Deductions</TableHead>
-                  <TableHead colSpan={1} className="text-sm font-bold text-gray-800 text-center bg-emerald-50/30">Final</TableHead>
+                  <TableHead colSpan={1} className="text-sm font-bold text-gray-800 !text-center bg-emerald-50/30">Final</TableHead>
                 </TableRow>
                 <TableRow className="border-b border-gray-300">
                   <TableHead className="text-xs font-semibold text-gray-800 border-r border-gray-300">Emp ID</TableHead>
@@ -730,11 +730,11 @@ export const PayrollTab = forwardRef<PayrollTabRef>((_, ref) => {
                       const isSunday = currentDate.getDay() === 0;
                       const status = attendanceMap.get(dateStr);
 
-                      if (status === 'PRESENT' || status === 'HALF_DAY') {
+                      if (status === 'DAY_SHIFT' || status === 'NIGHT_SHIFT' || status === 'HALF_DAY') {
                           presentDays += (status === 'HALF_DAY' ? 0.5 : 1);
                       }
 
-                      if (isSunday && status === 'PRESENT') {
+                      if (isSunday && (status === 'DAY_SHIFT' || status === 'NIGHT_SHIFT')) {
                           sundayBonuses += (3 * oneDaySalary);
                           sundayBonusDays += 1;
                       } else if (!isSunday && status === 'ABSENT') {

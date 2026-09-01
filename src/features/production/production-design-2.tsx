@@ -21,7 +21,7 @@ import { useLoadSentRecords, loadSentKeys } from '@/features/inventory/load-sent
 import { useDayWiseProduction, dashboardProductionKey, type DayWiseRow } from './day-wise-queries';
 import { mapExtruderItem, mapLoomItem, mapFabricItem } from './day-entry-sections';
 import { DayWiseReportModal } from './day-wise-report-modal';
-import { useProductionHeader } from './production-details';
+import { useProductionHeader } from './production-context';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -563,7 +563,10 @@ export function ProductionDesign2() {
   const [approveTargetDate, setApproveTargetDate] = useState<string | null>(null);
   const [approvingDate, setApprovingDate] = useState(false);
   const [editingLoadSent, setEditingLoadSent] = useState<LoadSentRecord | null>(null);
-  const [filterDate, setFilterDate] = useState<Date>(new Date());
+  const [filterDate, setFilterDate] = useState<Date>(() => {
+    const saved = sessionStorage.getItem('productionMonthFilter');
+    return saved ? parseISO(`${saved}-01`) : new Date();
+  });
   const monthStr = format(filterDate, 'yyyy-MM');
   const { rows: dayWiseRows, totals: dayWiseTotals, isLoading: loadingDayWise, apiSummary } = useDayWiseProduction(monthStr);
   const { data: loadSentData, isLoading: loadingLoadSent } = useLoadSentRecords('?limit=100');
@@ -676,6 +679,7 @@ export function ProductionDesign2() {
               onChange={(e) => {
                 if (e.target.value) {
                   setFilterDate(parseISO(`${e.target.value}-01`));
+                  sessionStorage.setItem('productionMonthFilter', e.target.value);
                 }
               }}
               className="h-9 w-40 bg-white border border-gray-400 rounded-md px-3 py-2 text-sm font-semibold text-[#003140] shadow-[0_1px_2px_rgba(0,0,0,0.05)] hover:bg-gray-50 focus-visible:ring-1 focus-visible:ring-[#004D40]"
@@ -1013,32 +1017,35 @@ export function ProductionDesign2() {
                           <TableCell className="py-1">
                             <div className="flex items-center justify-center gap-2">
                               {user?.role === 'ADMIN' &&
-                                (<Button
-                                  variant="outline"
-                                  size="icon"
-                                  className="h-6 w-6 rounded-md border-emerald-200 text-emerald-600 "
-                                  onClick={() => setApproveTargetDate(row.date)}
-                                >
-                                  <CheckCircle2 className="h-[14px] w-[14px]" />
-                                </Button>)
+                                (<span title={row.isApproved ? 'Already Approved' : 'Approve'} className="inline-flex">
+                                  <Button
+                                    variant="outline"
+                                    size="icon"
+                                    className="h-6 w-6 text-emerald-600 disabled:opacity-50 disabled:pointer-events-none"
+                                    onClick={() => setApproveTargetDate(row.date)}
+                                    disabled={row.isApproved}
+                                  >
+                                    <CheckCircle2 className="h-[13px] w-[13px]" />
+                                  </Button>
+                                </span>)
                               }
                               <Button
                                 variant="outline"
                                 size="icon"
-                                className="h-6 w-6 rounded-md border-[#004D40]/30 text-[#004D40] hover:bg-[#004D40]/10"
+                                className="h-6 w-6 text-[#004D40] hover:bg-[#004D40]/10"
                                 onClick={() => navigate(`/production/new-entry?date=${row.date}`)}
                                 disabled={!canEditProduction}
                               >
-                                <Edit className="h-[14px] w-[14px]" />
+                                <Edit className="h-[13px] w-[13px]" />
                               </Button>
                               <Button
                                 variant="outline"
                                 size="icon"
-                                className="h-6 w-6 rounded-md border-red-200 text-red-600 hover:bg-red-50"
+                                className="h-6 w-6 text-red-600 hover:bg-red-50"
                                 onClick={() => setDeleteTargetDate(row.date)}
                                 disabled={!canDeleteProduction}
                               >
-                                <Trash2 className="h-[14px] w-[14px]" />
+                                <Trash2 className="h-[13px] w-[13px]" />
                               </Button>
                             </div>
                           </TableCell>

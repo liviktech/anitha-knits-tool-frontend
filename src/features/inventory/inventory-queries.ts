@@ -18,6 +18,7 @@ export const inventoryTypeLabels: Record<InventoryType, string> = {
  */
 export interface InventoryRecord {
   id: string;
+  groupId: string | null;
   date: string;
   type: InventoryType;
   name: string;

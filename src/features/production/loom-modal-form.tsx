@@ -53,15 +53,21 @@ export function LoomModalForm({ productionDate, initialData, isEditMode, onCance
     const colorId = findIdByName(lookups.colors, draft.color);
     const sizeId = findIdByName(lookups.sizes, draft.size);
 
-    if (!colorId || !sizeId) {
-      setError('Please select a valid size and color.');
+    const missingFields: string[] = [];
+    if (!sizeId) missingFields.push('Size');
+    if (!colorId) missingFields.push('Color');
+    if (!draft.input || draft.input.trim() === '') missingFields.push('Loom Production');
+    if (!draft.loomsWasteKg || draft.loomsWasteKg.trim() === '') missingFields.push('Looms/Yarn Waste');
+
+    if (missingFields.length > 0) {
+      setError(`Please fill in the following required fields: ${missingFields.join(', ')}.`);
       return;
     }
 
     const payload: LoomsCreatePayload = {
       productionDate,
-      colorId,
-      sizeId,
+      colorId: colorId!,
+      sizeId: sizeId!,
       yarnInputKg: parseFloat(draft.input) || 0,
       fabricOutputKg: parseFloat(draft.output) || 0,
       loomsWasteKg: parseFloat(draft.loomsWasteKg) || 0,
@@ -69,8 +75,11 @@ export function LoomModalForm({ productionDate, initialData, isEditMode, onCance
 
     setSaving(true);
     try {
-      const response = await apiFetch('/production/looms', {
-        method: 'POST',
+      const isUpdating = isEditMode && !!draft.id;
+      const url = isUpdating ? `/production/looms/${draft.id}` : '/production/looms';
+      const method = isUpdating ? 'PATCH' : 'POST';
+      const response = await apiFetch(url, {
+        method: method,
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload),
       });
@@ -96,14 +105,14 @@ export function LoomModalForm({ productionDate, initialData, isEditMode, onCance
           <Label className="text-gray-600 text-xs font-semibold uppercase tracking-wider shrink-0 w-10">Size</Label>
           <Select value={draft.size} onValueChange={(v) => updateField('size', v)} disabled={isEditMode}>
             <SelectTrigger><SelectValue placeholder="Select Size" /></SelectTrigger>
-            <SelectContent>{lookups.sizes?.map((s) => <SelectItem key={s.id} value={s.name}>{s.name}</SelectItem>)}</SelectContent>
+            <SelectContent position="popper">{lookups.sizes?.map((s) => <SelectItem key={s.id} value={s.name}>{s.name}</SelectItem>)}</SelectContent>
           </Select>
         </div>
         <div className="flex items-center gap-3 w-56">
           <Label className="text-gray-600 text-xs font-semibold uppercase tracking-wider shrink-0 w-12">Color</Label>
           <Select value={draft.color} onValueChange={(v) => updateField('color', v)} disabled={isEditMode}>
             <SelectTrigger><SelectValue placeholder="Select Color" /></SelectTrigger>
-            <SelectContent>{lookups.colors?.map((c) => <SelectItem key={c.id} value={c.name}>{c.name}</SelectItem>)}</SelectContent>
+            <SelectContent position="popper">{lookups.colors?.map((c) => <SelectItem key={c.id} value={c.name}>{c.name}</SelectItem>)}</SelectContent>
           </Select>
         </div>
       </div>

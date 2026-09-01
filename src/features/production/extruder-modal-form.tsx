@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect, useRef } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -146,7 +146,7 @@ export function ExtruderModalForm({ productionDate, initialData, isEditMode, onC
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const { data: standardData } = useColorConsumptionStandard();
+  const { data: standardData } = useColorConsumptionStandard(productionDate);
   const standard = standardData?.data;
   const chemicalWeightStandard = standard ? parseFloat(standard.chemicalWeight) : undefined;
   const basisWeightKg = standard ? parseFloat(standard.basisWeightKg) : undefined;
@@ -190,8 +190,15 @@ export function ExtruderModalForm({ productionDate, initialData, isEditMode, onC
     return suggested > 0 ? suggested.toFixed(2) : '';
   }, [totalRawKg, standardChemicalConsumedKg, standardColorConsumedKg, group.lumpsKg, group.yarnWasteKg]);
 
-  // Auto-filled from the calculation above until the user types into the field directly.
   const displayedOutputKg = outputManuallyEdited ? group.output : suggestedOutputKg;
+
+  const prevSuggestedOutput = useRef(suggestedOutputKg);
+  useEffect(() => {
+    if (suggestedOutputKg !== prevSuggestedOutput.current) {
+      setOutputManuallyEdited(false);
+      prevSuggestedOutput.current = suggestedOutputKg;
+    }
+  }, [suggestedOutputKg]);
 
   const updateGroupField = (field: keyof ExtruderGroupDraft, value: string) => {
     setGroup(prev => ({ ...prev, [field]: value }));
@@ -227,13 +234,30 @@ export function ExtruderModalForm({ productionDate, initialData, isEditMode, onC
     const sizeId = findIdByName(lookups.sizes, group.size);
     const chemicalId = findIdByName(lookups.chemicals, group.chemical);
 
-    if (!colorId || !sizeId || !chemicalId) {
-      setError('Please select a valid size, color, and chemical.');
-      return;
-    }
+    const missingFields: string[] = [];
+    if (!sizeId) missingFields.push('Size');
+    if (!colorId) missingFields.push('Color');
+    if (!chemicalId) missingFields.push('Chemical Type');
 
     if (computedBrands.length === 0) {
-      setError('At least one HDPE brand is required.');
+      missingFields.push('HDPE Brand');
+    } else {
+      let missingBrand = false;
+      let missingBags = false;
+      for (const b of computedBrands) {
+        if (!b.brand) missingBrand = true;
+        if (!b.bags || b.bags.trim() === '') missingBags = true;
+      }
+      if (missingBrand) missingFields.push('HDPE Brand');
+      if (missingBags) missingFields.push('Bags');
+    }
+
+    if (!group.yarnWasteKg || group.yarnWasteKg.trim() === '') {
+      missingFields.push('Looms Waste');
+    }
+
+    if (missingFields.length > 0) {
+      setError(`Please fill in the following required fields: ${missingFields.join(', ')}.`);
       return;
     }
 
@@ -304,10 +328,10 @@ export function ExtruderModalForm({ productionDate, initialData, isEditMode, onC
         } else {
           const payload: ExtruderCreatePayload = {
             productionDate,
-            colorId,
-            sizeId,
+            colorId: colorId!,
+            sizeId: sizeId!,
             brandId,
-            chemicalId,
+            chemicalId: chemicalId!,
             rawMaterialKg: parseFloat(brandRow.raw) || 0,
             chemicalKg: share.chemicalKg,
             colorConsumedKg: share.colorConsumedKg > 0 ? share.colorConsumedKg : undefined,
@@ -348,14 +372,14 @@ export function ExtruderModalForm({ productionDate, initialData, isEditMode, onC
           <Label className="text-gray-600 text-xs font-semibold uppercase tracking-wider shrink-0 w-10">Size</Label>
           <Select value={group.size} onValueChange={(v) => updateGroupField('size', v)} disabled={isEditMode}>
             <SelectTrigger><SelectValue placeholder="Select Size" /></SelectTrigger>
-            <SelectContent>{lookups.sizes?.map((s) => <SelectItem key={s.id} value={s.name}>{s.name}</SelectItem>)}</SelectContent>
+            <SelectContent position="popper">{lookups.sizes?.map((s) => <SelectItem key={s.id} value={s.name}>{s.name}</SelectItem>)}</SelectContent>
           </Select>
         </div>
         <div className="flex items-center gap-3 w-56">
           <Label className="text-gray-600 text-xs font-semibold uppercase tracking-wider shrink-0 w-12">Color</Label>
           <Select value={group.color} onValueChange={(v) => updateGroupField('color', v)} disabled={isEditMode}>
             <SelectTrigger><SelectValue placeholder="Select Color" /></SelectTrigger>
-            <SelectContent>{lookups.colors?.map((c) => <SelectItem key={c.id} value={c.name}>{c.name}</SelectItem>)}</SelectContent>
+            <SelectContent position="popper">{lookups.colors?.map((c) => <SelectItem key={c.id} value={c.name}>{c.name}</SelectItem>)}</SelectContent>
           </Select>
         </div>
 
@@ -373,7 +397,7 @@ export function ExtruderModalForm({ productionDate, initialData, isEditMode, onC
                 {idx === 0 && <Label className="text-xs text-gray-500">Brand</Label>}
                 <Select value={brandRow.brand} onValueChange={(v) => updateBrandField(brandRow.key, 'brand', v)}>
                   <SelectTrigger className="h-8 text-xs w-full"><SelectValue placeholder="Brand" /></SelectTrigger>
-                  <SelectContent>
+                  <SelectContent position="popper">
                     {lookups.brands?.map((b) => {
                       const outOfStock = getBrandBalance(b.name) <= 0 && b.name !== brandRow.brand;
                       return (
@@ -431,11 +455,11 @@ export function ExtruderModalForm({ productionDate, initialData, isEditMode, onC
                 <Label className="text-gray-600 text-xs font-semibold">Chemical Type</Label>
                 <Select value={group.chemical} onValueChange={(v) => updateGroupField('chemical', v)} disabled={isEditMode}>
                   <SelectTrigger className="h-8 text-xs"><SelectValue placeholder="Select Chem" /></SelectTrigger>
-                  <SelectContent>{lookups.chemicals?.map((c) => <SelectItem key={c.id} value={c.name}>{c.name}</SelectItem>)}</SelectContent>
+                  <SelectContent position="popper">{lookups.chemicals?.map((c) => <SelectItem key={c.id} value={c.name}>{c.name}</SelectItem>)}</SelectContent>
                 </Select>
               </div>
               <div className="space-y-1.5">
-                <Label className="text-gray-600 text-xs font-semibold">Chem Weight(kg)</Label>
+                <Label className="text-gray-600 text-xs font-semibold">Chemical Weight(kg)</Label>
                 <Input type="number" min="0" onKeyDown={(e) => e.key === '-' && e.preventDefault()} placeholder="0.00" className="h-8 text-xs bg-gray-100 border border-gray-400 disabled:opacity-100" value={standardChemicalConsumedKg !== undefined ? standardChemicalConsumedKg.toFixed(2) : ''} disabled readOnly />
               </div>
             </div>

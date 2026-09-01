@@ -3,27 +3,44 @@ import { useQueryClient } from '@tanstack/react-query';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 
-import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { X, Calendar as CalendarIcon } from 'lucide-react';
+import { format, parseISO } from 'date-fns';
+import { Calendar } from '@/components/ui/calendar';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { Dialog, DialogClose, DialogContent, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Loader } from '@/components/shared/loader';
 import { apiFetch } from '@/lib/api-client';
 import { useLookups } from '@/lib/lookups';
 import { todayIso } from './inventory-utils';
 import { inventoryKeys, type InventoryRecord, type InventoryType } from './inventory-queries';
+import { useColorConsumptionStandard } from '@/features/extruder/extruder-queries';
 
 interface InventoryFormDialogProps {
   onClose: () => void;
   editDate?: string;
+  editGroupId?: string;
   editRecords?: InventoryRecord[];
+  selectedMonth?: string;
+  existingDates?: string[];
 }
 
-export function InventoryFormDialog({ onClose, editDate, editRecords }: InventoryFormDialogProps) {
+export function InventoryFormDialog({ onClose, editDate, editGroupId, editRecords, selectedMonth, existingDates }: InventoryFormDialogProps) {
   const queryClient = useQueryClient();
   const { data: lookupsData, isLoading: isLookupsLoading, isError: isLookupsError, refetch: refetchLookups } = useLookups();
   const isEdit = !!editDate;
 
   const findDcForType = (type: InventoryType) => editRecords?.find(r => r.type === type && r.DC_NUMBER)?.DC_NUMBER ?? '';
 
-  const [date, setDate] = useState(editDate || todayIso());
+  const [date, setDate] = useState(() => {
+    if (editDate) return editDate;
+    if (selectedMonth && !todayIso().startsWith(selectedMonth)) {
+      return `${selectedMonth}-01`;
+    }
+    return todayIso();
+  });
+
+  const { data: configData } = useColorConsumptionStandard(date);
+  const configForDate = configData?.data;
   const [dcHdpe, setDcHdpe] = useState(() => findDcForType('HDPE'));
   const [dcChemical, setDcChemical] = useState(() => findDcForType('CHEMICAL'));
   const [dcColor, setDcColor] = useState(() => findDcForType('COLOR'));
@@ -50,6 +67,7 @@ export function InventoryFormDialog({ onClose, editDate, editRecords }: Inventor
 
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [isCalendarOpen, setIsCalendarOpen] = useState(false);
 
   const hdpeNames = (lookupsData?.brands ?? []).map(b => b.name).sort();
   const chemicalNames = (lookupsData?.chemicals ?? []).map(c => c.name).sort();
@@ -63,6 +81,16 @@ export function InventoryFormDialog({ onClose, editDate, editRecords }: Inventor
   const handleBagChange = (type: InventoryType, name: string, val: string) => {
     const cleaned = val.replace(/[^0-9]/g, '');
     setBags(prev => ({ ...prev, [`${type}-${name}`]: cleaned }));
+
+    if (type === 'HDPE' && configForDate?.basisWeightKg) {
+      const numBags = parseInt(cleaned, 10);
+      if (!isNaN(numBags)) {
+        const weight = numBags * parseFloat(String(configForDate.basisWeightKg));
+        setWeights(prev => ({ ...prev, [`${type}-${name}`]: String(weight) }));
+      } else {
+        setWeights(prev => ({ ...prev, [`${type}-${name}`]: '' }));
+      }
+    }
   };
 
   const handleSubmit = async () => {
@@ -74,7 +102,6 @@ export function InventoryFormDialog({ onClose, editDate, editRecords }: Inventor
     setError(null);
 
     try {
-      const promises: Promise<unknown>[] = [];
       const types = [
         { type: 'HDPE' as InventoryType, names: hdpeNames, dc: dcHdpe },
         { type: 'CHEMICAL' as InventoryType, names: chemicalNames, dc: dcChemical },
@@ -94,6 +121,8 @@ export function InventoryFormDialog({ onClose, editDate, editRecords }: Inventor
         }
       }
 
+      const items: any[] = [];
+
       for (const t of types) {
         for (const name of t.names) {
           const key = `${t.type}-${name}`;
@@ -101,44 +130,71 @@ export function InventoryFormDialog({ onClose, editDate, editRecords }: Inventor
           const val = parseFloat(str);
           const bagValStr = bags[key];
           const bagVal = parseInt(bagValStr, 10);
-          const existing = editRecords?.find(r => r.type === t.type && r.name === name);
 
           if (!isNaN(val) && val > 0) {
-            if (existing) {
-              const dc = t.dc.trim();
-              if (existing.weightKg !== val || (dc && existing.DC_NUMBER !== dc) || (existing as any).bagCount !== bagVal) {
-                promises.push(apiFetch(`/inventory/${existing.id}`, {
-                  method: 'PATCH',
-                  headers: { 'Content-Type': 'application/json' },
-                  body: JSON.stringify({ weightKg: val, date, ...(dc && { DC: dc }), ...(!isNaN(bagVal) && bagVal > 0 && { bagCount: bagVal }) }),
-                }));
-              }
-            } else {
-              let lookupId = '';
-              if (t.type === 'HDPE') lookupId = lookupsData?.brands.find(b => b.name === name)?.id || '';
-              if (t.type === 'CHEMICAL') lookupId = lookupsData?.chemicals.find(b => b.name === name)?.id || '';
-              if (t.type === 'COLOR') lookupId = lookupsData?.colors.find(b => b.name === name)?.id || '';
+            let lookupId = '';
+            if (t.type === 'HDPE') lookupId = lookupsData?.brands.find(b => b.name === name)?.id || '';
+            if (t.type === 'CHEMICAL') lookupId = lookupsData?.chemicals.find(b => b.name === name)?.id || '';
+            if (t.type === 'COLOR') lookupId = lookupsData?.colors.find(b => b.name === name)?.id || '';
 
-              promises.push(apiFetch('/inventory', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                  date, type: t.type, quantityKg: val,
-                  DC: t.dc,
-                  ...(!isNaN(bagVal) && bagVal > 0 && { bagCount: bagVal }),
-                  ...(t.type === 'HDPE' && { brandId: lookupId }),
-                  ...(t.type === 'CHEMICAL' && { chemicalId: lookupId }),
-                  ...(t.type === 'COLOR' && { colorId: lookupId }),
-                }),
-              }));
-            }
-          } else if (existing) {
-            promises.push(apiFetch(`/inventory/${existing.id}`, { method: 'DELETE' }));
+            items.push({
+              type: t.type,
+              quantityKg: val,
+              DC: t.dc.trim(),
+              ...(!isNaN(bagVal) && bagVal > 0 && { bagCount: bagVal }),
+              ...(t.type === 'HDPE' && { brandId: lookupId }),
+              ...(t.type === 'CHEMICAL' && { chemicalId: lookupId }),
+              ...(t.type === 'COLOR' && { colorId: lookupId }),
+            });
           }
         }
       }
 
-      await Promise.all(promises);
+      if (items.length === 0 && !editGroupId) {
+         setError('Please enter at least one quantity.');
+         setSaving(false);
+         return;
+      }
+
+      let response;
+      if (editGroupId) {
+        const isLegacy = !editGroupId.match(/^[0-9a-fA-F]{8}-/);
+        
+        if (items.length === 0) {
+          if (isLegacy) {
+            await Promise.all((editRecords || []).map(r => apiFetch(`/inventory/${r.id}`, { method: 'DELETE' })));
+            response = { ok: true };
+          } else {
+            response = await apiFetch(`/inventory/batch/${editGroupId}`, { method: 'DELETE' });
+          }
+        } else {
+          if (isLegacy) {
+            await Promise.all((editRecords || []).map(r => apiFetch(`/inventory/${r.id}`, { method: 'DELETE' })));
+            response = await apiFetch('/inventory/batch', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ date, items }),
+            });
+          } else {
+            response = await apiFetch(`/inventory/batch/${editGroupId}`, {
+              method: 'PUT',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ date, items }),
+            });
+          }
+        }
+      } else {
+        response = await apiFetch('/inventory/batch', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ date, items }),
+        });
+      }
+
+      if (!response.ok) {
+        throw new Error('Failed to save');
+      }
+
       await queryClient.invalidateQueries({ queryKey: inventoryKeys.all });
       onClose();
     } catch (e) {
@@ -151,12 +207,45 @@ export function InventoryFormDialog({ onClose, editDate, editRecords }: Inventor
 
   return (
     <Dialog open onOpenChange={(next) => !saving && !next && onClose()}>
-      <DialogContent className="max-w-[95vw] w-max lg:max-w-none overflow-hidden flex flex-col max-h-[90vh] border border-gray-400 p-4">
+      <DialogContent showCloseButton={false} className="max-w-[95vw] w-max lg:max-w-none overflow-hidden flex flex-col max-h-[90vh] border border-gray-400 p-4">
         <DialogHeader className="flex flex-row items-center justify-between space-y-0 -mx-4 -mt-4 mb-2 rounded-t-xl border-b border-gray-200 bg-[#A8DCAB] px-4 py-3">
           <DialogTitle className="text-black">{isEdit ? 'Edit Stock' : 'Add Received Stock'}</DialogTitle>
-          <div className="flex items-center gap-3 pr-8">
+          <div className="flex items-center gap-3">
             {/* <Label htmlFor="inv-date" className="text-sm font-medium whitespace-nowrap text-black">Date</Label> */}
-            <Input id="inv-date" type="date" value={date} onChange={(e) => setDate(e.target.value)} className="w-40 h-8 text-sm bg-white" />
+            <Popover open={isCalendarOpen} onOpenChange={setIsCalendarOpen}>
+              <PopoverTrigger asChild>
+                <Button
+                  variant="outline"
+                  className="flex items-center bg-white border border-gray-400 rounded-md px-3 py-1 h-8 shadow-sm hover:bg-gray-50"
+                >
+                  <span className="text-sm font-medium text-gray-800 mr-2">
+                    {date ? format(parseISO(date), 'dd/MM/yyyy') : 'Select Date'}
+                  </span>
+                  <CalendarIcon className="w-4 h-4 text-gray-600" />
+                </Button>
+              </PopoverTrigger>
+              <PopoverContent className="w-auto p-0" align="end">
+                <Calendar
+                  mode="single"
+                  selected={date ? parseISO(date) : undefined}
+                  defaultMonth={date ? parseISO(date) : undefined}
+                  onSelect={(d) => {
+                    if (d) {
+                      setDate(format(d, 'yyyy-MM-dd'));
+                      setIsCalendarOpen(false);
+                    }
+                  }}
+                  disabled={(d) => d > new Date() || (existingDates ? existingDates.includes(format(d, 'yyyy-MM-dd')) && format(d, 'yyyy-MM-dd') !== editDate : false)}
+                  autoFocus
+                />
+              </PopoverContent>
+            </Popover>
+            <DialogClose asChild>
+              <Button variant="ghost" size="icon-sm" className="text-black hover:bg-white/50">
+                <X className="h-4 w-4" />
+                <span className="sr-only">Close</span>
+              </Button>
+            </DialogClose>
           </div>
         </DialogHeader>
 

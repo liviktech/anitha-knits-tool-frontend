@@ -18,14 +18,11 @@ import { formatDate, formatDateDisplay } from './inventory-utils';
 import { InventoryFormDialog } from './inventory-form-dialog';
 import { LoadSentFormDialog } from './load-sent-form-dialog';
 import {
-  useInventoryRecords,
-  sumInventoryWeight,
-  inventoryKeys,
+  useInventoryRecords, inventoryKeys,
   inventoryTypeLabels,
   type InventoryRecord,
-  type InventoryType,
+  type InventoryType
 } from './inventory-queries';
-import { useExtruderProductions } from '@/features/extruder/extruder-queries';
 import {
   useLoadSentRecords,
   loadSentKeys,
@@ -55,17 +52,19 @@ function InventoryReceiveTab({ onBack }: { onBack: () => void }) {
 
   const groupedRecords = Array.from(
     records.reduce((map, r) => {
-      const date = formatDate(r.date);
-      if (!map.has(date)) map.set(date, []);
-      map.get(date)!.push(r);
+      const groupKey = r.groupId || (r.createdAt ? r.createdAt.slice(0, 16) : 'unknown');
+      const key = `${r.date}_${groupKey}`;
+      if (!map.has(key)) map.set(key, { key, groupId: r.groupId || groupKey, date: formatDate(r.date), groupKey, records: [] });
+      map.get(key)!.records.push(r);
       return map;
-    }, new Map<string, InventoryRecord[]>()).entries()
-  ).map(([date, dayRecords]) => ({
-    date,
-    records: dayRecords
-  })).sort((a, b) => b.date.localeCompare(a.date));
+    }, new Map<string, { key: string, groupId: string, date: string, groupKey: string, records: InventoryRecord[] }>()).values()
+  ).sort((a, b) => {
+    const d = b.date.localeCompare(a.date);
+    if (d !== 0) return d;
+    return b.groupKey.localeCompare(a.groupKey);
+  });
 
-  const [deleteTarget, setDeleteTarget] = useState<InventoryRecord | null>(null);
+  const [deleteTarget, setDeleteTarget] = useState<{ key: string, groupId: string, date: string, groupKey: string, records: InventoryRecord[] } | null>(null);
   const [deleting, setDeleting] = useState(false);
 
   const openCreate = () => { /* open create dialog if needed */ };
@@ -74,12 +73,16 @@ function InventoryReceiveTab({ onBack }: { onBack: () => void }) {
     if (!deleteTarget) return;
     setDeleting(true);
     try {
-      const response = await apiFetch(`/inventory/${deleteTarget.id}`, { method: 'DELETE' });
-      if (!response.ok) throw new Error('Failed to delete inventory record');
+      const isLegacy = !deleteTarget.groupId.match(/^[0-9a-fA-F]{8}-/);
+      if (isLegacy) {
+        await Promise.all(deleteTarget.records.map(r => apiFetch(`/inventory/${r.id}`, { method: 'DELETE' })));
+      } else {
+        await apiFetch(`/inventory/batch/${deleteTarget.groupId}`, { method: 'DELETE' });
+      }
       await queryClient.invalidateQueries({ queryKey: inventoryKeys.all });
       setDeleteTarget(null);
     } catch (e) {
-      console.error('Error deleting inventory record:', e);
+      console.error('Error deleting inventory group:', e);
     } finally {
       setDeleting(false);
     }
@@ -141,8 +144,8 @@ function InventoryReceiveTab({ onBack }: { onBack: () => void }) {
               </TableRow>
             ) : (
               groupedRecords.map((group) => (
-                <TableRow key={group.date} className="hover:bg-transparent border-b border-green-300">
-                  <TableCell className="align-middle pt-4 font-medium text-gray-900 w-32 border-r border-gray-300">{group.date}</TableCell>
+                <TableRow key={group.groupId} className="hover:bg-transparent border-b border-green-300">
+                  <TableCell className="align-middle pt-4 font-medium text-gray-900 w-32 border-r border-gray-300">{formatDate(group.date)}</TableCell>
                   <TableCell className="p-3 align-middle">
                     <div className="flex flex-wrap items-center gap-2">
                       {Array.from(new Set(group.records.map(r => r.type))).map((type) => (
@@ -171,7 +174,7 @@ function InventoryReceiveTab({ onBack }: { onBack: () => void }) {
                     </div>
                   </TableCell>
                   <TableCell className="p-3 align-middle text-center border-l border-gray-300">
-                    <Button variant="outline" size="sm" className="h-8 text-xs text-green-700 border-green-200 hover:bg-green-50 shadow-sm">
+                    <Button variant="outline" size="sm" className="h-8 text-xs text-green-700 border-green-200 hover:bg-green-50 shadow-sm" onClick={() => setDeleteTarget(group)}>
                       Manage Items <ChevronRight className="h-3 w-3 ml-1" />
                     </Button>
                   </TableCell>
@@ -182,23 +185,11 @@ function InventoryReceiveTab({ onBack }: { onBack: () => void }) {
         </Table>
       </div>
 
-
-
-      {/* {formOpen && <InventoryFormDialog onClose={() => setFormOpen(false)} record={editingRecord} />}
-      {/* {dayDetailsGroup && (
-        <InventoryDayDetailsDialog
-          date={dayDetailsGroup.date}
-          records={dayDetailsGroup.records}
-          onClose={() => setDayDetailsGroup(null)}
-          onEdit={openEdit}
-          onDelete={setDeleteTarget}
-        />
-      )} */}
       <DeleteConfirmDialog
         open={!!deleteTarget}
         onOpenChange={(open) => !open && setDeleteTarget(null)}
-        title="Delete this inventory record?"
-        description={deleteTarget ? `"${deleteTarget.name}" Ã¢â‚¬â€ ${deleteTarget.weightKg.toFixed(2)} kg. This action cannot be undone.` : undefined}
+        title="Delete this entire receipt?"
+        description={deleteTarget ? `Are you sure you want to delete this batch? This action cannot be undone.` : undefined}
         isPending={deleting}
         onConfirm={handleDelete}
       />
@@ -415,7 +406,7 @@ function LoadSentTab({ onBack }: { onBack: () => void }) {
 
 /* ---------------------------------------------------------------------- */
 
-function StockSummaryCard({ month, onEditDate, onDeleteDate }: { month: string; onEditDate: (date: string) => void; onDeleteDate: (date: string, records: InventoryRecord[]) => void }) {
+function StockSummaryCard({ month, onEditDate, onDeleteDate }: { month: string; onEditDate: (date: string, groupId: string, records: InventoryRecord[]) => void; onDeleteDate: (groupId: string, records: InventoryRecord[]) => void }) {
   const { user } = useAuth();
   const canEdit = can(user, RIGHTS.inventory.edit);
   const canDelete = can(user, RIGHTS.inventory.delete);
@@ -425,7 +416,6 @@ function StockSummaryCard({ month, onEditDate, onDeleteDate }: { month: string; 
 
   const monthRecords = records.filter(r => r.date.startsWith(month));
 
-  // Category totals from monthly records
   const getCategoryData = (type: InventoryType) => {
     const categoryRecords = monthRecords.filter(r => r.type === type);
     const weight = categoryRecords.reduce((sum, r) => sum + r.weightKg, 0);
@@ -441,53 +431,18 @@ function StockSummaryCard({ month, onEditDate, onDeleteDate }: { month: string; 
   const chemicals = getCategoryData('CHEMICAL');
   const colors = getCategoryData('COLOR');
 
-  // All columns come from lookup data (show all even if 0 received)
   const hdpeNames = (lookupsData?.brands ?? []).map(b => b.name).sort();
   const chemicalNames = (lookupsData?.chemicals ?? []).map(c => c.name).sort();
   const colorNames = (lookupsData?.colors ?? []).map(c => c.name).sort();
 
-  // Top summary cards show the live balance (all-time received minus all-time production
-  // consumption) rather than what was received this month — same calculation as the
-  // Production page's Inventory Balances panel and the Dashboard's Raw Materials cards.
-  const { data: allExtruderData } = useExtruderProductions('?limit=100');
-  const extruderRecords = allExtruderData?.data ?? [];
-
-  // Balances shown on these cards are stock levels, not ledgers — they never
-  // display below 0.00 even if consumption momentarily outpaces recorded receipts.
-  const getHDPEBalance = (name: string) =>
-    Math.max(0, sumInventoryWeight(records, 'HDPE', name)
-      - extruderRecords.filter(r => r.extruder?.brand?.name === name).reduce((sum, r) => sum + (r.extruder?.rawMaterialKg ?? 0), 0));
-
-  const getChemicalBalance = (name: string) =>
-    Math.max(0, sumInventoryWeight(records, 'CHEMICAL', name)
-      - extruderRecords.filter(r => r.extruder?.chemical?.name === name).reduce((sum, r) => sum + (r.extruder?.chemicalKg ?? 0), 0));
-
-  const getColorBalance = (name: string) =>
-    Math.max(0, sumInventoryWeight(records, 'COLOR', name)
-      - extruderRecords.filter(r => r.color?.name === name).reduce((sum, r) => sum + (r.extruder?.colorConsumedKg ?? 0), 0));
-
-  const rawMaterialsBalance = {
-    weight: hdpeNames.reduce((sum, name) => sum + getHDPEBalance(name), 0),
-    items: hdpeNames.map(name => ({ name, weight: getHDPEBalance(name) })),
-  };
-  const chemicalsBalance = {
-    weight: chemicalNames.reduce((sum, name) => sum + getChemicalBalance(name), 0),
-    items: chemicalNames.map(name => ({ name, weight: getChemicalBalance(name) })),
-  };
-  const colorsBalance = {
-    weight: colorNames.reduce((sum, name) => sum + getColorBalance(name), 0),
-    items: colorNames.map(name => ({ name, weight: getColorBalance(name) })),
-  };
-
-  // Build date-grouped rows
   const groupedByDate = Array.from(
     monthRecords.reduce((map, r) => {
-      const d = formatDate(r.date);
-      if (!map.has(d)) map.set(d, []);
-      map.get(d)!.push(r);
+      const groupId = r.groupId || (r.createdAt ? r.createdAt.slice(0, 16) : 'unknown');
+      if (!map.has(groupId)) map.set(groupId, { groupId, date: r.date, records: [] });
+      map.get(groupId)!.records.push(r);
       return map;
-    }, new Map<string, InventoryRecord[]>()).entries()
-  ).sort(([a], [b]) => b.localeCompare(a));
+    }, new Map<string, { groupId: string, date: string, records: InventoryRecord[] }>()).values()
+  ).sort((a, b) => b.date.localeCompare(a.date));
 
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(10);
@@ -508,7 +463,6 @@ function StockSummaryCard({ month, onEditDate, onDeleteDate }: { month: string; 
   const getBags = (dayRecords: InventoryRecord[], type: InventoryType, name: string) =>
     dayRecords.filter(r => r.type === type && r.name === name).reduce((sum, r) => sum + (r.bagCount || 0), 0);
 
-  // Totals row
   const hdpeTotals = hdpeNames.map(name => monthRecords.filter(r => r.type === 'HDPE' && r.name === name).reduce((s, r) => s + r.weightKg, 0));
   const hdpeBagTotals = hdpeNames.map(name => monthRecords.filter(r => r.type === 'HDPE' && r.name === name).reduce((s, r) => s + (r.bagCount || 0), 0));
   const chemTotals = chemicalNames.map(name => monthRecords.filter(r => r.type === 'CHEMICAL' && r.name === name).reduce((s, r) => s + r.weightKg, 0));
@@ -518,12 +472,7 @@ function StockSummaryCard({ month, onEditDate, onDeleteDate }: { month: string; 
 
   return (
     <div className="flex flex-col gap-2">
-      {/* === Top Summary Card === */}
-      {/* Mini cards: HDPE, Chemicals, Colors */}
-
       <div className="grid grid-cols-1 md:grid-cols-3 gap-2">
-
-        {/* HDPE Card */}
         <div className="bg-white rounded-xl border border-gray-400 shadow-sm p-4 relative overflow-hidden group/card hover:border-blue-200 transition-colors flex flex-col">
           <div className="absolute top-0 right-0 p-4 opacity-5 group-hover/card:opacity-10 transition-opacity">
             <img src="/hdpe.png" alt="" className="w-26 h-26 object-contain" />
@@ -533,13 +482,13 @@ function StockSummaryCard({ month, onEditDate, onDeleteDate }: { month: string; 
               <div className=""><img src="/hdpe.png" alt="HDPE" className="w-12 h-12 object-contain" /></div>
               <h3 className="font-extrabold text-gray-800 text-lg">HDPE Materials</h3>
             </div>
-            <div className="text-lg font-bold text-gray-800 leading-none">{rawMaterialsBalance.weight.toFixed(2)} <span className="text-xs font-medium text-gray-500">kg</span></div>
+            <div className="text-lg font-bold text-gray-800 leading-none">{rawMaterials.weight.toFixed(2)} <span className="text-xs font-medium text-gray-500">kg</span></div>
           </div>
           <div className="mt-auto relative z-10 pt-1 border-t border-gray-50">
-            {rawMaterialsBalance.items.length > 0 ? (
-              <div className={`flex flex-wrap items-center gap-x-11 gap-y-1 ${rawMaterialsBalance.items.length === 1 ? 'justify-center' : 'justify-start'}`}>
-                {rawMaterialsBalance.items.map(item => (
-                  <div key={item.name} className={`flex flex-col gap-0.5 ${rawMaterialsBalance.items.length === 1 ? 'items-center text-center' : 'items-start text-left'}`}>
+            {rawMaterials.items.length > 0 ? (
+              <div className={`flex flex-wrap items-center gap-x-9 gap-y-1 ${rawMaterials.items.length === 1 ? 'justify-center' : 'justify-start'}`}>
+                {rawMaterials.items.map(item => (
+                  <div key={item.name} className={`flex flex-col gap-0.5 ${rawMaterials.items.length === 1 ? 'items-center text-center' : 'items-start text-left'}`}>
                     <span className="font-medium text-gray-500 text-sm">{item.name}</span>
                     <span className="font-extrabold text-[#004D40] text-sm">{item.weight.toFixed(2)}<span className="text-gray-500 font-normal text-xs ml-0.5">kg</span></span>
                   </div>
@@ -549,7 +498,6 @@ function StockSummaryCard({ month, onEditDate, onDeleteDate }: { month: string; 
           </div>
         </div>
 
-        {/* Chemicals Card */}
         <div className="bg-white rounded-xl border border-gray-400 shadow-sm p-4 relative overflow-hidden group/card hover:border-orange-200 transition-colors flex flex-col">
           <div className="absolute top-0 right-0 p-4 opacity-5 group-hover/card:opacity-10 transition-opacity">
             <img src="/chemical.png" alt="" className="w-26 h-26 object-contain" />
@@ -559,13 +507,13 @@ function StockSummaryCard({ month, onEditDate, onDeleteDate }: { month: string; 
               <div className=""><img src="/chemical.png" alt="Chemicals" className="w-12 h-12 object-contain" /></div>
               <h3 className="font-extrabold text-gray-800 text-lg">Chemicals</h3>
             </div>
-            <div className="text-lg font-bold text-gray-800 leading-none">{chemicalsBalance.weight.toFixed(2)} <span className="text-xs font-medium text-gray-500">kg</span></div>
+            <div className="text-lg font-bold text-gray-800 leading-none">{chemicals.weight.toFixed(2)} <span className="text-xs font-medium text-gray-500">kg</span></div>
           </div>
           <div className="mt-auto relative z-10 pt-2 border-t border-gray-50">
-            {chemicalsBalance.items.length > 0 ? (
-              <div className={`flex flex-wrap items-center gap-x-11 gap-y-3 mt-2 ${chemicalsBalance.items.length === 1 ? 'justify-center' : 'justify-start'}`}>
-                {chemicalsBalance.items.map(item => (
-                  <div key={item.name} className={`flex flex-col gap-0.5 ${chemicalsBalance.items.length === 1 ? 'items-center text-center' : 'items-start text-left'}`}>
+            {chemicals.items.length > 0 ? (
+              <div className={`flex flex-wrap items-center gap-x-9 gap-y-3 mt-2 ${chemicals.items.length === 1 ? 'justify-center' : 'justify-start'}`}>
+                {chemicals.items.map(item => (
+                  <div key={item.name} className={`flex flex-col gap-0.5 ${chemicals.items.length === 1 ? 'items-center text-center' : 'items-start text-left'}`}>
                     <span className="font-medium text-gray-500 text-sm">{item.name}</span>
                     <span className="font-extrabold text-[#004D40] text-sm">{item.weight.toFixed(2)}<span className="text-gray-500 font-normal text-xs ml-0.5">kg</span></span>
                   </div>
@@ -575,7 +523,6 @@ function StockSummaryCard({ month, onEditDate, onDeleteDate }: { month: string; 
           </div>
         </div>
 
-        {/* Colors Card */}
         <div className="bg-white rounded-xl border border-gray-400 shadow-sm p-4 relative overflow-hidden group/card hover:border-purple-200 transition-colors flex flex-col">
           <div className="absolute top-0 right-0 p-4 opacity-5 group-hover/card:opacity-10 transition-opacity">
             <img src="/color.png" alt="" className="w-26 h-26 object-contain" />
@@ -585,13 +532,13 @@ function StockSummaryCard({ month, onEditDate, onDeleteDate }: { month: string; 
               <div className=""><img src="/color.png" alt="Colors" className="w-12 h-12 object-contain" /></div>
               <h3 className="font-extrabold text-gray-800 text-lg">Colors</h3>
             </div>
-            <div className="text-lg font-bold text-gray-800 leading-none">{colorsBalance.weight.toFixed(2)} <span className="text-xs font-medium text-gray-500">kg</span></div>
+            <div className="text-lg font-bold text-gray-800 leading-none">{colors.weight.toFixed(2)} <span className="text-xs font-medium text-gray-500">kg</span></div>
           </div>
           <div className="mt-auto relative z-10 pt-2 border-t border-gray-50">
-            {colorsBalance.items.length > 0 ? (
-              <div className={`flex flex-wrap items-center gap-x-11 gap-y-3 mt-2 ${colorsBalance.items.length === 1 ? 'justify-center' : 'justify-start'}`}>
-                {colorsBalance.items.map(item => (
-                  <div key={item.name} className={`flex flex-col gap-0.5 ${colorsBalance.items.length === 1 ? 'items-center text-center' : 'items-start text-left'}`}>
+            {colors.items.length > 0 ? (
+              <div className={`flex flex-wrap items-center gap-x-9 gap-y-3 mt-2 ${colors.items.length === 1 ? 'justify-center' : 'justify-start'}`}>
+                {colors.items.map(item => (
+                  <div key={item.name} className={`flex flex-col gap-0.5 ${colors.items.length === 1 ? 'items-center text-center' : 'items-start text-left'}`}>
                     <span className="font-medium text-gray-500 text-sm">{item.name}</span>
                     <span className="font-extrabold text-[#004D40] text-sm">{item.weight.toFixed(2)}<span className="text-gray-500 font-normal text-xs ml-0.5">kg</span></span>
                   </div>
@@ -600,12 +547,8 @@ function StockSummaryCard({ month, onEditDate, onDeleteDate }: { month: string; 
             ) : <span className="text-xs text-gray-400 italic">No colors configured</span>}
           </div>
         </div>
-
       </div>
 
-
-
-      {/* === Day-wise Table Section === */}
       <div className="rounded-xl border border-gray-400 bg-white shadow-sm overflow-hidden">
         <div className="px-4 py-3 border-b border-gray-400 bg-gray-50">
           <h3 className="font-bold text-[#004D40] text-lg">Day Wise Stock Received Details</h3>
@@ -614,7 +557,7 @@ function StockSummaryCard({ month, onEditDate, onDeleteDate }: { month: string; 
           <table className="w-full border-collapse text-sm">
             <thead>
               <tr className="bg-gray-50 border-b border-gray-300">
-                <th rowSpan={3} className="border border-gray-300 px-3 py-2 text-left font-semibold text-gray-700 uppercase tracking-wide text-xs whitespace-nowrap w-28">DATE</th>
+                <th rowSpan={3} className="sticky left-0 z-20 bg-gray-50 border border-gray-300 px-2 py-2 text-center font-semibold text-gray-700 uppercase tracking-wide text-xs whitespace-nowrap w-1 shadow-[1px_0_0_0_#d1d5db]">DATE</th>
                 {hdpeNames.length > 0 && (
                   <th colSpan={(hdpeNames.length * 2) + 3} className="border border-gray-300 px-3 py-2 text-center font-bold text-teal-800 uppercase tracking-wide text-xs bg-blue-100">
                     HDPE
@@ -639,13 +582,13 @@ function StockSummaryCard({ month, onEditDate, onDeleteDate }: { month: string; 
                   <th key={name} colSpan={2} className="border border-gray-300 px-3 py-1.5 text-center font-bold text-blue-800 text-xs uppercase whitespace-nowrap">{name}</th>
                 ))}
                 {hdpeNames.length > 0 && <th colSpan={2} className="border border-gray-300 px-3 py-1.5 text-center font-bold text-teal-800 text-xs uppercase whitespace-nowrap bg-blue-50/70">Total</th>}
-                
+
                 {chemicalNames.length > 0 && <th rowSpan={2} className="border border-gray-300 px-3 py-1.5 text-center font-bold text-gray-800 text-xs uppercase whitespace-nowrap bg-gray-50/50">DC NO</th>}
                 {chemicalNames.map(name => (
                   <th key={name} rowSpan={2} className="border border-gray-300 px-3 py-1.5 text-center font-bold text-gray-800 text-xs uppercase whitespace-nowrap">{name}</th>
                 ))}
                 {chemicalNames.length > 0 && <th rowSpan={2} className="border border-gray-300 px-3 py-1.5 text-center font-bold text-yellow-800 text-xs uppercase whitespace-nowrap bg-yellow-50/70">Total</th>}
-                
+
                 {colorNames.length > 0 && <th rowSpan={2} className="border border-gray-300 px-3 py-1.5 text-center font-bold text-gray-800 text-xs uppercase whitespace-nowrap bg-gray-50/50">DC NO</th>}
                 {colorNames.map(name => (
                   <th key={name} rowSpan={2} className="border border-gray-300 px-3 py-1.5 text-center font-bold text-gray-800 text-xs uppercase whitespace-nowrap">{name}</th>
@@ -680,13 +623,14 @@ function StockSummaryCard({ month, onEditDate, onDeleteDate }: { month: string; 
                   <td colSpan={2 + (hdpeNames.length > 0 ? (hdpeNames.length * 2) + 3 : 0) + (chemicalNames.length > 0 ? chemicalNames.length + 2 : 0) + (colorNames.length > 0 ? colorNames.length + 2 : 0) + (totalCols === 0 ? 1 : 0)} className="!text-center py-8 text-gray-400 text-sm">No stock received this month.</td>
                 </tr>
               ) : (
-                pagedGroupedByDate.map(([date, dayRecords]) => {
+                pagedGroupedByDate.map((group) => {
+                  const dayRecords = group.records;
                   const dayHdpeTotal = dayRecords.filter(r => r.type === 'HDPE').reduce((s, r) => s + r.weightKg, 0);
                   const dayChemicalTotal = dayRecords.filter(r => r.type === 'CHEMICAL').reduce((s, r) => s + r.weightKg, 0);
                   const dayColorTotal = dayRecords.filter(r => r.type === 'COLOR').reduce((s, r) => s + r.weightKg, 0);
                   return (
-                    <tr key={date} className="hover:bg-green-50/40 transition-colors group">
-                      <td className="border border-gray-300 px-3 py-1 font-bold text-gray-800 whitespace-nowrap text-sm">{formatDateDisplay(date).replace(/,?\s*\d{4}$/, '')}</td>
+                    <tr key={group.groupId} className="hover:bg-green-50/40 transition-colors group">
+                      <td className="sticky left-0 z-10 bg-white group-hover:bg-[#e4f1e5] transition-colors border border-gray-300 px-3 py-1 font-bold text-gray-800 whitespace-nowrap text-sm shadow-[1px_0_0_0_#d1d5db]">{formatDateDisplay(group.date).replace(/,?\s*\d{4}$/, '')}</td>
                       {hdpeNames.length > 0 && (
                         <td className="border border-gray-300 px-3 py-1 text-center font-bold text-gray-800 text-sm bg-blue-50/30">
                           {dayRecords.find(r => r.type === 'HDPE')?.DC_NUMBER || '-'}
@@ -754,12 +698,12 @@ function StockSummaryCard({ month, onEditDate, onDeleteDate }: { month: string; 
                       <td className="border border-gray-300 px-3 py-1 text-center">
                         <div className="flex items-center justify-center gap-1">
                           {canEdit && (
-                            <Button variant="ghost" size="icon-sm" className="h-6 w-6 rounded-full text-blue-600 hover:bg-blue-50" onClick={() => onEditDate(date)}>
+                            <Button variant="ghost" size="icon-sm" className="h-6 w-6 rounded-full text-blue-600 hover:bg-blue-50" onClick={() => onEditDate(group.date, group.groupId, dayRecords)}>
                               <Edit2 className="h-3 w-3" />
                             </Button>
                           )}
                           {canDelete && (
-                            <Button variant="ghost" size="icon-sm" className="h-6 w-6 rounded-full text-red-600 hover:bg-red-50" onClick={() => onDeleteDate(date, dayRecords)}>
+                            <Button variant="ghost" size="icon-sm" className="h-6 w-6 rounded-full text-red-600 hover:bg-red-50" onClick={() => onDeleteDate(group.groupId, dayRecords)}>
                               <Trash2 className="h-3 w-3" />
                             </Button>
                           )}
@@ -771,7 +715,7 @@ function StockSummaryCard({ month, onEditDate, onDeleteDate }: { month: string; 
               )}
               {groupedByDate.length > 0 && (
                 <tr className="bg-white border-t-2 border-gray-300 font-bold">
-                  <td className="border border-gray-300 px-3 py-1.5 text-gray-800 uppercase text-sm tracking-wide font-bold">TOTAL</td>
+                  <td className="sticky left-0 z-10 bg-white border border-gray-300 px-3 py-1.5 text-gray-800 uppercase text-sm tracking-wide font-bold shadow-[1px_0_0_0_#d1d5db]">TOTAL</td>
                   {hdpeNames.length > 0 && <td className="border border-gray-300 px-3 py-1 bg-gray-50"></td>}
                   {hdpeTotals.flatMap((val, i) => {
                     const bags = hdpeBagTotals[i];
@@ -831,21 +775,26 @@ function StockSummaryCard({ month, onEditDate, onDeleteDate }: { month: string; 
   );
 }
 
-function InventorySummary({ month, onEditDate }: { month: string; onEditDate: (date: string) => void }) {
+function InventorySummary({ month, onEditDate }: { month: string; onEditDate: (date: string, groupId: string, records: InventoryRecord[]) => void }) {
   const queryClient = useQueryClient();
 
-  const [deleteTarget, setDeleteTarget] = useState<{ date: string, records: InventoryRecord[] } | null>(null);
+  const [deleteTargetGroup, setDeleteTargetGroup] = useState<{ groupId: string, records: InventoryRecord[] } | null>(null);
   const [deleting, setDeleting] = useState(false);
 
   const handleDeleteDate = async () => {
-    if (!deleteTarget) return;
+    if (!deleteTargetGroup) return;
     setDeleting(true);
     try {
-      await Promise.all(deleteTarget.records.map(r => apiFetch(`/inventory/${r.id}`, { method: 'DELETE' })));
+      const isLegacy = !deleteTargetGroup.groupId.match(/^[0-9a-fA-F]{8}-/);
+      if (isLegacy) {
+        await Promise.all(deleteTargetGroup.records.map(r => apiFetch(`/inventory/${r.id}`, { method: 'DELETE' })));
+      } else {
+        await apiFetch(`/inventory/batch/${deleteTargetGroup.groupId}`, { method: 'DELETE' });
+      }
       await queryClient.invalidateQueries({ queryKey: inventoryKeys.all });
-      setDeleteTarget(null);
+      setDeleteTargetGroup(null);
     } catch (e) {
-      console.error(e);
+      console.error('Error deleting inventory group:', e);
     } finally {
       setDeleting(false);
     }
@@ -856,14 +805,14 @@ function InventorySummary({ month, onEditDate }: { month: string; onEditDate: (d
       <StockSummaryCard
         month={month}
         onEditDate={onEditDate}
-        onDeleteDate={(date, records) => setDeleteTarget({ date, records })}
+        onDeleteDate={(groupId, records) => setDeleteTargetGroup({ groupId, records })}
       />
 
       <DeleteConfirmDialog
-        open={!!deleteTarget}
-        onOpenChange={(open) => !open && setDeleteTarget(null)}
-        title="Delete all stock received on this day?"
-        description={deleteTarget ? `Are you sure you want to delete all ${deleteTarget.records.length} records for ${deleteTarget.date}? This cannot be undone.` : undefined}
+        open={!!deleteTargetGroup}
+        onOpenChange={(open) => !open && setDeleteTargetGroup(null)}
+        title="Delete this receipt?"
+        description={deleteTargetGroup ? `Are you sure you want to delete this batch of stock received? This cannot be undone.` : undefined}
         isPending={deleting}
         onConfirm={handleDeleteDate}
       />
@@ -877,18 +826,18 @@ export function InventoryPage() {
   const [activeView, setActiveView] = useState<'summary' | 'receive' | 'send'>('summary');
   const [month, setMonth] = useState(() => new Date().toISOString().slice(0, 7)); // YYYY-MM
   const [stockFormOpen, setStockFormOpen] = useState(false);
-  const [editTargetDate, setEditTargetDate] = useState<string | null>(null);
+  const [editTargetGroup, setEditTargetGroup] = useState<{ date: string, groupId: string, records: InventoryRecord[] } | null>(null);
 
-  const { data } = useInventoryRecords('?limit=100');
-  const allRecords = data?.data ?? [];
+  const { data: allInvData } = useInventoryRecords('?limit=100');
+  const existingDates = Array.from(new Set((allInvData?.data ?? []).map(r => r.date.split('T')[0])));
 
   const openAdd = () => {
-    setEditTargetDate(null);
+    setEditTargetGroup(null);
     setStockFormOpen(true);
   };
 
-  const openEdit = (date: string) => {
-    setEditTargetDate(date);
+  const openEdit = (date: string, groupId: string, records: InventoryRecord[]) => {
+    setEditTargetGroup({ date, groupId, records });
     setStockFormOpen(true);
   };
 
@@ -938,12 +887,13 @@ export function InventoryPage() {
       {stockFormOpen && (
         <InventoryFormDialog
           onClose={() => setStockFormOpen(false)}
-          editDate={editTargetDate ?? undefined}
-          editRecords={editTargetDate ? allRecords.filter(r => formatDate(r.date) === editTargetDate) : undefined}
+          editDate={editTargetGroup?.date ?? undefined}
+          editGroupId={editTargetGroup?.groupId ?? undefined}
+          editRecords={editTargetGroup?.records ?? undefined}
+          selectedMonth={month}
+          existingDates={existingDates}
         />
       )}
     </div>
   );
 }
-
-

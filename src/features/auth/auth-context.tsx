@@ -1,6 +1,7 @@
 import { createContext, useContext, useEffect, useState, type ReactNode } from 'react';
-import { fetchCurrentUser, login as loginRequest, type AuthUser } from './auth-service';
+import { fetchCurrentUser, login as loginRequest, logoutRequest, type AuthUser } from './auth-service';
 import { AUTH_STORAGE_KEY as STORAGE_KEY } from '@/lib/api-client';
+import { queryClient } from '@/lib/query-client';
 
 interface AuthContextValue {
   user: AuthUser | null;
@@ -78,6 +79,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   function logout() {
     setUser(null);
+    queryClient.clear();
+    logoutRequest().catch(console.error);
   }
 
   return <AuthContext.Provider value={{ user, login, logout }}>{children}</AuthContext.Provider>;

@@ -15,7 +15,7 @@ export interface AttendanceRecord {
   companyId: string;
   employeeId: string;
   date: string;
-  status: 'PRESENT' | 'ABSENT' | 'HALF_DAY' | 'COMPANY_HOLIDAY';
+  status: 'DAY_SHIFT' | 'NIGHT_SHIFT' | 'ABSENT' | 'HALF_DAY' | 'COMPANY_HOLIDAY';
   remarks?: string;
   employee: EmployeeData;
 }
@@ -40,7 +40,7 @@ export interface BulkAttendancePayload {
   date: string;
   records: {
     employeeId: string;
-    status: 'PRESENT' | 'ABSENT' | 'HALF_DAY' | 'COMPANY_HOLIDAY';
+    status: 'DAY_SHIFT' | 'NIGHT_SHIFT' | 'ABSENT' | 'HALF_DAY' | 'COMPANY_HOLIDAY';
     remarks?: string;
   }[];
 }

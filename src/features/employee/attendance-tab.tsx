@@ -1,8 +1,10 @@
 import { useState, useMemo, forwardRef, useImperativeHandle } from 'react';
 import { Search, Edit2 } from 'lucide-react';
+import { format } from 'date-fns';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Loader } from '@/components/shared/loader';
 import { TablePaginationControls, RowsPerPageSelect } from '@/components/shared/table-pagination-controls';
@@ -11,8 +13,9 @@ import { EmployeeAttendanceDetailsModal } from './employee-attendance-details-mo
 import { useEmployees } from './employee-queries';
 import { useAttendanceRecords, useUpsertAttendance } from './attendance-queries';
 
-const MONTHS = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
-const YEARS = ['2024', '2025', '2026'];
+
+
+
 const ROLES = ['Knitting Operator', 'Supervisor', 'Helper', 'Quality Checker'];
 
 export interface AttendanceRecord {
@@ -23,7 +26,7 @@ export interface AttendanceRecord {
   role: string;
   checkIn: string;
   checkOut: string;
-  status: 'Present' | 'Absent' | 'Half-day' | 'Leave';
+  status: 'Day shift' | 'Night shift' | 'Absent' | 'Half-day' | 'Leave';
 }
 
 export interface AttendanceTabRef {
@@ -31,12 +34,10 @@ export interface AttendanceTabRef {
 }
 
 export const AttendanceTab = forwardRef<AttendanceTabRef>((_props, ref) => {
-  const currentMonthName = MONTHS[new Date().getMonth()];
-  const currentYearStr = new Date().getFullYear().toString();
+
 
   const [searchQuery, setSearchQuery] = useState('');
-  const [monthFilter, setMonthFilter] = useState(currentMonthName);
-  const [yearFilter, setYearFilter] = useState(currentYearStr);
+  const [monthFilter, setMonthFilter] = useState(() => format(new Date(), 'yyyy-MM'));
   const [roleFilter, setRoleFilter] = useState('ALL');
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isDetailsModalOpen, setIsDetailsModalOpen] = useState(false);
@@ -72,23 +73,16 @@ export const AttendanceTab = forwardRef<AttendanceTabRef>((_props, ref) => {
     let dateFrom: string | undefined;
     let dateTo: string | undefined;
     
-    if (yearFilter !== 'ALL' && monthFilter !== 'ALL') {
-      const monthIndex = MONTHS.indexOf(monthFilter);
-      const yearNum = Number(yearFilter);
-      dateFrom = `${yearNum}-${(monthIndex + 1).toString().padStart(2, '0')}-01`;
-      const lastDay = new Date(yearNum, monthIndex + 1, 0).getDate();
-      dateTo = `${yearNum}-${(monthIndex + 1).toString().padStart(2, '0')}-${lastDay}`;
-    } else if (yearFilter !== 'ALL') {
-      dateFrom = `${yearFilter}-01-01`;
-      dateTo = `${yearFilter}-12-31`;
-    } else {
-      // Both are ALL: fetch for a wide range (e.g. past 2 years)
-      const currentYear = new Date().getFullYear();
-      dateFrom = `${currentYear - 2}-01-01`;
-      dateTo = `${currentYear + 1}-12-31`;
+    if (monthFilter) {
+      const [year, month] = monthFilter.split('-');
+      const yearNum = Number(year);
+      const monthNum = Number(month);
+      dateFrom = `${yearNum}-${month.padStart(2, '0')}-01`;
+      const lastDay = new Date(yearNum, monthNum, 0).getDate();
+      dateTo = `${yearNum}-${month.padStart(2, '0')}-${lastDay}`;
     }
     return { dateFrom, dateTo };
-  }, [monthFilter, yearFilter]);
+  }, [monthFilter]);
 
   const { data: attendanceData, isLoading } = useAttendanceRecords(queryParams.dateFrom, queryParams.dateTo);
   const upsertMutation = useUpsertAttendance();
@@ -98,7 +92,8 @@ export const AttendanceTab = forwardRef<AttendanceTabRef>((_props, ref) => {
     return attendanceData.map((att) => {
       // Map API status back to UI format
       const statusMap: Record<string, string> = {
-        'PRESENT': 'Present',
+        'DAY_SHIFT': 'Day shift',
+        'NIGHT_SHIFT': 'Night shift',
         'ABSENT': 'Absent',
         'HALF_DAY': 'Half-day',
         'COMPANY_HOLIDAY': 'Leave'
@@ -112,19 +107,17 @@ export const AttendanceTab = forwardRef<AttendanceTabRef>((_props, ref) => {
         role: att.employee?.employeeDetails?.designation || 'Employee',
         checkIn: '', // No longer used in schema
         checkOut: '', // No longer used in schema
-        status: (statusMap[att.status] || 'Present') as 'Present' | 'Absent' | 'Half-day' | 'Leave',
+        status: (statusMap[att.status] || 'Day shift') as 'Day shift' | 'Night shift' | 'Absent' | 'Half-day' | 'Leave',
       };
     });
   }, [attendanceData]);
 
-  const filteredRecords = records.filter((r) => {
-    const [year, month] = r.date.split('-');
-    const matchesMonth = monthFilter === 'ALL' || MONTHS[Number(month) - 1] === monthFilter;
-    const matchesYear = yearFilter === 'ALL' || year === yearFilter;
-    return matchesMonth && matchesYear;
-  });
+  const filteredRecords = useMemo(() => {
+    if (!monthFilter) return records;
+    return records.filter((r) => r.date.startsWith(monthFilter));
+  }, [records, monthFilter]);
 
-  const presentCount = filteredRecords.filter(r => r.status === 'Present').length;
+  const presentCount = filteredRecords.filter(r => r.status === 'Day shift' || r.status === 'Night shift').length;
   const absentCount = filteredRecords.filter(r => r.status === 'Absent').length;
   const halfDayCount = filteredRecords.filter(r => r.status === 'Half-day').length;
 
@@ -151,7 +144,7 @@ export const AttendanceTab = forwardRef<AttendanceTabRef>((_props, ref) => {
       const employeeKey = employeeOptions.find(emp => emp.id === r.employeeId)?.customUserId || r.employeeId;
       const existing = map.get(employeeKey);
       if (existing) {
-        if (r.status === 'Present') existing.present += 1;
+        if (r.status === 'Day shift' || r.status === 'Night shift') existing.present += 1;
         if (r.status === 'Absent') existing.absent += 1;
         if (r.status === 'Half-day') existing.halfDay += 1;
       }
@@ -242,33 +235,18 @@ export const AttendanceTab = forwardRef<AttendanceTabRef>((_props, ref) => {
                 className="h-8 w-44 sm:w-60 pl-8 bg-gray-50/50 border-gray-400 text-xs rounded-lg font-hanken"
               />
             </div>
-            <Select value={monthFilter} onValueChange={setMonthFilter}>
-              <SelectTrigger className="h-8 w-32 bg-gray-50/50 border-gray-400 text-sm rounded-lg font-hanken">
-                <SelectValue placeholder="Month" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="ALL">All Months</SelectItem>
-                {MONTHS.map((m) => (
-                  <SelectItem key={m} value={m}>{m}</SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-            <Select value={yearFilter} onValueChange={setYearFilter}>
-              <SelectTrigger className="h-8 w-28 bg-gray-50/50 border-gray-400 text-sm rounded-lg font-hanken">
-                <SelectValue placeholder="Year" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="ALL">All Years</SelectItem>
-                {YEARS.map((y) => (
-                  <SelectItem key={y} value={y}>{y}</SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+            <Input
+              type="month"
+              value={monthFilter}
+              max={`${new Date().getFullYear()}-${(new Date().getMonth() + 1).toString().padStart(2, '0')}`}
+              onChange={(e) => setMonthFilter(e.target.value)}
+              className="h-8 w-40 bg-gray-50/50 border-gray-400 text-sm rounded-lg font-hanken"
+            />
             <Select value={roleFilter} onValueChange={setRoleFilter}>
               <SelectTrigger className="h-8 w-40 bg-gray-50/50 border-gray-400 text-sm rounded-lg font-hanken">
                 <SelectValue placeholder="Role" />
               </SelectTrigger>
-              <SelectContent>
+              <SelectContent position="popper">
                 <SelectItem value="ALL">All Roles</SelectItem>
                 {ROLES.map((r) => (
                   <SelectItem key={r} value={r}>{r}</SelectItem>
@@ -377,15 +355,16 @@ export const AttendanceTab = forwardRef<AttendanceTabRef>((_props, ref) => {
         onClose={() => { setIsModalOpen(false); setSelectedRecord(null); }}
         onSave={(date, entries) => {
           const apiEntries = entries.map((e) => {
-            const apiStatusMap: Record<string, 'PRESENT' | 'ABSENT' | 'HALF_DAY' | 'COMPANY_HOLIDAY'> = {
-              'Present': 'PRESENT',
+            const apiStatusMap: Record<string, 'DAY_SHIFT' | 'NIGHT_SHIFT' | 'ABSENT' | 'HALF_DAY' | 'COMPANY_HOLIDAY'> = {
+              'Day shift': 'DAY_SHIFT',
+              'Night shift': 'NIGHT_SHIFT',
               'Absent': 'ABSENT',
               'Half-day': 'HALF_DAY',
               'Company Holiday': 'COMPANY_HOLIDAY'
             };
             return {
               employeeId: e.employeeId,
-              status: apiStatusMap[e.status] || 'PRESENT',
+              status: apiStatusMap[e.status] || 'DAY_SHIFT',
               remarks: e.remarks,
             };
           });
@@ -395,11 +374,12 @@ export const AttendanceTab = forwardRef<AttendanceTabRef>((_props, ref) => {
         defaultDate={selectedRecord?.date}
         isSaving={upsertMutation.isPending}
         existingRecords={records.map(r => {
-          let mappedStatus: 'Present' | 'Absent' | 'Half-day' | 'Company Holiday' = 'Present';
+          let mappedStatus: 'Day shift' | 'Night shift' | 'Absent' | 'Half-day' | 'Company Holiday' = 'Day shift';
           if (r.status === 'Absent') mappedStatus = 'Absent';
           if (r.status === 'Half-day') mappedStatus = 'Half-day';
           if (r.status === 'Leave') mappedStatus = 'Company Holiday';
-          if (r.status === 'Present') mappedStatus = 'Present';
+          if (r.status === 'Day shift') mappedStatus = 'Day shift';
+          if (r.status === 'Night shift') mappedStatus = 'Night shift';
           return {
             employeeId: r.employeeId,
             date: r.date,
@@ -416,8 +396,9 @@ export const AttendanceTab = forwardRef<AttendanceTabRef>((_props, ref) => {
         records={detailsRecords}
         onSave={async (updates) => {
           const promises = updates.map(update => {
-            const apiStatusMap: Record<string, 'PRESENT' | 'ABSENT' | 'HALF_DAY' | 'COMPANY_HOLIDAY'> = {
-              'Present': 'PRESENT',
+            const apiStatusMap: Record<string, 'DAY_SHIFT' | 'NIGHT_SHIFT' | 'ABSENT' | 'HALF_DAY' | 'COMPANY_HOLIDAY'> = {
+              'Day shift': 'DAY_SHIFT',
+              'Night shift': 'NIGHT_SHIFT',
               'Absent': 'ABSENT',
               'Half-day': 'HALF_DAY',
               'Leave': 'COMPANY_HOLIDAY'
@@ -426,7 +407,7 @@ export const AttendanceTab = forwardRef<AttendanceTabRef>((_props, ref) => {
               date: update.date,
               records: [{
                 employeeId: update.employeeId,
-                status: apiStatusMap[update.status] || 'PRESENT',
+                status: apiStatusMap[update.status] || 'DAY_SHIFT',
                 remarks: '',
               }]
             });
