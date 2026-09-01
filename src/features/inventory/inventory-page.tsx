@@ -446,38 +446,8 @@ function StockSummaryCard({ month, onEditDate, onDeleteDate }: { month: string; 
   const chemicalNames = (lookupsData?.chemicals ?? []).map(c => c.name).sort();
   const colorNames = (lookupsData?.colors ?? []).map(c => c.name).sort();
 
-  // Top summary cards show the live balance (all-time received minus all-time production
-  // consumption) rather than what was received this month — same calculation as the
-  // Production page's Inventory Balances panel and the Dashboard's Raw Materials cards.
-  const { data: allExtruderData } = useExtruderProductions('?limit=100');
-  const extruderRecords = allExtruderData?.data ?? [];
-
-  // Balances shown on these cards are stock levels, not ledgers — they never
-  // display below 0.00 even if consumption momentarily outpaces recorded receipts.
-  const getHDPEBalance = (name: string) =>
-    Math.max(0, sumInventoryWeight(records, 'HDPE', name)
-      - extruderRecords.filter(r => r.extruder?.brand?.name === name).reduce((sum, r) => sum + (r.extruder?.rawMaterialKg ?? 0), 0));
-
-  const getChemicalBalance = (name: string) =>
-    Math.max(0, sumInventoryWeight(records, 'CHEMICAL', name)
-      - extruderRecords.filter(r => r.extruder?.chemical?.name === name).reduce((sum, r) => sum + (r.extruder?.chemicalKg ?? 0), 0));
-
-  const getColorBalance = (name: string) =>
-    Math.max(0, sumInventoryWeight(records, 'COLOR', name)
-      - extruderRecords.filter(r => r.color?.name === name).reduce((sum, r) => sum + (r.extruder?.colorConsumedKg ?? 0), 0));
-
-  const rawMaterialsBalance = {
-    weight: hdpeNames.reduce((sum, name) => sum + getHDPEBalance(name), 0),
-    items: hdpeNames.map(name => ({ name, weight: getHDPEBalance(name) })),
-  };
-  const chemicalsBalance = {
-    weight: chemicalNames.reduce((sum, name) => sum + getChemicalBalance(name), 0),
-    items: chemicalNames.map(name => ({ name, weight: getChemicalBalance(name) })),
-  };
-  const colorsBalance = {
-    weight: colorNames.reduce((sum, name) => sum + getColorBalance(name), 0),
-    items: colorNames.map(name => ({ name, weight: getColorBalance(name) })),
-  };
+  // We are displaying the monthly received values instead of the all-time live balance.
+  // The monthly totals are already calculated above in rawMaterials, chemicals, and colors.
 
   // Build date-grouped rows
   const groupedByDate = Array.from(
@@ -533,13 +503,13 @@ function StockSummaryCard({ month, onEditDate, onDeleteDate }: { month: string; 
               <div className=""><img src="/hdpe.png" alt="HDPE" className="w-12 h-12 object-contain" /></div>
               <h3 className="font-extrabold text-gray-800 text-lg">HDPE Materials</h3>
             </div>
-            <div className="text-lg font-bold text-gray-800 leading-none">{rawMaterialsBalance.weight.toFixed(2)} <span className="text-xs font-medium text-gray-500">kg</span></div>
+            <div className="text-lg font-bold text-gray-800 leading-none">{rawMaterials.weight.toFixed(2)} <span className="text-xs font-medium text-gray-500">kg</span></div>
           </div>
           <div className="mt-auto relative z-10 pt-1 border-t border-gray-50">
-            {rawMaterialsBalance.items.length > 0 ? (
-              <div className={`flex flex-wrap items-center gap-x-11 gap-y-1 ${rawMaterialsBalance.items.length === 1 ? 'justify-center' : 'justify-start'}`}>
-                {rawMaterialsBalance.items.map(item => (
-                  <div key={item.name} className={`flex flex-col gap-0.5 ${rawMaterialsBalance.items.length === 1 ? 'items-center text-center' : 'items-start text-left'}`}>
+            {rawMaterials.items.length > 0 ? (
+              <div className={`flex flex-wrap items-center gap-x-11 gap-y-1 ${rawMaterials.items.length === 1 ? 'justify-center' : 'justify-start'}`}>
+                {rawMaterials.items.map(item => (
+                  <div key={item.name} className={`flex flex-col gap-0.5 ${rawMaterials.items.length === 1 ? 'items-center text-center' : 'items-start text-left'}`}>
                     <span className="font-medium text-gray-500 text-sm">{item.name}</span>
                     <span className="font-extrabold text-[#004D40] text-sm">{item.weight.toFixed(2)}<span className="text-gray-500 font-normal text-xs ml-0.5">kg</span></span>
                   </div>
@@ -559,13 +529,13 @@ function StockSummaryCard({ month, onEditDate, onDeleteDate }: { month: string; 
               <div className=""><img src="/chemical.png" alt="Chemicals" className="w-12 h-12 object-contain" /></div>
               <h3 className="font-extrabold text-gray-800 text-lg">Chemicals</h3>
             </div>
-            <div className="text-lg font-bold text-gray-800 leading-none">{chemicalsBalance.weight.toFixed(2)} <span className="text-xs font-medium text-gray-500">kg</span></div>
+            <div className="text-lg font-bold text-gray-800 leading-none">{chemicals.weight.toFixed(2)} <span className="text-xs font-medium text-gray-500">kg</span></div>
           </div>
           <div className="mt-auto relative z-10 pt-2 border-t border-gray-50">
-            {chemicalsBalance.items.length > 0 ? (
-              <div className={`flex flex-wrap items-center gap-x-11 gap-y-3 mt-2 ${chemicalsBalance.items.length === 1 ? 'justify-center' : 'justify-start'}`}>
-                {chemicalsBalance.items.map(item => (
-                  <div key={item.name} className={`flex flex-col gap-0.5 ${chemicalsBalance.items.length === 1 ? 'items-center text-center' : 'items-start text-left'}`}>
+            {chemicals.items.length > 0 ? (
+              <div className={`flex flex-wrap items-center gap-x-11 gap-y-3 mt-2 ${chemicals.items.length === 1 ? 'justify-center' : 'justify-start'}`}>
+                {chemicals.items.map(item => (
+                  <div key={item.name} className={`flex flex-col gap-0.5 ${chemicals.items.length === 1 ? 'items-center text-center' : 'items-start text-left'}`}>
                     <span className="font-medium text-gray-500 text-sm">{item.name}</span>
                     <span className="font-extrabold text-[#004D40] text-sm">{item.weight.toFixed(2)}<span className="text-gray-500 font-normal text-xs ml-0.5">kg</span></span>
                   </div>
@@ -585,13 +555,13 @@ function StockSummaryCard({ month, onEditDate, onDeleteDate }: { month: string; 
               <div className=""><img src="/color.png" alt="Colors" className="w-12 h-12 object-contain" /></div>
               <h3 className="font-extrabold text-gray-800 text-lg">Colors</h3>
             </div>
-            <div className="text-lg font-bold text-gray-800 leading-none">{colorsBalance.weight.toFixed(2)} <span className="text-xs font-medium text-gray-500">kg</span></div>
+            <div className="text-lg font-bold text-gray-800 leading-none">{colors.weight.toFixed(2)} <span className="text-xs font-medium text-gray-500">kg</span></div>
           </div>
           <div className="mt-auto relative z-10 pt-2 border-t border-gray-50">
-            {colorsBalance.items.length > 0 ? (
-              <div className={`flex flex-wrap items-center gap-x-11 gap-y-3 mt-2 ${colorsBalance.items.length === 1 ? 'justify-center' : 'justify-start'}`}>
-                {colorsBalance.items.map(item => (
-                  <div key={item.name} className={`flex flex-col gap-0.5 ${colorsBalance.items.length === 1 ? 'items-center text-center' : 'items-start text-left'}`}>
+            {colors.items.length > 0 ? (
+              <div className={`flex flex-wrap items-center gap-x-11 gap-y-3 mt-2 ${colors.items.length === 1 ? 'justify-center' : 'justify-start'}`}>
+                {colors.items.map(item => (
+                  <div key={item.name} className={`flex flex-col gap-0.5 ${colors.items.length === 1 ? 'items-center text-center' : 'items-start text-left'}`}>
                     <span className="font-medium text-gray-500 text-sm">{item.name}</span>
                     <span className="font-extrabold text-[#004D40] text-sm">{item.weight.toFixed(2)}<span className="text-gray-500 font-normal text-xs ml-0.5">kg</span></span>
                   </div>
@@ -639,13 +609,13 @@ function StockSummaryCard({ month, onEditDate, onDeleteDate }: { month: string; 
                   <th key={name} colSpan={2} className="border border-gray-300 px-3 py-1.5 text-center font-bold text-blue-800 text-xs uppercase whitespace-nowrap">{name}</th>
                 ))}
                 {hdpeNames.length > 0 && <th colSpan={2} className="border border-gray-300 px-3 py-1.5 text-center font-bold text-teal-800 text-xs uppercase whitespace-nowrap bg-blue-50/70">Total</th>}
-                
+
                 {chemicalNames.length > 0 && <th rowSpan={2} className="border border-gray-300 px-3 py-1.5 text-center font-bold text-gray-800 text-xs uppercase whitespace-nowrap bg-gray-50/50">DC NO</th>}
                 {chemicalNames.map(name => (
                   <th key={name} rowSpan={2} className="border border-gray-300 px-3 py-1.5 text-center font-bold text-gray-800 text-xs uppercase whitespace-nowrap">{name}</th>
                 ))}
                 {chemicalNames.length > 0 && <th rowSpan={2} className="border border-gray-300 px-3 py-1.5 text-center font-bold text-yellow-800 text-xs uppercase whitespace-nowrap bg-yellow-50/70">Total</th>}
-                
+
                 {colorNames.length > 0 && <th rowSpan={2} className="border border-gray-300 px-3 py-1.5 text-center font-bold text-gray-800 text-xs uppercase whitespace-nowrap bg-gray-50/50">DC NO</th>}
                 {colorNames.map(name => (
                   <th key={name} rowSpan={2} className="border border-gray-300 px-3 py-1.5 text-center font-bold text-gray-800 text-xs uppercase whitespace-nowrap">{name}</th>
@@ -940,6 +910,7 @@ export function InventoryPage() {
           onClose={() => setStockFormOpen(false)}
           editDate={editTargetDate ?? undefined}
           editRecords={editTargetDate ? allRecords.filter(r => formatDate(r.date) === editTargetDate) : undefined}
+          selectedMonth={month}
         />
       )}
     </div>

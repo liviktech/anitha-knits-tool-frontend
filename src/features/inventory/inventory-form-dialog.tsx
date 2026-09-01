@@ -14,16 +14,23 @@ interface InventoryFormDialogProps {
   onClose: () => void;
   editDate?: string;
   editRecords?: InventoryRecord[];
+  selectedMonth?: string;
 }
 
-export function InventoryFormDialog({ onClose, editDate, editRecords }: InventoryFormDialogProps) {
+export function InventoryFormDialog({ onClose, editDate, editRecords, selectedMonth }: InventoryFormDialogProps) {
   const queryClient = useQueryClient();
   const { data: lookupsData, isLoading: isLookupsLoading, isError: isLookupsError, refetch: refetchLookups } = useLookups();
   const isEdit = !!editDate;
 
   const findDcForType = (type: InventoryType) => editRecords?.find(r => r.type === type && r.DC_NUMBER)?.DC_NUMBER ?? '';
 
-  const [date, setDate] = useState(editDate || todayIso());
+  const [date, setDate] = useState(() => {
+    if (editDate) return editDate;
+    if (selectedMonth && !todayIso().startsWith(selectedMonth)) {
+      return `${selectedMonth}-01`;
+    }
+    return todayIso();
+  });
   const [dcHdpe, setDcHdpe] = useState(() => findDcForType('HDPE'));
   const [dcChemical, setDcChemical] = useState(() => findDcForType('CHEMICAL'));
   const [dcColor, setDcColor] = useState(() => findDcForType('COLOR'));
