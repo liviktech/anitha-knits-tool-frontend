@@ -234,37 +234,30 @@ export function ExtruderModalForm({ productionDate, initialData, isEditMode, onC
     const sizeId = findIdByName(lookups.sizes, group.size);
     const chemicalId = findIdByName(lookups.chemicals, group.chemical);
 
-    if (!sizeId) {
-      setError('Please select a valid size.');
-      return;
-    }
-    if (!colorId) {
-      setError('Please select a valid color.');
-      return;
-    }
-    if (!chemicalId) {
-      setError('Please select a valid chemical type.');
-      return;
-    }
+    const missingFields: string[] = [];
+    if (!sizeId) missingFields.push('Size');
+    if (!colorId) missingFields.push('Color');
+    if (!chemicalId) missingFields.push('Chemical Type');
 
     if (computedBrands.length === 0) {
-      setError('At least one HDPE brand is required.');
-      return;
-    }
-
-    for (const b of computedBrands) {
-      if (!b.brand) {
-        setError('Please select a brand for all HDPE materials.');
-        return;
+      missingFields.push('HDPE Brand');
+    } else {
+      let missingBrand = false;
+      let missingBags = false;
+      for (const b of computedBrands) {
+        if (!b.brand) missingBrand = true;
+        if (!b.bags || b.bags.trim() === '') missingBags = true;
       }
-      if (!b.bags || b.bags.trim() === '') {
-        setError('Please enter the number of bags for all HDPE materials (enter 0 if none).');
-        return;
-      }
+      if (missingBrand) missingFields.push('HDPE Brand');
+      if (missingBags) missingFields.push('Bags');
     }
 
     if (!group.yarnWasteKg || group.yarnWasteKg.trim() === '') {
-      setError('Please enter the looms waste (enter 0 if none).');
+      missingFields.push('Looms Waste');
+    }
+
+    if (missingFields.length > 0) {
+      setError(`Please fill in the following required fields: ${missingFields.join(', ')}.`);
       return;
     }
 
