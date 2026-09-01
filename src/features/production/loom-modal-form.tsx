@@ -66,8 +66,8 @@ export function LoomModalForm({ productionDate, initialData, isEditMode, onCance
 
     const payload: LoomsCreatePayload = {
       productionDate,
-      colorId,
-      sizeId,
+      colorId: colorId!,
+      sizeId: sizeId!,
       yarnInputKg: parseFloat(draft.input) || 0,
       fabricOutputKg: parseFloat(draft.output) || 0,
       loomsWasteKg: parseFloat(draft.loomsWasteKg) || 0,
@@ -77,7 +77,7 @@ export function LoomModalForm({ productionDate, initialData, isEditMode, onCance
     try {
       const isUpdating = isEditMode && !!draft.id;
       const url = isUpdating ? `/production/looms/${draft.id}` : '/production/looms';
-      const method = isUpdating ? 'PUT' : 'POST';
+      const method = isUpdating ? 'PATCH' : 'POST';
       const response = await apiFetch(url, {
         method: method,
         headers: { 'Content-Type': 'application/json' },

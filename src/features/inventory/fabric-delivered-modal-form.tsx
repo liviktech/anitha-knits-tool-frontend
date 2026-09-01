@@ -86,8 +86,8 @@ export function FabricDeliveredModalForm({ productionDate, initialData, isEditMo
 
     const payload: LoadSentCreatePayload = {
       productionDate,
-      colorId,
-      sizeId,
+      colorId: colorId!,
+      sizeId: sizeId!,
       fabricWeight: parseFloat(draft.delivered) || 0,
       ...(draft.vehicleNo?.trim() ? { vehicleNo: draft.vehicleNo.trim() } : {}),
       ...(draft.driverName?.trim() ? { driverName: draft.driverName.trim() } : {}),

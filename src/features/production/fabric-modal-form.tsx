@@ -100,8 +100,8 @@ export function FabricModalForm({ productionDate, initialData, isEditMode, onCan
 
     const payload: FabricCheckingCreatePayload = {
       productionDate,
-      colorId,
-      sizeId,
+      colorId: colorId!,
+      sizeId: sizeId!,
       fabricInputKg: parseFloat(finalFabricInput.toFixed(2)) || 0,
       outputKg: parseFloat(draft.output) || 0,
       fwKg: parseFloat(draft.fwKg) || 0,
@@ -111,7 +111,7 @@ export function FabricModalForm({ productionDate, initialData, isEditMode, onCan
     setSaving(true);
     try {
       const url = isEditMode && draft.id ? `/fabric-checking/${draft.id}` : '/fabric-checking';
-      const method = isEditMode && draft.id ? 'PUT' : 'POST';
+      const method = isEditMode && draft.id ? 'PATCH' : 'POST';
 
       const response = await apiFetch(url, {
         method,
