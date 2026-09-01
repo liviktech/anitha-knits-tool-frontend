@@ -146,7 +146,7 @@ export function ExtruderModalForm({ productionDate, initialData, isEditMode, onC
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const { data: standardData } = useColorConsumptionStandard();
+  const { data: standardData } = useColorConsumptionStandard(productionDate);
   const standard = standardData?.data;
   const chemicalWeightStandard = standard ? parseFloat(standard.chemicalWeight) : undefined;
   const basisWeightKg = standard ? parseFloat(standard.basisWeightKg) : undefined;
@@ -435,7 +435,7 @@ export function ExtruderModalForm({ productionDate, initialData, isEditMode, onC
                 </Select>
               </div>
               <div className="space-y-1.5">
-                <Label className="text-gray-600 text-xs font-semibold">Chem Weight(kg)</Label>
+                <Label className="text-gray-600 text-xs font-semibold">Chemical Weight(kg)</Label>
                 <Input type="number" min="0" onKeyDown={(e) => e.key === '-' && e.preventDefault()} placeholder="0.00" className="h-8 text-xs bg-gray-100 border border-gray-400 disabled:opacity-100" value={standardChemicalConsumedKg !== undefined ? standardChemicalConsumedKg.toFixed(2) : ''} disabled readOnly />
               </div>
             </div>
