@@ -15,6 +15,7 @@ import { useAuth } from '@/features/auth/auth-context';
 import { can, hasTabAccess } from '@/lib/access';
 import { RIGHTS } from '@/lib/permissions';
 
+
 export interface EmployeeRecord {
   id: string;
   name: string;
