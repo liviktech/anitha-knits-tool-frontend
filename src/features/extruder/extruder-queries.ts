@@ -116,10 +116,10 @@ export const colorConsumptionStandardKeys = {
   latest: ['color-consumption-standard', 'latest'] as const,
 };
 
-export function useColorConsumptionStandard() {
+export function useColorConsumptionStandard(date?: string | Date) {
   return useQuery({
-    queryKey: colorConsumptionStandardKeys.latest,
-    queryFn: () => fetchJson<ColorConsumptionStandardResponse>('/color-consumption-standard/latest'),
+    queryKey: [...colorConsumptionStandardKeys.latest, date],
+    queryFn: () => fetchJson<ColorConsumptionStandardResponse>('/color-consumption-standard/latest?' + (date ? `date=${encodeURIComponent(date.toString())}` : '')),
   });
 }
 

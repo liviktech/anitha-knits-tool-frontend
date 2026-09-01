@@ -23,7 +23,7 @@ export interface AttendanceRecord {
   role: string;
   checkIn: string;
   checkOut: string;
-  status: 'Present' | 'Absent' | 'Half-day' | 'Leave';
+  status: 'Day shift' | 'Night shift' | 'Absent' | 'Half-day' | 'Leave';
 }
 
 export interface AttendanceTabRef {
@@ -98,7 +98,8 @@ export const AttendanceTab = forwardRef<AttendanceTabRef>((_props, ref) => {
     return attendanceData.map((att) => {
       // Map API status back to UI format
       const statusMap: Record<string, string> = {
-        'PRESENT': 'Present',
+        'DAY_SHIFT': 'Day shift',
+        'NIGHT_SHIFT': 'Night shift',
         'ABSENT': 'Absent',
         'HALF_DAY': 'Half-day',
         'COMPANY_HOLIDAY': 'Leave'
@@ -112,7 +113,7 @@ export const AttendanceTab = forwardRef<AttendanceTabRef>((_props, ref) => {
         role: att.employee?.employeeDetails?.designation || 'Employee',
         checkIn: '', // No longer used in schema
         checkOut: '', // No longer used in schema
-        status: (statusMap[att.status] || 'Present') as 'Present' | 'Absent' | 'Half-day' | 'Leave',
+        status: (statusMap[att.status] || 'Day shift') as 'Day shift' | 'Night shift' | 'Absent' | 'Half-day' | 'Leave',
       };
     });
   }, [attendanceData]);
@@ -124,7 +125,7 @@ export const AttendanceTab = forwardRef<AttendanceTabRef>((_props, ref) => {
     return matchesMonth && matchesYear;
   });
 
-  const presentCount = filteredRecords.filter(r => r.status === 'Present').length;
+  const presentCount = filteredRecords.filter(r => r.status === 'Day shift' || r.status === 'Night shift').length;
   const absentCount = filteredRecords.filter(r => r.status === 'Absent').length;
   const halfDayCount = filteredRecords.filter(r => r.status === 'Half-day').length;
 
@@ -151,7 +152,7 @@ export const AttendanceTab = forwardRef<AttendanceTabRef>((_props, ref) => {
       const employeeKey = employeeOptions.find(emp => emp.id === r.employeeId)?.customUserId || r.employeeId;
       const existing = map.get(employeeKey);
       if (existing) {
-        if (r.status === 'Present') existing.present += 1;
+        if (r.status === 'Day shift' || r.status === 'Night shift') existing.present += 1;
         if (r.status === 'Absent') existing.absent += 1;
         if (r.status === 'Half-day') existing.halfDay += 1;
       }
@@ -377,15 +378,16 @@ export const AttendanceTab = forwardRef<AttendanceTabRef>((_props, ref) => {
         onClose={() => { setIsModalOpen(false); setSelectedRecord(null); }}
         onSave={(date, entries) => {
           const apiEntries = entries.map((e) => {
-            const apiStatusMap: Record<string, 'PRESENT' | 'ABSENT' | 'HALF_DAY' | 'COMPANY_HOLIDAY'> = {
-              'Present': 'PRESENT',
+            const apiStatusMap: Record<string, 'DAY_SHIFT' | 'NIGHT_SHIFT' | 'ABSENT' | 'HALF_DAY' | 'COMPANY_HOLIDAY'> = {
+              'Day shift': 'DAY_SHIFT',
+              'Night shift': 'NIGHT_SHIFT',
               'Absent': 'ABSENT',
               'Half-day': 'HALF_DAY',
               'Company Holiday': 'COMPANY_HOLIDAY'
             };
             return {
               employeeId: e.employeeId,
-              status: apiStatusMap[e.status] || 'PRESENT',
+              status: apiStatusMap[e.status] || 'DAY_SHIFT',
               remarks: e.remarks,
             };
           });
@@ -395,11 +397,12 @@ export const AttendanceTab = forwardRef<AttendanceTabRef>((_props, ref) => {
         defaultDate={selectedRecord?.date}
         isSaving={upsertMutation.isPending}
         existingRecords={records.map(r => {
-          let mappedStatus: 'Present' | 'Absent' | 'Half-day' | 'Company Holiday' = 'Present';
+          let mappedStatus: 'Day shift' | 'Night shift' | 'Absent' | 'Half-day' | 'Company Holiday' = 'Day shift';
           if (r.status === 'Absent') mappedStatus = 'Absent';
           if (r.status === 'Half-day') mappedStatus = 'Half-day';
           if (r.status === 'Leave') mappedStatus = 'Company Holiday';
-          if (r.status === 'Present') mappedStatus = 'Present';
+          if (r.status === 'Day shift') mappedStatus = 'Day shift';
+          if (r.status === 'Night shift') mappedStatus = 'Night shift';
           return {
             employeeId: r.employeeId,
             date: r.date,
@@ -416,8 +419,9 @@ export const AttendanceTab = forwardRef<AttendanceTabRef>((_props, ref) => {
         records={detailsRecords}
         onSave={async (updates) => {
           const promises = updates.map(update => {
-            const apiStatusMap: Record<string, 'PRESENT' | 'ABSENT' | 'HALF_DAY' | 'COMPANY_HOLIDAY'> = {
-              'Present': 'PRESENT',
+            const apiStatusMap: Record<string, 'DAY_SHIFT' | 'NIGHT_SHIFT' | 'ABSENT' | 'HALF_DAY' | 'COMPANY_HOLIDAY'> = {
+              'Day shift': 'DAY_SHIFT',
+              'Night shift': 'NIGHT_SHIFT',
               'Absent': 'ABSENT',
               'Half-day': 'HALF_DAY',
               'Leave': 'COMPANY_HOLIDAY'
@@ -426,7 +430,7 @@ export const AttendanceTab = forwardRef<AttendanceTabRef>((_props, ref) => {
               date: update.date,
               records: [{
                 employeeId: update.employeeId,
-                status: apiStatusMap[update.status] || 'PRESENT',
+                status: apiStatusMap[update.status] || 'DAY_SHIFT',
                 remarks: '',
               }]
             });

@@ -730,11 +730,11 @@ export const PayrollTab = forwardRef<PayrollTabRef>((_, ref) => {
                       const isSunday = currentDate.getDay() === 0;
                       const status = attendanceMap.get(dateStr);
 
-                      if (status === 'PRESENT' || status === 'HALF_DAY') {
+                      if (status === 'DAY_SHIFT' || status === 'NIGHT_SHIFT' || status === 'HALF_DAY') {
                           presentDays += (status === 'HALF_DAY' ? 0.5 : 1);
                       }
 
-                      if (isSunday && status === 'PRESENT') {
+                      if (isSunday && (status === 'DAY_SHIFT' || status === 'NIGHT_SHIFT')) {
                           sundayBonuses += (3 * oneDaySalary);
                           sundayBonusDays += 1;
                       } else if (!isSunday && status === 'ABSENT') {

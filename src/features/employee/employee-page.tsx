@@ -770,6 +770,7 @@ const EmployeeDirectoryTab = forwardRef<EmployeeDirectoryTabRef>((_props, ref) =
                 <Input
                   id="emp-salary"
                   type="number"
+                  min="0"
                   placeholder="e.g. 25000"
                   value={formSalary}
                   onChange={(e) => setFormSalary(e.target.value)}

@@ -93,7 +93,8 @@ export function EmployeeAttendanceDetailsModal({ isOpen, onClose, employeeId, em
                               <SelectValue />
                             </SelectTrigger>
                             <SelectContent>
-                              <SelectItem value="Present">Present</SelectItem>
+                              <SelectItem value="Day shift">Day shift</SelectItem>
+                              <SelectItem value="Night shift">Night shift</SelectItem>
                               <SelectItem value="Absent">Absent</SelectItem>
                               <SelectItem value="Half-day">Half-day</SelectItem>
                               <SelectItem value="Leave">Leave</SelectItem>
