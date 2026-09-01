@@ -124,9 +124,9 @@ export function DayWiseReportModal({ open, onOpenChange }: DayWiseReportModalPro
         date: dateStr,
         isHighlighted,
         hasData: !!apiRow || deliveryByDate[dateStr],
-        extruder: { 
-          hdpe: apiRow?.extruder.input || 0, 
-          loomsWaste: apiRow?.extruder.yarnWasteKg || 0, 
+        extruder: {
+          hdpe: apiRow?.extruder.input || 0,
+          loomsWaste: apiRow?.extruder.yarnWasteKg || 0,
           lums: apiRow?.extruder.lumpsKg || 0,
           total: apiRow?.extruder.output || 0
         },
@@ -168,7 +168,6 @@ export function DayWiseReportModal({ open, onOpenChange }: DayWiseReportModalPro
         <DialogHeader className="flex-col items-start gap-3 text-left sm:flex-row sm:items-center sm:justify-between">
           <div>
             <DialogTitle>Day Wise Production & Wastage Report</DialogTitle>
-            <p className="text-[12.5px] text-gray-500 font-medium mt-1">Detailed monthly report — populated from live API endpoints.</p>
           </div>
           <div className="flex items-center gap-6 mr-7">
             {isLoading && <Loader size="sm" className="text-gray-400" />}

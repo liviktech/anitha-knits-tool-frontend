@@ -6,8 +6,6 @@ import { Loader } from '@/components/shared/loader';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { useMonthlyDashboard } from './dashboard-queries';
-import { useExtruderProductions, useLookups } from '@/features/extruder/extruder-queries';
-import { useInventoryRecords, sumInventoryWeight } from '@/features/inventory/inventory-queries';
 import { useAuth } from '@/features/auth/auth-context';
 
 function formatNum(n: number): string {

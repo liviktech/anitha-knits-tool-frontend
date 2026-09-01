@@ -277,7 +277,7 @@ export const PayrollTab = forwardRef<PayrollTabRef>((_, ref) => {
                       setCurrentMonth(parseInt(m, 10));
                     }
                   }}
-                  className="h-8 text-xs w-32 border-gray-400 bg-gray-50/50"
+                  className="h-8 text-xs w-40 border-gray-400 bg-gray-50/50"
                 />
                 <Button size="sm" variant="outline" className="h-8 text-sm font-semibold bg-[#004D40] hover:bg-[#00382e] hover:text-white text-white" onClick={() => setIsAdvanceModalOpen(true)}>
                   <Banknote className="w-3.5 h-3.5 mr-1" /> Salary Advance

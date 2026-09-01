@@ -58,7 +58,7 @@ export function MarkAttendanceModal({ isOpen, onClose, onSave, employees, defaul
     if (isOpen) {
       const initialStatusMap: Record<string, DailyStatus> = {};
       const targetDate = date || defaultDate || new Date().toISOString().slice(0, 10);
-      
+
       existingRecords.forEach(r => {
         if (r.date.split('T')[0] === targetDate) {
           // r.employeeId is the customUserId or rawId, we need to map it to the employee option id
@@ -74,8 +74,8 @@ export function MarkAttendanceModal({ isOpen, onClose, onSave, employees, defaul
   }, [date, isOpen, existingRecords, employees]);
 
   const filtered = employees.filter(
-    (e) => e.name.toLowerCase().includes(search.toLowerCase()) || 
-           (e.customUserId || e.id).toLowerCase().includes(search.toLowerCase())
+    (e) => e.name.toLowerCase().includes(search.toLowerCase()) ||
+      (e.customUserId || e.id).toLowerCase().includes(search.toLowerCase())
   );
 
   const handleSubmit = () => {
@@ -94,8 +94,8 @@ export function MarkAttendanceModal({ isOpen, onClose, onSave, employees, defaul
         </DialogHeader>
 
         <div className="flex flex-wrap items-center gap-3 px-6 py-4 border-b border-gray-100">
-          <Input type="date" value={date} onChange={(e) => setDate(e.target.value)} className="w-44 h-10" />
-          <div className="relative flex-1 min-w-45">
+          <Input type="date" value={date} onChange={(e) => setDate(e.target.value)} className="w-40 h-10" />
+          <div className="relative w-64">
             <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
             <Input placeholder="Search employee..." value={search} onChange={(e) => setSearch(e.target.value)} className="pl-9 h-10" />
           </div>
@@ -127,9 +127,8 @@ export function MarkAttendanceModal({ isOpen, onClose, onSave, employees, defaul
                           key={opt.value}
                           type="button"
                           onClick={() => setStatusMap((m) => ({ ...m, [emp.id]: opt.value }))}
-                          className={`rounded-full border px-3 py-1 text-xs font-medium transition-colors ${
-                            statusMap[emp.id] === opt.value ? opt.activeClass : 'bg-white text-gray-600 border-gray-200 hover:bg-gray-50'
-                          }`}
+                          className={`rounded-full border px-3 py-1 text-xs font-medium transition-colors ${statusMap[emp.id] === opt.value ? opt.activeClass : 'bg-white text-gray-600 border-gray-200 hover:bg-gray-50'
+                            }`}
                         >
                           {opt.label}
                         </button>
