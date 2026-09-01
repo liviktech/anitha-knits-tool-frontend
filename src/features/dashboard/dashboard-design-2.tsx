@@ -50,38 +50,24 @@ export function DashboardDesign2() {
 
   const { dashboardData, isLoading: loadingDashboard } = useMonthlyDashboard(currentMonthStr);
 
-  // Raw Materials balances — all-time received minus all-time production consumption, the
-  // same client-side calculation the "Add New Daily Production Details" page's Inventory
-  // Balances panel uses (new-entry.tsx), so both places stay in sync as production is recorded.
-  const { data: lookupsData } = useLookups();
-  const lookups = lookupsData ?? { brands: [], colors: [], chemicals: [], sizes: [] };
-  const { data: allInvData } = useInventoryRecords('?limit=100');
-  const { data: allExtruderData } = useExtruderProductions('?limit=100');
-  const inventoryRecords = allInvData?.data ?? [];
-  const extruderRecords = allExtruderData?.data ?? [];
-
-  // Balances shown on these cards are stock levels, not ledgers — they never
-  // display below 0.00 even if consumption momentarily outpaces recorded receipts.
-  const inventoryRecordsMonth = inventoryRecords.filter((r) => r.date?.startsWith(currentMonthStr));
-  const extruderRecordsMonth = extruderRecords.filter((r) => r.productionDate?.startsWith(currentMonthStr));
-
-  const getHDPEBalance = (name: string) =>
-    Math.max(0, sumInventoryWeight(inventoryRecordsMonth, 'HDPE', name)
-      - extruderRecordsMonth.filter(r => r.extruder?.brand?.name === name).reduce((sum, r) => sum + (r.extruder?.rawMaterialKg ?? 0), 0));
-
-  const getChemicalBalance = (name: string) =>
-    Math.max(0, sumInventoryWeight(inventoryRecordsMonth, 'CHEMICAL', name)
-      - extruderRecordsMonth.filter(r => r.extruder?.chemical?.name === name).reduce((sum, r) => sum + (r.extruder?.chemicalKg ?? 0), 0));
-
-  const getColorBalance = (name: string) =>
-    Math.max(0, sumInventoryWeight(inventoryRecordsMonth, 'COLOR', name)
-      - extruderRecordsMonth.filter(r => r.color?.name === name).reduce((sum, r) => sum + (r.extruder?.colorConsumedKg ?? 0), 0));
+  // Use backend-provided monthly inventory aggregations
+  const rawMaterials = {
+    weight: dashboardData?.inventory?.HDPE?.totalWeightKg || 0,
+    items: dashboardData?.inventory?.HDPE?.items?.map(item => ({ name: item.name, weight: item.weightKg })) || [],
+  };
+  const chemicals = {
+    weight: dashboardData?.inventory?.CHEMICAL?.totalWeightKg || 0,
+    items: dashboardData?.inventory?.CHEMICAL?.items?.map(item => ({ name: item.name, weight: item.weightKg })) || [],
+  };
+  const invColors = {
+    weight: dashboardData?.inventory?.COLOR?.totalWeightKg || 0,
+    items: dashboardData?.inventory?.COLOR?.items?.map(item => ({ name: item.name, weight: item.weightKg })) || [],
+  };
 
   const isLoading = loadingDashboard;
 
   const looseWasteKg = dashboardData?.wastage.byType.find(w => w.code === 'YARN_WASTE')?.quantityKg || 0;
   const lumsWasteKg = dashboardData?.wastage.byType.find(w => w.code === 'LUMPS')?.quantityKg || 0;
-
   // Statically listed by color (like fabricWasteByColor below) so every card always shows
   // all colors with "--" for anything not yet recorded, instead of an empty-state message.
   const extruderByColorMap = new Map((dashboardData?.extruderProduction || []).map(r => [r.color.name, r]));
@@ -146,18 +132,7 @@ export function DashboardDesign2() {
     0,
   );
 
-  const rawMaterials = {
-    weight: lookups.brands.reduce((sum, b) => sum + getHDPEBalance(b.name), 0),
-    items: lookups.brands.map(b => ({ name: b.name, weight: getHDPEBalance(b.name) })),
-  };
-  const chemicals = {
-    weight: lookups.chemicals.reduce((sum, c) => sum + getChemicalBalance(c.name), 0),
-    items: lookups.chemicals.map(c => ({ name: c.name, weight: getChemicalBalance(c.name) })),
-  };
-  const invColors = {
-    weight: lookups.colors.reduce((sum, c) => sum + getColorBalance(c.name), 0),
-    items: lookups.colors.map(c => ({ name: c.name, weight: getColorBalance(c.name) })),
-  };
+  // rawMaterials, chemicals, and invColors are now defined above using dashboardData.inventory
 
   const monthDeliveriesByColor = FABRIC_COLORS.map(color => {
     const deliveries = (dashboardData?.loadSent.items || [])
