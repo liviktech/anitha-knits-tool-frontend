@@ -53,8 +53,14 @@ export function LoomModalForm({ productionDate, initialData, isEditMode, onCance
     const colorId = findIdByName(lookups.colors, draft.color);
     const sizeId = findIdByName(lookups.sizes, draft.size);
 
-    if (!colorId || !sizeId) {
-      setError('Please select a valid size and color.');
+    const missingFields: string[] = [];
+    if (!sizeId) missingFields.push('Size');
+    if (!colorId) missingFields.push('Color');
+    if (!draft.input || draft.input.trim() === '') missingFields.push('Loom Production');
+    if (!draft.loomsWasteKg || draft.loomsWasteKg.trim() === '') missingFields.push('Looms/Yarn Waste');
+
+    if (missingFields.length > 0) {
+      setError(`Please fill in the following required fields: ${missingFields.join(', ')}.`);
       return;
     }
 
@@ -69,8 +75,11 @@ export function LoomModalForm({ productionDate, initialData, isEditMode, onCance
 
     setSaving(true);
     try {
-      const response = await apiFetch('/production/looms', {
-        method: 'POST',
+      const isUpdating = isEditMode && !!draft.id;
+      const url = isUpdating ? `/production/looms/${draft.id}` : '/production/looms';
+      const method = isUpdating ? 'PUT' : 'POST';
+      const response = await apiFetch(url, {
+        method: method,
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload),
       });
