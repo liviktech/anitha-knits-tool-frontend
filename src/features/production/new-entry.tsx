@@ -199,8 +199,7 @@ export function NewEntry({ onClose, defaultDate, readOnly: propsReadOnly = false
                     <img src="/color-in.png" alt="" className="h-8 w-8 object-contain" />
                     Color
                   </label>
-                  <span className={`text-[13 So bar start
-                    px] font-bold text-gray-900 transition-opacity duration-300 ${isInventoryMinimized ? 'opacity-100' : 'opacity-0'}`}>
+                  <span className={`text-[13px] font-bold text-gray-900 transition-opacity duration-300 ${isInventoryMinimized ? 'opacity-100' : 'opacity-0'}`}>
                     {totalColor} kg
                   </span>
                 </div>
