@@ -3,7 +3,8 @@ import { useQueryClient } from '@tanstack/react-query';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 
-import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { X } from 'lucide-react';
+import { Dialog, DialogClose, DialogContent, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Loader } from '@/components/shared/loader';
 import { apiFetch } from '@/lib/api-client';
 import { useLookups } from '@/lib/lookups';
@@ -158,12 +159,18 @@ export function InventoryFormDialog({ onClose, editDate, editRecords, selectedMo
 
   return (
     <Dialog open onOpenChange={(next) => !saving && !next && onClose()}>
-      <DialogContent className="max-w-[95vw] w-max lg:max-w-none overflow-hidden flex flex-col max-h-[90vh] border border-gray-400 p-4">
+      <DialogContent showCloseButton={false} className="max-w-[95vw] w-max lg:max-w-none overflow-hidden flex flex-col max-h-[90vh] border border-gray-400 p-4">
         <DialogHeader className="flex flex-row items-center justify-between space-y-0 -mx-4 -mt-4 mb-2 rounded-t-xl border-b border-gray-200 bg-[#A8DCAB] px-4 py-3">
           <DialogTitle className="text-black">{isEdit ? 'Edit Stock' : 'Add Received Stock'}</DialogTitle>
-          <div className="flex items-center gap-3 pr-8">
+          <div className="flex items-center gap-3">
             {/* <Label htmlFor="inv-date" className="text-sm font-medium whitespace-nowrap text-black">Date</Label> */}
             <Input id="inv-date" type="date" value={date} onChange={(e) => setDate(e.target.value)} className="w-40 h-8 text-sm bg-white" />
+            <DialogClose asChild>
+              <Button variant="ghost" size="icon-sm" className="text-black hover:bg-white/50">
+                <X className="h-4 w-4" />
+                <span className="sr-only">Close</span>
+              </Button>
+            </DialogClose>
           </div>
         </DialogHeader>
 

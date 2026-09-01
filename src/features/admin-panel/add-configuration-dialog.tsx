@@ -28,7 +28,7 @@ function todayIso() {
 
 const emptyForm = {
   date: '',
-  hdpematerialbag: '',
+  hdpematerialbag: '1',
   basisWeightKg: '',
   whiteKgBasis: '',
   blueKgBasis: '',
