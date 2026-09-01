@@ -7,7 +7,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Loader } from '@/components/shared/loader';
 import { apiFetch, extractApiErrorMessage } from '@/lib/api-client';
 import { useLookups, findIdByName, type Lookups } from '@/features/extruder/extruder-queries';
-import { loadSentKeys, type LoadSentCreatePayload } from '@/features/inventory/load-sent-queries';
+import { loadSentKeys, type LoadSentCreatePayload, useLoadSentRecords, getLoadSentWeight } from '@/features/inventory/load-sent-queries';
+import { useFabricCheckingRecords } from '@/features/fabric/fabric-queries';
 import { dashboardProductionKey } from '@/features/production/day-wise-queries';
 import { themes } from '@/features/production/day-entry-sections';
 import { type FabricDeliveredDraft, emptyFabricDeliveredDraft } from '@/features/inventory/fabric-delivered-section';
@@ -27,6 +28,9 @@ export function FabricDeliveredModalForm({ productionDate, initialData, isEditMo
   const lookups: Lookups = lookupsData ?? { brands: [], colors: [], chemicals: [], sizes: [] };
   const theme = themes.fabricDelivered;
 
+  const { data: sentData } = useLoadSentRecords('?limit=100');
+  const { data: prodData } = useFabricCheckingRecords('?limit=100');
+
   const [draft, setDraft] = useState<FabricDeliveredDraft>(initialData || { ...emptyFabricDeliveredDraft });
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -41,8 +45,42 @@ export function FabricDeliveredModalForm({ productionDate, initialData, isEditMo
     const colorId = findIdByName(lookups.colors, draft.color);
     const sizeId = findIdByName(lookups.sizes, draft.size);
 
-    if (!colorId || !sizeId) {
-      setError('Please select a valid size and color.');
+    const missingFields: string[] = [];
+    if (!sizeId) missingFields.push('Size');
+    if (!colorId) missingFields.push('Color');
+    if (!draft.delivered || draft.delivered.trim() === '') missingFields.push('Delivered (kg)');
+
+    if (missingFields.length > 0) {
+      setError(`Please fill in the following required fields: ${missingFields.join(', ')}.`);
+      return;
+    }
+
+    const prodRecords = prodData?.data ?? [];
+    const sentRecords = sentData?.data ?? [];
+    
+    const prodForSizeColor = prodRecords.filter(r => r.size.id === sizeId && r.color.id === colorId);
+    const prodKg = prodForSizeColor.reduce((sum, r) => sum + (r.fabricCheck?.outputKg ?? 0), 0);
+
+    const sentForSizeColor = sentRecords.filter(r => r.size?.id === sizeId && r.color?.id === colorId);
+    let sentKg = sentForSizeColor.reduce((sum, r) => sum + getLoadSentWeight(r), 0);
+
+    if (isEditMode && draft.id) {
+      const originalRecord = sentRecords.find(r => r.id === draft.id);
+      if (originalRecord) {
+        sentKg -= getLoadSentWeight(originalRecord);
+      }
+    }
+
+    const availableBalance = prodKg - sentKg;
+    const deliveredValue = parseFloat(draft.delivered) || 0;
+
+    if (availableBalance <= 0) {
+      setError(`No stock available for ${draft.color} colour in ${draft.size} to deliver.`);
+      return;
+    }
+    
+    if (deliveredValue > availableBalance) {
+      setError(`Delivery quantity exceeds available stock (${availableBalance.toFixed(2)} kg).`);
       return;
     }
 
