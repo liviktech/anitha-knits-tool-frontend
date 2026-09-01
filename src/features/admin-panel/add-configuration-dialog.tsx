@@ -1,4 +1,4 @@
-﻿import { useEffect, useState } from 'react';
+import { useEffect, useState } from 'react';
 import {
   Dialog,
   DialogContent,
@@ -10,6 +10,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Loader } from '@/components/shared/loader';
 import type { ColorConsumptionStandardPayload } from './production-config-queries';
+import { useTranslation } from 'react-i18next';
 
 interface AddConfigurationDialogProps {
   open: boolean;
@@ -56,6 +57,7 @@ export function AddConfigurationDialog({
   isPending = false,
   serverError,
 }: AddConfigurationDialogProps) {
+  const { t } = useTranslation();
   const [form, setForm] = useState(() => (initial ? toFormStrings(initial) : { ...emptyForm, date: todayIso() }));
   const [formError, setFormError] = useState<string | null>(null);
 
@@ -94,7 +96,7 @@ export function AddConfigurationDialog({
     });
 
     if (!form.date || hasInvalidNumber) {
-      setFormError('Please fill in every field with a valid value.');
+      setFormError(t('dialogs.productionConfig.fillError', 'Please fill in every field with a valid value.'));
       return;
     }
 
@@ -165,7 +167,7 @@ export function AddConfigurationDialog({
               text-black
             "
           >
-            {isEdit ? 'Edit Configuration' : 'Add Configuration'}
+            {isEdit ? t('dialogs.productionConfig.editTitle', 'Edit Configuration') : t('dialogs.productionConfig.addTitle', 'Add Configuration')}
           </DialogTitle>
 
           <div className="flex items-center gap-3 pr-8">
@@ -196,7 +198,7 @@ export function AddConfigurationDialog({
 
             <div className="rounded-lg border border-[#bfc9c3] bg-white p-4">
               <h3 className="mb-4 border-b border-[#e1e3e2] pb-2 text-[12px] font-semibold uppercase tracking-wide text-[#404945]">
-                HDPE Bag Weight (kg)
+                {t('dialogs.productionConfig.hdpeBagWeight', 'HDPE Bag Weight (kg)')}
               </h3>
 
               <div className="flex flex-col gap-2">
@@ -247,7 +249,7 @@ export function AddConfigurationDialog({
 
             <div className="rounded-lg border border-[#bfc9c3] bg-white p-4">
               <h3 className="mb-4 border-b border-[#e1e3e2] pb-2 text-[12px] font-semibold uppercase tracking-wide text-[#404945]">
-                Chemical (kg)
+                {t('dialogs.productionConfig.chemical', 'Chemical (kg)')}
               </h3>
 
               <div className="flex flex-col gap-2">
@@ -298,7 +300,7 @@ export function AddConfigurationDialog({
 
           <div className="rounded-lg border border-[#bfc9c3] bg-white p-4">
             <h3 className="mb-4 border-b border-[#e1e3e2] pb-2 text-[12px] font-semibold uppercase tracking-wide text-[#404945]">
-              Colors
+              {t('dialogs.productionConfig.colors', 'Colors')}
             </h3>
 
             <div className="grid grid-cols-1 gap-6 md:grid-cols-3">
@@ -314,7 +316,7 @@ export function AddConfigurationDialog({
                     text-[#404945]
                   "
                 >
-                  White (kg)
+                  {t('dialogs.productionConfig.white', 'White (kg)')}
                 </Label>
 
                 <Input
@@ -356,7 +358,7 @@ export function AddConfigurationDialog({
                     text-[#404945]
                   "
                 >
-                  Blue (kg)
+                  {t('dialogs.productionConfig.blue', 'Blue (kg)')}
                 </Label>
 
                 <Input
@@ -398,7 +400,7 @@ export function AddConfigurationDialog({
                     text-[#404945]
                   "
                 >
-                  Green (kg)
+                  {t('dialogs.productionConfig.green', 'Green (kg)')}
                 </Label>
 
                 <Input
@@ -479,7 +481,7 @@ export function AddConfigurationDialog({
       focus:ring-[#002f23]
     "
           >
-            Cancel
+            {t('common.cancel', 'Cancel')}
           </Button>
 
           <Button
@@ -509,7 +511,7 @@ export function AddConfigurationDialog({
               />
             )}
 
-            {isEdit ? 'Update' : 'Add'}
+            {isEdit ? t('common.update', 'Update') : t('common.add', 'Add')}
           </Button>
         </div>
       </DialogContent>

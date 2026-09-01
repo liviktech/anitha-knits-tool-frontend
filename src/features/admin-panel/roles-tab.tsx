@@ -37,6 +37,7 @@ import {
   type RoleAccessRecord,
   type TabRecord,
 } from './roles-tab-queries';
+import { useTranslation } from 'react-i18next';
 
 
 function formatDate(iso: string) {
@@ -69,6 +70,7 @@ interface PaginationBarProps {
 }
 
 function PaginationBar({ page, totalItems, onPageChange, itemLabel }: PaginationBarProps) {
+  const { t } = useTranslation();
   const totalPages = Math.max(1, Math.ceil(totalItems / PAGE_SIZE));
   const currentPage = Math.min(page, totalPages);
   const rangeStart = totalItems === 0 ? 0 : (currentPage - 1) * PAGE_SIZE + 1;
@@ -78,7 +80,7 @@ function PaginationBar({ page, totalItems, onPageChange, itemLabel }: Pagination
   return (
     <div className="flex flex-col items-center justify-between gap-3 border-t border-gray-100 bg-white px-5 py-3 sm:flex-row">
       <span className="text-[14px] text-gray-500">
-        Showing {rangeStart}-{rangeEnd} of {totalItems} {itemLabel}
+        {t('roles.table.showing', 'Showing {{start}}-{{end}} of {{total}} {{item}}', { start: rangeStart, end: rangeEnd, total: totalItems, item: itemLabel })}
       </span>
       <div className="flex items-center gap-1">
         <button
@@ -141,6 +143,7 @@ const ACTION_OPTIONS: { value: RightActionValue; label: string }[] = [
 ];
 
 function RightFormDialog({ open, onOpenChange, initial, modules, tabs, onSubmit, isPending, serverError }: RightFormDialogProps) {
+  const { t } = useTranslation();
   const [moduleId, setModuleId] = useState('');
   const [tabId, setTabId] = useState<string | null>(null);
   const [action, setAction] = useState<RightActionValue | ''>('');
@@ -165,7 +168,7 @@ function RightFormDialog({ open, onOpenChange, initial, modules, tabs, onSubmit,
 
   const handleSubmit = async () => {
     if (!moduleId || !action) {
-      setFormError('Please select a module and an action.');
+      setFormError(t('dialogs.roles.rightError', 'Please select a module and an action.'));
       return;
     }
     setFormError(null);
@@ -179,15 +182,15 @@ function RightFormDialog({ open, onOpenChange, initial, modules, tabs, onSubmit,
     <Dialog open={open} onOpenChange={(next) => { if (!isPending) onOpenChange(next); }}>
       <DialogContent className="sm:max-w-sm border border-gray-400">
         <DialogHeader className="-mx-4 -mt-4 mb-2 rounded-t-xl border-b border-gray-200 bg-[#A8DCAB] px-4 py-3">
-          <DialogTitle className="text-lg font-bold text-black">{isEdit ? 'Edit Right' : 'Add Right'}</DialogTitle>
+          <DialogTitle className="text-lg font-bold text-black">{isEdit ? t('dialogs.roles.editRight', 'Edit Right') : t('dialogs.roles.addRight', 'Add Right')}</DialogTitle>
         </DialogHeader>
 
         <div className="flex flex-col gap-4 py-2">
           <div className="flex flex-col gap-1.5">
-            <Label className="text-xs font-semibold text-gray-700">Module</Label>
+            <Label className="text-xs font-semibold text-gray-700">{t('dialogs.roles.module', 'Module')}</Label>
             <Select value={moduleId} onValueChange={handleModuleChange}>
               <SelectTrigger className="h-9 w-full text-xs">
-                <SelectValue placeholder="Select a module" />
+                <SelectValue placeholder={t('dialogs.roles.selectModule', 'Select a module')} />
               </SelectTrigger>
               <SelectContent>
                 {modules.map((m) => (
@@ -198,12 +201,12 @@ function RightFormDialog({ open, onOpenChange, initial, modules, tabs, onSubmit,
           </div>
 
           <div className="flex flex-col gap-1.5">
-            <Label className="text-xs font-semibold text-gray-700">Tab </Label>
+            <Label className="text-xs font-semibold text-gray-700">{t('dialogs.roles.tab', 'Tab')}</Label>
 
             {!moduleId && (
               <Select disabled>
                 <SelectTrigger className="h-9 w-full text-xs">
-                  <SelectValue placeholder="Select a module first" />
+                  <SelectValue placeholder={t('dialogs.roles.selectModuleFirst', 'Select a module first')} />
                 </SelectTrigger>
                 <SelectContent />
               </Select>
@@ -215,7 +218,7 @@ function RightFormDialog({ open, onOpenChange, initial, modules, tabs, onSubmit,
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value={NO_TAB_VALUE}>Whole module</SelectItem>
+                  <SelectItem value={NO_TAB_VALUE}>{t('dialogs.roles.wholeModule', 'Whole module')}</SelectItem>
                   {tabsForModule.map((t) => (
                     <SelectItem key={t.id} value={t.id}>{t.tabName}</SelectItem>
                   ))}
@@ -225,16 +228,16 @@ function RightFormDialog({ open, onOpenChange, initial, modules, tabs, onSubmit,
 
             {moduleId && tabsForModule.length === 0 && (
               <p className="text-[13px] text-gray-500">
-                No tabs configured.
+                {t('dialogs.roles.noTabs', 'No tabs configured.')}
               </p>
             )}
           </div>
 
           <div className="flex flex-col gap-1.5">
-            <Label className="text-xs font-semibold text-gray-700">Action</Label>
+            <Label className="text-xs font-semibold text-gray-700">{t('dialogs.roles.action', 'Action')}</Label>
             <Select value={action} onValueChange={(v) => setAction(v as RightActionValue)}>
               <SelectTrigger className="h-9 w-full text-xs">
-                <SelectValue placeholder="Select an action" />
+                <SelectValue placeholder={t('dialogs.roles.selectAction', 'Select an action')} />
               </SelectTrigger>
               <SelectContent>
                 {ACTION_OPTIONS.map((opt) => (
@@ -248,10 +251,10 @@ function RightFormDialog({ open, onOpenChange, initial, modules, tabs, onSubmit,
         </div>
 
         <DialogFooter className="border-gray-200 bg-white">
-          <Button variant="outline" size="sm" onClick={() => onOpenChange(false)} disabled={isPending} className="h-8 text-xs">Cancel</Button>
+          <Button variant="outline" size="sm" onClick={() => onOpenChange(false)} disabled={isPending} className="h-8 text-xs">{t('common.cancel', 'Cancel')}</Button>
           <Button size="sm" onClick={handleSubmit} disabled={isPending} className="h-8 bg-[#004D40] hover:bg-[#00332a] text-white text-xs font-medium px-4">
             {isPending && <Loader size="sm" className="mr-1.5" />}
-            {isEdit ? 'Save Changes' : 'Add Right'}
+            {isEdit ? t('common.save', 'Save Changes') : t('dialogs.roles.addRight', 'Add Right')}
           </Button>
         </DialogFooter>
       </DialogContent>
@@ -282,6 +285,7 @@ function RoleFormDialog({
   isPending,
   serverError,
 }: RoleFormDialogProps) {
+  const { t } = useTranslation();
   const [roleName, setRoleName] = useState('');
   const [effectiveDate, setEffectiveDate] = useState('');
   const [rightIds, setRightIds] = useState<string[]>([]);
@@ -346,12 +350,12 @@ function RoleFormDialog({
 
   const handleSubmit = async () => {
     if (!roleName.trim()) {
-      setFormError('Please enter a role name.');
+      setFormError(t('dialogs.roles.roleNameError', 'Please enter a role name.'));
       return;
     }
 
     if (!effectiveDate) {
-      setFormError('Please select an effective date.');
+      setFormError(t('dialogs.roles.dateError', 'Please select an effective date.'));
       return;
     }
 
@@ -382,16 +386,16 @@ function RoleFormDialog({
     >
       <DialogContent className="sm:max-w-md border border-gray-400">
         <DialogHeader className="-mx-4 -mt-4 mb-2 rounded-t-xl border-b border-gray-200 bg-[#A8DCAB] px-4 py-3">
-          <DialogTitle className="text-lg font-bold text-black">{isEdit ? 'Edit Role' : 'Add Role'}</DialogTitle>
+          <DialogTitle className="text-lg font-bold text-black">{isEdit ? t('dialogs.roles.editRole', 'Edit Role') : t('dialogs.roles.addRole', 'Add Role')}</DialogTitle>
         </DialogHeader>
 
         <div className="flex flex-col gap-4 py-2">
           <div className="grid grid-cols-2 gap-3">
             <div className="flex flex-col gap-1.5">
-              <Label htmlFor="role-name" className="text-xs font-semibold text-gray-700">Role Name</Label>
+              <Label htmlFor="role-name" className="text-xs font-semibold text-gray-700">{t('dialogs.roles.roleName', 'Role Name')}</Label>
               <Input
                 id="role-name"
-                placeholder="e.g. Production Manager"
+                placeholder={t('dialogs.roles.roleNamePlaceholder', 'e.g. Production Manager')}
                 value={roleName}
                 onChange={(e) => setRoleName(e.target.value)}
                 disabled={isPending}
@@ -399,7 +403,7 @@ function RoleFormDialog({
               />
             </div>
             <div className="flex flex-col gap-1.5">
-              <Label htmlFor="effective-date" className="text-xs font-semibold text-gray-700">Effective Date</Label>
+              <Label htmlFor="effective-date" className="text-xs font-semibold text-gray-700">{t('dialogs.roles.effectiveDate', 'Effective Date')}</Label>
               <Input
                 id="effective-date"
                 type="date"
@@ -413,12 +417,12 @@ function RoleFormDialog({
 
           <div className="flex flex-col gap-1.5">
             <div className="flex items-center justify-between">
-              <Label className="text-xs font-semibold text-gray-700">Assigned Rights</Label>
-              <span className="text-[11px] font-bold text-[#004D40]">{rightIds.length} selected</span>
+              <Label className="text-xs font-semibold text-gray-700">{t('dialogs.roles.assignedRights', 'Assigned Rights')}</Label>
+              <span className="text-[11px] font-bold text-[#004D40]">{rightIds.length} {t('dialogs.roles.selected', 'selected')}</span>
             </div>
             <div className="flex max-h-56 flex-col gap-3 overflow-y-auto rounded-lg border border-gray-200 p-3">
               {rightsByGroup.length === 0 ? (
-                <p className="text-center text-[13px] text-gray-400">No rights configured yet.</p>
+                <p className="text-center text-[13px] text-gray-400">{t('dialogs.roles.noRights', 'No rights configured yet.')}</p>
               ) : (
                 rightsByGroup.map(([group, groupRights]) => {
                   const selected = isGroupSelected(groupRights);
@@ -459,10 +463,10 @@ function RoleFormDialog({
         </div>
 
         <DialogFooter className="border-gray-200 bg-white">
-          <Button variant="outline" size="sm" onClick={() => onOpenChange(false)} disabled={isPending} className="h-8 text-xs">Cancel</Button>
+          <Button variant="outline" size="sm" onClick={() => onOpenChange(false)} disabled={isPending} className="h-8 text-xs">{t('common.cancel', 'Cancel')}</Button>
           <Button size="sm" onClick={handleSubmit} disabled={isPending} className="h-8 bg-[#004D40] hover:bg-[#00332a] text-white text-xs font-medium px-4">
             {isPending && <Loader size="sm" className="mr-1.5" />}
-            {isEdit ? 'Save Changes' : 'Add Role'}
+            {isEdit ? t('common.save', 'Save Changes') : t('dialogs.roles.addRole', 'Add Role')}
           </Button>
         </DialogFooter>
       </DialogContent>
@@ -485,6 +489,7 @@ interface AssignRoleDialogProps {
 }
 
 function AssignRoleDialog({ open, onOpenChange, roles, employees, onSubmit, isPending, serverError }: AssignRoleDialogProps) {
+  const { t } = useTranslation();
   const [roleId, setRoleId] = useState('');
   const [employeeSearch, setEmployeeSearch] = useState('');
   const [selectedEmployeeIds, setSelectedEmployeeIds] = useState<string[]>([]);
@@ -513,11 +518,11 @@ function AssignRoleDialog({ open, onOpenChange, roles, employees, onSubmit, isPe
 
   const handleSubmit = async () => {
     if (!roleId) {
-      setFormError('Please select a role.');
+      setFormError(t('dialogs.roles.assignRoleError', 'Please select a role.'));
       return;
     }
     if (selectedEmployeeIds.length === 0) {
-      setFormError('Please select at least one employee.');
+      setFormError(t('dialogs.roles.assignEmployeeError', 'Please select at least one employee.'));
       return;
     }
     setFormError(null);
@@ -531,15 +536,15 @@ function AssignRoleDialog({ open, onOpenChange, roles, employees, onSubmit, isPe
     <Dialog open={open} onOpenChange={(next) => { if (!isPending) onOpenChange(next); }}>
       <DialogContent className="sm:max-w-md border border-gray-400">
         <DialogHeader className="-mx-4 -mt-4 mb-2 rounded-t-xl border-b border-gray-200 bg-[#A8DCAB] px-4 py-3">
-          <DialogTitle className="text-lg font-bold text-black">Assign Role</DialogTitle>
+          <DialogTitle className="text-lg font-bold text-black">{t('dialogs.roles.assignRole', 'Assign Role')}</DialogTitle>
         </DialogHeader>
 
         <div className="flex flex-col gap-4 py-2">
           <div className="flex flex-col gap-1.5">
-            <Label className="text-xs font-semibold text-gray-700">Role</Label>
+            <Label className="text-xs font-semibold text-gray-700">{t('dialogs.roles.role', 'Role')}</Label>
             <Select value={roleId} onValueChange={setRoleId}>
               <SelectTrigger className="h-9 w-full text-xs">
-                <SelectValue placeholder="Select a role" />
+                <SelectValue placeholder={t('dialogs.roles.selectRole', 'Select a role')} />
               </SelectTrigger>
               <SelectContent>
                 {roles.map((role) => (
@@ -550,16 +555,16 @@ function AssignRoleDialog({ open, onOpenChange, roles, employees, onSubmit, isPe
           </div>
 
           <div className="flex flex-col gap-1.5">
-            <Label className="text-xs font-semibold text-gray-700">Employees</Label>
+            <Label className="text-xs font-semibold text-gray-700">{t('dialogs.roles.employees', 'Employees')}</Label>
             <Input
-              placeholder="Search employees..."
+              placeholder={t('dialogs.roles.searchEmployees', 'Search employees...')}
               value={employeeSearch}
               onChange={(e) => setEmployeeSearch(e.target.value)}
               className="h-9 text-xs"
             />
             <div className="mt-1 flex max-h-56 flex-col gap-1 overflow-y-auto rounded-lg border border-gray-200 p-2">
               {filteredEmployees.length === 0 ? (
-                <p className="px-2 py-3 text-center text-[14px] text-gray-400">No employees found.</p>
+                <p className="px-2 py-3 text-center text-[14px] text-gray-400">{t('dialogs.roles.noEmployees', 'No employees found.')}</p>
               ) : (
                 filteredEmployees.map((employee) => (
                   <label
@@ -593,10 +598,10 @@ function AssignRoleDialog({ open, onOpenChange, roles, employees, onSubmit, isPe
         </div>
 
         <DialogFooter className="border-gray-200 bg-white">
-          <Button variant="outline" size="sm" onClick={() => onOpenChange(false)} disabled={isPending} className="h-8 text-xs">Cancel</Button>
+          <Button variant="outline" size="sm" onClick={() => onOpenChange(false)} disabled={isPending} className="h-8 text-xs">{t('common.cancel', 'Cancel')}</Button>
           <Button size="sm" onClick={handleSubmit} disabled={isPending} className="h-8 bg-[#004D40] hover:bg-[#00332a] text-white text-xs font-medium px-4">
             {isPending && <Loader size="sm" className="mr-1.5" />}
-            Assign Role
+            {t('dialogs.roles.assignRole', 'Assign Role')}
           </Button>
         </DialogFooter>
       </DialogContent>
@@ -609,6 +614,7 @@ function AssignRoleDialog({ open, onOpenChange, roles, employees, onSubmit, isPe
 /* ============================================================= */
 
 export function RolesTab() {
+  const { t } = useTranslation();
   const [subTab, setSubTab] = useState<'roles' | 'rights'>('roles');
 
   const modulesQuery = useModules();
@@ -750,8 +756,8 @@ export function RolesTab() {
   if (isError) {
     return (
       <div className="flex flex-col items-center gap-3 rounded-xl border border-gray-200 bg-white py-16 text-center">
-        <p className="text-sm font-semibold text-gray-900">Unable to load roles &amp; rights.</p>
-        <p className="text-xs text-gray-500">Please try again.</p>
+        <p className="text-sm font-semibold text-gray-900">{t('roles.errors.loadFailed', 'Unable to load roles & rights.')}</p>
+        <p className="text-xs text-gray-500">{t('roles.errors.tryAgain', 'Please try again.')}</p>
         <button
           type="button"
           onClick={() => {
@@ -763,7 +769,7 @@ export function RolesTab() {
           }}
           className="rounded-lg bg-[#004D40] px-4 py-2 text-xs font-semibold text-white transition-colors hover:bg-[#003D33]"
         >
-          Retry
+          {t('common.retry', 'Retry')}
         </button>
       </div>
     );
@@ -788,7 +794,7 @@ export function RolesTab() {
               ) : (
                 <ShieldCheck className="h-4 w-4" />
               )}
-              {tab === 'roles' ? 'Roles' : 'Rights'}
+              {tab === 'roles' ? t('roles.tabs.roles', 'Roles') : t('roles.tabs.rights', 'Rights')}
             </button>
           ))}
         </nav>
@@ -862,7 +868,7 @@ export function RolesTab() {
             <div className="relative min-w-0 flex-1">
               <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
               <Input
-                placeholder="Search roles by name or ID"
+                placeholder={t('roles.table.searchRoles', 'Search roles...')}
                 value={roleSearch}
                 onChange={(e) => handleRoleSearchChange(e.target.value)}
                 className="h-9 border-gray-200 bg-white pl-8 text-[14px] shadow-none w-[380px]"
@@ -874,7 +880,7 @@ export function RolesTab() {
               onClick={() => setIsAssignDialogOpen(true)}
               className="h-9 shrink-0 border-gray-300 bg-white px-3 text-[14px] font-semibold text-gray-700 shadow-none hover:bg-gray-50"
             >
-              Assign Role
+              {t('dialogs.roles.assignRole', 'Assign Role')}
             </Button>
 
             <Button
@@ -882,7 +888,7 @@ export function RolesTab() {
               className="h-9 shrink-0 gap-1.5 bg-[#004D40] px-3 text-[14px] font-semibold text-white shadow-none hover:bg-[#003D33]"
             >
               <Plus className="h-4 w-4" />
-              Add Role
+              {t('dialogs.roles.addRole', 'Add Role')}
             </Button>
           </div>
 
@@ -892,17 +898,17 @@ export function RolesTab() {
                 <thead>
                   <tr className="border-b border-gray-300 bg-gray-50/80">
                     <th className="w-[18%] px-4 py-2.5 text-left text-[12px] font-semibold uppercase tracking-wide text-gray-500">ID</th>
-                    <th className="w-[20%] px-3 py-2.5 text-left text-[12px] font-semibold uppercase tracking-wide text-gray-500">Role Name</th>
+                    <th className="w-[20%] px-3 py-2.5 text-left text-[12px] font-semibold uppercase tracking-wide text-gray-500">{t('dialogs.roles.roleName', 'Role Name')}</th>
                     <th className="w-[22%] px-3 py-2.5 text-left text-[12px] font-semibold uppercase tracking-wide text-gray-500">No. of Rights</th>
-                    <th className="w-[25%] px-3 py-2.5 text-left text-[12px] font-semibold uppercase tracking-wide text-gray-500">Created</th>
-                    <th className="w-[15%] px-4 py-2.5 text-right text-[12px] font-semibold uppercase tracking-wide text-gray-500">Actions</th>
+                    <th className="w-[25%] px-3 py-2.5 text-left text-[12px] font-semibold uppercase tracking-wide text-gray-500">{t('roles.columns.effectiveDate', 'Effective Date')}</th>
+                    <th className="w-[15%] px-4 py-2.5 text-right text-[12px] font-semibold uppercase tracking-wide text-gray-500">{t('common.actions', 'Actions')}</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-gray-300">
                   {filteredRoles.length === 0 ? (
                     <tr>
                       <td colSpan={5} className="px-4 py-6 text-center text-[14px] text-gray-400">
-                        No roles found.
+                        {roleSearch ? t('roles.table.noRoles', 'No roles found matching "{{query}}"', { query: roleSearch }) : t('roles.table.noRolesEmpty', 'No roles configured yet.')}
                       </td>
                     </tr>
                   ) : (
@@ -967,7 +973,7 @@ export function RolesTab() {
               <div className="relative min-w-0 flex-1">
                 <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
                 <Input
-                  placeholder="Search rights by name or ID"
+                  placeholder={t('roles.table.searchRights', 'Search rights...')}
                   value={rightSearch}
                   onChange={(e) => handleRightSearchChange(e.target.value)}
                   className="h-9 border-gray-200 bg-white pl-8 text-[14px] shadow-none w-[380px]"
@@ -976,10 +982,10 @@ export function RolesTab() {
 
               <Select value={moduleFilter} onValueChange={handleModuleFilterChange}>
                 <SelectTrigger className="h-9 w-40 border-gray-200 bg-white text-[14px] shadow-none">
-                  <SelectValue placeholder="All Modules" />
+                  <SelectValue placeholder={t('roles.table.filterModule', 'Filter by Module')} />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="all">All Modules</SelectItem>
+                  <SelectItem value="all">{t('roles.table.allModules', 'All Modules')}</SelectItem>
                   {modules.map((m) => (
                     <SelectItem key={m.id} value={m.id}>{m.moduleName}</SelectItem>
                   ))}
@@ -992,7 +998,7 @@ export function RolesTab() {
               className="h-9 shrink-0 gap-1.5 bg-[#004D40] px-3 text-[14px] font-semibold text-white shadow-none hover:bg-[#003D33]"
             >
               <Plus className="h-4 w-4" />
-              Add Right
+              {t('dialogs.roles.addRight', 'Add Right')}
             </Button>
           </div>
 
@@ -1002,17 +1008,17 @@ export function RolesTab() {
                 <thead>
                   <tr className="border-b border-gray-300 bg-gray-50/70">
                     <th className="px-5 py-3 text-left text-[12px] font-bold uppercase tracking-wide text-gray-400">Right ID</th>
-                    <th className="px-4 py-3 text-left text-[12px] font-bold uppercase tracking-wide text-gray-400">Module / Tab</th>
-                    <th className="px-4 py-3 text-left text-[12px] font-bold uppercase tracking-wide text-gray-400">Action</th>
+                    <th className="px-4 py-3 text-left text-[12px] font-bold uppercase tracking-wide text-gray-400">{t('dialogs.roles.module', 'Module')} / {t('dialogs.roles.tab', 'Tab')}</th>
+                    <th className="px-4 py-3 text-left text-[12px] font-bold uppercase tracking-wide text-gray-400">{t('dialogs.roles.action', 'Action')}</th>
                     <th className="px-4 py-3 text-left text-[12px] font-bold uppercase tracking-wide text-gray-400">Display Name</th>
                     <th className="px-4 py-3 text-left text-[12px] font-bold uppercase tracking-wide text-gray-400">Created At</th>
-                    <th className="px-5 py-3 text-right text-[12px] font-bold uppercase tracking-wide text-gray-400">Actions</th>
+                    <th className="px-5 py-3 text-right text-[12px] font-bold uppercase tracking-wide text-gray-400">{t('common.actions', 'Actions')}</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-gray-300">
                   {filteredRights.length === 0 ? (
                     <tr>
-                      <td colSpan={6} className="px-5 py-6 text-center text-[14px] text-gray-400">No rights found.</td>
+                      <td colSpan={6} className="px-5 py-6 text-center text-[14px] text-gray-400">{rightSearch ? t('roles.table.noRights', 'No rights found matching "{{query}}"', { query: rightSearch }) : t('roles.table.noRightsEmpty', 'No rights configured yet.')}</td>
                     </tr>
                   ) : (
                     paginatedRights.map((right) => (
@@ -1074,8 +1080,8 @@ export function RolesTab() {
         onOpenChange={(next) => { if (!next) { setDeleteRoleTarget(null); deleteRoleAccess.resetError(); } }}
         onConfirm={handleConfirmDeleteRole}
         isPending={deleteRoleAccess.isPending}
-        title="Delete this role?"
-        description={deleteRoleAccess.error ?? (deleteRoleTarget ? `"${deleteRoleTarget.roleName}" will be removed — this action cannot be undone.` : undefined)}
+        title={t('roles.delete.roleTitle', 'Delete this role?')}
+        description={deleteRoleAccess.error ?? (deleteRoleTarget ? t('roles.delete.roleDesc', 'Role "{{name}}" will be removed — this action cannot be undone.', { name: deleteRoleTarget.roleName }) : undefined)}
       />
 
       <AssignRoleDialog
@@ -1104,8 +1110,8 @@ export function RolesTab() {
         onOpenChange={(next) => { if (!next) { setDeleteRightTarget(null); deleteRight.resetError(); } }}
         onConfirm={handleConfirmDeleteRight}
         isPending={deleteRight.isPending}
-        title="Delete this right?"
-        description={deleteRight.error ?? (deleteRightTarget ? `"${deleteRightTarget.displayName}" will be removed from all roles — this action cannot be undone.` : undefined)}
+        title={t('roles.delete.rightTitle', 'Delete this right?')}
+        description={deleteRight.error ?? (deleteRightTarget ? t('roles.delete.rightDesc', 'Right "{{name}}" will be removed — this action cannot be undone.', { name: deleteRightTarget.displayName }) : undefined)}
       />
 
     </div>

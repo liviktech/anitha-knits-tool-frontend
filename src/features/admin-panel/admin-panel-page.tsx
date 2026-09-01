@@ -4,6 +4,8 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { ProductionConfigTab } from './production-config-tab';
 import { RawMaterialsTab } from './raw-materials-tab';
 import { RolesTab } from './roles-tab';
+import { useTranslation } from 'react-i18next';
+import { LanguageToggle } from '@/components/shared/language-toggle';
 
 export const BAG_WEIGHT_STORAGE_KEY = 'extruder_default_bag_weight';
 
@@ -11,6 +13,7 @@ type AdminPanelTab = 'production-config' | 'raw-materials' | 'bag-weight' | 'rol
 
 export function AdminPanelPage() {
   const [activeTab, setActiveTab] = useState<AdminPanelTab>('production-config');
+  const { t } = useTranslation();
 
   return (
     <div id="admin-panel-layout" className="flex flex-col h-full bg-[#004D40]/5 min-h-full flex-1">
@@ -22,8 +25,11 @@ export function AdminPanelPage() {
       {/* Unified Header */}
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between px-4 py-3 bg-[#F4F1E8] border-b border-[#004D40] shrink-0">
         <div>
-          <h1 className="text-[20px] font-bold text-black leading-tight px-2">Admin Panel</h1>
-          <p className="text-[12.5px] text-gray-500 font-medium px-2">Configure global settings for production</p>
+          <h1 className="text-[20px] font-bold text-black leading-tight px-2">{t('adminPanel.title', 'Admin Panel')}</h1>
+          <p className="text-[12.5px] text-gray-500 font-medium px-2">{t('adminPanel.subtitle', 'Configure global settings for production')}</p>
+        </div>
+        <div className="px-2">
+          <LanguageToggle />
         </div>
       </div>
 
@@ -37,19 +43,19 @@ export function AdminPanelPage() {
             <TabsTrigger value="production-config">
               <span className="flex items-center gap-1">
                 <FlaskConical className="h-4 w-4" strokeWidth={1.75} />
-                Production Config
+                {t('adminPanel.tabs.productionConfig', 'Production Config')}
               </span>
             </TabsTrigger>
             <TabsTrigger value="raw-materials">
               <span className="flex items-center gap-1">
                 <ListTree className="h-4 w-4" strokeWidth={1.75} />
-                Drop Down
+                {t('adminPanel.tabs.dropDown', 'Drop Down')}
               </span>
             </TabsTrigger>
             <TabsTrigger value="roles">
               <span className="flex items-center gap-1">
                 <Users className="h-4 w-4" strokeWidth={1.75} />
-                Roles
+                {t('adminPanel.tabs.roles', 'Roles')}
               </span>
             </TabsTrigger>
           </TabsList>

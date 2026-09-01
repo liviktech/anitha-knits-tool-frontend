@@ -1,0 +1,221 @@
+{
+  "adminPanel": {
+    "title": "Admin Panel",
+    "subtitle": "Configure global settings for production",
+    "tabs": {
+      "productionConfig": "Production Config",
+      "dropDown": "Drop Down",
+      "roles": "Roles"
+    }
+  },
+  "dashboard": {
+    "welcome": "Welcome to {{companyName}}",
+    "refreshing": "Refreshing dashboard...",
+    "loading": "Loading dashboard...",
+    "loadingDeliveries": "Loading delivered records...",
+    "rawMaterials": "Raw Materials",
+    "hdpeMaterials": "HDPE Materials",
+    "chemicals": "Chemicals",
+    "colors": "Colors",
+    "empty": {
+      "hdpe": "No HDPE this month",
+      "chemicals": "No chemicals this month",
+      "colors": "No colors this month",
+      "fabricStock": "No fabric stock records yet.",
+      "stock": "No stock recorded yet.",
+      "deliveries": "No deliveries recorded yet."
+    },
+    "productionSummary": "Production Summary",
+    "extruderProduction": "Extruder Production",
+    "loomsProduction": "Looms Production",
+    "fabricChecking": "Fabric Checking",
+    "total": "Total : ",
+    "wastageSummary": "Wastage Summary",
+    "extruderWastage": "Extruder Wastage",
+    "loomsWastage": "Looms Wastage",
+    "fabricWastage": "Fabric Checking Wastage",
+    "lumsWaste": "Lums Waste",
+    "looseWaste": "Loose Waste",
+    "loomsWaste": "Looms Waste",
+    "fabricWaste": "Fabric Waste",
+    "bitWaste": "Bit Waste",
+    "fabricStockTitle": "Fabric Stock",
+    "fabricDelivered": "Fabric Delivered"
+  },
+  "common": {
+    "retry": "Retry",
+    "add": "Add",
+    "edit": "Edit",
+    "delete": "Delete",
+    "save": "Save",
+    "update": "Update",
+    "cancel": "Cancel",
+    "actions": "Actions",
+    "items": "Items",
+    "name": "Name"
+  },
+  "productionConfig": {
+    "errors": {
+      "loadFailed": "Unable to load production configuration.",
+      "tryAgain": "Please try again."
+    },
+    "active": {
+      "title": "Active Configuration",
+      "subtitle": "Currently applied production ratio"
+    },
+    "history": {
+      "title": "Configuration History",
+      "subtitle": "Previous production configurations",
+      "empty": "No configuration records yet.",
+      "live": "Live"
+    },
+    "columns": {
+      "effectiveFrom": "Effective From",
+      "effectiveDate": "Effective Date",
+      "hdpeBase": "HDPE Base",
+      "hdpe": "HDPE",
+      "bags": "Bags",
+      "chemical": "Chemical",
+      "white": "White",
+      "blue": "Blue",
+      "green": "Green"
+    },
+    "delete": {
+      "title": "Delete this configuration?",
+      "description": "Configuration from {{date}} will be removed — this action cannot be undone."
+    }
+  },
+  "rawMaterials": {
+    "categories": {
+      "brands": {
+        "title": "Brands",
+        "singular": "Brand",
+        "description": "Registered raw material suppliers and brands."
+      },
+      "chemicals": {
+        "title": "Chemicals",
+        "singular": "Chemical",
+        "description": "Additive chemicals used in the color masterbatch mix."
+      },
+      "colors": {
+        "title": "Colors",
+        "singular": "Color",
+        "description": "Available color options for extruder and fabric production."
+      },
+      "sizes": {
+        "title": "Sizes",
+        "singular": "Size",
+        "description": "Standard fitting sizes used across production lines."
+      }
+    },
+    "errors": {
+      "loadFailed": "Unable to load raw materials.",
+      "tryAgain": "Please try again."
+    },
+    "columns": {
+      "itemCode": "Item Code",
+      "name": "Name",
+      "lastUpdated": "Last Updated"
+    },
+    "table": {
+      "empty": "None configured yet.",
+      "showing": "Showing {{count}} of {{total}} items"
+    },
+    "cards": {
+      "impact": {
+        "title": "Operational Impact",
+        "description": "Raw material categories are shared master data used across production entry, inventory, and cost calculations elsewhere in the app. Add or rename items carefully."
+      },
+      "configurable": {
+        "title": "Configurable Categories",
+        "description": "Colors, Sizes, Chemicals, and Brands are configurable here today. More category types may be added later."
+      }
+    },
+    "delete": {
+      "title": "Delete this {{item}}?",
+      "description": "\"{{name}}\" will be removed — this action cannot be undone."
+    }
+  },
+  "roles": {
+    "tabs": {
+      "roles": "Roles",
+      "rights": "Rights"
+    },
+    "errors": {
+      "loadFailed": "Unable to load roles & rights.",
+      "tryAgain": "Please try again."
+    },
+    "table": {
+      "showing": "Showing {{start}}-{{end}} of {{total}} {{item}}",
+      "searchRoles": "Search roles...",
+      "noRoles": "No roles found matching \"{{query}}\"",
+      "noRolesEmpty": "No roles configured yet.",
+      "searchRights": "Search rights...",
+      "noRights": "No rights found matching \"{{query}}\"",
+      "noRightsEmpty": "No rights configured yet.",
+      "filterModule": "Filter by Module",
+      "allModules": "All Modules"
+    },
+    "columns": {
+      "assignedTo": "Assigned To",
+      "employees": "Employees",
+      "effectiveDate": "Effective Date"
+    },
+    "delete": {
+      "rightTitle": "Delete this right?",
+      "rightDesc": "Right \"{{name}}\" will be removed — this action cannot be undone.",
+      "roleTitle": "Delete this role?",
+      "roleDesc": "Role \"{{name}}\" will be removed — this action cannot be undone."
+    }
+  },
+  "dialogs": {
+    "productionConfig": {
+      "addTitle": "Add Configuration",
+      "editTitle": "Edit Configuration",
+      "hdpeBagWeight": "HDPE Bag Weight (kg)",
+      "chemical": "Chemical (kg)",
+      "colors": "Colors",
+      "white": "White (kg)",
+      "blue": "Blue (kg)",
+      "green": "Green (kg)",
+      "fillError": "Please fill in every field with a valid value."
+    },
+    "rawMaterials": {
+      "addTitle": "Add {{category}}",
+      "editTitle": "Edit {{category}}",
+      "namePlaceholder": "e.g. {{category}} name",
+      "nameError": "Please enter a name."
+    },
+    "roles": {
+      "addRight": "Add Right",
+      "editRight": "Edit Right",
+      "module": "Module",
+      "selectModule": "Select a module",
+      "tab": "Tab",
+      "selectModuleFirst": "Select a module first",
+      "wholeModule": "Whole module",
+      "noTabs": "No tabs configured.",
+      "action": "Action",
+      "selectAction": "Select an action",
+      "rightError": "Please select a module and an action.",
+      "addRole": "Add Role",
+      "editRole": "Edit Role",
+      "roleName": "Role Name",
+      "roleNamePlaceholder": "e.g. Production Manager",
+      "effectiveDate": "Effective Date",
+      "assignedRights": "Assigned Rights",
+      "selected": "selected",
+      "noRights": "No rights configured yet.",
+      "roleNameError": "Please enter a role name.",
+      "dateError": "Please select an effective date.",
+      "assignRole": "Assign Role",
+      "role": "Role",
+      "selectRole": "Select a role",
+      "employees": "Employees",
+      "searchEmployees": "Search employees...",
+      "noEmployees": "No employees found.",
+      "assignRoleError": "Please select a role.",
+      "assignEmployeeError": "Please select at least one employee."
+    }
+  }
+}

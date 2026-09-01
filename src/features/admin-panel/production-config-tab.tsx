@@ -8,6 +8,7 @@ import {
 import { Loader } from '@/components/shared/loader';
 import { DeleteConfirmDialog } from '@/components/shared/delete-confirm-dialog';
 import { AddConfigurationDialog } from './add-configuration-dialog';
+import { useTranslation } from 'react-i18next';
 import {
   useCreateProductionConfig,
   useDeleteProductionConfig,
@@ -45,6 +46,7 @@ function toEditPayload(record: ColorConsumptionStandard): ColorConsumptionStanda
 }
 
 export function ProductionConfigTab() {
+  const { t } = useTranslation();
   const [isAddOpen, setIsAddOpen] = useState(false);
   const [editingRecord, setEditingRecord] = useState<ColorConsumptionStandard | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<ColorConsumptionStandard | null>(null);
@@ -102,14 +104,14 @@ export function ProductionConfigTab() {
   if (isError) {
     return (
       <div className="flex flex-col items-center gap-3 rounded-xl border border-gray-200 bg-white py-16 text-center">
-        <p className="text-sm font-semibold text-gray-900">Unable to load production configuration.</p>
-        <p className="text-xs text-gray-500">Please try again.</p>
+        <p className="text-sm font-semibold text-gray-900">{t('productionConfig.errors.loadFailed', 'Unable to load production configuration.')}</p>
+        <p className="text-xs text-gray-500">{t('productionConfig.errors.tryAgain', 'Please try again.')}</p>
         <button
           type="button"
           onClick={() => { latestQuery.refetch(); historyQuery.refetch(); }}
           className="rounded-lg bg-[#004D40] px-4 py-2 text-xs font-semibold text-white transition-colors hover:bg-[#003D33]"
         >
-          Retry
+          {t('common.retry', 'Retry')}
         </button>
       </div>
     );
@@ -147,11 +149,11 @@ export function ProductionConfigTab() {
 
               <div>
                 <h2 className="text-[18px] font-bold text-gray-900">
-                  Active Configuration
+                  {t('productionConfig.active.title', 'Active Configuration')}
                 </h2>
 
                 <p className="mt-0.5 text-[14px] font-medium text-gray-400">
-                  Currently applied production ratio
+                  {t('productionConfig.active.subtitle', 'Currently applied production ratio')}
                 </p>
               </div>
 
@@ -167,7 +169,7 @@ export function ProductionConfigTab() {
               {/* Effective From */}
               <div className="border-r border-gray-300 pr-4">
                 <p className="text-[12px] font-bold uppercase tracking-[0.05em] text-gray-400">
-                  Effective From
+                  {t('productionConfig.columns.effectiveFrom', 'Effective From')}
                 </p>
 
                 <p className="mt-1 text-[16px] font-bold text-gray-900">
@@ -178,7 +180,7 @@ export function ProductionConfigTab() {
               {/* HDPE */}
               <div className="border-r border-gray-300 px-4">
                 <p className="text-[12px] font-bold uppercase tracking-[0.05em] text-gray-400">
-                  HDPE Base
+                  {t('productionConfig.columns.hdpeBase', 'HDPE Base')}
                 </p>
 
                 <p className="mt-1 text-[16px] font-bold text-gray-900">
@@ -192,7 +194,7 @@ export function ProductionConfigTab() {
               {/* Bags */}
               <div className="border-r border-gray-300 px-4">
                 <p className="text-[12px] font-bold uppercase tracking-[0.05em] text-gray-400">
-                  Bags
+                  {t('productionConfig.columns.bags', 'Bags')}
                 </p>
 
                 <p className="mt-1 text-[16px] font-bold text-gray-900">
@@ -203,7 +205,7 @@ export function ProductionConfigTab() {
               {/* Chemical */}
               <div className="border-r border-gray-300 px-4">
                 <p className="text-[12px] font-bold uppercase tracking-[0.05em] text-gray-400">
-                  Chemical
+                  {t('productionConfig.columns.chemical', 'Chemical')}
                 </p>
 
                 <p className="mt-1 text-[16px] font-bold text-gray-900">
@@ -217,7 +219,7 @@ export function ProductionConfigTab() {
               {/* White */}
               <div className="border-r border-gray-300 px-4">
                 <p className="text-[12px] font-bold uppercase tracking-[0.05em] text-gray-400">
-                  White
+                  {t('productionConfig.columns.white', 'White')}
                 </p>
 
                 <p className="mt-1 text-[16px] font-bold text-gray-900">
@@ -231,7 +233,7 @@ export function ProductionConfigTab() {
               {/* Blue */}
               <div className="border-r border-gray-300 px-4">
                 <p className="text-[12px] font-bold uppercase tracking-[0.05em] text-gray-400">
-                  Blue
+                  {t('productionConfig.columns.blue', 'Blue')}
                 </p>
 
                 <p className="mt-1 text-[16px] font-bold text-gray-900">
@@ -245,7 +247,7 @@ export function ProductionConfigTab() {
               {/* Green */}
               <div className="px-4">
                 <p className="text-[12px] font-bold uppercase tracking-[0.05em] text-gray-400">
-                  Green
+                  {t('productionConfig.columns.green', 'Green')}
                 </p>
 
                 <p className="mt-1 text-[16px] font-bold text-gray-900">
@@ -270,11 +272,11 @@ export function ProductionConfigTab() {
       <div className="flex items-center justify-between">
         <div>
           <h2 className="text-[18px] font-bold text-gray-900">
-            Configuration History
+            {t('productionConfig.history.title', 'Configuration History')}
           </h2>
 
           <p className="mt-1 text-[14px] font-medium text-gray-400">
-            Previous production configurations
+            {t('productionConfig.history.subtitle', 'Previous production configurations')}
           </p>
 
         </div>
@@ -290,7 +292,7 @@ export function ProductionConfigTab() {
             className="inline-flex items-center gap-2 rounded-lg bg-[#004D40] px-4 py-2.5 text-[12px] font-semibold text-white shadow-sm transition-colors hover:bg-[#003D33]"
           >
             <Plus className="h-4 w-4" />
-            Add
+            {t('common.add', 'Add')}
           </button>
 
         </div>
@@ -307,35 +309,35 @@ export function ProductionConfigTab() {
               <tr className="border-b border-emerald-300 bg-emerald-50/30">
 
                 <th className="px-5 py-3 text-left text-sm font-semibold tracking-wide text-gray-800">
-                  Effective Date
+                  {t('productionConfig.columns.effectiveDate', 'Effective Date')}
                 </th>
 
                 <th className="px-4 py-3 text-left text-sm font-semibold tracking-wide text-gray-800">
-                  Bags
+                  {t('productionConfig.columns.bags', 'Bags')}
                 </th>
 
                 <th className="px-4 py-3 text-left text-sm font-semibold tracking-wide text-gray-800">
-                  HDPE
+                  {t('productionConfig.columns.hdpe', 'HDPE')}
                 </th>
 
                 <th className="px-4 py-3 text-left text-sm font-semibold tracking-wide text-gray-800">
-                  White
+                  {t('productionConfig.columns.white', 'White')}
                 </th>
 
                 <th className="px-4 py-3 text-left text-sm font-semibold tracking-wide text-gray-800">
-                  Blue
+                  {t('productionConfig.columns.blue', 'Blue')}
                 </th>
 
                 <th className="px-4 py-3 text-left text-sm font-semibold tracking-wide text-gray-800">
-                  Green
+                  {t('productionConfig.columns.green', 'Green')}
                 </th>
 
                 <th className="px-4 py-3 text-left text-sm font-semibold tracking-wide text-gray-800">
-                  Chemical
+                  {t('productionConfig.columns.chemical', 'Chemical')}
                 </th>
 
                 <th className="px-5 py-3 text-right text-sm font-semibold tracking-wide text-gray-800">
-                  Actions
+                  {t('common.actions', 'Actions')}
                 </th>
 
               </tr>
@@ -346,7 +348,7 @@ export function ProductionConfigTab() {
               {history.length === 0 && (
                 <tr>
                   <td colSpan={8} className="px-5 py-6 text-center text-[13px] text-gray-400">
-                    No configuration records yet.
+                    {t('productionConfig.history.empty', 'No configuration records yet.')}
                   </td>
                 </tr>
               )}
@@ -383,7 +385,7 @@ export function ProductionConfigTab() {
                             </span>
 
                             <span className="text-[9px] font-bold uppercase tracking-[0.05em] text-green-700">
-                              Live
+                              {t('productionConfig.history.live', 'Live')}
                             </span>
 
                           </span>
@@ -483,10 +485,10 @@ export function ProductionConfigTab() {
         onOpenChange={(next) => { if (!next) { setDeleteTarget(null); deleteMutation.resetError(); } }}
         onConfirm={handleConfirmDelete}
         isPending={deleteMutation.isPending}
-        title="Delete this configuration?"
+        title={t('productionConfig.delete.title', 'Delete this configuration?')}
         description={
           deleteMutation.error
-          ?? (deleteTarget ? `Configuration from ${formatConfigDate(deleteTarget.date)} will be removed — this action cannot be undone.` : undefined)
+          ?? (deleteTarget ? t('productionConfig.delete.description', 'Configuration from {{date}} will be removed — this action cannot be undone.', { date: formatConfigDate(deleteTarget.date) }) : undefined)
         }
       />
 

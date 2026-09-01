@@ -18,14 +18,11 @@ import { formatDate, formatDateDisplay } from './inventory-utils';
 import { InventoryFormDialog } from './inventory-form-dialog';
 import { LoadSentFormDialog } from './load-sent-form-dialog';
 import {
-  useInventoryRecords,
-  sumInventoryWeight,
-  inventoryKeys,
+  useInventoryRecords, inventoryKeys,
   inventoryTypeLabels,
   type InventoryRecord,
-  type InventoryType,
+  type InventoryType
 } from './inventory-queries';
-import { useExtruderProductions } from '@/features/extruder/extruder-queries';
 import {
   useLoadSentRecords,
   loadSentKeys,
