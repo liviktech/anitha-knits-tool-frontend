@@ -5,15 +5,19 @@ import {
   Building2,
   Users,
   LogOut,
+  CheckSquare,
 } from 'lucide-react';
 import { CompanyDetailsPage } from './company-details-page';
 import { CompaniesListPage } from './companies-list-page';
+import { UsersListPage } from './users-list-page';
+import { RolesTab } from '@/features/admin-panel/roles-tab';
 import { useAuth } from '@/features/auth/auth-context';
 
 const navItems = [
   { to: '/admin/dashboard', label: 'Dashboard', icon: LayoutDashboard },
   { to: '/admin/companies', label: 'Companies', icon: Building2 },
   { to: '/admin/users', label: 'Users', icon: Users },
+  { to: '/admin/roles', label: 'Roles and Rights', icon: CheckSquare },
   // { to: '/admin/production-records', label: 'Production Records', icon: FileText },
   // { to: '/admin/wastage-records', label: 'Wastage Records', icon: ClipboardList },
   // { to: '/admin/approval-events', label: 'Approval Events', icon: CheckSquare },
@@ -98,7 +102,8 @@ export function LivikAdminShell() {
           <Route path="dashboard" element={<ComingSoon label="Dashboard" />} />
           <Route path="companies" element={<CompaniesListPage />} />
           <Route path="companies/:companyId" element={<CompanyDetailsPage />} />
-          <Route path="users" element={<ComingSoon label="Users" />} />
+          <Route path="users" element={<UsersListPage />} />
+          <Route path="roles" element={<RolesTab />} />
           {/* <Route path="brands" element={<ComingSoon label="Brands" />} />
           <Route path="chemicals" element={<ComingSoon label="Chemicals" />} />
           <Route path="colors" element={<ComingSoon label="Colors" />} />
