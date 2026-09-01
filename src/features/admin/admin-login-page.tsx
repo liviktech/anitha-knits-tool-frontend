@@ -46,7 +46,7 @@ export function AdminLoginPage() {
     <div
       className="relative min-h-screen w-full flex items-center justify-center overflow-hidden font-sans"
       style={{
-        backgroundImage: "url('/login.png')",
+        backgroundImage: "url('/admin-login.png')",
         backgroundSize: 'cover',
         backgroundPosition: 'center',
         backgroundRepeat: 'no-repeat',
