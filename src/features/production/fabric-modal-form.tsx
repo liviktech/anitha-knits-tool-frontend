@@ -79,8 +79,15 @@ export function FabricModalForm({ productionDate, initialData, isEditMode, onCan
     const colorId = findIdByName(lookups.colors, draft.color);
     const sizeId = findIdByName(lookups.sizes, draft.size);
 
-    if (!colorId || !sizeId) {
-      setError('Please select a valid size and color.');
+    const missingFields: string[] = [];
+    if (!sizeId) missingFields.push('Size');
+    if (!colorId) missingFields.push('Color');
+    if (!draft.input || draft.input.trim() === '') missingFields.push('Fabric Production');
+    if (!draft.fwKg || draft.fwKg.trim() === '') missingFields.push('Fabric Waste');
+    if (!draft.bwKg || draft.bwKg.trim() === '') missingFields.push('Bit Wastage');
+
+    if (missingFields.length > 0) {
+      setError(`Please fill in the following required fields: ${missingFields.join(', ')}.`);
       return;
     }
 
