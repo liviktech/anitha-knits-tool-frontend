@@ -10,14 +10,14 @@ import {
 import { CompanyDetailsPage } from './company-details-page';
 import { CompaniesListPage } from './companies-list-page';
 import { UsersListPage } from './users-list-page';
-import { RolesTab } from '@/features/admin-panel/roles-tab';
+import { PlatformRolesTab } from './platform-roles-tab';
 import { useAuth } from '@/features/auth/auth-context';
 
 const navItems = [
-  { to: '/admin/dashboard', label: 'Dashboard', icon: LayoutDashboard },
-  { to: '/admin/companies', label: 'Companies', icon: Building2 },
-  { to: '/admin/users', label: 'Users', icon: Users },
-  { to: '/admin/roles', label: 'Roles and Rights', icon: CheckSquare },
+  { to: '/admin/dashboard', label: 'Dashboard', icon: LayoutDashboard, moduleCode: 'dashboard' },
+  { to: '/admin/companies', label: 'Companies', icon: Building2, moduleCode: 'companies' },
+  { to: '/admin/users', label: 'Users', icon: Users, moduleCode: 'users' },
+  { to: '/admin/roles', label: 'Roles and Rights', icon: CheckSquare, moduleCode: 'roles' },
   // { to: '/admin/production-records', label: 'Production Records', icon: FileText },
   // { to: '/admin/wastage-records', label: 'Wastage Records', icon: ClipboardList },
   // { to: '/admin/approval-events', label: 'Approval Events', icon: CheckSquare },
@@ -42,8 +42,11 @@ function ComingSoon({ label }: { label: string }) {
  * production tool's routes and layout.
  */
 export function LivikAdminShell() {
-  const { logout } = useAuth();
+  const { user, logout } = useAuth();
   const navigate = useNavigate();
+
+  const access = user?.kind === 'platform-admin' ? user.access : null;
+  const visibleNavItems = access ? navItems.filter((item) => access.moduleCodes.includes(item.moduleCode)) : navItems;
 
   function handleLogout() {
     logout();
@@ -62,7 +65,7 @@ export function LivikAdminShell() {
         </div>
 
         <nav className="flex-1 px-2 py-2 space-y-1.5 overflow-y-auto">
-          {navItems.map((item) => {
+          {visibleNavItems.map((item) => {
             const Icon = item.icon;
             return (
               <NavLink
@@ -81,9 +84,15 @@ export function LivikAdminShell() {
         </nav>
 
         <div className="border-t border-white/10 px-4 py-4 flex items-center justify-between">
-          <div>
-            <div className="text-white text-[13px] font-semibold leading-tight">System Admin</div>
-            <div className="text-white/50 text-[11px]">Super Admin</div>
+          <div className="min-w-0">
+            <div className="text-white text-[13px] font-semibold leading-tight truncate">
+              {user?.kind === 'platform-admin' ? user.name : 'System Admin'}
+            </div>
+            <div className="text-white/50 text-[11px] truncate">
+              {user?.kind === 'platform-admin'
+                ? (user.role === 'SUPER_ADMIN' ? 'Super Admin' : (user.access?.roleName ?? 'Employee'))
+                : 'Super Admin'}
+            </div>
           </div>
           <button
             type="button"
@@ -103,7 +112,7 @@ export function LivikAdminShell() {
           <Route path="companies" element={<CompaniesListPage />} />
           <Route path="companies/:companyId" element={<CompanyDetailsPage />} />
           <Route path="users" element={<UsersListPage />} />
-          <Route path="roles" element={<RolesTab />} />
+          <Route path="roles" element={<PlatformRolesTab />} />
           {/* <Route path="brands" element={<ComingSoon label="Brands" />} />
           <Route path="chemicals" element={<ComingSoon label="Chemicals" />} />
           <Route path="colors" element={<ComingSoon label="Colors" />} />

@@ -1,5 +1,5 @@
 import { createContext, useContext, useEffect, useState, type ReactNode } from 'react';
-import { fetchCurrentUser, login as loginRequest, logoutRequest, type AuthUser } from './auth-service';
+import { fetchCurrentPlatformAdmin, fetchCurrentUser, login as loginRequest, logoutRequest, type AuthUser } from './auth-service';
 import { AUTH_STORAGE_KEY as STORAGE_KEY } from '@/lib/api-client';
 import { queryClient } from '@/lib/query-client';
 
@@ -43,22 +43,27 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     return () => window.removeEventListener('auth:session-expired', handleSessionExpired);
   }, []);
 
-  // Re-resolve a company-user session's profile/access from the server on mount, and again
-  // whenever this tab regains focus — the cached localStorage copy (and the in-memory user
-  // this component started with) goes stale the moment an admin changes this user's RoleAccess
-  // or its rights in a *different* tab/session, and a single-page app never remounts on its own
-  // to pick that up otherwise. Ignores failures (e.g. offline); a genuinely dead session is
-  // already handled by the 401 listener above.
+  // Re-resolve a company-user (or LK Space) session's profile/access from the server on mount,
+  // and again whenever this tab regains focus — the cached localStorage copy (and the in-memory
+  // user this component started with) goes stale the moment an admin changes this user's
+  // RoleAccess/PlatformRoleAccess or its rights in a *different* tab/session, and a single-page
+  // app never remounts on its own to pick that up otherwise. Ignores failures (e.g. offline); a
+  // genuinely dead session is already handled by the 401 listener above.
   useEffect(() => {
     let cancelled = false;
 
     function refresh() {
       if (document.hidden) return;
       const stored = readStoredUser();
-      if (stored?.kind !== 'company-user') return;
-      fetchCurrentUser().then((fresh) => {
-        if (!cancelled && fresh) setUser(fresh);
-      });
+      if (stored?.kind === 'company-user') {
+        fetchCurrentUser().then((fresh) => {
+          if (!cancelled && fresh) setUser(fresh);
+        });
+      } else if (stored?.kind === 'platform-admin') {
+        fetchCurrentPlatformAdmin().then((fresh) => {
+          if (!cancelled && fresh) setUser(fresh);
+        });
+      }
     }
 
     refresh();
