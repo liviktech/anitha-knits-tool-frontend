@@ -190,7 +190,7 @@ function InventoryReceiveTab({ onBack }: { onBack: () => void }) {
         open={!!deleteTarget}
         onOpenChange={(open) => !open && setDeleteTarget(null)}
         title="Delete this entire receipt?"
-        description={deleteTarget ? `Are you sure you want to delete this record?` : undefined}
+        description={deleteTarget ? `Are you sure you want to delete this batch? This action cannot be undone.` : undefined}
         isPending={deleting}
         onConfirm={handleDelete}
       />
@@ -397,7 +397,7 @@ function LoadSentTab({ onBack }: { onBack: () => void }) {
         open={!!deleteTarget}
         onOpenChange={(open) => !open && setDeleteTarget(null)}
         title="Delete this load sent record?"
-        description={deleteTarget ? `Are you sure you want to delete this record?` : undefined}
+        description={deleteTarget ? `${getLoadSentWeight(deleteTarget).toFixed(2)} kg. This action cannot be undone.` : undefined}
         isPending={deleting}
         onConfirm={handleDelete}
       />
@@ -813,7 +813,7 @@ function InventorySummary({ month, onEditDate }: { month: string; onEditDate: (d
         open={!!deleteTargetGroup}
         onOpenChange={(open) => !open && setDeleteTargetGroup(null)}
         title="Delete this receipt?"
-        description={deleteTargetGroup ? `Are you sure you want to delete this record` : undefined}
+        description={deleteTargetGroup ? `Are you sure you want to delete this batch of stock received? This cannot be undone.` : undefined}
         isPending={deleting}
         onConfirm={handleDeleteDate}
       />

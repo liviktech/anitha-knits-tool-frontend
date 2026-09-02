@@ -599,7 +599,7 @@ export function EmpExpensesPage() {
             title="Delete Expense Entry?"
             description={
               deleteTarget
-                ? `Are you sure you want to delete this record?`
+                ? `Are you sure you want to delete "${deleteTarget.expenseName}" (${formatCurrency(deleteTarget.amount)})?`
                 : "This action cannot be undone."
             }
           />
