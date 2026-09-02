@@ -465,7 +465,7 @@ export const ExtruderSection = forwardRef<SectionRef, SectionProps>(({ productio
         open={!!deleteTarget}
         onOpenChange={(open) => !open && setDeleteTarget(null)}
         title="Delete this color group?"
-        description={deleteTarget ? `${deleteTarget.size} / ${deleteTarget.color} — All brands in this run will be deleted. This action cannot be undone.` : undefined}
+        description={deleteTarget ? `Are you sure want to delete this record?`: undefined}
         isPending={deleting}
         onConfirm={handleDeleteGroup}
       />
