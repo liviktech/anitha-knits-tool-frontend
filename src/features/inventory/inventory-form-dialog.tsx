@@ -40,7 +40,11 @@ export function InventoryFormDialog({ onClose, editDate, editGroupId, editRecord
   });
 
   const { data: configData } = useColorConsumptionStandard(date);
-  const configForDate = configData?.data;
+  const { data: latestConfigData } = useColorConsumptionStandard();
+  // Edited stock often carries a past date with no standard effective as of
+  // that date yet (e.g. the standard was set up after the stock was received).
+  // Fall back to the current standard so bag-to-weight conversion still works.
+  const configForDate = configData?.data ?? latestConfigData?.data;
   const [dcHdpe, setDcHdpe] = useState(() => findDcForType('HDPE'));
   const [dcChemical, setDcChemical] = useState(() => findDcForType('CHEMICAL'));
   const [dcColor, setDcColor] = useState(() => findDcForType('COLOR'));
@@ -297,17 +301,17 @@ export function InventoryFormDialog({ onClose, editDate, editGroupId, editRecord
                       {hdpeNames.length > 0 && hdpeNames.map((name, idx) => (
                         <React.Fragment key={'hdpe-'+name+'-sub'}>
                           <th className="border-r border-gray-200 px-1 py-1 text-center font-semibold text-blue-600 text-[11px] uppercase whitespace-nowrap">Bags</th>
-                          <th className={`border-r ${idx === hdpeNames.length - 1 && chemicalNames.length === 0 && colorNames.length === 0 ? 'border-transparent' : 'border-gray-200'} px-1 py-1 text-center font-semibold text-blue-600 text-[11px] uppercase whitespace-nowrap`}>Weight (Kg)</th>
+                          <th className={`border-r ${idx === hdpeNames.length - 1 && chemicalNames.length === 0 && colorNames.length === 0 ? 'border-transparent' : 'border-gray-200'} px-1 py-1 text-center font-semibold text-blue-600 text-[11px] uppercase whitespace-nowrap`}>Weight <span className="normal-case">(kg)</span></th>
                         </React.Fragment>
                       ))}
                       {chemicalNames.length > 0 && chemicalNames.map((name, idx) => (
                         <React.Fragment key={'chem-'+name+'-sub'}>
-                          <th className={`border-r ${idx === chemicalNames.length - 1 && colorNames.length === 0 ? 'border-transparent' : 'border-gray-200'} px-1 py-1 text-center font-semibold text-yellow-600 text-[11px] uppercase whitespace-nowrap`}>Weight (Kg)</th>
+                          <th className={`border-r ${idx === chemicalNames.length - 1 && colorNames.length === 0 ? 'border-transparent' : 'border-gray-200'} px-1 py-1 text-center font-semibold text-yellow-600 text-[11px] uppercase whitespace-nowrap`}>Weight <span className="normal-case">(kg)</span></th>
                         </React.Fragment>
                       ))}
                       {colorNames.length > 0 && colorNames.map((name, idx) => (
                         <React.Fragment key={'col-'+name+'-sub'}>
-                          <th className={`border-r ${idx === colorNames.length - 1 ? 'border-transparent' : 'border-gray-200'} px-1 py-1 text-center font-semibold text-purple-600 text-[11px] uppercase whitespace-nowrap`}>Weight (Kg)</th>
+                          <th className={`border-r ${idx === colorNames.length - 1 ? 'border-transparent' : 'border-gray-200'} px-1 py-1 text-center font-semibold text-purple-600 text-[11px] uppercase whitespace-nowrap`}>Weight <span className="normal-case">(kg)</span></th>
                         </React.Fragment>
                       ))}
                     </tr>
@@ -377,7 +381,7 @@ export function InventoryFormDialog({ onClose, editDate, editGroupId, editRecord
         </div>
 
         <DialogFooter className="mt-2 border-gray-200 bg-white sm:justify-between items-center">
-          <p className="text-xs font-medium text-gray-600">All weights are measured in Kilogram (KG)</p>
+          <p className="text-xs font-medium text-gray-600">All weights are measured in Kilogram (kg)</p>
           <div className="flex items-center gap-2">
             <Button variant="outline" onClick={onClose} disabled={saving}>Cancel</Button>
             <Button onClick={handleSubmit} disabled={saving} className="bg-[#004D40] hover:bg-[#00332a] text-white min-w-24">

@@ -103,6 +103,20 @@ export const themes = {
 
 export type Theme = keyof typeof themes;
 
+/**
+ * Tints a Color field (Select trigger or read-only display) to match the
+ * selected color name — shared by every "Add ... Details" modal (Extruder,
+ * Looms, Fabric Checking, Fabric Delivered) so the Color field always looks
+ * like the color it holds. Unrecognized/empty colors keep the neutral default.
+ */
+export function colorFieldClasses(color: string): string {
+  const normalized = color.trim().toLowerCase();
+  if (normalized === 'blue') return 'bg-[#0088CC]/10 border-[#0088CC]/50 text-[#0088CC]';
+  if (normalized === 'green') return 'bg-[#5BA300]/10 border-[#5BA300]/50 text-[#5BA300]';
+  if (normalized === 'white') return 'bg-white border-gray-400 text-gray-700';
+  return 'bg-gray-100 border-gray-400 text-gray-500';
+}
+
 export interface ExtruderRow {
   id: string;
   size: string;

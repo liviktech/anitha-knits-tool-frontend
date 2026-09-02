@@ -413,7 +413,7 @@ export const ExtruderSection = forwardRef<SectionRef, SectionProps>(({ productio
               <TableHead colSpan={5} className={`!text-center text-sm font-semibold  tracking-wide ${theme.headerText} border border-gray-300 py-1 px-2`}>HDPE Material</TableHead>
               <TableHead colSpan={2} className={`!text-center text-sm font-semibold  tracking-wide ${theme.headerText} border border-gray-300 py-1 px-2`}>Chemicals</TableHead>
               <TableHead colSpan={2} className={`!text-center text-sm font-semibold  tracking-wide ${theme.headerText} border border-gray-300 py-1 px-2`}>Waste</TableHead>
-              <TableHead rowSpan={2} className={`align-middle !text-center text-sm font-semibold  tracking-wide ${theme.headerText} border border-gray-300 py-1 px-2 w-32 min-w-32`}>Loom Production</TableHead>
+              <TableHead rowSpan={2} className={`align-middle !text-center text-sm font-semibold  tracking-wide ${theme.headerText} border border-gray-300 py-1 px-2 w-32 min-w-32`}>Looms Production</TableHead>
               {!readOnly && <TableHead rowSpan={2} className={`align-middle !text-center text-sm font-semibold  tracking-wide ${theme.headerText} py-1 px-2`}>Action</TableHead>}
             </TableRow>
             <TableRow className="hover:!bg-transparent border-b-0">

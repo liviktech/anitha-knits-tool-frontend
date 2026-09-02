@@ -14,6 +14,7 @@ import { useAuth } from '@/features/auth/auth-context';
 import { can } from '@/lib/access';
 import { RIGHTS } from '@/lib/permissions';
 import { canCreateProductionRecord, canDeleteProductionRecord, canEditProductionRecord } from '@/lib/production-permissions';
+import { currentMonthStr } from '@/lib/date-utils';
 import { formatDate, formatDateDisplay } from './inventory-utils';
 import { InventoryFormDialog } from './inventory-form-dialog';
 import { LoadSentFormDialog } from './load-sent-form-dialog';
@@ -125,7 +126,7 @@ function InventoryReceiveTab({ onBack }: { onBack: () => void }) {
               <TableHead className="text-2xs font-semibold uppercase tracking-wide text-gray-400">Date</TableHead>
               <TableHead className="text-2xs font-semibold uppercase tracking-wide text-gray-400">Type</TableHead>
               <TableHead className="text-2xs font-semibold uppercase tracking-wide text-gray-400">Name</TableHead>
-              <TableHead className="text-center text-2xs font-semibold uppercase tracking-wide text-gray-400">Weight (kg)</TableHead>
+              <TableHead className="text-center text-2xs font-semibold uppercase tracking-wide text-gray-400">Weight <span className="normal-case">(kg)</span></TableHead>
               <TableHead className="text-center text-2xs font-semibold uppercase tracking-wide text-gray-400">Actions</TableHead>
             </TableRow>
           </TableHeader>
@@ -342,7 +343,7 @@ function LoadSentTab({ onBack }: { onBack: () => void }) {
               <TableHead className="text-2xs font-semibold uppercase tracking-wide text-gray-400">Date</TableHead>
               <TableHead className="text-2xs font-semibold uppercase tracking-wide text-gray-400">Color</TableHead>
               <TableHead className="text-2xs font-semibold uppercase tracking-wide text-gray-400">Size</TableHead>
-              <TableHead className="text-center text-2xs font-semibold uppercase tracking-wide text-gray-400">Weight (kg)</TableHead>
+              <TableHead className="text-center text-2xs font-semibold uppercase tracking-wide text-gray-400">Weight <span className="normal-case">(kg)</span></TableHead>
               <TableHead className="text-center text-2xs font-semibold uppercase tracking-wide text-gray-400">Actions</TableHead>
             </TableRow>
           </TableHeader>
@@ -599,12 +600,12 @@ function StockSummaryCard({ month, onEditDate, onDeleteDate }: { month: string; 
               <tr className="bg-white border-b border-gray-300">
                 {hdpeNames.flatMap(name => [
                   <th key={`${name}-bags`} className="border border-gray-300 px-3 py-1 text-center font-bold text-blue-700 text-[10px] uppercase whitespace-nowrap bg-blue-50/10">BAGS</th>,
-                  <th key={`${name}-kg`} className="border border-gray-300 px-3 py-1 text-center font-bold text-blue-700 text-[10px] uppercase whitespace-nowrap">WEIGHT (KG)</th>
+                  <th key={`${name}-kg`} className="border border-gray-300 px-3 py-1 text-center font-bold text-blue-700 text-[10px] uppercase whitespace-nowrap">WEIGHT <span className="normal-case">(kg)</span></th>
                 ])}
                 {hdpeNames.length > 0 && (
                   <>
                     <th className="border border-gray-300 px-3 py-1 text-center font-bold text-teal-800 text-[10px] uppercase whitespace-nowrap bg-blue-50/30">BAGS</th>
-                    <th className="border border-gray-300 px-3 py-1 text-center font-bold text-teal-800 text-[10px] uppercase whitespace-nowrap bg-blue-50/30">WEIGHT (KG)</th>
+                    <th className="border border-gray-300 px-3 py-1 text-center font-bold text-teal-800 text-[10px] uppercase whitespace-nowrap bg-blue-50/30">WEIGHT <span className="normal-case">(kg)</span></th>
                   </>
                 )}
               </tr>
@@ -859,6 +860,7 @@ export function InventoryPage() {
             <Input
               type="month"
               value={month}
+              max={currentMonthStr()}
               onChange={(e) => e.target.value && setMonth(e.target.value)}
               className="h-9 w-40 bg-white border border-gray-400 rounded-md px-3 py-2 text-sm font-semibold text-[#003140] shadow-[0_1px_2px_rgba(0,0,0,0.05)] hover:bg-gray-50 focus-visible:ring-1 focus-visible:ring-[#004D40]"
             />

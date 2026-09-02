@@ -12,6 +12,7 @@ import { ApproveConfirmDialog } from '@/components/shared/approve-confirm-dialog
 import { useAuth } from '@/features/auth/auth-context';
 import { canCreateProductionRecord, canDeleteProductionRecord, canEditProductionRecord } from '@/lib/production-permissions';
 import { apiFetch, fetchJson } from '@/lib/api-client';
+import { currentMonthStr } from '@/lib/date-utils';
 import extruderIcon from '@/assets/extruder-icon.png';
 import loomsIcon from '@/assets/looms-icon.png';
 import { useExtruderProductions, extruderKeys } from '@/features/extruder/extruder-queries';
@@ -676,6 +677,7 @@ export function ProductionDesign2() {
             <Input
               type="month"
               value={format(filterDate, 'yyyy-MM')}
+              max={currentMonthStr()}
               onChange={(e) => {
                 if (e.target.value) {
                   setFilterDate(parseISO(`${e.target.value}-01`));

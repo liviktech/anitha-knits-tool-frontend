@@ -13,6 +13,7 @@ import {
   TableRow,
 } from '@/components/ui/table';
 import { useDayWiseProduction } from './day-wise-queries';
+import { currentMonthStr } from '@/lib/date-utils';
 import { useLoadSentRecords } from '@/features/inventory/load-sent-queries';
 
 interface DayWiseReportModalProps {
@@ -174,6 +175,7 @@ export function DayWiseReportModal({ open, onOpenChange }: DayWiseReportModalPro
             <Input
               type="month"
               value={selectedMonth}
+              max={currentMonthStr()}
               onChange={e => setSelectedMonth(e.target.value)}
               className="w-40 font-medium bg-white"
             />
