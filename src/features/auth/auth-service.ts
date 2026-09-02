@@ -1,6 +1,12 @@
 import { apiUrl, fetchJson } from '@/lib/api-client';
 
-export type PlatformAdminRole = 'SUPER_ADMIN';
+/**
+ * `SUPER_ADMIN` is the one seeded platform admin (unrestricted). `EMPLOYEE` is a Livik employee
+ * logging into LK Space with their own Livik credentials — their access is whatever their
+ * assigned PlatformRoleAccess resolves to (see backend's resolvePlatformAccess), never
+ * unrestricted by default.
+ */
+export type PlatformAdminRole = 'SUPER_ADMIN' | 'EMPLOYEE';
 export type CompanyUserRole = 'ADMIN' | 'MANAGER' | 'SUPERVISOR' | 'EMPLOYEE';
 
 export interface PlatformAdminProfile {
@@ -9,6 +15,8 @@ export interface PlatformAdminProfile {
   name: string;
   mobile: string;
   role: PlatformAdminRole;
+  /** null = unrestricted (SUPER_ADMIN, always) — an EMPLOYEE session is gated by this exactly like a CompanyUserProfile's access. */
+  access: UserAccess | null;
 }
 
 export interface AccessGrant {
@@ -27,6 +35,8 @@ export interface UserAccess {
   moduleCodes: string[];
   /** Every rightName this user's RoleAccess grants, e.g. "productiondetails_all_edit". Empty (not missing) when no RoleAccess is assigned. */
   rights: string[];
+  /** LK Space (platform-admin) sessions only — the assigned PlatformRoleAccess's display name (e.g. "Manager"), or null if none assigned. Absent/undefined for company-user sessions. */
+  roleName?: string | null;
 }
 
 export interface CompanyUserProfile {
@@ -71,11 +81,11 @@ async function postJson<T>(path: string, body: unknown): Promise<T> {
  */
 export async function login(mobile: string, password: string): Promise<AuthUser> {
   try {
-    const { admin } = await postJson<{ admin: Omit<PlatformAdminProfile, 'kind'> }>(
+    const { admin, access } = await postJson<{ admin: Omit<PlatformAdminProfile, 'kind' | 'access'>; access: UserAccess | null }>(
       '/platform/admin/login',
       { mobile, password },
     );
-    return { kind: 'platform-admin', ...admin };
+    return { kind: 'platform-admin', ...admin, access };
   } catch {
     const { user, company, access } = await postJson<{
       user: Omit<CompanyUserProfile, 'kind' | 'company' | 'access'>;
@@ -106,6 +116,24 @@ export async function fetchCurrentUser(): Promise<CompanyUserProfile | null> {
     // Swallowed deliberately (offline, expired session, etc. are all fine to ignore here) —
     // logged so a genuine bug doesn't look identical to "nothing happened" in devtools.
     console.error('fetchCurrentUser failed:', err);
+    return null;
+  }
+}
+
+/**
+ * Re-resolves the current LK Space session's profile + access from the server (GET
+ * /platform/admin/me) — the platform-admin mirror of fetchCurrentUser, so an already-logged-in
+ * Livik employee picks up a role change without re-authenticating. Returns null on failure
+ * (expired session, offline, etc.) — same convention as fetchCurrentUser.
+ */
+export async function fetchCurrentPlatformAdmin(): Promise<PlatformAdminProfile | null> {
+  try {
+    const { data } = await fetchJson<{ data: { admin: Omit<PlatformAdminProfile, 'kind' | 'access'>; access: UserAccess | null } }>(
+      '/platform/admin/me',
+    );
+    return { kind: 'platform-admin', ...data.admin, access: data.access };
+  } catch (err) {
+    console.error('fetchCurrentPlatformAdmin failed:', err);
     return null;
   }
 }
