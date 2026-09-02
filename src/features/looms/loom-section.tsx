@@ -218,9 +218,9 @@ export const LoomSection = forwardRef<SectionRef, SectionProps>(({ productionDat
             <TableRow className="hover:!bg-transparent border-b-0">
               <TableHead className={`text-sm !text-center font-semibold tracking-wide border-b border-gray-300 ${theme.headerText}`}>Size</TableHead>
               <TableHead className={`w-37.5 min-w-37.5 text-center text-sm font-semibold  tracking-wide border border-gray-300 ${theme.headerText}`}>Color</TableHead>
-              <TableHead className={`text-center text-sm font-semibold  tracking-wide border border-gray-300 ${theme.headerText}`}>Loom Production</TableHead>
+              <TableHead className={`text-center text-sm font-semibold  tracking-wide border border-gray-300 ${theme.headerText}`}>Looms Production</TableHead>
               <TableHead className={`text-center text-sm font-semibold  tracking-wide border border-gray-300 ${theme.headerText}`}>Looms/Yarn Waste</TableHead>
-              <TableHead className={`text-center text-sm font-semibold  tracking-wide border border-gray-300 ${theme.headerText}`}>Fabric production</TableHead>
+              <TableHead className={`text-center text-sm font-semibold  tracking-wide border border-gray-300 ${theme.headerText}`}>Fabric Production</TableHead>
               {!readOnly && <TableHead className={`!text-center text-sm font-semibold  tracking-wide border border-gray-300 ${theme.headerText}`}>Action</TableHead>}
             </TableRow>
           </TableHeader>

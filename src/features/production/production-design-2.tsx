@@ -3,7 +3,7 @@ import { useQueryClient } from '@tanstack/react-query';
 import '@fontsource-variable/hanken-grotesk';
 import '@fontsource-variable/inter';
 import { parseISO, format } from 'date-fns';
-import { Trash2, Calendar, Plus, Download, Edit2, Edit, Layers, ChevronRight, CheckCircle2 } from 'lucide-react';
+import { Trash2, Calendar, Plus, Edit2, Edit, Layers, ChevronRight, CheckCircle2 } from 'lucide-react';
 import { LoadSentFormDialog } from '../inventory/load-sent-form-dialog';
 import { type LoadSentRecord } from '../inventory/load-sent-queries';
 import { Loader } from '@/components/shared/loader';
@@ -12,6 +12,7 @@ import { ApproveConfirmDialog } from '@/components/shared/approve-confirm-dialog
 import { useAuth } from '@/features/auth/auth-context';
 import { canCreateProductionRecord, canDeleteProductionRecord, canEditProductionRecord } from '@/lib/production-permissions';
 import { apiFetch, fetchJson } from '@/lib/api-client';
+import { currentMonthStr } from '@/lib/date-utils';
 import extruderIcon from '@/assets/extruder-icon.png';
 import loomsIcon from '@/assets/looms-icon.png';
 import { useExtruderProductions, extruderKeys } from '@/features/extruder/extruder-queries';
@@ -676,6 +677,7 @@ export function ProductionDesign2() {
             <Input
               type="month"
               value={format(filterDate, 'yyyy-MM')}
+              max={currentMonthStr()}
               onChange={(e) => {
                 if (e.target.value) {
                   setFilterDate(parseISO(`${e.target.value}-01`));
@@ -898,7 +900,7 @@ export function ProductionDesign2() {
                 <img src="/Table-icon.jpg" alt="" className="w-10 h-10 object-contain rounded-sm" />
                 Day Wise Production & Wastage Details
               </CardTitle>
-              <div className="flex flex-wrap gap-2">
+              {/* <div className="flex flex-wrap gap-2">
                 <Button
                   variant="outline"
                   size="sm"
@@ -907,7 +909,7 @@ export function ProductionDesign2() {
                 >
                   <Download className="w-[14px] h-[14px]" /> REPORT
                 </Button>
-              </div>
+              </div> */}
             </CardHeader>
             <div className="overflow-x-auto w-full">
               <Table className="w-full table-fixed">

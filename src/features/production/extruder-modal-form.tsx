@@ -20,7 +20,7 @@ import {
 } from '@/features/extruder/extruder-queries';
 import { useInventoryRecords, sumInventoryWeight } from '@/features/inventory/inventory-queries';
 import { dashboardProductionKey } from '@/features/production/day-wise-queries';
-import { themes } from '@/features/production/day-entry-sections';
+import { themes, colorFieldClasses } from '@/features/production/day-entry-sections';
 import type { ExtruderGroupDraft, ExtruderBrandDraft } from '@/features/extruder/extruder-section-new';
 
 function roundKg(n: number): number {
@@ -378,7 +378,7 @@ export function ExtruderModalForm({ productionDate, initialData, isEditMode, onC
         <div className="flex items-center gap-3 w-56">
           <Label className="text-gray-600 text-xs font-semibold uppercase tracking-wider shrink-0 w-12">Color</Label>
           <Select value={group.color} onValueChange={(v) => updateGroupField('color', v)} disabled={isEditMode}>
-            <SelectTrigger><SelectValue placeholder="Select Color" /></SelectTrigger>
+            <SelectTrigger className={group.color ? `font-semibold ${colorFieldClasses(group.color)}` : undefined}><SelectValue placeholder="Select Color" /></SelectTrigger>
             <SelectContent position="popper">{lookups.colors?.map((c) => <SelectItem key={c.id} value={c.name}>{c.name}</SelectItem>)}</SelectContent>
           </Select>
         </div>
@@ -466,7 +466,7 @@ export function ExtruderModalForm({ productionDate, initialData, isEditMode, onC
             <div className="grid grid-cols-2 gap-2">
               <div className="space-y-1.5">
                 <Label className="text-gray-600 text-xs font-semibold">Color</Label>
-                <Input type="text" placeholder="Select color above" className="h-8 text-xs bg-gray-100 border border-gray-400 disabled:opacity-100" value={group.color} disabled readOnly />
+                <Input type="text" placeholder="Select color above" className={`h-8 text-xs border font-semibold disabled:opacity-100 ${colorFieldClasses(group.color)}`} value={group.color} disabled readOnly />
               </div>
               <div className="space-y-1.5">
                 <Label className="text-gray-600 text-xs font-semibold">Color Weight (kg)</Label>

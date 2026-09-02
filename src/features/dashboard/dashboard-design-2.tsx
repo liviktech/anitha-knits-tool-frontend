@@ -7,6 +7,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { useMonthlyDashboard } from './dashboard-queries';
 import { useAuth } from '@/features/auth/auth-context';
+import { currentMonthStr as todayMonthStr } from '@/lib/date-utils';
 
 function formatNum(n: number): string {
   return n.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
@@ -182,6 +183,7 @@ export function DashboardDesign2() {
             <Input
               type="month"
               value={format(filterDate, 'yyyy-MM')}
+              max={todayMonthStr()}
               onChange={(e) => {
                 if (e.target.value) {
                   setFilterDate(parseISO(`${e.target.value}-01`));
