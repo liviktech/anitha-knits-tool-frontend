@@ -521,7 +521,7 @@ function DayDetailView({
         open={confirmDeleteOpen}
         onOpenChange={setConfirmDeleteOpen}
         title="Delete this day's entries?"
-        description={`Are you sure want to delete this record ${formattedDate}`}
+        description={`Are you sure want to delete this record`}
         isPending={deletingDay}
         onConfirm={handleDeleteDay}
       />
@@ -1132,7 +1132,7 @@ export function ProductionDesign2() {
         title="Delete this day's entries?"
         description={
           deleteTargetDate
-            ? `Are you sure want to delete this record `
+            ? `Are you sure want to delete this record?`
             : undefined
         }
         isPending={deletingDate}
