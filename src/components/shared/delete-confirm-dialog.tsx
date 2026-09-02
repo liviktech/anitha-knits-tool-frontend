@@ -45,6 +45,7 @@ export function DeleteConfirmDialog({
               onConfirm();
             }}
           >
+            
             {isPending && <Loader size="sm" className="mr-1.5" />}
             {isPending ? 'Deleting...' : 'Delete'}
           </AlertDialogAction>
