@@ -182,6 +182,10 @@ export function EmpExpensesPage() {
       setFormError("Please enter a valid expense amount");
       return;
     }
+    if (formDate > todayIso()) {
+      setFormError("Date cannot be in the future");
+      return;
+    }
 
     setIsSaving(true);
     setFormError(null);
@@ -499,6 +503,7 @@ export function EmpExpensesPage() {
                     id="exp-date"
                     type="date"
                     value={formDate}
+                    max={todayIso()}
                     onChange={(e) => setFormDate(e.target.value)}
                     className="h-9 text-xs"
                   />
