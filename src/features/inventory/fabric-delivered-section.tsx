@@ -295,7 +295,7 @@ export const FabricDeliveredSection = forwardRef<SectionRef, SectionProps & { on
         open={!!deleteTarget}
         onOpenChange={(open) => !open && setDeleteTarget(null)}
         title="Delete this fabric delivered entry?"
-        description={deleteTarget ? `${deleteTarget.size} / ${deleteTarget.color} — ${deleteTarget.delivered.toFixed(2)} kg delivered. This action cannot be undone.` : undefined}
+          description={deleteTarget ? `Are you sure want to delete this record?` : undefined}
         isPending={deleting}
         onConfirm={handleDeleteRow}
       />

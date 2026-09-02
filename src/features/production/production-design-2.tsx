@@ -521,7 +521,7 @@ function DayDetailView({
         open={confirmDeleteOpen}
         onOpenChange={setConfirmDeleteOpen}
         title="Delete this day's entries?"
-        description={`Removes every Extruder, Looms, Fabric Checking, and Fabric Delivered record for ${formattedDate}. This action cannot be undone.`}
+        description={`Are you sure want to delete this record ${formattedDate}`}
         isPending={deletingDay}
         onConfirm={handleDeleteDay}
       />
@@ -1132,7 +1132,7 @@ export function ProductionDesign2() {
         title="Delete this day's entries?"
         description={
           deleteTargetDate
-            ? `Removes every Extruder, Looms, Fabric Checking, and Fabric Delivered record for ${format(parseISO(deleteTargetDate), 'dd MMM, yyyy')}. This action cannot be undone.`
+            ? `Are you sure want to delete this record `
             : undefined
         }
         isPending={deletingDate}

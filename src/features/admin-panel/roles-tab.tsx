@@ -1105,7 +1105,7 @@ export function RolesTab() {
         onConfirm={handleConfirmDeleteRight}
         isPending={deleteRight.isPending}
         title="Delete this right?"
-        description={deleteRight.error ?? (deleteRightTarget ? `"${deleteRightTarget.displayName}" will be removed from all roles — this action cannot be undone.` : undefined)}
+        description={deleteRight.error ?? (deleteRightTarget ? `Are you sure you want to delete this record?` : undefined)}
       />
 
     </div>

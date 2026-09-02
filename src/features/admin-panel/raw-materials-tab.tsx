@@ -342,7 +342,7 @@ export function RawMaterialsTab() {
         title={`Delete this ${selectedMeta.singular.toLowerCase()}?`}
         description={
           deleteMutation.error
-          ?? (deleteTarget ? `"${deleteTarget.name}" will be removed — this action cannot be undone.` : undefined)
+          ?? (deleteTarget ? `Are you sure you want to delete this record?` : undefined)
         }
       />
 

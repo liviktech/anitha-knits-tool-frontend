@@ -350,7 +350,7 @@ export const FabricSection = forwardRef<SectionRef, SectionProps>(({ productionD
         open={!!deleteTarget}
         onOpenChange={(open) => !open && setDeleteTarget(null)}
         title="Delete this fabric checking entry?"
-        description={deleteTarget ? `${deleteTarget.size} / ${deleteTarget.color} — ${deleteTarget.input.toFixed(2)} kg fabric input. This action cannot be undone.` : undefined}
+            description={deleteTarget ? `Are you sure want to delete this record?` : undefined}
         isPending={deleting}
         onConfirm={handleDeleteRow}
       />
