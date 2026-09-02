@@ -1,6 +1,8 @@
 import { useMemo, useState } from 'react';
 import { format, parseISO } from 'date-fns';
+import { Download } from 'lucide-react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Loader } from '@/components/shared/loader';
 import {
@@ -162,6 +164,63 @@ export function DayWiseReportModal({ open, onOpenChange }: DayWiseReportModalPro
 
   const isLoading = isProdLoading || isLoadSentLoading;
 
+  const escapeCsvField = (value: string | number) => {
+    const str = String(value);
+    return /[",\n]/.test(str) ? `"${str.replace(/"/g, '""')}"` : str;
+  };
+
+  const handleDownloadCsv = () => {
+    const prodHeaders: string[] = [];
+    let si = 0;
+    PRODUCTION_GROUPS.forEach(g => {
+      for (let i = 0; i < g.span; i++) { prodHeaders.push(`${g.label} - ${PROD_SUB_HEADERS[si]}`); si++; }
+    });
+    const delHeaders: string[] = [];
+    si = 0;
+    DELIVERY_GROUPS.forEach(g => {
+      for (let i = 0; i < g.span; i++) { delHeaders.push(`Delivery ${g.label} - ${DEL_SUB_HEADERS[si]}`); si++; }
+    });
+    const header = ['Date', ...prodHeaders, ...delHeaders];
+
+    const dataRows = rows.map(row => {
+      const values = [
+        row.extruder.hdpe, row.extruder.loomsWaste, row.extruder.lums, row.extruder.total,
+        row.loomsProduction.c180A, row.loomsProduction.dnPlus180, row.loomsProduction.c180B, row.loomsProduction.total,
+        row.fabricChecking.white, row.fabricChecking.blue, row.fabricChecking.total,
+        row.fabricWaste.fwWhite180, row.fabricWaste.fwBlue180, row.fabricWaste.white, row.fabricWaste.blue, row.fabricWaste.total,
+        row.delivery.blue, row.delivery.white, row.delivery.green,
+        row.delivery.s150, row.delivery.s160, row.delivery.s170, row.delivery.s180, row.delivery.s190,
+        row.delivery.output
+      ];
+      return [format(parseISO(row.date), 'd-MMM-yy'), ...values.map(v => v.toFixed(2))];
+    });
+
+    const totalRow = [
+      'TOTAL',
+      ...[
+        apiTotals.extruder.input, apiTotals.extruder.yarnWasteKg || 0, apiTotals.extruder.lumpsKg || 0, apiTotals.extruder.output,
+        0, 0, 0, apiTotals.looms.output,
+        0, 0, apiTotals.fabric.output,
+        0, 0, 0, 0, apiTotals.fabric.wastage,
+        deliveryTotals.blue, deliveryTotals.white, deliveryTotals.green,
+        deliveryTotals.s150, deliveryTotals.s160, deliveryTotals.s170, deliveryTotals.s180, deliveryTotals.s190,
+        deliveryTotals.output
+      ].map(v => v.toFixed(2)),
+    ];
+
+    const csvLines = [header, ...dataRows, totalRow].map(row => row.map(escapeCsvField).join(','));
+    const csvContent = '﻿' + csvLines.join('\r\n');
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = `production-report-${selectedMonth}.csv`;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+  };
+
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-[95vw] sm:max-w-[95vw] max-h-[90vh] overflow-hidden flex flex-col">
@@ -169,7 +228,7 @@ export function DayWiseReportModal({ open, onOpenChange }: DayWiseReportModalPro
           <div>
             <DialogTitle>Day Wise Production & Wastage Report</DialogTitle>
           </div>
-          <div className="flex items-center gap-6 mr-7">
+          <div className="flex items-center gap-3 mr-7">
             {isLoading && <Loader size="sm" className="text-gray-400" />}
             <Input
               type="month"
@@ -177,6 +236,15 @@ export function DayWiseReportModal({ open, onOpenChange }: DayWiseReportModalPro
               onChange={e => setSelectedMonth(e.target.value)}
               className="w-40 font-medium bg-white"
             />
+            <Button
+              variant="outline"
+              size="sm"
+              className="h-9 gap-1.5 rounded-full border-[#004D40]/30 text-[#004D40] hover:bg-[#004D40]/10"
+              onClick={handleDownloadCsv}
+              disabled={rows.length === 0}
+            >
+              <Download className="h-3.5 w-3.5" /> Download
+            </Button>
           </div>
         </DialogHeader>
 
@@ -252,7 +320,7 @@ export function DayWiseReportModal({ open, onOpenChange }: DayWiseReportModalPro
                 );
               }) : (
                 <TableRow>
-                  <TableCell colSpan={28} className="px-3 py-6 text-center text-gray-500">
+                  <TableCell colSpan={28} className="px-3 py-6 !text-center text-gray-500">
                     No production or delivery records found for this month.
                   </TableCell>
                 </TableRow>

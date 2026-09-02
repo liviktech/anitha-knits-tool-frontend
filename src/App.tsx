@@ -10,6 +10,7 @@ import { Settings, User, Wallet, Menu, Package, LineChart, LogOut, LayoutDashboa
 import { Button } from '@/components/ui/button';
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet';
 import { Loader } from '@/components/shared/loader';
+import { PwaUpdatePrompt } from '@/components/shared/pwa-update-prompt';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import threadIcon from '@/assets/thread.png';
 
@@ -255,6 +256,7 @@ function App() {
           />
         </Routes>
       </Suspense>
+      <PwaUpdatePrompt />
     </BrowserRouter>
   );
 }
