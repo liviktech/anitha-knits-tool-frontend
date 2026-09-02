@@ -260,6 +260,7 @@ export function EmpExpensesPage() {
           <Input
             type="month"
             value={selectedMonth}
+            max={currentMonthStr()}
             onChange={(e) => {
               if (e.target.value) setSelectedMonth(e.target.value);
             }}

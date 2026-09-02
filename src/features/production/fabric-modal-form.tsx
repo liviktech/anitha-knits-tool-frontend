@@ -11,7 +11,7 @@ import { useLookups, findIdByName, type Lookups } from '@/features/extruder/extr
 import { fabricCheckingKeys, useKoraBalances, findKoraBalanceKg, type FabricCheckingCreatePayload } from '@/features/fabric/fabric-queries';
 import { useLoomsProductions } from '@/features/looms/loom-queries';
 import { dashboardProductionKey } from '@/features/production/day-wise-queries';
-import { themes } from '@/features/production/day-entry-sections';
+import { themes, colorFieldClasses } from '@/features/production/day-entry-sections';
 import { type FabricDraft, emptyFabricDraft, suggestFabricOutput } from '@/features/fabric/fabric-section';
 
 interface FabricModalFormProps {
@@ -146,7 +146,7 @@ export function FabricModalForm({ productionDate, initialData, isEditMode, onCan
         <div className="flex items-center gap-3 w-56">
           <Label className="text-gray-600 text-xs font-semibold uppercase tracking-wider shrink-0 w-12">Color</Label>
           <Select value={draft.color} onValueChange={(v) => updateField('color', v)} disabled={isEditMode}>
-            <SelectTrigger><SelectValue placeholder="Select Color" /></SelectTrigger>
+            <SelectTrigger className={draft.color ? `font-semibold ${colorFieldClasses(draft.color)}` : undefined}><SelectValue placeholder="Select Color" /></SelectTrigger>
             <SelectContent position="popper">{lookups.colors?.map((c) => <SelectItem key={c.id} value={c.name}>{c.name}</SelectItem>)}</SelectContent>
           </Select>
         </div>
