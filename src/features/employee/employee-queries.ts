@@ -23,7 +23,6 @@ export interface Employee {
   companyId: string;
   name?: string | null;
   mobile: string;
-  role: ManagedRole;
   isActive: boolean;
   createdAt: string;
   updatedAt: string;
@@ -99,12 +98,11 @@ export function useCreateEmployee() {
         employeeDetails?: Partial<EmployeeDetails>;
       } & { photo?: File | null; aadhaarFile?: File | null },
     ) => {
-      const { name, mobile, role, password, employeeDetails, photo, aadhaarFile } = data;
+      const { name, mobile, password, employeeDetails, photo, aadhaarFile } = data;
       const formData = buildEmployeeFormData(
         {
           name,
           mobile,
-          role,
           password,
           designation: employeeDetails?.designation ?? undefined,
           address: employeeDetails?.address ?? undefined,

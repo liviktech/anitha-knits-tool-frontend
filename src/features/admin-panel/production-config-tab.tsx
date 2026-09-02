@@ -486,7 +486,7 @@ export function ProductionConfigTab() {
         title="Delete this configuration?"
         description={
           deleteMutation.error
-          ?? (deleteTarget ? `Configuration from ${formatConfigDate(deleteTarget.date)} will be removed — this action cannot be undone.` : undefined)
+          ?? (deleteTarget ? `Are you sure want to delete this record?` : undefined)
         }
       />
 

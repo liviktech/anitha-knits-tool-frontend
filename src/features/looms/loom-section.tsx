@@ -315,7 +315,7 @@ export const LoomSection = forwardRef<SectionRef, SectionProps>(({ productionDat
         open={!!deleteTarget}
         onOpenChange={(open) => !open && setDeleteTarget(null)}
         title="Delete this loom entry?"
-        description={deleteTarget ? `${deleteTarget.size} / ${deleteTarget.color} — ${deleteTarget.input.toFixed(2)} kg yarn input. This action cannot be undone.` : undefined}
+          description={deleteTarget ? `Are you sure you want to delete this record?` : undefined}
         isPending={deleting}
         onConfirm={handleDeleteRow}
       />
