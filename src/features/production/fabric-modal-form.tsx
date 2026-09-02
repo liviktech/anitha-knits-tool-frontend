@@ -36,7 +36,10 @@ export function FabricModalForm({ productionDate, initialData, isEditMode, onCan
 
   const [draft, setDraft] = useState<FabricDraft>(initialData || { ...emptyFabricDraft });
   const koraBalanceKg = findKoraBalanceKg(koraBalanceData?.data, draft.size, draft.color);
-  const [outputManuallyEdited, setOutputManuallyEdited] = useState(!!initialData);
+  // Total Fabric Stock mirrors Fabric Production 1:1 (suggestFabricOutput), so it should
+  // keep following edits to Fabric Production even when editing an existing entry — only
+  // typing directly into Total Fabric Stock itself should stop the auto-follow.
+  const [outputManuallyEdited, setOutputManuallyEdited] = useState(false);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -52,10 +55,18 @@ export function FabricModalForm({ productionDate, initialData, isEditMode, onCan
       .reduce((sum, item) => sum + (item.loom?.fabricOutputKg ?? 0), 0);
   }, [loomsData, hasSizeAndColor, draft.size, draft.color]);
 
-  const totalAvailableKg = (koraBalanceKg ?? 0) + fabricProductionAvailableKg;
+  // Kora Balance = Looms output − Fabric Checking input, so when editing an existing entry
+  // its original fabricInputKg has already been subtracted from the server's balance. Add it
+  // back to get the pool available to reallocate, then subtract the currently-typed value so
+  // the field live-previews what the balance will be after this edit is saved.
+  const originalInputKg = isEditMode ? (parseFloat(initialData?.input ?? '') || 0) : 0;
+  const fabricProductionInputKg = parseFloat(draft.input) || 0;
+  const reallocatableKoraBalanceKg = (koraBalanceKg ?? 0) + originalInputKg;
+  const previewKoraBalanceKg = reallocatableKoraBalanceKg - fabricProductionInputKg;
+
+  const totalAvailableKg = reallocatableKoraBalanceKg + fabricProductionAvailableKg;
   const showNoStockWarning = hasSizeAndColor && totalAvailableKg === 0;
 
-  const fabricProductionInputKg = parseFloat(draft.input) || 0;
   const exceedsAvailable = hasSizeAndColor && fabricProductionInputKg > totalAvailableKg;
 
   const updateField = (field: keyof FabricDraft, value: string) => {
@@ -173,7 +184,7 @@ export function FabricModalForm({ productionDate, initialData, isEditMode, onCan
             <Input
               type="text"
               placeholder="Select size & color"
-              value={hasSizeAndColor ? (koraBalanceKg ?? 0).toFixed(2) : ''}
+              value={hasSizeAndColor ? previewKoraBalanceKg.toFixed(2) : ''}
               disabled
               readOnly
               className="bg-gray-100"
