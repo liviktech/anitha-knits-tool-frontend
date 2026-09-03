@@ -107,6 +107,37 @@ export function findKoraBalanceKg(balances: KoraBalanceEntry[] | undefined, size
   return balances?.find((b) => b.size.name === sizeName && b.color.name === colorName)?.balanceKg;
 }
 
+interface AvailableFabricResponse {
+  success: boolean;
+  data: { colorId: string; sizeId: string; availableKg: number };
+}
+
+export const availableFabricKeys = {
+  variant: (colorId?: string, sizeId?: string) => ['fabric-checking', 'available', colorId, sizeId] as const,
+};
+
+/**
+ * Cumulative, all-time fabric available to check for a colour+size variant — total Looms
+ * fabricOutputKg ever recorded for it, minus total Fabric Checking fabricInputKg already
+ * recorded against it. Backs GET /fabric-checking/available, the same figure the backend's
+ * create/update guard (FABRIC_INPUT_EXCEEDS_AVAILABLE) enforces, so the UI can't disagree
+ * with the server about what's allowed. Distinct from the Kora Balance ledger above, which
+ * tracks a different, looser running total.
+ */
+export function useAvailableFabricKg(colorId?: string, sizeId?: string) {
+  const enabled = !!colorId && !!sizeId;
+  const { data, isLoading, isFetching } = useQuery({
+    queryKey: availableFabricKeys.variant(colorId, sizeId),
+    queryFn: () => fetchJson<AvailableFabricResponse>(`/fabric-checking/available?colorId=${colorId}&sizeId=${sizeId}`),
+    enabled,
+  });
+
+  return {
+    availableKg: enabled ? data?.data.availableKg : undefined,
+    isChecking: enabled && (isLoading || isFetching),
+  };
+}
+
 export interface FabricCheckingSummary {
   input: number;
   checked: number;

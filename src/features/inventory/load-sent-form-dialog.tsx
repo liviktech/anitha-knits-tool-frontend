@@ -48,7 +48,7 @@ export function LoadSentFormDialog({ onClose, record }: LoadSentFormDialogProps)
     setError(null);
     try {
       const payload: LoadSentCreatePayload = {
-        productionDate: date,
+        date,
         colorId,
         sizeId,
         fabricWeight: parseFloat(weightKg) || 0,

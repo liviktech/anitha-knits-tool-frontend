@@ -14,6 +14,7 @@ import {
   useFabricCheckingRecords,
   fabricCheckingKeys,
   useKoraBalances,
+  koraBalanceKeys,
   findKoraBalanceKg,
   type FabricCheckingRecord,
   type FabricCheckingCreatePayload,
@@ -81,7 +82,7 @@ export function suggestFabricOutput(draft: Pick<FabricDraft, 'input'>): string {
 export const FabricSection = forwardRef<SectionRef, SectionProps>(({ productionDate, readOnly, hideExisting, sessionStartTime, hideBanner, onEditFabricGroup }, ref) => {
   const queryClient = useQueryClient();
   const { user } = useAuth();
-  const { data, isLoading } = useFabricCheckingRecords(
+  const { data, isLoading, isError, refetch } = useFabricCheckingRecords(
     productionDate ? `?date_from=${productionDate}&date_to=${productionDate}` : '',
     !hideExisting,
   );
@@ -162,6 +163,7 @@ export const FabricSection = forwardRef<SectionRef, SectionProps>(({ productionD
       setNewRows(failed);
       await queryClient.invalidateQueries({ queryKey: fabricCheckingKeys.all });
       await queryClient.invalidateQueries({ queryKey: dashboardProductionKey });
+      await queryClient.invalidateQueries({ queryKey: koraBalanceKeys.all });
       setSaving(false);
       if (failed.length > 0) {
         setSaveError(errorMessage);
@@ -209,6 +211,7 @@ export const FabricSection = forwardRef<SectionRef, SectionProps>(({ productionD
       if (!response.ok) throw new Error('Failed to delete fabric checking entry');
       await queryClient.invalidateQueries({ queryKey: fabricCheckingKeys.all });
       await queryClient.invalidateQueries({ queryKey: dashboardProductionKey });
+      await queryClient.invalidateQueries({ queryKey: koraBalanceKeys.all });
       setDeleteTarget(null);
     } catch (error) {
       console.error('Error deleting fabric checking entry:', error);
@@ -257,6 +260,17 @@ export const FabricSection = forwardRef<SectionRef, SectionProps>(({ productionD
                 <TableCell colSpan={readOnly ? 7 : 8} className="h-20 text-center">
                   <div className="flex items-center justify-center gap-2 text-gray-500">
                     <Loader size="sm" /> Loading entries...
+                  </div>
+                </TableCell>
+              </TableRow>
+            ) : isError ? (
+              <TableRow>
+                <TableCell colSpan={readOnly ? 7 : 8} className="h-20 !text-center">
+                  <div className="flex flex-col items-center justify-center gap-2 text-gray-500">
+                    <span>Unable to load fabric checking entries. Please try again.</span>
+                    <Button variant="outline" size="sm" className="h-7 text-xs" onClick={() => refetch()}>
+                      Retry
+                    </Button>
                   </div>
                 </TableCell>
               </TableRow>
@@ -350,7 +364,7 @@ export const FabricSection = forwardRef<SectionRef, SectionProps>(({ productionD
         open={!!deleteTarget}
         onOpenChange={(open) => !open && setDeleteTarget(null)}
         title="Delete this fabric checking entry?"
-            description={deleteTarget ? `Are you sure want to delete this record?` : undefined}
+        description={deleteTarget ? `${deleteTarget.size} / ${deleteTarget.color} — ${deleteTarget.input.toFixed(2)} kg fabric input. This action cannot be undone.` : undefined}
         isPending={deleting}
         onConfirm={handleDeleteRow}
       />

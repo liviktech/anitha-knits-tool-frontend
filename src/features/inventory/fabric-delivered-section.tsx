@@ -61,7 +61,7 @@ export const FabricDeliveredSection = forwardRef<SectionRef, SectionProps & { on
   const { user } = useAuth();
   const { data: lookupsData } = useLookups();
   const lookups: Lookups = lookupsData ?? { brands: [], colors: [], chemicals: [], sizes: [] };
-  const { data, isLoading } = useLoadSentRecords('?limit=100', !hideExisting);
+  const { data, isLoading, isError, refetch } = useLoadSentRecords('?limit=100', !hideExisting);
 
   const [newRows, setNewRows] = useState<FabricDeliveredDraft[]>([]);
   const [deleteTarget, setDeleteTarget] = useState<FabricDeliveredRow | null>(null);
@@ -100,7 +100,7 @@ export const FabricDeliveredSection = forwardRef<SectionRef, SectionProps & { on
           continue;
         }
         const payload: LoadSentCreatePayload = {
-          productionDate: productionDate ?? '',
+          date: productionDate ?? '',
           colorId,
           sizeId,
           fabricWeight: parseFloat(row.delivered) || 0,
@@ -221,6 +221,17 @@ export const FabricDeliveredSection = forwardRef<SectionRef, SectionProps & { on
                 <TableCell colSpan={readOnly ? 5 : 6} className="h-20 text-center">
                   <div className="flex items-center justify-center gap-2 text-gray-500">
                     <Loader size="sm" /> Loading entries...
+                  </div>
+                </TableCell>
+              </TableRow>
+            ) : isError ? (
+              <TableRow>
+                <TableCell colSpan={readOnly ? 5 : 6} className="h-20 !text-center">
+                  <div className="flex flex-col items-center justify-center gap-2 text-gray-500">
+                    <span>Unable to load fabric delivered entries. Please try again.</span>
+                    <Button variant="outline" size="sm" className="h-7 text-xs" onClick={() => refetch()}>
+                      Retry
+                    </Button>
                   </div>
                 </TableCell>
               </TableRow>

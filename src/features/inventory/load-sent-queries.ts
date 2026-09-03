@@ -31,7 +31,7 @@ export interface LoadSentListResponse {
 
 /** Matches LoadSentCreateRequest — additionalProperties: false, so send exactly this shape. */
 export interface LoadSentCreatePayload {
-  productionDate: string; // date, e.g. "2026-08-20"
+  date: string; // e.g. "2026-08-20"
   colorId: string;
   sizeId: string;
   fabricWeight: number;

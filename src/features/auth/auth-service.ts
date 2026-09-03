@@ -58,18 +58,25 @@ interface ApiEnvelope<T> {
   error?: { code: string; message: string };
 }
 
-async function postJson<T>(path: string, body: unknown): Promise<T> {
+async function postJson<T = void>(path: string, body: unknown, fallback = 'Request failed'): Promise<T> {
   const response = await fetch(apiUrl(path), {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     credentials: 'include',
     body: JSON.stringify(body),
   });
-  const payload = (await response.json()) as ApiEnvelope<T>;
-  if (!response.ok || !payload.success || !payload.data) {
-    throw new Error(payload.error?.message ?? 'Login failed');
+  // A rate-limit response may not carry the usual JSON envelope (e.g. a proxy-level 429), so
+  // .json() is allowed to fail here — the message below still falls back to something sane.
+  const payload = (await response.json().catch(() => null)) as ApiEnvelope<T> | null;
+  if (!response.ok || !payload?.success) {
+    if (response.status === 429) {
+      throw new Error(payload?.error?.message ?? 'Too many requests. Please try again later.');
+    }
+    throw new Error(payload?.error?.message ?? fallback);
   }
-  return payload.data;
+  // Some endpoints (OTP request, password reset) intentionally return `{ success: true }` with
+  // no `data` payload — those callers pass T = void and never look at the return value.
+  return (payload.data as T) ?? (undefined as T);
 }
 
 /**
@@ -82,6 +89,7 @@ export async function loginPlatformAdmin(mobile: string, password: string): Prom
   const { admin, access } = await postJson<{ admin: Omit<PlatformAdminProfile, 'kind' | 'access'>; access: UserAccess | null }>(
     '/platform/admin/login',
     { mobile, password },
+    'Login failed',
   );
   return { kind: 'platform-admin', ...admin, access };
 }
@@ -91,8 +99,84 @@ export async function loginCompanyUser(mobile: string, password: string): Promis
     user: Omit<CompanyUserProfile, 'kind' | 'company' | 'access'>;
     company: CompanyUserProfile['company'];
     access: UserAccess | null;
-  }>('/company/auth/login', { mobile, password });
+  }>('/company/auth/login', { mobile, password }, 'Login failed');
   return { kind: 'company-user', ...user, company, access };
+}
+
+/**
+ * Which account family an OTP/reset request targets — picks the URL prefix, matching the
+ * split between the company-user and platform-admin login endpoints above.
+ */
+export type ActorKind = 'company' | 'platform-admin';
+
+function authBasePath(actorKind: ActorKind): string {
+  return actorKind === 'platform-admin' ? '/platform/admin' : '/company/auth';
+}
+
+/**
+ * OTP-login flow, step 1: requests an OTP be sent to `mobile`. Always resolves on a 2xx —
+ * the backend deliberately returns a generic success whether or not the mobile number is
+ * registered, so this can never be used to enumerate accounts.
+ */
+export async function requestOtpForLogin(mobile: string, actorKind: ActorKind): Promise<void> {
+  await postJson<void>(`${authBasePath(actorKind)}/otp/request-login`, { mobile }, 'Failed to send OTP. Please try again.');
+}
+
+/**
+ * OTP-login flow, step 2: verifies the OTP and, on success, establishes the same session
+ * cookies as the password login endpoints — the response is AuthUser-shaped exactly like
+ * loginCompanyUser/loginPlatformAdmin. Throws with error.code one of OTP_INVALID | OTP_EXPIRED |
+ * OTP_MAX_ATTEMPTS | AMBIGUOUS_LOGIN | ACCOUNT_INACTIVE on failure (surfaced via the message).
+ */
+export async function loginWithOtp(mobile: string, otp: string, actorKind: ActorKind): Promise<AuthUser> {
+  const path = `${authBasePath(actorKind)}/otp/login`;
+  if (actorKind === 'platform-admin') {
+    const { admin, access } = await postJson<{ admin: Omit<PlatformAdminProfile, 'kind' | 'access'>; access: UserAccess | null }>(
+      path,
+      { mobile, otp },
+      'Invalid or expired OTP.',
+    );
+    return { kind: 'platform-admin', ...admin, access };
+  }
+  const { user, company, access } = await postJson<{
+    user: Omit<CompanyUserProfile, 'kind' | 'company' | 'access'>;
+    company: CompanyUserProfile['company'];
+    access: UserAccess | null;
+  }>(path, { mobile, otp }, 'Invalid or expired OTP.');
+  return { kind: 'company-user', ...user, company, access };
+}
+
+/**
+ * Forgot-password flow, step 1: requests an OTP to prove ownership of `mobile` before allowing
+ * a reset. Same generic-success/no-account-enumeration behavior as requestOtpForLogin.
+ */
+export async function requestPasswordResetOtp(mobile: string, actorKind: ActorKind): Promise<void> {
+  await postJson<void>(`${authBasePath(actorKind)}/password/otp/request`, { mobile }, 'Failed to send OTP. Please try again.');
+}
+
+/**
+ * Forgot-password flow, step 2: verifies the OTP and exchanges it for a short-lived resetToken
+ * that step 3 (resetPassword) must present. Same failure error.codes as loginWithOtp.
+ */
+export async function verifyPasswordResetOtp(mobile: string, otp: string, actorKind: ActorKind): Promise<string> {
+  const { resetToken } = await postJson<{ resetToken: string }>(
+    `${authBasePath(actorKind)}/password/otp/verify`,
+    { mobile, otp },
+    'Invalid or expired OTP.',
+  );
+  return resetToken;
+}
+
+/**
+ * Forgot-password flow, step 3: sets the new password using the resetToken from
+ * verifyPasswordResetOtp. Does not establish a session — the user signs in fresh afterward.
+ */
+export async function resetPassword(mobile: string, resetToken: string, newPassword: string, actorKind: ActorKind): Promise<void> {
+  await postJson<void>(
+    `${authBasePath(actorKind)}/password/reset`,
+    { mobile, resetToken, newPassword },
+    'Failed to reset password. Please try again.',
+  );
 }
 
 /**

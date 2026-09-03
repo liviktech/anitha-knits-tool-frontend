@@ -584,7 +584,7 @@ export function ProductionDesign2() {
     if (!deleteTargetDate) return;
     setDeletingDate(true);
     try {
-      const dateQuery = `?date_from=${deleteTargetDate}&date_to=${deleteTargetDate}&limit=100`;
+      const dateQuery = `?date_from=${deleteTargetDate}T00:00:00.000Z&date_to=${deleteTargetDate}T23:59:59.999Z&limit=100`;
       const [extruderRes, loomsRes, fabricRes, loadSentRes] = await Promise.all([
         fetchJson<{ data: { id: string }[] }>(`/production/extruder${dateQuery}`),
         fetchJson<{ data: { id: string }[] }>(`/production/looms${dateQuery}`),
@@ -598,7 +598,7 @@ export function ProductionDesign2() {
         ...fabricRes.data.map((r) => apiFetch(`/fabric-checking/${r.id}`, { method: 'DELETE' })),
         ...loadSentRes.data.map((r) => apiFetch(`/load-sent/${r.id}`, { method: 'DELETE' })),
       ]);
-      if (results.some((r) => !r.ok)) throw new Error('Failed to delete one or more entries');
+      if (results.length > 0 && results.some((r) => !r.ok)) throw new Error('Failed to delete one or more entries');
 
       await Promise.all([
         queryClient.invalidateQueries({ queryKey: extruderKeys.all }),
@@ -612,6 +612,7 @@ export function ProductionDesign2() {
       console.error('Error deleting day entries:', error);
     } finally {
       setDeletingDate(false);
+      setDeleteTargetDate(null);
     }
   };
 
@@ -622,7 +623,7 @@ export function ProductionDesign2() {
     if (!approveTargetDate) return;
     setApprovingDate(true);
     try {
-      const dateQuery = `?date_from=${approveTargetDate}&date_to=${approveTargetDate}&limit=100`;
+      const dateQuery = `?date_from=${approveTargetDate}T00:00:00.000Z&date_to=${approveTargetDate}T23:59:59.999Z&limit=100`;
       const [extruderRes, loomsRes, fabricRes] = await Promise.all([
         fetchJson<{ data: { id: string; isApproved: boolean }[] }>(`/production/extruder${dateQuery}`),
         fetchJson<{ data: { id: string; isApproved: boolean }[] }>(`/production/looms${dateQuery}`),

@@ -3,6 +3,7 @@ import '@fontsource-variable/inter';
 import '@fontsource-variable/hanken-grotesk';
 import { BrowserRouter, Routes, Route, Navigate, NavLink, Link, useLocation, useNavigate } from 'react-router-dom';
 import { LoginPage } from './features/auth/login-page';
+import { ForgotPasswordPage } from './features/auth/forgot-password-page';
 import { useAuth, defaultRouteFor } from './features/auth/auth-context';
 import type { AuthUser, CompanyUserProfile } from './features/auth/auth-service';
 import { hasModuleAccess } from '@/lib/access';
@@ -24,6 +25,9 @@ const EmpExpensesPage = lazy(() => import('./features/emp-expenses/emp-expenses-
 const EmployeePage = lazy(() => import('./features/employee/employee-page').then((m) => ({ default: m.EmployeePage })));
 const AdminPanelPage = lazy(() => import('./features/admin-panel/admin-panel-page').then((m) => ({ default: m.AdminPanelPage })));
 const AdminLoginPage = lazy(() => import('./features/admin/admin-login-page').then((m) => ({ default: m.AdminLoginPage })));
+const AdminForgotPasswordPage = lazy(() =>
+  import('./features/admin/admin-forgot-password-page').then((m) => ({ default: m.AdminForgotPasswordPage })),
+);
 
 function PageLoader() {
   return (
@@ -244,7 +248,9 @@ function App() {
       <Suspense fallback={<PageLoader />}>
         <Routes>
           <Route path="/login" element={<LoginPage />} />
+          <Route path="/forgot-password" element={<ForgotPasswordPage />} />
           <Route path="/admin-login" element={<AdminLoginPage />} />
+          <Route path="/admin-forgot-password" element={<AdminForgotPasswordPage />} />
           {/* Separate super-admin panel — its own shell/nav, deliberately not nested under AppShell.
               Super admin's job here is onboarding companies, so this is their default landing spot. */}
           <Route

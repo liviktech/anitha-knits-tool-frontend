@@ -64,7 +64,7 @@ export interface ExtruderGroupDraft {
 export const ExtruderSection = forwardRef<SectionRef, SectionProps>(({ productionDate, readOnly, hideExisting, sessionStartTime, hideBanner, onEditExtruderGroup }, ref) => {
   const queryClient = useQueryClient();
   const { user } = useAuth();
-  const { data, isLoading } = useExtruderProductions(
+  const { data, isLoading, isError, refetch } = useExtruderProductions(
     productionDate ? `?date_from=${productionDate}&date_to=${productionDate}` : '',
     !hideExisting,
   );
@@ -436,6 +436,17 @@ export const ExtruderSection = forwardRef<SectionRef, SectionProps>(({ productio
                 <TableCell colSpan={15} className="h-20 text-center text-gray-500">
                   <div className="flex items-center justify-center gap-2 text-gray-500">
                     <Loader size="sm" /> Loading entries...
+                  </div>
+                </TableCell>
+              </TableRow>
+            ) : isError ? (
+              <TableRow>
+                <TableCell colSpan={15} className="h-20 !text-center">
+                  <div className="flex flex-col items-center justify-center gap-2 text-gray-500">
+                    <span>Unable to load extruder entries. Please try again.</span>
+                    <Button variant="outline" size="sm" className="h-7 text-xs" onClick={() => refetch()}>
+                      Retry
+                    </Button>
                   </div>
                 </TableCell>
               </TableRow>

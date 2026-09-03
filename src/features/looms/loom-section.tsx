@@ -16,6 +16,7 @@ import {
   type LoomsProductionItem,
   type LoomsCreatePayload,
 } from '@/features/looms/loom-queries';
+import { koraBalanceKeys } from '@/features/fabric/fabric-queries';
 import { useLookups, findIdByName, type Lookups } from '@/features/extruder/extruder-queries';
 import { dashboardProductionKey } from '@/features/production/day-wise-queries';
 import { themes, type SectionProps, type SectionRef } from '@/features/production/day-entry-sections';
@@ -62,7 +63,7 @@ export function suggestLoomOutput(draft: Pick<LoomDraft, 'input' | 'loomsWasteKg
 export const LoomSection = forwardRef<SectionRef, SectionProps>(({ productionDate, readOnly, hideExisting, sessionStartTime, hideBanner, onEditLoomGroup }, ref) => {
   const queryClient = useQueryClient();
   const { user } = useAuth();
-  const { data, isLoading } = useLoomsProductions(
+  const { data, isLoading, isError, refetch } = useLoomsProductions(
     productionDate ? `?date_from=${productionDate}&date_to=${productionDate}` : '',
     !hideExisting,
   );
@@ -138,6 +139,7 @@ export const LoomSection = forwardRef<SectionRef, SectionProps>(({ productionDat
       setNewRows(failed);
       await queryClient.invalidateQueries({ queryKey: loomsKeys.all });
       await queryClient.invalidateQueries({ queryKey: dashboardProductionKey });
+      await queryClient.invalidateQueries({ queryKey: koraBalanceKeys.all });
       setSaving(false);
       if (failed.length > 0) {
         setSaveError(errorMessage);
@@ -184,6 +186,7 @@ export const LoomSection = forwardRef<SectionRef, SectionProps>(({ productionDat
       if (!response.ok) throw new Error('Failed to delete loom entry');
       await queryClient.invalidateQueries({ queryKey: loomsKeys.all });
       await queryClient.invalidateQueries({ queryKey: dashboardProductionKey });
+      await queryClient.invalidateQueries({ queryKey: koraBalanceKeys.all });
       setDeleteTarget(null);
     } catch (error) {
       console.error('Error deleting loom entry:', error);
@@ -230,6 +233,17 @@ export const LoomSection = forwardRef<SectionRef, SectionProps>(({ productionDat
                 <TableCell colSpan={readOnly ? 5 : 6} className="h-20 text-center">
                   <div className="flex items-center justify-center gap-2 text-gray-500">
                     <Loader size="sm" /> Loading entries...
+                  </div>
+                </TableCell>
+              </TableRow>
+            ) : isError ? (
+              <TableRow>
+                <TableCell colSpan={readOnly ? 5 : 6} className="h-20 !text-center">
+                  <div className="flex flex-col items-center justify-center gap-2 text-gray-500">
+                    <span>Unable to load loom entries. Please try again.</span>
+                    <Button variant="outline" size="sm" className="h-7 text-xs" onClick={() => refetch()}>
+                      Retry
+                    </Button>
                   </div>
                 </TableCell>
               </TableRow>
@@ -315,7 +329,7 @@ export const LoomSection = forwardRef<SectionRef, SectionProps>(({ productionDat
         open={!!deleteTarget}
         onOpenChange={(open) => !open && setDeleteTarget(null)}
         title="Delete this loom entry?"
-          description={deleteTarget ? `Are you sure you want to delete this record?` : undefined}
+        description={deleteTarget ? `${deleteTarget.size} / ${deleteTarget.color} — ${deleteTarget.input.toFixed(2)} kg yarn input. This action cannot be undone.` : undefined}
         isPending={deleting}
         onConfirm={handleDeleteRow}
       />

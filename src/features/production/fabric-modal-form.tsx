@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useState } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import { AlertTriangle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -8,8 +8,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Loader } from '@/components/shared/loader';
 import { apiFetch, extractApiErrorMessage } from '@/lib/api-client';
 import { useLookups, findIdByName, type Lookups } from '@/features/extruder/extruder-queries';
-import { fabricCheckingKeys, useKoraBalances, findKoraBalanceKg, type FabricCheckingCreatePayload } from '@/features/fabric/fabric-queries';
-import { useLoomsProductions } from '@/features/looms/loom-queries';
+import { fabricCheckingKeys, koraBalanceKeys, useAvailableFabricKg, type FabricCheckingCreatePayload } from '@/features/fabric/fabric-queries';
 import { dashboardProductionKey } from '@/features/production/day-wise-queries';
 import { themes, colorFieldClasses } from '@/features/production/day-entry-sections';
 import { type FabricDraft, emptyFabricDraft, suggestFabricOutput } from '@/features/fabric/fabric-section';
@@ -27,36 +26,33 @@ export function FabricModalForm({ productionDate, initialData, isEditMode, onCan
   const queryClient = useQueryClient();
   const { data: lookupsData } = useLookups();
   const lookups: Lookups = lookupsData ?? { brands: [], colors: [], chemicals: [], sizes: [] };
-  const { data: koraBalanceData } = useKoraBalances();
-  const { data: loomsData } = useLoomsProductions(
-    productionDate ? `?date_from=${productionDate}&date_to=${productionDate}` : '',
-    !!productionDate,
-  );
   const theme = themes.fabric;
 
   const [draft, setDraft] = useState<FabricDraft>(initialData || { ...emptyFabricDraft });
-  const koraBalanceKg = findKoraBalanceKg(koraBalanceData?.data, draft.size, draft.color);
-  const [outputManuallyEdited, setOutputManuallyEdited] = useState(!!initialData);
+  // Total Fabric Stock mirrors Fabric Production 1:1 (suggestFabricOutput), so it should
+  // keep following edits to Fabric Production even when editing an existing entry — only
+  // typing directly into Total Fabric Stock itself should stop the auto-follow.
+  const [outputManuallyEdited, setOutputManuallyEdited] = useState(false);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   const hasSizeAndColor = !!draft.size && !!draft.color;
+  const selectedColorId = draft.color ? findIdByName(lookups.colors, draft.color) : undefined;
+  const selectedSizeId = draft.size ? findIdByName(lookups.sizes, draft.size) : undefined;
 
-  // Looms' fabricOutputKg for this production date, filtered to the selected size+color —
-  // "available" fabric freshly produced today, separate from the Kora Balance's carried-over ledger total.
-  const fabricProductionAvailableKg = useMemo(() => {
-    if (!hasSizeAndColor) return 0;
-    const items = loomsData?.data ?? [];
-    return items
-      .filter((item) => item.size?.name === draft.size && item.color?.name === draft.color)
-      .reduce((sum, item) => sum + (item.loom?.fabricOutputKg ?? 0), 0);
-  }, [loomsData, hasSizeAndColor, draft.size, draft.color]);
-
-  const totalAvailableKg = (koraBalanceKg ?? 0) + fabricProductionAvailableKg;
-  const showNoStockWarning = hasSizeAndColor && totalAvailableKg === 0;
+  // Cumulative, all-time Looms fabricOutputKg for this colour+size minus all-time Fabric
+  // Checking fabricInputKg already recorded against it — the same figure the backend's
+  // create/update guard (FABRIC_INPUT_EXCEEDS_AVAILABLE) enforces, so the UI can't disagree
+  // with the server about what's allowed.
+  const { availableKg: rawAvailableKg, isChecking: isCheckingAvailable } = useAvailableFabricKg(selectedColorId, selectedSizeId);
+  // Editing an existing record already "spent" its own fabricInputKg against that total —
+  // add it back so editing isn't capped by a number that already excludes this record.
+  const originalFabricInputKg = isEditMode && initialData ? parseFloat(initialData.input) || 0 : 0;
+  const totalAvailableKg = rawAvailableKg !== undefined ? rawAvailableKg + originalFabricInputKg : undefined;
+  const showNoStockWarning = hasSizeAndColor && totalAvailableKg !== undefined && totalAvailableKg <= 0;
 
   const fabricProductionInputKg = parseFloat(draft.input) || 0;
-  const exceedsAvailable = hasSizeAndColor && fabricProductionInputKg > totalAvailableKg;
+  const exceedsAvailable = hasSizeAndColor && totalAvailableKg !== undefined && fabricProductionInputKg > totalAvailableKg;
 
   const updateField = (field: keyof FabricDraft, value: string) => {
     setDraft(prev => {
@@ -92,7 +88,7 @@ export function FabricModalForm({ productionDate, initialData, isEditMode, onCan
     }
 
     if (exceedsAvailable) {
-      setError('Fabric Production exceeds the available fabric/kora stock.');
+      setError(`Fabric Production exceeds the available fabric stock (${(totalAvailableKg ?? 0).toFixed(2)} kg available).`);
       return;
     }
 
@@ -125,6 +121,7 @@ export function FabricModalForm({ productionDate, initialData, isEditMode, onCan
       }
       await queryClient.invalidateQueries({ queryKey: fabricCheckingKeys.all });
       await queryClient.invalidateQueries({ queryKey: dashboardProductionKey });
+      await queryClient.invalidateQueries({ queryKey: koraBalanceKeys.all });
       onSuccess();
     } catch {
       setError('An unexpected error occurred. Please try again.');
@@ -156,27 +153,15 @@ export function FabricModalForm({ productionDate, initialData, isEditMode, onCan
         <h3 className={`text-xs font-semibold uppercase tracking-wider border-b pb-1.5 ${theme.headerText}`}>Production Details</h3>
         <div className="grid grid-cols-2 gap-4 pt-1">
 
-
           <div className="space-y-1.5">
-            <Label className="text-gray-600 text-xs font-semibold">Fabric Production Available (kg)</Label>
+            <Label className="text-gray-600 text-xs font-semibold">Available Fabric (kg)</Label>
             <Input
               type="text"
               placeholder="Select size & color"
-              value={hasSizeAndColor ? fabricProductionAvailableKg.toFixed(2) : ''}
+              value={hasSizeAndColor ? (isCheckingAvailable ? 'Checking…' : (totalAvailableKg ?? 0).toFixed(2)) : ''}
               disabled
               readOnly
-              className="bg-gray-100"
-            />
-          </div>
-          <div className="space-y-1.5">
-            <Label className="text-gray-600 text-xs font-semibold">Kora Balance (kg)</Label>
-            <Input
-              type="text"
-              placeholder="Select size & color"
-              value={hasSizeAndColor ? (koraBalanceKg ?? 0).toFixed(2) : ''}
-              disabled
-              readOnly
-              className="bg-gray-100"
+              className="bg-gray-100 font-semibold"
             />
           </div>
           <div className="space-y-1.5">
@@ -191,30 +176,19 @@ export function FabricModalForm({ productionDate, initialData, isEditMode, onCan
               className={exceedsAvailable ? 'border-red-400 focus-visible:ring-red-400' : undefined}
             />
           </div>
-          <div className="space-y-1.5">
-            <Label className="text-gray-600 text-xs font-semibold">Total Available (kg)</Label>
-            <Input
-              type="text"
-              placeholder="Select size & color"
-              value={hasSizeAndColor ? totalAvailableKg.toFixed(2) : ''}
-              disabled
-              readOnly
-              className="bg-gray-100 font-semibold"
-            />
-          </div>
         </div>
 
-        {showNoStockWarning && (
+        {showNoStockWarning && !exceedsAvailable && (
           <p className="mt-3 flex items-center gap-2 text-sm text-amber-700 bg-amber-50 border border-amber-200 rounded-md px-3 py-2">
             <AlertTriangle className="h-4 w-4 shrink-0" />
-            There is no fabric/kora available for this size and color.
+            There is no fabric available for this size and color.
           </p>
         )}
 
         {exceedsAvailable && (
           <p className="mt-3 flex items-center gap-2 text-sm text-red-700 bg-red-50 border border-red-200 rounded-md px-3 py-2">
             <AlertTriangle className="h-4 w-4 shrink-0" />
-            Fabric Production ({fabricProductionInputKg.toFixed(2)} kg) exceeds the available stock ({totalAvailableKg.toFixed(2)} kg).
+            Fabric Production ({fabricProductionInputKg.toFixed(2)} kg) exceeds the available stock ({(totalAvailableKg ?? 0).toFixed(2)} kg).
           </p>
         )}
       </div>
@@ -254,7 +228,7 @@ export function FabricModalForm({ productionDate, initialData, isEditMode, onCan
         <Button variant="outline" onClick={onCancel} disabled={saving} className="border-gray-300 text-gray-700">
           Cancel
         </Button>
-        <Button onClick={handleSave} disabled={saving || exceedsAvailable} className={`${theme.iconBg} ${theme.iconColor} hover:opacity-90`}>
+        <Button onClick={handleSave} disabled={saving || exceedsAvailable || isCheckingAvailable} className={`${theme.iconBg} ${theme.iconColor} hover:opacity-90`}>
           {saving && <Loader className="mr-2" size="sm" />}
           {saving ? 'Saving...' : 'Save'}
         </Button>

@@ -8,6 +8,7 @@ import { Input } from '@/components/ui/input';
 import { useMonthlyDashboard } from './dashboard-queries';
 import { useAuth } from '@/features/auth/auth-context';
 import { currentMonthStr as todayMonthStr } from '@/lib/date-utils';
+import { useOpeningBalanceWastage, useOpeningBalanceFabricStock, useOpeningBalanceRawMaterials } from '@/features/admin-panel/opening-balance-queries';
 
 function formatNum(n: number): string {
   return n.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
@@ -49,30 +50,94 @@ export function DashboardDesign2() {
 
   const { dashboardData, isLoading: loadingDashboard } = useMonthlyDashboard(currentMonthStr);
 
-  // Use backend-provided monthly inventory aggregations
+  const { data: obRawMaterialsRes } = useOpeningBalanceRawMaterials('?limit=100');
+  const obRawMaterials = obRawMaterialsRes?.data || [];
+
+  const getObInvTotals = (type: string) => {
+    const relevantObs = obRawMaterials.filter(r => r.type === type);
+    const weight = relevantObs.reduce((sum, r) => sum + r.weightKg, 0);
+    const itemsMap = new Map<string, number>();
+    relevantObs.forEach(r => {
+      itemsMap.set(r.name, (itemsMap.get(r.name) || 0) + r.weightKg);
+    });
+    return { weight, itemsMap };
+  };
+
+  const obHdpe = getObInvTotals('HDPE');
+  const obChemical = getObInvTotals('CHEMICAL');
+  const obColor = getObInvTotals('COLOR');
+
+  const combineInvItems = (baseItems: { name: string, weight: number }[], obItemsMap: Map<string, number>) => {
+    const combinedMap = new Map(obItemsMap);
+    baseItems.forEach(item => {
+      combinedMap.set(item.name, (combinedMap.get(item.name) || 0) + item.weight);
+    });
+    return Array.from(combinedMap.entries()).map(([name, weight]) => ({ name, weight }));
+  };
+
+  // Use backend-provided monthly inventory aggregations, adding Opening Balance
   const rawMaterials = {
-    weight: dashboardData?.inventory?.HDPE?.totalWeightKg || 0,
-    items: dashboardData?.inventory?.HDPE?.items?.map(item => ({ name: item.name, weight: item.weightKg })) || [],
+    weight: (dashboardData?.inventory?.HDPE?.totalWeightKg || 0) + obHdpe.weight,
+    items: combineInvItems(
+      dashboardData?.inventory?.HDPE?.items?.map(item => ({ name: item.name, weight: item.weightKg })) || [],
+      obHdpe.itemsMap
+    ),
   };
   const chemicals = {
-    weight: dashboardData?.inventory?.CHEMICAL?.totalWeightKg || 0,
-    items: dashboardData?.inventory?.CHEMICAL?.items?.map(item => ({ name: item.name, weight: item.weightKg })) || [],
+    weight: (dashboardData?.inventory?.CHEMICAL?.totalWeightKg || 0) + obChemical.weight,
+    items: combineInvItems(
+      dashboardData?.inventory?.CHEMICAL?.items?.map(item => ({ name: item.name, weight: item.weightKg })) || [],
+      obChemical.itemsMap
+    ),
   };
   const invColors = {
-    weight: dashboardData?.inventory?.COLOR?.totalWeightKg || 0,
-    items: dashboardData?.inventory?.COLOR?.items?.map(item => ({ name: item.name, weight: item.weightKg })) || [],
+    weight: (dashboardData?.inventory?.COLOR?.totalWeightKg || 0) + obColor.weight,
+    items: combineInvItems(
+      dashboardData?.inventory?.COLOR?.items?.map(item => ({ name: item.name, weight: item.weightKg })) || [],
+      obColor.itemsMap
+    ),
   };
 
   const isLoading = loadingDashboard;
 
-  const looseWasteKg = dashboardData?.wastage.byType.find(w => w.code === 'YARN_WASTE')?.quantityKg || 0;
-  const lumsWasteKg = dashboardData?.wastage.byType.find(w => w.code === 'LUMPS')?.quantityKg || 0;
+  const { data: obWastageRes } = useOpeningBalanceWastage('?limit=100');
+  const obWastage = obWastageRes?.data || [];
+
+  const { data: obFabricStockRes } = useOpeningBalanceFabricStock('?limit=100');
+  const obFabricStock = obFabricStockRes?.data || [];
+
+  const obWastageByColor = new Map<string, { lums: number, loose: number, looms: number, fw: number, bw: number }>();
+  
+  obWastage.forEach(r => {
+    const rawColor = r.color?.name || 'Unknown';
+    const color = rawColor.charAt(0).toUpperCase() + rawColor.slice(1).toLowerCase();
+    if (!obWastageByColor.has(color)) {
+      obWastageByColor.set(color, { lums: 0, loose: 0, looms: 0, fw: 0, bw: 0 });
+    }
+    const current = obWastageByColor.get(color)!;
+    current.lums += r.extruderLumpsKg || 0;
+    current.loose += r.extruderLoomsWasteKg || 0;
+    current.looms += r.loomsYarnWasteKg || 0;
+    current.fw += r.fabricWasteKg || 0;
+    current.bw += r.fabricBitwasteKg || 0;
+  });
+
+  let totalObLums = 0;
+  let totalObLoose = 0;
+  obWastageByColor.forEach(v => {
+    totalObLums += v.lums;
+    totalObLoose += v.loose;
+  });
+
+  const looseWasteKg = (dashboardData?.wastage.byType.find(w => w.code === 'YARN_WASTE')?.quantityKg || 0) + totalObLoose;
+  const lumsWasteKg = (dashboardData?.wastage.byType.find(w => w.code === 'LUMPS')?.quantityKg || 0) + totalObLums;
   // Statically listed by color (like fabricWasteByColor below) so every card always shows
   // all colors with "--" for anything not yet recorded, instead of an empty-state message.
   const extruderByColorMap = new Map((dashboardData?.extruderProduction || []).map(r => [r.color.name, r]));
   const extruderWasteByColor = FABRIC_COLORS.map(color => {
     const r = extruderByColorMap.get(color);
-    return { color, lums: r?.lumsKg ?? 0, yarnWaste: r?.yarnWasteKg ?? 0 };
+    const ob = obWastageByColor.get(color) || { lums: 0, loose: 0 };
+    return { color, lums: (r?.lumsKg ?? 0) + ob.lums, yarnWaste: (r?.yarnWasteKg ?? 0) + ob.loose };
   });
   const extruderSummaryByColor = FABRIC_COLORS.map(color => {
     const r = extruderByColorMap.get(color);
@@ -83,7 +148,8 @@ export function DashboardDesign2() {
   const loomsByColorMap = new Map((dashboardData?.loomsProduction || []).map(r => [r.color.name, r]));
   const loomsWasteByColor = FABRIC_COLORS.map(color => {
     const r = loomsByColorMap.get(color);
-    return { color, loomsWaste: r?.waste ?? 0 };
+    const ob = obWastageByColor.get(color) || { looms: 0 };
+    return { color, loomsWaste: (r?.waste ?? 0) + ob.looms };
   });
   const loomsSummaryByColor = FABRIC_COLORS.map(color => {
     const r = loomsByColorMap.get(color);
@@ -94,7 +160,8 @@ export function DashboardDesign2() {
   const fabricByColorMap = new Map((dashboardData?.fabricProduction.byColor || []).map(r => [r.color.name, r]));
   const fabricWasteByColor = FABRIC_COLORS.map(color => {
     const r = fabricByColorMap.get(color);
-    return { color, fabricWaste: r?.fwWasteKg ?? 0, bitWaste: r?.bwWasteKg ?? 0 };
+    const ob = obWastageByColor.get(color) || { fw: 0, bw: 0 };
+    return { color, fabricWaste: (r?.fwWasteKg ?? 0) + ob.fw, bitWaste: (r?.bwWasteKg ?? 0) + ob.bw };
   });
   const fabricSummaryByColor = FABRIC_COLORS.map(color => {
     const r = fabricByColorMap.get(color);
@@ -122,7 +189,16 @@ export function DashboardDesign2() {
     FABRIC_COLORS.forEach((color) => getRow(color));
     (dashboardData?.stockBalance || []).forEach(r => {
       const row = getRow(r.color.name);
-      row.stockBySize[r.size.name] = r.availableFabricStockKg;
+      row.stockBySize[r.size.name] = (row.stockBySize[r.size.name] || 0) + r.availableFabricStockKg;
+    });
+
+    obFabricStock.forEach(r => {
+      if (r.color?.name && r.size?.name) {
+        const colorName = r.color.name.trim();
+        const normalizedColor = colorName.charAt(0).toUpperCase() + colorName.slice(1).toLowerCase();
+        const row = getRow(normalizedColor);
+        row.stockBySize[r.size.name] = (row.stockBySize[r.size.name] || 0) + r.fabricStockKg;
+      }
     });
     return Array.from(byColor.values());
   })();

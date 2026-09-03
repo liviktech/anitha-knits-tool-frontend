@@ -13,6 +13,7 @@ import { useLookups } from '@/lib/lookups';
 import { useAuth } from '@/features/auth/auth-context';
 import { can } from '@/lib/access';
 import { RIGHTS } from '@/lib/permissions';
+import { useOpeningBalanceRawMaterials } from '@/features/admin-panel/opening-balance-queries';
 import { canCreateProductionRecord, canDeleteProductionRecord, canEditProductionRecord } from '@/lib/production-permissions';
 import { currentMonthStr } from '@/lib/date-utils';
 import { formatDate, formatDateDisplay } from './inventory-utils';
@@ -190,7 +191,7 @@ function InventoryReceiveTab({ onBack }: { onBack: () => void }) {
         open={!!deleteTarget}
         onOpenChange={(open) => !open && setDeleteTarget(null)}
         title="Delete this entire receipt?"
-        description={deleteTarget ? `Are you sure you want to delete this record?` : undefined}
+        description={deleteTarget ? `Are you sure you want to delete this batch? This action cannot be undone.` : undefined}
         isPending={deleting}
         onConfirm={handleDelete}
       />
@@ -397,7 +398,7 @@ function LoadSentTab({ onBack }: { onBack: () => void }) {
         open={!!deleteTarget}
         onOpenChange={(open) => !open && setDeleteTarget(null)}
         title="Delete this load sent record?"
-        description={deleteTarget ? `Are you sure you want to delete this record?` : undefined}
+        description={deleteTarget ? `${getLoadSentWeight(deleteTarget).toFixed(2)} kg. This action cannot be undone.` : undefined}
         isPending={deleting}
         onConfirm={handleDelete}
       />
@@ -417,20 +418,33 @@ function StockSummaryCard({ month, onEditDate, onDeleteDate }: { month: string; 
 
   const monthRecords = records.filter(r => r.date.startsWith(month));
 
-  const getCategoryData = (type: InventoryType) => {
+  const { data: obRawMaterialsRes } = useOpeningBalanceRawMaterials('?limit=100');
+  const obRawMaterials = obRawMaterialsRes?.data || [];
+
+  const getCategoryDataWithOb = (type: InventoryType) => {
     const categoryRecords = monthRecords.filter(r => r.type === type);
-    const weight = categoryRecords.reduce((sum, r) => sum + r.weightKg, 0);
+    const obRecords = obRawMaterials.filter(r => r.type === type);
+    
+    const obWeight = obRecords.reduce((sum, r) => sum + r.weightKg, 0);
+    const recordWeight = categoryRecords.reduce((sum, r) => sum + r.weightKg, 0);
+    
+    const weight = recordWeight + obWeight;
+    
     const itemsMap = new Map<string, number>();
+    obRecords.forEach(r => {
+      if (r.name) itemsMap.set(r.name, (itemsMap.get(r.name) || 0) + r.weightKg);
+    });
     categoryRecords.forEach(r => {
       if (r.name) itemsMap.set(r.name, (itemsMap.get(r.name) || 0) + r.weightKg);
     });
+    
     const items = Array.from(itemsMap.entries()).map(([name, w]) => ({ name, weight: w }));
     return { weight, items };
   };
 
-  const rawMaterials = getCategoryData('HDPE');
-  const chemicals = getCategoryData('CHEMICAL');
-  const colors = getCategoryData('COLOR');
+  const rawMaterials = getCategoryDataWithOb('HDPE');
+  const chemicals = getCategoryDataWithOb('CHEMICAL');
+  const colors = getCategoryDataWithOb('COLOR');
 
   const hdpeNames = (lookupsData?.brands ?? []).map(b => b.name).sort();
   const chemicalNames = (lookupsData?.chemicals ?? []).map(c => c.name).sort();
@@ -813,7 +827,7 @@ function InventorySummary({ month, onEditDate }: { month: string; onEditDate: (d
         open={!!deleteTargetGroup}
         onOpenChange={(open) => !open && setDeleteTargetGroup(null)}
         title="Delete this receipt?"
-        description={deleteTargetGroup ? `Are you sure you want to delete this record` : undefined}
+        description={deleteTargetGroup ? `Are you sure you want to delete this batch of stock received? This cannot be undone.` : undefined}
         isPending={deleting}
         onConfirm={handleDeleteDate}
       />
