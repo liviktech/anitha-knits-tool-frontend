@@ -63,7 +63,7 @@ export function suggestLoomOutput(draft: Pick<LoomDraft, 'input' | 'loomsWasteKg
 export const LoomSection = forwardRef<SectionRef, SectionProps>(({ productionDate, readOnly, hideExisting, sessionStartTime, hideBanner, onEditLoomGroup }, ref) => {
   const queryClient = useQueryClient();
   const { user } = useAuth();
-  const { data, isLoading } = useLoomsProductions(
+  const { data, isLoading, isError, refetch } = useLoomsProductions(
     productionDate ? `?date_from=${productionDate}&date_to=${productionDate}` : '',
     !hideExisting,
   );
@@ -233,6 +233,17 @@ export const LoomSection = forwardRef<SectionRef, SectionProps>(({ productionDat
                 <TableCell colSpan={readOnly ? 5 : 6} className="h-20 text-center">
                   <div className="flex items-center justify-center gap-2 text-gray-500">
                     <Loader size="sm" /> Loading entries...
+                  </div>
+                </TableCell>
+              </TableRow>
+            ) : isError ? (
+              <TableRow>
+                <TableCell colSpan={readOnly ? 5 : 6} className="h-20 !text-center">
+                  <div className="flex flex-col items-center justify-center gap-2 text-gray-500">
+                    <span>Unable to load loom entries. Please try again.</span>
+                    <Button variant="outline" size="sm" className="h-7 text-xs" onClick={() => refetch()}>
+                      Retry
+                    </Button>
                   </div>
                 </TableCell>
               </TableRow>
