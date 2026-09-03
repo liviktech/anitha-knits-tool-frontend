@@ -1,53 +1,100 @@
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
+import { useQueryClient } from '@tanstack/react-query';
+import { format } from 'date-fns';
 import { Plus, Trash2, Edit2, Calendar as CalendarIcon, X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { DeleteConfirmDialog } from '@/components/shared/delete-confirm-dialog';
 import { Calendar } from '@/components/ui/calendar';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { format } from 'date-fns';
-import { useLookups } from '@/lib/lookups';
+import { useLookups, findIdByName } from '@/lib/lookups';
 import { Loader } from '@/components/shared/loader';
-
-type OpeningBalanceWastageGroup = {
-  id: string;
-  date: string;
-  color: string;
-  size: string;
-  extruder: {
-    lumps: number;
-    looms: number;
-  };
-  looms: {
-    loomsYarn: number;
-  };
-  fabric: {
-    fabricWaste: number;
-    bitwaste: number;
-  };
-};
+import { apiFetch, extractApiErrorMessage } from '@/lib/api-client';
+import {
+  useOpeningBalanceWastage,
+  openingBalanceWastageKeys,
+  type OpeningBalanceWastageRecord,
+  type OpeningBalanceWastagePayload,
+} from './opening-balance-queries';
 
 export function OpeningBalanceWastageTab() {
-  const { data: lookupsData, isLoading } = useLookups();
-  const [records, setRecords] = useState<OpeningBalanceWastageGroup[]>([]);
+  const queryClient = useQueryClient();
+  const { data: lookupsData, isLoading: isLookupsLoading } = useLookups();
+  const { data: recordsData, isLoading: isRecordsLoading } = useOpeningBalanceWastage('?limit=100');
   const [isModalOpen, setIsModalOpen] = useState(false);
-  const [editingRecord, setEditingRecord] = useState<OpeningBalanceWastageGroup | null>(null);
+  const [editingRecord, setEditingRecord] = useState<OpeningBalanceWastageRecord | null>(null);
+  const [deleteTarget, setDeleteTarget] = useState<OpeningBalanceWastageRecord | null>(null);
+  const [isDeleting, setIsDeleting] = useState(false);
+  const [saveError, setSaveError] = useState<string | null>(null);
 
-  if (isLoading) return <Loader className="m-auto mt-10" />;
+  if (isLookupsLoading || isRecordsLoading) return <Loader className="m-auto mt-10" />;
 
-  const handleDelete = (id: string) => {
-    setRecords(records.filter(r => r.id !== id));
+  const records = recordsData?.data ?? [];
+
+  const handleDeleteConfirm = async () => {
+    if (!deleteTarget) return;
+    setIsDeleting(true);
+    try {
+      const response = await apiFetch(`/opening-balance/wastage/${deleteTarget.id}`, { method: 'DELETE' });
+      if (response.ok) {
+        await queryClient.invalidateQueries({ queryKey: openingBalanceWastageKeys.all });
+        setDeleteTarget(null);
+      }
+    } finally {
+      setIsDeleting(false);
+    }
   };
 
-  const handleOpenEdit = (record: OpeningBalanceWastageGroup) => {
+  const handleOpenEdit = (record: OpeningBalanceWastageRecord) => {
     setEditingRecord(record);
+    setSaveError(null);
     setIsModalOpen(true);
   };
 
   const handleOpenAdd = () => {
     setEditingRecord(null);
+    setSaveError(null);
     setIsModalOpen(true);
+  };
+
+  /** Editing updates the first row in place; any additional rows added in the modal are created as new records. */
+  const handleSave = async (rows: OpeningBalanceWastagePayload[]) => {
+    setSaveError(null);
+    try {
+      const [first, ...rest] = rows;
+
+      if (editingRecord && first) {
+        const response = await apiFetch(`/opening-balance/wastage/${editingRecord.id}`, {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(first),
+        });
+        if (!response.ok) {
+          setSaveError(await extractApiErrorMessage(response, 'Failed to save opening balance.'));
+          return;
+        }
+      }
+
+      const itemsToCreate = editingRecord ? rest : rows;
+      if (itemsToCreate.length > 0) {
+        const response = await apiFetch('/opening-balance/wastage/batch', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ items: itemsToCreate }),
+        });
+        if (!response.ok) {
+          setSaveError(await extractApiErrorMessage(response, 'Failed to save opening balance.'));
+          return;
+        }
+      }
+
+      await queryClient.invalidateQueries({ queryKey: openingBalanceWastageKeys.all });
+      setIsModalOpen(false);
+    } catch {
+      setSaveError('Could not save opening balance. Please try again.');
+    }
   };
 
   return (
@@ -74,13 +121,13 @@ export function OpeningBalanceWastageTab() {
                 <th rowSpan={2} className="px-3 py-2 text-center font-bold text-gray-700 uppercase tracking-wide border-r border-gray-200 align-middle">
                   SIZE
                 </th>
-                <th colSpan={2} className="px-3 py-2 text-center font-bold text-blue-700 uppercase tracking-wide bg-blue-50/50 border-r border-gray-200">
+                <th colSpan={3} className="px-3 py-2 text-center font-bold text-blue-700 uppercase tracking-wide bg-blue-50/50 border-r border-gray-200">
                   EXTRUDER
                 </th>
-                <th colSpan={1} className="px-3 py-2 text-center font-bold text-yellow-700 uppercase tracking-wide bg-yellow-50/50 border-r border-gray-200">
+                <th colSpan={2} className="px-3 py-2 text-center font-bold text-yellow-700 uppercase tracking-wide bg-yellow-50/50 border-r border-gray-200">
                   LOOMS
                 </th>
-                <th colSpan={2} className="px-3 py-2 text-center font-bold text-purple-700 uppercase tracking-wide bg-purple-50/50 border-r border-gray-200">
+                <th colSpan={3} className="px-3 py-2 text-center font-bold text-purple-700 uppercase tracking-wide bg-purple-50/50 border-r border-gray-200">
                   FABRIC CHECKING
                 </th>
                 <th rowSpan={2} className="px-3 py-2 text-center font-bold text-gray-700 uppercase tracking-wide align-middle">
@@ -88,30 +135,36 @@ export function OpeningBalanceWastageTab() {
                 </th>
               </tr>
               <tr className="bg-gray-50/80 border-b border-gray-300">
-                {/* Extruder */}
                 <th className="border-r border-gray-200 px-2 py-1 text-center font-semibold text-blue-600 text-[10px] sm:text-xs uppercase whitespace-nowrap">
                   Lumps waste
                 </th>
                 <th className="border-r border-gray-200 px-2 py-1 text-center font-semibold text-blue-600 text-[10px] sm:text-xs uppercase whitespace-nowrap">
                   Looms waste
                 </th>
-                {/* Looms */}
+                <th className="border-r border-gray-200 px-2 py-1 text-center font-bold text-blue-700 text-[10px] sm:text-xs uppercase whitespace-nowrap bg-blue-50/30">
+                  Total
+                </th>
                 <th className="border-r border-gray-200 px-2 py-1 text-center font-semibold text-yellow-600 text-[10px] sm:text-xs uppercase whitespace-nowrap">
                   Looms/Yarn waste
                 </th>
-                {/* Fabric */}
+                <th className="border-r border-gray-200 px-2 py-1 text-center font-bold text-yellow-700 text-[10px] sm:text-xs uppercase whitespace-nowrap bg-yellow-50/30">
+                  Total
+                </th>
                 <th className="border-r border-gray-200 px-2 py-1 text-center font-semibold text-purple-600 text-[10px] sm:text-xs uppercase whitespace-nowrap">
                   Fabric waste
                 </th>
                 <th className="border-r border-gray-200 px-2 py-1 text-center font-semibold text-purple-600 text-[10px] sm:text-xs uppercase whitespace-nowrap">
                   Bitwaste
                 </th>
+                <th className="border-r border-gray-200 px-2 py-1 text-center font-bold text-purple-700 text-[10px] sm:text-xs uppercase whitespace-nowrap bg-purple-50/30">
+                  Total
+                </th>
               </tr>
             </thead>
             <tbody>
               {records.length === 0 ? (
                 <tr>
-                  <td colSpan={9} className="py-12 text-center text-gray-500 text-sm">
+                  <td colSpan={12} className="py-12 text-center text-gray-500 text-sm">
                     No wastage balances found. Add one to get started.
                   </td>
                 </tr>
@@ -122,8 +175,8 @@ export function OpeningBalanceWastageTab() {
                     if (!map.has(dateStr)) map.set(dateStr, []);
                     map.get(dateStr)!.push(r);
                     return map;
-                  }, new Map<string, OpeningBalanceWastageGroup[]>()).entries()
-                ).flatMap(([dateStr, group]) => 
+                  }, new Map<string, OpeningBalanceWastageRecord[]>()).entries()
+                ).flatMap(([dateStr, group]) =>
                   group.map((r, idx) => (
                     <tr key={r.id} className="border-b border-gray-200 hover:bg-gray-50/50">
                       {idx === 0 && (
@@ -132,32 +185,41 @@ export function OpeningBalanceWastageTab() {
                         </td>
                       )}
                       <td className="border-r border-gray-200 px-3 py-2 text-center text-gray-700 whitespace-nowrap">
-                        {r.color || '—'}
+                        {r.color?.name || '—'}
                       </td>
                       <td className="border-r border-gray-200 px-3 py-2 text-center text-gray-700 whitespace-nowrap">
-                        {r.size || '—'}
+                        {r.size?.name || '—'}
                       </td>
                       <td className="border-r border-gray-200 px-2 py-2 text-center text-gray-600">
-                        {r.extruder.lumps ? r.extruder.lumps.toFixed(2) : '—'}
+                        {r.extruderLumpsKg ? r.extruderLumpsKg.toFixed(2) : '—'}
                       </td>
                       <td className="border-r border-gray-200 px-2 py-2 text-center text-gray-600">
-                        {r.extruder.looms ? r.extruder.looms.toFixed(2) : '—'}
+                        {r.extruderLoomsWasteKg ? r.extruderLoomsWasteKg.toFixed(2) : '—'}
+                      </td>
+                      <td className="border-r border-gray-200 px-2 py-2 text-center font-bold text-blue-800 bg-blue-50/30">
+                        {((r.extruderLumpsKg || 0) + (r.extruderLoomsWasteKg || 0)) > 0 ? ((r.extruderLumpsKg || 0) + (r.extruderLoomsWasteKg || 0)).toFixed(2) : '—'}
                       </td>
                       <td className="border-r border-gray-200 px-2 py-2 text-center text-gray-600">
-                        {r.looms.loomsYarn ? r.looms.loomsYarn.toFixed(2) : '—'}
+                        {r.loomsYarnWasteKg ? r.loomsYarnWasteKg.toFixed(2) : '—'}
+                      </td>
+                      <td className="border-r border-gray-200 px-2 py-2 text-center font-bold text-yellow-800 bg-yellow-50/30">
+                        {r.loomsYarnWasteKg ? r.loomsYarnWasteKg.toFixed(2) : '—'}
                       </td>
                       <td className="border-r border-gray-200 px-2 py-2 text-center text-gray-600">
-                        {r.fabric.fabricWaste ? r.fabric.fabricWaste.toFixed(2) : '—'}
+                        {r.fabricWasteKg ? r.fabricWasteKg.toFixed(2) : '—'}
                       </td>
                       <td className="border-r border-gray-200 px-2 py-2 text-center text-gray-600">
-                        {r.fabric.bitwaste ? r.fabric.bitwaste.toFixed(2) : '—'}
+                        {r.fabricBitwasteKg ? r.fabricBitwasteKg.toFixed(2) : '—'}
+                      </td>
+                      <td className="border-r border-gray-200 px-2 py-2 text-center font-bold text-purple-800 bg-purple-50/30">
+                        {((r.fabricWasteKg || 0) + (r.fabricBitwasteKg || 0)) > 0 ? ((r.fabricWasteKg || 0) + (r.fabricBitwasteKg || 0)).toFixed(2) : '—'}
                       </td>
                       <td className="px-3 py-2 align-middle">
                         <div className="flex items-center justify-center gap-1">
                           <Button variant="ghost" size="icon" className="h-7 w-7 text-blue-600" onClick={() => handleOpenEdit(r)}>
                             <Edit2 className="h-3.5 w-3.5" />
                           </Button>
-                          <Button variant="ghost" size="icon" className="h-7 w-7 text-red-600" onClick={() => handleDelete(r.id)}>
+                          <Button variant="ghost" size="icon" className="h-7 w-7 text-red-600" onClick={() => setDeleteTarget(r)}>
                             <Trash2 className="h-3.5 w-3.5" />
                           </Button>
                         </div>
@@ -167,6 +229,41 @@ export function OpeningBalanceWastageTab() {
                 )
               )}
             </tbody>
+            <tfoot>
+              {records.length > 0 && (
+                <tr className="bg-gray-100 font-bold border-t-2 border-gray-300">
+                  <td colSpan={3} className="px-3 py-3 text-center text-gray-800 uppercase tracking-wide border-r border-gray-200">Grand Total</td>
+
+                  <td className="px-2 py-3 text-center text-blue-900 bg-blue-100/30 border-r border-gray-200">
+                    {records.reduce((acc, r) => acc + (r.extruderLumpsKg || 0), 0).toFixed(2)}
+                  </td>
+                  <td className="px-2 py-3 text-center text-blue-900 bg-blue-100/30 border-r border-gray-200">
+                    {records.reduce((acc, r) => acc + (r.extruderLoomsWasteKg || 0), 0).toFixed(2)}
+                  </td>
+                  <td className="px-2 py-3 text-center text-blue-900 bg-blue-100/60 border-r border-gray-200">
+                    {records.reduce((acc, r) => acc + (r.extruderLumpsKg || 0) + (r.extruderLoomsWasteKg || 0), 0).toFixed(2)}
+                  </td>
+
+                  <td className="px-2 py-3 text-center text-yellow-900 bg-yellow-100/30 border-r border-gray-200">
+                    {records.reduce((acc, r) => acc + (r.loomsYarnWasteKg || 0), 0).toFixed(2)}
+                  </td>
+                  <td className="px-2 py-3 text-center text-yellow-900 bg-yellow-100/60 border-r border-gray-200">
+                    {records.reduce((acc, r) => acc + (r.loomsYarnWasteKg || 0), 0).toFixed(2)}
+                  </td>
+
+                  <td className="px-2 py-3 text-center text-purple-900 bg-purple-100/30 border-r border-gray-200">
+                    {records.reduce((acc, r) => acc + (r.fabricWasteKg || 0), 0).toFixed(2)}
+                  </td>
+                  <td className="px-2 py-3 text-center text-purple-900 bg-purple-100/30 border-r border-gray-200">
+                    {records.reduce((acc, r) => acc + (r.fabricBitwasteKg || 0), 0).toFixed(2)}
+                  </td>
+                  <td className="px-2 py-3 text-center text-purple-900 bg-purple-100/60 border-r border-gray-200">
+                    {records.reduce((acc, r) => acc + (r.fabricWasteKg || 0) + (r.fabricBitwasteKg || 0), 0).toFixed(2)}
+                  </td>
+                  <td></td>
+                </tr>
+              )}
+            </tfoot>
           </table>
         </div>
       </div>
@@ -174,25 +271,21 @@ export function OpeningBalanceWastageTab() {
       {isModalOpen && (
         <WastageModal
           onClose={() => setIsModalOpen(false)}
-          onSave={(dataArray) => {
-            if (editingRecord) {
-              const [first, ...rest] = dataArray;
-              const updatedFirst = { ...editingRecord, ...first };
-              const newRecords = rest.map(d => ({ ...d, id: Math.random().toString(36).substr(2, 9) }));
-              setRecords(prev => {
-                const updated = prev.map(r => r.id === editingRecord.id ? updatedFirst : r);
-                return [...updated, ...newRecords];
-              });
-            } else {
-              const newRecords = dataArray.map(d => ({ ...d, id: Math.random().toString(36).substr(2, 9) }));
-              setRecords([...records, ...newRecords]);
-            }
-            setIsModalOpen(false);
-          }}
+          onSave={handleSave}
           initialData={editingRecord}
           lookupsData={lookupsData}
+          error={saveError}
         />
       )}
+
+      <DeleteConfirmDialog
+        open={!!deleteTarget}
+        onOpenChange={(open) => !open && setDeleteTarget(null)}
+        title="Delete this wastage balance?"
+        description="This action cannot be undone."
+        isPending={isDeleting}
+        onConfirm={handleDeleteConfirm}
+      />
     </div>
   );
 }
@@ -208,12 +301,19 @@ type WastageRowState = {
   fabBit: string;
 };
 
-function WastageModal({ onClose, onSave, initialData, lookupsData }: { onClose: () => void; onSave: (data: any[]) => void; initialData: OpeningBalanceWastageGroup | null; lookupsData: any; }) {
+function WastageModal({ onClose, onSave, initialData, lookupsData, error }: {
+  onClose: () => void;
+  onSave: (data: OpeningBalanceWastagePayload[]) => Promise<void>;
+  initialData: OpeningBalanceWastageRecord | null;
+  lookupsData: any;
+  error: string | null;
+}) {
   const [date, setDate] = useState<Date | undefined>(initialData ? new Date(initialData.date) : new Date());
   const [isCalendarOpen, setIsCalendarOpen] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
 
   const createEmptyRow = (): WastageRowState => ({
-    id: Math.random().toString(36).substr(2, 9),
+    id: Math.random().toString(36).slice(2, 11),
     color: '',
     size: '',
     extLumps: '',
@@ -227,20 +327,20 @@ function WastageModal({ onClose, onSave, initialData, lookupsData }: { onClose: 
     if (initialData) {
       return [{
         id: initialData.id,
-        color: initialData.color || '',
-        size: initialData.size || '',
-        extLumps: initialData.extruder?.lumps ? String(initialData.extruder.lumps) : '',
-        extLooms: initialData.extruder?.looms ? String(initialData.extruder.looms) : '',
-        loomYarn: initialData.looms?.loomsYarn ? String(initialData.looms.loomsYarn) : '',
-        fabWaste: initialData.fabric?.fabricWaste ? String(initialData.fabric.fabricWaste) : '',
-        fabBit: initialData.fabric?.bitwaste ? String(initialData.fabric.bitwaste) : '',
+        color: initialData.color?.name || '',
+        size: initialData.size?.name || '',
+        extLumps: initialData.extruderLumpsKg ? String(initialData.extruderLumpsKg) : '',
+        extLooms: initialData.extruderLoomsWasteKg ? String(initialData.extruderLoomsWasteKg) : '',
+        loomYarn: initialData.loomsYarnWasteKg ? String(initialData.loomsYarnWasteKg) : '',
+        fabWaste: initialData.fabricWasteKg ? String(initialData.fabricWasteKg) : '',
+        fabBit: initialData.fabricBitwasteKg ? String(initialData.fabricBitwasteKg) : '',
       }];
     }
     return [createEmptyRow()];
   });
 
-  const colorNames = (lookupsData?.colors ?? []).map((c: any) => c.name).sort();
-  const sizeNames = (lookupsData?.sizes ?? []).map((s: any) => s.name).sort();
+  const colorNames = useMemo(() => (lookupsData?.colors ?? []).map((c: any) => c.name).sort(), [lookupsData?.colors]);
+  const sizeNames = useMemo(() => (lookupsData?.sizes ?? []).map((s: any) => s.name).sort(), [lookupsData?.sizes]);
 
   const handleRowChange = (id: string, field: keyof WastageRowState, value: string) => {
     setRows(rows.map(r => r.id === id ? { ...r, [field]: value } : r));
@@ -260,27 +360,27 @@ function WastageModal({ onClose, onSave, initialData, lookupsData }: { onClose: 
     }
   };
 
-  const handleSubmit = () => {
+  const handleSubmit = async () => {
     if (!date) return;
-    
-    const parsedData = rows.map(r => ({
-      date: date.toISOString(),
-      color: r.color === 'none' ? '' : r.color,
-      size: r.size === 'none' ? '' : r.size,
-      extruder: {
-        lumps: parseFloat(r.extLumps) || 0,
-        looms: parseFloat(r.extLooms) || 0,
-      },
-      looms: {
-        loomsYarn: parseFloat(r.loomYarn) || 0,
-      },
-      fabric: {
-        fabricWaste: parseFloat(r.fabWaste) || 0,
-        bitwaste: parseFloat(r.fabBit) || 0,
-      },
+
+    const dateStr = date.toISOString().slice(0, 10);
+    const parsedData: OpeningBalanceWastagePayload[] = rows.map(r => ({
+      date: dateStr,
+      colorId: r.color && r.color !== 'none' ? findIdByName(lookupsData?.colors ?? [], r.color) : undefined,
+      sizeId: r.size && r.size !== 'none' ? findIdByName(lookupsData?.sizes ?? [], r.size) : undefined,
+      extruderLumpsKg: parseFloat(r.extLumps) || 0,
+      extruderLoomsWasteKg: parseFloat(r.extLooms) || 0,
+      loomsYarnWasteKg: parseFloat(r.loomYarn) || 0,
+      fabricWasteKg: parseFloat(r.fabWaste) || 0,
+      fabricBitwasteKg: parseFloat(r.fabBit) || 0,
     }));
 
-    onSave(parsedData);
+    setIsSaving(true);
+    try {
+      await onSave(parsedData);
+    } finally {
+      setIsSaving(false);
+    }
   };
 
   return (
@@ -302,7 +402,7 @@ function WastageModal({ onClose, onSave, initialData, lookupsData }: { onClose: 
                 </Button>
               </PopoverTrigger>
               <PopoverContent className="w-auto p-0" align="end">
-                <Calendar mode="single" selected={date} onSelect={(d) => { setDate(d); setIsCalendarOpen(false); }} autoFocus />
+                <Calendar mode="single" selected={date} onSelect={(d) => { setDate(d); setIsCalendarOpen(false); }} disabled={(d) => d > new Date()} autoFocus />
               </PopoverContent>
             </Popover>
             <Button variant="ghost" size="icon" className="h-8 w-8 bg-red-700 text-white cursor-pointer hover:bg-red-400 focus:ring-red-400 rounded-sm" onClick={onClose}>
@@ -317,7 +417,7 @@ function WastageModal({ onClose, onSave, initialData, lookupsData }: { onClose: 
               <Plus className="h-3.5 w-3.5" /> Add Row
             </Button>
           </div>
-          
+
           <div className="flex justify-center w-full">
             <div className="border border-gray-200 rounded-lg overflow-x-auto shadow-sm w-max max-w-[95vw]">
               <table className="text-sm border-collapse bg-white">
@@ -329,13 +429,13 @@ function WastageModal({ onClose, onSave, initialData, lookupsData }: { onClose: 
                     <th rowSpan={2} className="px-3 py-2 text-center font-bold text-gray-700 uppercase tracking-wide border-r border-gray-200 align-middle w-[140px]">
                       SIZE
                     </th>
-                    <th colSpan={2} className="px-3 py-2 text-center font-bold text-blue-700 uppercase tracking-wide bg-blue-50/50 border-r border-gray-200">
+                    <th colSpan={3} className="px-3 py-2 text-center font-bold text-blue-700 uppercase tracking-wide bg-blue-50/50 border-r border-gray-200">
                       EXTRUDER
                     </th>
-                    <th colSpan={1} className="px-3 py-2 text-center font-bold text-yellow-700 uppercase tracking-wide bg-yellow-50/50 border-r border-gray-200">
+                    <th colSpan={2} className="px-3 py-2 text-center font-bold text-yellow-700 uppercase tracking-wide bg-yellow-50/50 border-r border-gray-200">
                       LOOMS
                     </th>
-                    <th colSpan={2} className="px-3 py-2 text-center font-bold text-purple-700 uppercase tracking-wide bg-purple-50/50 border-r border-gray-200">
+                    <th colSpan={3} className="px-3 py-2 text-center font-bold text-purple-700 uppercase tracking-wide bg-purple-50/50 border-r border-gray-200">
                       FABRIC CHECKING
                     </th>
                     <th rowSpan={2} className="px-2 py-2 align-middle"></th>
@@ -343,11 +443,14 @@ function WastageModal({ onClose, onSave, initialData, lookupsData }: { onClose: 
                   <tr className="bg-gray-50/80 border-b border-gray-300">
                     <th className="border-r border-gray-200 px-3 py-2 text-center font-semibold text-blue-600 text-xs uppercase whitespace-nowrap">Lumps waste</th>
                     <th className="border-r border-gray-200 px-3 py-2 text-center font-semibold text-blue-600 text-xs uppercase whitespace-nowrap">Looms waste</th>
-                    
+                    <th className="border-r border-gray-200 px-3 py-2 text-center font-bold text-blue-700 text-xs uppercase whitespace-nowrap bg-blue-50/30">Total</th>
+
                     <th className="border-r border-gray-200 px-3 py-2 text-center font-semibold text-yellow-600 text-xs uppercase whitespace-nowrap">Looms/Yarn waste</th>
-                    
+                    <th className="border-r border-gray-200 px-3 py-2 text-center font-bold text-yellow-700 text-xs uppercase whitespace-nowrap bg-yellow-50/30">Total</th>
+
                     <th className="border-r border-gray-200 px-3 py-2 text-center font-semibold text-purple-600 text-xs uppercase whitespace-nowrap">Fabric waste</th>
                     <th className="border-r border-gray-200 px-3 py-2 text-center font-semibold text-purple-600 text-xs uppercase whitespace-nowrap">Bitwaste</th>
+                    <th className="border-r border-gray-200 px-3 py-2 text-center font-bold text-purple-700 text-xs uppercase whitespace-nowrap bg-purple-50/30">Total</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -379,23 +482,32 @@ function WastageModal({ onClose, onSave, initialData, lookupsData }: { onClose: 
                           </SelectContent>
                         </Select>
                       </td>
-                      
+
                       <td className="border-r border-gray-200 p-2 text-center">
                         <Input type="text" placeholder="Weight" className="w-24 rounded-full text-center h-9 text-sm placeholder:text-xs font-medium bg-blue-50/10 border-2 border-blue-200 mx-auto" value={row.extLumps} onChange={(e) => handleRowWeightChange(row.id, 'extLumps', e.target.value)} />
                       </td>
                       <td className="border-r border-gray-200 p-2 text-center">
                         <Input type="text" placeholder="Weight" className="w-24 rounded-full text-center h-9 text-sm placeholder:text-xs font-medium bg-blue-50/10 border-2 border-blue-200 mx-auto" value={row.extLooms} onChange={(e) => handleRowWeightChange(row.id, 'extLooms', e.target.value)} />
                       </td>
-                      
+                      <td className="border-r border-gray-200 p-2 text-center font-bold text-blue-800 bg-blue-50/30">
+                        {((parseFloat(row.extLumps) || 0) + (parseFloat(row.extLooms) || 0)) > 0 ? ((parseFloat(row.extLumps) || 0) + (parseFloat(row.extLooms) || 0)).toFixed(2) : '—'}
+                      </td>
+
                       <td className="border-r border-gray-200 p-2 text-center">
                         <Input type="text" placeholder="Weight" className="w-32 rounded-full text-center h-9 text-sm placeholder:text-xs font-medium bg-yellow-50/10 border-2 border-yellow-200 mx-auto" value={row.loomYarn} onChange={(e) => handleRowWeightChange(row.id, 'loomYarn', e.target.value)} />
                       </td>
-                      
+                      <td className="border-r border-gray-200 p-2 text-center font-bold text-yellow-800 bg-yellow-50/30">
+                        {(parseFloat(row.loomYarn) || 0) > 0 ? (parseFloat(row.loomYarn) || 0).toFixed(2) : '—'}
+                      </td>
+
                       <td className="border-r border-gray-200 p-2 text-center">
                         <Input type="text" placeholder="Weight" className="w-28 rounded-full text-center h-9 text-sm placeholder:text-xs font-medium bg-purple-50/10 border-2 border-purple-200 mx-auto" value={row.fabWaste} onChange={(e) => handleRowWeightChange(row.id, 'fabWaste', e.target.value)} />
                       </td>
                       <td className="border-r border-gray-200 p-2 text-center">
                         <Input type="text" placeholder="Weight" className="w-24 rounded-full text-center h-9 text-sm placeholder:text-xs font-medium bg-purple-50/10 border-2 border-purple-200 mx-auto" value={row.fabBit} onChange={(e) => handleRowWeightChange(row.id, 'fabBit', e.target.value)} />
+                      </td>
+                      <td className="border-r border-gray-200 p-2 text-center font-bold text-purple-800 bg-purple-50/30">
+                        {((parseFloat(row.fabWaste) || 0) + (parseFloat(row.fabBit) || 0)) > 0 ? ((parseFloat(row.fabWaste) || 0) + (parseFloat(row.fabBit) || 0)).toFixed(2) : '—'}
                       </td>
                       <td className="p-2 align-middle">
                         {rows.length > 1 && (
@@ -410,12 +522,16 @@ function WastageModal({ onClose, onSave, initialData, lookupsData }: { onClose: 
               </table>
             </div>
           </div>
-          
+
+          {error && <p className="mt-3 text-sm text-red-600 font-medium">{error}</p>}
+
           <div className="flex justify-between items-center mt-4">
             <span className="text-xs text-gray-500">All weights are measured in Kilogram (kg)</span>
             <div className="flex justify-end gap-2">
-              <Button variant="outline" className="h-9 px-6 font-medium rounded-md border-gray-300" onClick={onClose}>Cancel</Button>
-              <Button onClick={handleSubmit} className="bg-[#004D40] text-white hover:bg-[#003d33] h-9 px-6 font-medium rounded-md shadow-sm">Save</Button>
+              <Button variant="outline" className="h-9 px-6 font-medium rounded-md border-gray-300" onClick={onClose} disabled={isSaving}>Cancel</Button>
+              <Button onClick={handleSubmit} disabled={isSaving} className="bg-[#004D40] text-white hover:bg-[#003d33] h-9 px-6 font-medium rounded-md shadow-sm">
+                {isSaving ? 'Saving...' : 'Save'}
+              </Button>
             </div>
           </div>
         </div>

@@ -12,6 +12,7 @@ import type { SectionRef } from './day-entry-sections';
 import { useExtruderProductions, useLookups } from '@/features/extruder/extruder-queries';
 
 import { useInventoryRecords } from '@/features/inventory/inventory-queries';
+import { useOpeningBalanceRawMaterials } from '@/features/admin-panel/opening-balance-queries';
 import { useProductionHeader } from './production-context';
 import { useAuth } from '@/features/auth/auth-context';
 import { canCreateProductionRecord } from '@/lib/production-permissions';
@@ -134,22 +135,28 @@ export function NewEntry({ onClose, defaultDate, readOnly: propsReadOnly = false
   const inventoryRecords = allInvData?.data ?? [];
   const extruderRecords = allExtruderData?.data ?? [];
 
+  const { data: rawMaterialsOBData } = useOpeningBalanceRawMaterials('?limit=100', !readOnly);
+  const rawMaterialsOBRecords = rawMaterialsOBData?.data ?? [];
+
   // Balances shown here are stock levels, not ledgers — they never display
   // below 0.00 even if consumption momentarily outpaces recorded receipts.
   const getHDPEBalance = (name: string) => {
-    const received = inventoryRecords.filter(r => r.type === 'HDPE' && r.name === name).reduce((sum, r) => sum + r.weightKg, 0);
+    const obReceived = rawMaterialsOBRecords.filter(r => r.type === 'HDPE' && r.name === name).reduce((sum, r) => sum + r.weightKg, 0);
+    const received = inventoryRecords.filter(r => r.type === 'HDPE' && r.name === name).reduce((sum, r) => sum + r.weightKg, 0) + obReceived;
     const consumed = extruderRecords.filter(r => r.extruder?.brand?.name === name).reduce((sum, r) => sum + (r.extruder?.rawMaterialKg ?? 0), 0);
     return Math.max(0, received - consumed).toFixed(2);
   };
 
   const getChemicalBalance = (name: string) => {
-    const received = inventoryRecords.filter(r => r.type === 'CHEMICAL' && r.name === name).reduce((sum, r) => sum + r.weightKg, 0);
+    const obReceived = rawMaterialsOBRecords.filter(r => r.type === 'CHEMICAL' && r.name === name).reduce((sum, r) => sum + r.weightKg, 0);
+    const received = inventoryRecords.filter(r => r.type === 'CHEMICAL' && r.name === name).reduce((sum, r) => sum + r.weightKg, 0) + obReceived;
     const consumed = extruderRecords.filter(r => r.extruder?.chemical?.name === name).reduce((sum, r) => sum + (r.extruder?.chemicalKg ?? 0), 0);
     return Math.max(0, received - consumed).toFixed(2);
   };
 
   const getColorBalance = (name: string) => {
-    const received = inventoryRecords.filter(r => r.type === 'COLOR' && r.name === name).reduce((sum, r) => sum + r.weightKg, 0);
+    const obReceived = rawMaterialsOBRecords.filter(r => r.type === 'COLOR' && r.name === name).reduce((sum, r) => sum + r.weightKg, 0);
+    const received = inventoryRecords.filter(r => r.type === 'COLOR' && r.name === name).reduce((sum, r) => sum + r.weightKg, 0) + obReceived;
     const consumed = extruderRecords.filter(r => r.color?.name === name).reduce((sum, r) => sum + (r.extruder?.colorConsumedKg ?? 0), 0);
     return Math.max(0, received - consumed).toFixed(2);
   };

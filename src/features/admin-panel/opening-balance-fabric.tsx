@@ -1,44 +1,100 @@
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
+import { useQueryClient } from '@tanstack/react-query';
+import { format } from 'date-fns';
 import { Plus, Trash2, Edit2, Calendar as CalendarIcon, X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { DeleteConfirmDialog } from '@/components/shared/delete-confirm-dialog';
 import { Calendar } from '@/components/ui/calendar';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { format } from 'date-fns';
-import { useLookups } from '@/lib/lookups';
+import { useLookups, findIdByName } from '@/lib/lookups';
 import { Loader } from '@/components/shared/loader';
-
-type OpeningBalanceFabricGroup = {
-  id: string;
-  date: string;
-  color: string;
-  size: string;
-  koraBalanceKg: number;
-  fabricStockKg: number;
-};
+import { apiFetch, extractApiErrorMessage } from '@/lib/api-client';
+import {
+  useOpeningBalanceFabricStock,
+  openingBalanceFabricStockKeys,
+  type OpeningBalanceFabricStockRecord,
+  type OpeningBalanceFabricStockPayload,
+} from './opening-balance-queries';
 
 export function OpeningBalanceFabricTab() {
-  const { data: lookupsData, isLoading } = useLookups();
-  const [records, setRecords] = useState<OpeningBalanceFabricGroup[]>([]);
+  const queryClient = useQueryClient();
+  const { data: lookupsData, isLoading: isLookupsLoading } = useLookups();
+  const { data: recordsData, isLoading: isRecordsLoading } = useOpeningBalanceFabricStock('?limit=100');
   const [isModalOpen, setIsModalOpen] = useState(false);
-  const [editingRecord, setEditingRecord] = useState<OpeningBalanceFabricGroup | null>(null);
+  const [editingRecord, setEditingRecord] = useState<OpeningBalanceFabricStockRecord | null>(null);
+  const [deleteTarget, setDeleteTarget] = useState<OpeningBalanceFabricStockRecord | null>(null);
+  const [isDeleting, setIsDeleting] = useState(false);
+  const [saveError, setSaveError] = useState<string | null>(null);
 
-  if (isLoading) return <Loader className="m-auto mt-10" />;
+  if (isLookupsLoading || isRecordsLoading) return <Loader className="m-auto mt-10" />;
 
-  const handleDelete = (id: string) => {
-    setRecords(records.filter(r => r.id !== id));
+  const records = recordsData?.data ?? [];
+
+  const handleDeleteConfirm = async () => {
+    if (!deleteTarget) return;
+    setIsDeleting(true);
+    try {
+      const response = await apiFetch(`/opening-balance/fabric-stock/${deleteTarget.id}`, { method: 'DELETE' });
+      if (response.ok) {
+        await queryClient.invalidateQueries({ queryKey: openingBalanceFabricStockKeys.all });
+        setDeleteTarget(null);
+      }
+    } finally {
+      setIsDeleting(false);
+    }
   };
 
-  const handleOpenEdit = (record: OpeningBalanceFabricGroup) => {
+  const handleOpenEdit = (record: OpeningBalanceFabricStockRecord) => {
     setEditingRecord(record);
+    setSaveError(null);
     setIsModalOpen(true);
   };
 
   const handleOpenAdd = () => {
     setEditingRecord(null);
+    setSaveError(null);
     setIsModalOpen(true);
+  };
+
+  /** Editing updates the first row in place; any additional rows added in the modal are created as new records. */
+  const handleSave = async (rows: OpeningBalanceFabricStockPayload[]) => {
+    setSaveError(null);
+    try {
+      const [first, ...rest] = rows;
+
+      if (editingRecord && first) {
+        const response = await apiFetch(`/opening-balance/fabric-stock/${editingRecord.id}`, {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(first),
+        });
+        if (!response.ok) {
+          setSaveError(await extractApiErrorMessage(response, 'Failed to save opening balance.'));
+          return;
+        }
+      }
+
+      const itemsToCreate = editingRecord ? rest : rows;
+      if (itemsToCreate.length > 0) {
+        const response = await apiFetch('/opening-balance/fabric-stock/batch', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ items: itemsToCreate }),
+        });
+        if (!response.ok) {
+          setSaveError(await extractApiErrorMessage(response, 'Failed to save opening balance.'));
+          return;
+        }
+      }
+
+      await queryClient.invalidateQueries({ queryKey: openingBalanceFabricStockKeys.all });
+      setIsModalOpen(false);
+    } catch {
+      setSaveError('Could not save opening balance. Please try again.');
+    }
   };
 
   return (
@@ -90,7 +146,7 @@ export function OpeningBalanceFabricTab() {
                     if (!map.has(dateStr)) map.set(dateStr, []);
                     map.get(dateStr)!.push(r);
                     return map;
-                  }, new Map<string, OpeningBalanceFabricGroup[]>()).entries()
+                  }, new Map<string, OpeningBalanceFabricStockRecord[]>()).entries()
                 ).flatMap(([dateStr, group]) =>
                   group.map((r, idx) => (
                     <tr key={r.id} className="border-b border-gray-200 hover:bg-gray-50/50">
@@ -100,10 +156,10 @@ export function OpeningBalanceFabricTab() {
                         </td>
                       )}
                       <td className="border-r border-gray-200 px-3 py-2 text-center text-gray-700 whitespace-nowrap">
-                        {r.color || '—'}
+                        {r.color?.name || '—'}
                       </td>
                       <td className="border-r border-gray-200 px-3 py-2 text-center text-gray-700 whitespace-nowrap">
-                        {r.size || '—'}
+                        {r.size?.name || '—'}
                       </td>
                       <td className="border-r border-gray-200 px-2 py-2 text-center text-gray-600">
                         {r.koraBalanceKg ? r.koraBalanceKg.toFixed(2) : '—'}
@@ -116,7 +172,7 @@ export function OpeningBalanceFabricTab() {
                           <Button variant="ghost" size="icon" className="h-7 w-7 text-blue-600" onClick={() => handleOpenEdit(r)}>
                             <Edit2 className="h-3.5 w-3.5" />
                           </Button>
-                          <Button variant="ghost" size="icon" className="h-7 w-7 text-red-600" onClick={() => handleDelete(r.id)}>
+                          <Button variant="ghost" size="icon" className="h-7 w-7 text-red-600" onClick={() => setDeleteTarget(r)}>
                             <Trash2 className="h-3.5 w-3.5" />
                           </Button>
                         </div>
@@ -126,6 +182,20 @@ export function OpeningBalanceFabricTab() {
                 )
               )}
             </tbody>
+            <tfoot>
+              {records.length > 0 && (
+                <tr className="bg-gray-100 font-bold border-t-2 border-gray-300">
+                  <td colSpan={3} className="px-3 py-3 text-center text-gray-800 uppercase tracking-wide border-r border-gray-200">Grand Total</td>
+                  <td className="px-2 py-3 text-center text-blue-900 bg-blue-100/50 border-r border-gray-200">
+                    {records.reduce((acc, r) => acc + (r.koraBalanceKg || 0), 0).toFixed(2)}
+                  </td>
+                  <td className="px-2 py-3 text-center text-teal-900 bg-teal-100/50 border-r border-gray-200">
+                    {records.reduce((acc, r) => acc + (r.fabricStockKg || 0), 0).toFixed(2)}
+                  </td>
+                  <td></td>
+                </tr>
+              )}
+            </tfoot>
           </table>
         </div>
       </div>
@@ -133,25 +203,21 @@ export function OpeningBalanceFabricTab() {
       {isModalOpen && (
         <FabricModal
           onClose={() => setIsModalOpen(false)}
-          onSave={(dataArray) => {
-            if (editingRecord) {
-              const [first, ...rest] = dataArray;
-              const updatedFirst = { ...editingRecord, ...first };
-              const newRecords = rest.map(d => ({ ...d, id: Math.random().toString(36).substr(2, 9) }));
-              setRecords(prev => {
-                const updated = prev.map(r => r.id === editingRecord.id ? updatedFirst : r);
-                return [...updated, ...newRecords];
-              });
-            } else {
-              const newRecords = dataArray.map(d => ({ ...d, id: Math.random().toString(36).substr(2, 9) }));
-              setRecords([...records, ...newRecords]);
-            }
-            setIsModalOpen(false);
-          }}
+          onSave={handleSave}
           initialData={editingRecord}
           lookupsData={lookupsData}
+          error={saveError}
         />
       )}
+
+      <DeleteConfirmDialog
+        open={!!deleteTarget}
+        onOpenChange={(open) => !open && setDeleteTarget(null)}
+        title="Delete this fabric stock balance?"
+        description="This action cannot be undone."
+        isPending={isDeleting}
+        onConfirm={handleDeleteConfirm}
+      />
     </div>
   );
 }
@@ -164,12 +230,19 @@ type FabricRowState = {
   fabric: string;
 };
 
-function FabricModal({ onClose, onSave, initialData, lookupsData }: { onClose: () => void; onSave: (data: any[]) => void; initialData: OpeningBalanceFabricGroup | null; lookupsData: any; }) {
+function FabricModal({ onClose, onSave, initialData, lookupsData, error }: {
+  onClose: () => void;
+  onSave: (data: OpeningBalanceFabricStockPayload[]) => Promise<void>;
+  initialData: OpeningBalanceFabricStockRecord | null;
+  lookupsData: any;
+  error: string | null;
+}) {
   const [date, setDate] = useState<Date | undefined>(initialData ? new Date(initialData.date) : new Date());
   const [isCalendarOpen, setIsCalendarOpen] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
 
   const createEmptyRow = (): FabricRowState => ({
-    id: Math.random().toString(36).substr(2, 9),
+    id: Math.random().toString(36).slice(2, 11),
     color: '',
     size: '',
     kora: '',
@@ -180,8 +253,8 @@ function FabricModal({ onClose, onSave, initialData, lookupsData }: { onClose: (
     if (initialData) {
       return [{
         id: initialData.id,
-        color: initialData.color || '',
-        size: initialData.size || '',
+        color: initialData.color?.name || '',
+        size: initialData.size?.name || '',
         kora: initialData.koraBalanceKg ? String(initialData.koraBalanceKg) : '',
         fabric: initialData.fabricStockKg ? String(initialData.fabricStockKg) : '',
       }];
@@ -189,8 +262,8 @@ function FabricModal({ onClose, onSave, initialData, lookupsData }: { onClose: (
     return [createEmptyRow()];
   });
 
-  const colorNames = (lookupsData?.colors ?? []).map((c: any) => c.name).sort();
-  const sizeNames = (lookupsData?.sizes ?? []).map((s: any) => s.name).sort();
+  const colorNames = useMemo(() => (lookupsData?.colors ?? []).map((c: any) => c.name).sort(), [lookupsData?.colors]);
+  const sizeNames = useMemo(() => (lookupsData?.sizes ?? []).map((s: any) => s.name).sort(), [lookupsData?.sizes]);
 
   const handleRowChange = (id: string, field: keyof FabricRowState, value: string) => {
     setRows(rows.map(r => r.id === id ? { ...r, [field]: value } : r));
@@ -210,18 +283,24 @@ function FabricModal({ onClose, onSave, initialData, lookupsData }: { onClose: (
     }
   };
 
-  const handleSubmit = () => {
+  const handleSubmit = async () => {
     if (!date) return;
 
-    const parsedData = rows.map(r => ({
-      date: date.toISOString(),
-      color: r.color === 'none' ? '' : r.color,
-      size: r.size === 'none' ? '' : r.size,
+    const dateStr = date.toISOString().slice(0, 10);
+    const parsedData: OpeningBalanceFabricStockPayload[] = rows.map(r => ({
+      date: dateStr,
+      colorId: r.color && r.color !== 'none' ? findIdByName(lookupsData?.colors ?? [], r.color) : undefined,
+      sizeId: r.size && r.size !== 'none' ? findIdByName(lookupsData?.sizes ?? [], r.size) : undefined,
       koraBalanceKg: parseFloat(r.kora) || 0,
       fabricStockKg: parseFloat(r.fabric) || 0,
     }));
 
-    onSave(parsedData);
+    setIsSaving(true);
+    try {
+      await onSave(parsedData);
+    } finally {
+      setIsSaving(false);
+    }
   };
 
   return (
@@ -243,7 +322,7 @@ function FabricModal({ onClose, onSave, initialData, lookupsData }: { onClose: (
                 </Button>
               </PopoverTrigger>
               <PopoverContent className="w-auto p-0" align="end">
-                <Calendar mode="single" selected={date} onSelect={(d) => { setDate(d); setIsCalendarOpen(false); }} autoFocus />
+                <Calendar mode="single" selected={date} onSelect={(d) => { setDate(d); setIsCalendarOpen(false); }} disabled={(d) => d > new Date()} autoFocus />
               </PopoverContent>
             </Popover>
             <Button variant="ghost" size="icon" className="h-8 w-8 bg-red-700 text-white cursor-pointer hover:bg-red-400 focus:ring-red-400 rounded-sm" onClick={onClose}>
@@ -329,11 +408,15 @@ function FabricModal({ onClose, onSave, initialData, lookupsData }: { onClose: (
             </div>
           </div>
 
+          {error && <p className="mt-3 text-sm text-red-600 font-medium">{error}</p>}
+
           <div className="flex justify-between items-center mt-4">
             <span className="text-xs text-gray-500">All weights are measured in Kilogram (kg)</span>
             <div className="flex justify-end gap-2">
-              <Button variant="outline" className="h-9 px-6 font-medium rounded-md border-gray-300" onClick={onClose}>Cancel</Button>
-              <Button onClick={handleSubmit} className="bg-[#004D40] text-white hover:bg-[#003d33] h-9 px-6 font-medium rounded-md shadow-sm">Save</Button>
+              <Button variant="outline" className="h-9 px-6 font-medium rounded-md border-gray-300" onClick={onClose} disabled={isSaving}>Cancel</Button>
+              <Button onClick={handleSubmit} disabled={isSaving} className="bg-[#004D40] text-white hover:bg-[#003d33] h-9 px-6 font-medium rounded-md shadow-sm">
+                {isSaving ? 'Saving...' : 'Save'}
+              </Button>
             </div>
           </div>
         </div>
