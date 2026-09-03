@@ -135,22 +135,17 @@ export function AdminLoginPage() {
 
           {/* Remember me & Forgot Password */}
           <div
-            className="flex items-center justify-between mt-6 mb-7"
+            className="flex items-center justify-between mt-6 mb-3"
             style={{
               opacity: mounted ? 1 : 0,
               transition: `opacity 0.6s ${ease} 0.4s`
             }}
           >
             <label className="flex items-center gap-2 cursor-pointer group">
-              <div className="relative flex items-center justify-center w-4 h-4 rounded border border-white/70 bg-white/10 group-hover:bg-white/20 transition-colors">
-                <input type="checkbox" defaultChecked className="opacity-0 absolute inset-0 cursor-pointer peer" />
-                <svg className="w-2.5 h-2.5 text-white opacity-0 peer-checked:opacity-100 transition-opacity" viewBox="0 0 14 14" fill="none">
-                  <path d="M3 7.5L6 10.5L11 3.5" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
-                </svg>
-              </div>
-              <span className="text-white/90 text-[13px] font-medium tracking-wide">Remember me</span>
+             
+            
             </label>
-            <a href="#" className="text-white/90 text-[13px] font-medium tracking-wide hover:text-white transition-colors">Forgot Password?</a>
+            <a href="#" className="text-white/90 text-[13px] font-medium tracking-wide hover:text-white transition-colors"></a>
           </div>
 
           {error && (
@@ -171,7 +166,7 @@ export function AdminLoginPage() {
           </button>
 
           {/* Register */}
-          <p
+          {/* <p
             className="text-center text-white/80 text-[13px] font-medium tracking-wide mt-6"
             style={{
               opacity: mounted ? 1 : 0,
@@ -179,7 +174,7 @@ export function AdminLoginPage() {
             }}
           >
             Don&apos;t have an account? <span className="text-white font-bold">Register</span>
-          </p>
+          </p> */}
         </form>
       </div>
     </div>
