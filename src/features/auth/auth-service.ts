@@ -73,27 +73,26 @@ async function postJson<T>(path: string, body: unknown): Promise<T> {
 }
 
 /**
- * The backend keeps platform admins (super admin, `platform_admins` table)
- * and company users (`users` table) as separate login endpoints with no
- * shared "who am I" call — a single mobile+password form tries the
- * platform-admin login first and falls back to the company login on
- * invalid credentials, since only one platform admin can ever exist.
+ * The backend keeps platform admins (super admin, `platform_admins` table) and company users
+ * (`users` table) as separate login endpoints — each of the two login pages (/admin-login,
+ * /login) knows which kind of account it's authenticating and calls the matching endpoint
+ * directly, rather than guessing via a try-then-fallback request.
  */
-export async function login(mobile: string, password: string): Promise<AuthUser> {
-  try {
-    const { admin, access } = await postJson<{ admin: Omit<PlatformAdminProfile, 'kind' | 'access'>; access: UserAccess | null }>(
-      '/platform/admin/login',
-      { mobile, password },
-    );
-    return { kind: 'platform-admin', ...admin, access };
-  } catch {
-    const { user, company, access } = await postJson<{
-      user: Omit<CompanyUserProfile, 'kind' | 'company' | 'access'>;
-      company: CompanyUserProfile['company'];
-      access: UserAccess | null;
-    }>('/company/auth/login', { mobile, password });
-    return { kind: 'company-user', ...user, company, access };
-  }
+export async function loginPlatformAdmin(mobile: string, password: string): Promise<PlatformAdminProfile> {
+  const { admin, access } = await postJson<{ admin: Omit<PlatformAdminProfile, 'kind' | 'access'>; access: UserAccess | null }>(
+    '/platform/admin/login',
+    { mobile, password },
+  );
+  return { kind: 'platform-admin', ...admin, access };
+}
+
+export async function loginCompanyUser(mobile: string, password: string): Promise<CompanyUserProfile> {
+  const { user, company, access } = await postJson<{
+    user: Omit<CompanyUserProfile, 'kind' | 'company' | 'access'>;
+    company: CompanyUserProfile['company'];
+    access: UserAccess | null;
+  }>('/company/auth/login', { mobile, password });
+  return { kind: 'company-user', ...user, company, access };
 }
 
 /**
