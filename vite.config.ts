@@ -13,9 +13,9 @@ export default defineConfig({
       injectRegister: false,
       includeAssets: ['favicon.ico', 'favicon.svg', 'apple-touch-icon-180x180.png'],
       manifest: {
-        name: 'LK Knits',
-        short_name: 'LK Knits',
-        description: 'LK Knits production, inventory and payroll management',
+        name: '',
+        short_name: '',
+        description: '',
         theme_color: '#004D40',
         background_color: '#ffffff',
         display: 'standalone',

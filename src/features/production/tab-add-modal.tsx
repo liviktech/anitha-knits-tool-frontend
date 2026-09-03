@@ -62,7 +62,7 @@ export function TabAddModal({
                 {format(parseISO(productionDate), 'dd MMM, yyyy')}
               </span>
               <DialogClose asChild>
-                <Button variant="ghost" size="icon-sm" className={`${theme.headerText} hover:bg-white/50`}>
+                <Button variant="ghost" size="icon-sm" className={`bg-red-700 text-white cursor-pointer hover:bg-red-400 focus:ring-red-400`}>
                   <X className="h-4 w-4" />
                   <span className="sr-only">Close</span>
                 </Button>

@@ -1,4 +1,4 @@
-import { useState, lazy, Suspense, type ReactNode } from 'react';
+import { useState, useEffect, lazy, Suspense, type ReactNode } from 'react';
 import '@fontsource-variable/inter';
 import '@fontsource-variable/hanken-grotesk';
 import { BrowserRouter, Routes, Route, Navigate, NavLink, Link, useLocation, useNavigate } from 'react-router-dom';
@@ -166,6 +166,14 @@ function AppShell() {
   const { user } = useAuth();
   const companyName = user?.kind === 'company-user' ? user.company.name : 'LK Knits';
   const companyNameUpper = companyName.toUpperCase();
+
+  // The window/tab title should always reflect whoever is logged in — company names change over
+  // time and vary per tenant, so it can never be a fixed string in the manifest.
+  useEffect(() => {
+    if (user?.kind === 'company-user') {
+      document.title = user.company.name;
+    }
+  }, [user]);
 
   return (
     <div className="flex h-screen w-full flex-col bg-[#004D40] font-['Hanken_Grotesk',sans-serif] lg:flex-row lg:p-1 lg:gap-2">
