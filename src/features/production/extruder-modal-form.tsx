@@ -19,6 +19,7 @@ import {
   type ExtruderUpdatePayload,
 } from '@/features/extruder/extruder-queries';
 import { useInventoryRecords, sumInventoryWeight } from '@/features/inventory/inventory-queries';
+import { useOpeningBalanceRawMaterials } from '@/features/admin-panel/opening-balance-queries';
 import { dashboardProductionKey } from '@/features/production/day-wise-queries';
 import { themes, colorFieldClasses } from '@/features/production/day-entry-sections';
 import type { ExtruderGroupDraft, ExtruderBrandDraft } from '@/features/extruder/extruder-section-new';
@@ -132,14 +133,25 @@ export function ExtruderModalForm({ productionDate, initialData, isEditMode, onC
   const theme = themes.extruder;
 
   // Brands with zero or negative live stock balance (received minus already-consumed)
-  // must not be selectable in the HDPE Material rows below.
+  // must not be selectable in the HDPE Material rows below. "Received" includes both regular
+  // Inventory intake and the Admin Panel's Opening Balance (HDPE) — a brand can be in stock
+  // purely from its opening balance with no Inventory receipts yet.
   const { data: inventoryData } = useInventoryRecords('?limit=100');
   const inventoryRecords = inventoryData?.data ?? [];
+  const { data: rawMaterialsOBData } = useOpeningBalanceRawMaterials('?limit=100');
+  const rawMaterialsOBRecords = rawMaterialsOBData?.data ?? [];
   const { data: allExtruderData } = useExtruderProductions('?limit=100');
   const allExtruderRecords = allExtruderData?.data ?? [];
-  const getBrandBalance = (name: string) =>
-    sumInventoryWeight(inventoryRecords, 'HDPE', name)
-    - allExtruderRecords.filter((r) => r.extruder?.brand?.name === name).reduce((sum, r) => sum + (r.extruder?.rawMaterialKg ?? 0), 0);
+  const getBrandBalance = (name: string) => {
+    const openingBalanceKg = rawMaterialsOBRecords
+      .filter((r) => r.type === 'HDPE' && r.name === name)
+      .reduce((sum, r) => sum + r.weightKg, 0);
+    const receivedKg = sumInventoryWeight(inventoryRecords, 'HDPE', name) + openingBalanceKg;
+    const consumedKg = allExtruderRecords
+      .filter((r) => r.extruder?.brand?.name === name)
+      .reduce((sum, r) => sum + (r.extruder?.rawMaterialKg ?? 0), 0);
+    return receivedKg - consumedKg;
+  };
 
   const [group, setGroup] = useState<ExtruderGroupDraft>(initialData || emptyGroupDraft());
   const [outputManuallyEdited, setOutputManuallyEdited] = useState(!!initialData);

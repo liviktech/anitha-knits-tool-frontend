@@ -100,7 +100,7 @@ export const FabricDeliveredSection = forwardRef<SectionRef, SectionProps & { on
           continue;
         }
         const payload: LoadSentCreatePayload = {
-          productionDate: productionDate ?? '',
+          date: productionDate ?? '',
           colorId,
           sizeId,
           fabricWeight: parseFloat(row.delivered) || 0,

@@ -30,7 +30,10 @@ export function LoomModalForm({ productionDate, initialData, isEditMode, onCance
   const theme = themes.looms;
 
   const [draft, setDraft] = useState<LoomDraft>(initialData || { ...emptyLoomDraft });
-  const [outputManuallyEdited, setOutputManuallyEdited] = useState(!!initialData);
+  // Size/Color are locked while editing, so Loom Production and Looms/Yarn Waste are the only
+  // fields that can trigger a recompute here — starting this `true` in edit mode (as it used to)
+  // disabled the auto-calc entirely, since neither of those fields could ever re-enable it.
+  const [outputManuallyEdited, setOutputManuallyEdited] = useState(false);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
