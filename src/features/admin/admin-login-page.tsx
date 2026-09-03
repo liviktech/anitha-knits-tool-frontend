@@ -5,7 +5,7 @@ import { useAuth, defaultRouteFor } from '../auth/auth-context';
 
 export function AdminLoginPage() {
   const navigate = useNavigate();
-  const { user, login } = useAuth();
+  const { user, loginPlatformAdmin } = useAuth();
 
   // Internal state 'mobile' for auth, but label is 'Email ID' per requirement
   const [mobile, setMobile] = useState('');
@@ -30,7 +30,7 @@ export function AdminLoginPage() {
     setError(null);
     setIsSubmitting(true);
     try {
-      const loggedInUser = await login(mobile, password);
+      const loggedInUser = await loginPlatformAdmin(mobile, password);
       navigate(defaultRouteFor(loggedInUser), { replace: true });
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Login failed');

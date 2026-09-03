@@ -63,7 +63,7 @@ export const AttendanceTab = forwardRef<AttendanceTabRef>((_props, ref) => {
     return employeesData.map((emp) => ({
       id: emp.id,
       name: emp.name || 'Unknown',
-      role: emp.employeeDetails?.designation || emp.role,
+      role: emp.employeeDetails?.designation || 'Unknown',
       customUserId: emp.employeeDetails?.customUserId || emp.id,
     }));
   }, [employeesData]);

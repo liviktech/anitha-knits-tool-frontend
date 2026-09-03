@@ -1,11 +1,21 @@
 import { createContext, useContext, useEffect, useState, type ReactNode } from 'react';
-import { fetchCurrentPlatformAdmin, fetchCurrentUser, login as loginRequest, logoutRequest, type AuthUser } from './auth-service';
+import {
+  fetchCurrentPlatformAdmin,
+  fetchCurrentUser,
+  loginCompanyUser as loginCompanyUserRequest,
+  loginPlatformAdmin as loginPlatformAdminRequest,
+  logoutRequest,
+  type AuthUser,
+  type CompanyUserProfile,
+  type PlatformAdminProfile,
+} from './auth-service';
 import { AUTH_STORAGE_KEY as STORAGE_KEY } from '@/lib/api-client';
 import { queryClient } from '@/lib/query-client';
 
 interface AuthContextValue {
   user: AuthUser | null;
-  login: (mobile: string, password: string) => Promise<AuthUser>;
+  loginCompanyUser: (mobile: string, password: string) => Promise<CompanyUserProfile>;
+  loginPlatformAdmin: (mobile: string, password: string) => Promise<PlatformAdminProfile>;
   logout: () => void;
 }
 
@@ -76,8 +86,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     };
   }, []);
 
-  async function login(mobile: string, password: string) {
-    const nextUser = await loginRequest(mobile, password);
+  async function loginCompanyUser(mobile: string, password: string) {
+    const nextUser = await loginCompanyUserRequest(mobile, password);
+    setUser(nextUser);
+    return nextUser;
+  }
+
+  async function loginPlatformAdmin(mobile: string, password: string) {
+    const nextUser = await loginPlatformAdminRequest(mobile, password);
     setUser(nextUser);
     return nextUser;
   }
@@ -88,7 +104,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     logoutRequest().catch(console.error);
   }
 
-  return <AuthContext.Provider value={{ user, login, logout }}>{children}</AuthContext.Provider>;
+  return <AuthContext.Provider value={{ user, loginCompanyUser, loginPlatformAdmin, logout }}>{children}</AuthContext.Provider>;
 }
 
 export function useAuth() {
