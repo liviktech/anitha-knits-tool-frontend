@@ -1,13 +1,14 @@
 import { useState } from 'react';
-import { FlaskConical, ListTree, Users } from 'lucide-react';
+import { FlaskConical, ListTree, Users, Scale } from 'lucide-react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { ProductionConfigTab } from './production-config-tab';
 import { RawMaterialsTab } from './raw-materials-tab';
 import { RolesTab } from './roles-tab';
+import { OpeningBalanceTab } from './opening-balance-tab';
 
 export const BAG_WEIGHT_STORAGE_KEY = 'extruder_default_bag_weight';
 
-type AdminPanelTab = 'production-config' | 'raw-materials' | 'bag-weight' | 'roles';
+type AdminPanelTab = 'production-config' | 'raw-materials' | 'bag-weight' | 'roles' | 'opening-balance';
 
 export function AdminPanelPage() {
   const [activeTab, setActiveTab] = useState<AdminPanelTab>('production-config');
@@ -40,6 +41,12 @@ export function AdminPanelPage() {
                 Production Config
               </span>
             </TabsTrigger>
+            <TabsTrigger value="opening-balance">
+              <span className="flex items-center gap-1">
+                <Scale className="h-4 w-4" strokeWidth={1.75} />
+                Opening Balance
+              </span>
+            </TabsTrigger>
             <TabsTrigger value="raw-materials">
               <span className="flex items-center gap-1">
                 <ListTree className="h-4 w-4" strokeWidth={1.75} />
@@ -57,6 +64,10 @@ export function AdminPanelPage() {
 
         <TabsContent value="production-config" className="mt-0 animate-in fade-in-0 duration-300 p-6 max-w-7xl">
           <ProductionConfigTab />
+        </TabsContent>
+
+        <TabsContent value="opening-balance" className="mt-0 animate-in fade-in-0 duration-300 p-6 max-w-full w-full">
+          <OpeningBalanceTab />
         </TabsContent>
 
         <TabsContent value="raw-materials" className="mt-0 animate-in fade-in-0 duration-300 p-6 max-w-7xl">

@@ -8,7 +8,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Loader } from '@/components/shared/loader';
 import { apiFetch, extractApiErrorMessage } from '@/lib/api-client';
 import { useLookups, findIdByName, type Lookups } from '@/features/extruder/extruder-queries';
-import { fabricCheckingKeys, useAvailableFabricKg, type FabricCheckingCreatePayload } from '@/features/fabric/fabric-queries';
+import { fabricCheckingKeys, koraBalanceKeys, useAvailableFabricKg, type FabricCheckingCreatePayload } from '@/features/fabric/fabric-queries';
 import { dashboardProductionKey } from '@/features/production/day-wise-queries';
 import { themes, colorFieldClasses } from '@/features/production/day-entry-sections';
 import { type FabricDraft, emptyFabricDraft, suggestFabricOutput } from '@/features/fabric/fabric-section';
@@ -121,6 +121,7 @@ export function FabricModalForm({ productionDate, initialData, isEditMode, onCan
       }
       await queryClient.invalidateQueries({ queryKey: fabricCheckingKeys.all });
       await queryClient.invalidateQueries({ queryKey: dashboardProductionKey });
+      await queryClient.invalidateQueries({ queryKey: koraBalanceKeys.all });
       onSuccess();
     } catch {
       setError('An unexpected error occurred. Please try again.');

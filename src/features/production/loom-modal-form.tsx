@@ -9,6 +9,7 @@ import { Loader } from '@/components/shared/loader';
 import { apiFetch, extractApiErrorMessage } from '@/lib/api-client';
 import { useLookups, findIdByName, type Lookups } from '@/features/extruder/extruder-queries';
 import { loomsKeys, useAvailableYarnKg, type LoomsCreatePayload } from '@/features/looms/loom-queries';
+import { koraBalanceKeys } from '@/features/fabric/fabric-queries';
 import { dashboardProductionKey } from '@/features/production/day-wise-queries';
 import { themes, colorFieldClasses } from '@/features/production/day-entry-sections';
 import { type LoomDraft, emptyLoomDraft, suggestLoomOutput } from '@/features/looms/loom-section';
@@ -114,6 +115,7 @@ export function LoomModalForm({ productionDate, initialData, isEditMode, onCance
       }
       await queryClient.invalidateQueries({ queryKey: loomsKeys.all });
       await queryClient.invalidateQueries({ queryKey: dashboardProductionKey });
+      await queryClient.invalidateQueries({ queryKey: koraBalanceKeys.all });
       onSuccess();
     } catch {
       setError('An unexpected error occurred. Please try again.');

@@ -14,6 +14,7 @@ import {
   useFabricCheckingRecords,
   fabricCheckingKeys,
   useKoraBalances,
+  koraBalanceKeys,
   findKoraBalanceKg,
   type FabricCheckingRecord,
   type FabricCheckingCreatePayload,
@@ -162,6 +163,7 @@ export const FabricSection = forwardRef<SectionRef, SectionProps>(({ productionD
       setNewRows(failed);
       await queryClient.invalidateQueries({ queryKey: fabricCheckingKeys.all });
       await queryClient.invalidateQueries({ queryKey: dashboardProductionKey });
+      await queryClient.invalidateQueries({ queryKey: koraBalanceKeys.all });
       setSaving(false);
       if (failed.length > 0) {
         setSaveError(errorMessage);
@@ -209,6 +211,7 @@ export const FabricSection = forwardRef<SectionRef, SectionProps>(({ productionD
       if (!response.ok) throw new Error('Failed to delete fabric checking entry');
       await queryClient.invalidateQueries({ queryKey: fabricCheckingKeys.all });
       await queryClient.invalidateQueries({ queryKey: dashboardProductionKey });
+      await queryClient.invalidateQueries({ queryKey: koraBalanceKeys.all });
       setDeleteTarget(null);
     } catch (error) {
       console.error('Error deleting fabric checking entry:', error);

@@ -16,6 +16,7 @@ import {
   type LoomsProductionItem,
   type LoomsCreatePayload,
 } from '@/features/looms/loom-queries';
+import { koraBalanceKeys } from '@/features/fabric/fabric-queries';
 import { useLookups, findIdByName, type Lookups } from '@/features/extruder/extruder-queries';
 import { dashboardProductionKey } from '@/features/production/day-wise-queries';
 import { themes, type SectionProps, type SectionRef } from '@/features/production/day-entry-sections';
@@ -138,6 +139,7 @@ export const LoomSection = forwardRef<SectionRef, SectionProps>(({ productionDat
       setNewRows(failed);
       await queryClient.invalidateQueries({ queryKey: loomsKeys.all });
       await queryClient.invalidateQueries({ queryKey: dashboardProductionKey });
+      await queryClient.invalidateQueries({ queryKey: koraBalanceKeys.all });
       setSaving(false);
       if (failed.length > 0) {
         setSaveError(errorMessage);
@@ -184,6 +186,7 @@ export const LoomSection = forwardRef<SectionRef, SectionProps>(({ productionDat
       if (!response.ok) throw new Error('Failed to delete loom entry');
       await queryClient.invalidateQueries({ queryKey: loomsKeys.all });
       await queryClient.invalidateQueries({ queryKey: dashboardProductionKey });
+      await queryClient.invalidateQueries({ queryKey: koraBalanceKeys.all });
       setDeleteTarget(null);
     } catch (error) {
       console.error('Error deleting loom entry:', error);

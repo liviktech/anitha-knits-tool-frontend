@@ -70,8 +70,6 @@ export function NewEntry({ onClose, defaultDate, readOnly: propsReadOnly = false
     (allExtruderData?.data ?? []).map(r => r.productionDate?.split('T')[0]).filter(Boolean) as string[]
   );
 
-  const showDatePicker = !readOnly;
-
   useEffect(() => {
     setHeaderTitle(isCreateMode ? 'Add New Daily Production Details' : 'Edit Daily Production Details');
     setShowBackButton(true);
@@ -79,13 +77,13 @@ export function NewEntry({ onClose, defaultDate, readOnly: propsReadOnly = false
 
     setHeaderRight(
       <div className="flex flex-wrap items-center gap-3">
-        {showDatePicker && (
+        {isCreateMode ? (
           <Popover open={isCalendarOpen} onOpenChange={setIsCalendarOpen}>
             <PopoverTrigger asChild>
               <Button
                 variant="outline"
                 disabled={readOnly || submitting}
-                className="flex items-center bg-white border border-gray-400 rounded-md px-4 py-2 h-auto shadow-[0_1px_2px_rgba(0,0,0,0.05)] hover:bg-gray-50 disabled:opacity-100 cursor pointer"
+                className="flex items-center bg-white border border-gray-400 rounded-md px-4 py-2 h-auto shadow-[0_1px_2px_rgba(0,0,0,0.05)] hover:bg-gray-50 disabled:opacity-100 cursor-pointer"
               >
                 <span className="text-sm font-semibold text-gray-800 mr-3">{format(date, 'dd MMM, yyyy')}</span>
                 <CalendarIcon className="w-4 h-4 text-gray-800" />
@@ -107,7 +105,18 @@ export function NewEntry({ onClose, defaultDate, readOnly: propsReadOnly = false
               />
             </PopoverContent>
           </Popover>
-        )}
+        ) : !readOnly ? (
+          // Editing an existing day — the date is fixed to whichever day was opened, so show
+          // it as a plain, non-interactive label instead of a clickable picker.
+          <Button
+            variant="outline"
+            disabled
+            className="flex items-center bg-white border border-gray-400 rounded-md px-4 py-2 h-auto shadow-[0_1px_2px_rgba(0,0,0,0.05)] disabled:opacity-100 cursor-not-allowed"
+          >
+            <span className="text-sm font-semibold text-gray-800 mr-3">{format(date, 'dd MMM, yyyy')}</span>
+            <CalendarIcon className="w-4 h-4 text-gray-800" />
+          </Button>
+        ) : null}
       </div>
     );
 
@@ -117,7 +126,7 @@ export function NewEntry({ onClose, defaultDate, readOnly: propsReadOnly = false
       setShowBackButton(false);
       setOnBackClick(undefined);
     };
-  }, [setHeaderRight, setShowBackButton, setOnBackClick, setHeaderTitle, onClose, date, readOnly, submitting, activeTab, showDatePicker, canAddRow, isCalendarOpen]);
+  }, [setHeaderRight, setShowBackButton, setOnBackClick, setHeaderTitle, onClose, date, readOnly, submitting, activeTab, isCreateMode, canAddRow, isCalendarOpen]);
 
   // Most recent entry before the selected date — used to carry forward
   // Data for calculating live stock balances in create mode
