@@ -1,11 +1,21 @@
 import { createContext, useContext, useEffect, useState, type ReactNode } from 'react';
-import { fetchCurrentUser, login as loginRequest, logoutRequest, type AuthUser } from './auth-service';
+import {
+  fetchCurrentPlatformAdmin,
+  fetchCurrentUser,
+  loginCompanyUser as loginCompanyUserRequest,
+  loginPlatformAdmin as loginPlatformAdminRequest,
+  logoutRequest,
+  type AuthUser,
+  type CompanyUserProfile,
+  type PlatformAdminProfile,
+} from './auth-service';
 import { AUTH_STORAGE_KEY as STORAGE_KEY } from '@/lib/api-client';
 import { queryClient } from '@/lib/query-client';
 
 interface AuthContextValue {
   user: AuthUser | null;
-  login: (mobile: string, password: string) => Promise<AuthUser>;
+  loginCompanyUser: (mobile: string, password: string) => Promise<CompanyUserProfile>;
+  loginPlatformAdmin: (mobile: string, password: string) => Promise<PlatformAdminProfile>;
   logout: () => void;
 }
 
@@ -43,22 +53,27 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     return () => window.removeEventListener('auth:session-expired', handleSessionExpired);
   }, []);
 
-  // Re-resolve a company-user session's profile/access from the server on mount, and again
-  // whenever this tab regains focus — the cached localStorage copy (and the in-memory user
-  // this component started with) goes stale the moment an admin changes this user's RoleAccess
-  // or its rights in a *different* tab/session, and a single-page app never remounts on its own
-  // to pick that up otherwise. Ignores failures (e.g. offline); a genuinely dead session is
-  // already handled by the 401 listener above.
+  // Re-resolve a company-user (or LK Space) session's profile/access from the server on mount,
+  // and again whenever this tab regains focus — the cached localStorage copy (and the in-memory
+  // user this component started with) goes stale the moment an admin changes this user's
+  // RoleAccess/PlatformRoleAccess or its rights in a *different* tab/session, and a single-page
+  // app never remounts on its own to pick that up otherwise. Ignores failures (e.g. offline); a
+  // genuinely dead session is already handled by the 401 listener above.
   useEffect(() => {
     let cancelled = false;
 
     function refresh() {
       if (document.hidden) return;
       const stored = readStoredUser();
-      if (stored?.kind !== 'company-user') return;
-      fetchCurrentUser().then((fresh) => {
-        if (!cancelled && fresh) setUser(fresh);
-      });
+      if (stored?.kind === 'company-user') {
+        fetchCurrentUser().then((fresh) => {
+          if (!cancelled && fresh) setUser(fresh);
+        });
+      } else if (stored?.kind === 'platform-admin') {
+        fetchCurrentPlatformAdmin().then((fresh) => {
+          if (!cancelled && fresh) setUser(fresh);
+        });
+      }
     }
 
     refresh();
@@ -71,8 +86,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     };
   }, []);
 
-  async function login(mobile: string, password: string) {
-    const nextUser = await loginRequest(mobile, password);
+  async function loginCompanyUser(mobile: string, password: string) {
+    const nextUser = await loginCompanyUserRequest(mobile, password);
+    setUser(nextUser);
+    return nextUser;
+  }
+
+  async function loginPlatformAdmin(mobile: string, password: string) {
+    const nextUser = await loginPlatformAdminRequest(mobile, password);
     setUser(nextUser);
     return nextUser;
   }
@@ -83,7 +104,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     logoutRequest().catch(console.error);
   }
 
-  return <AuthContext.Provider value={{ user, login, logout }}>{children}</AuthContext.Provider>;
+  return <AuthContext.Provider value={{ user, loginCompanyUser, loginPlatformAdmin, logout }}>{children}</AuthContext.Provider>;
 }
 
 export function useAuth() {

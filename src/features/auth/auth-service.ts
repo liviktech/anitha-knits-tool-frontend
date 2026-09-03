@@ -1,6 +1,12 @@
 import { apiUrl, fetchJson } from '@/lib/api-client';
 
-export type PlatformAdminRole = 'SUPER_ADMIN';
+/**
+ * `SUPER_ADMIN` is the one seeded platform admin (unrestricted). `EMPLOYEE` is a Livik employee
+ * logging into LK Space with their own Livik credentials — their access is whatever their
+ * assigned PlatformRoleAccess resolves to (see backend's resolvePlatformAccess), never
+ * unrestricted by default.
+ */
+export type PlatformAdminRole = 'SUPER_ADMIN' | 'EMPLOYEE';
 export type CompanyUserRole = 'ADMIN' | 'MANAGER' | 'SUPERVISOR' | 'EMPLOYEE';
 
 export interface PlatformAdminProfile {
@@ -9,6 +15,8 @@ export interface PlatformAdminProfile {
   name: string;
   mobile: string;
   role: PlatformAdminRole;
+  /** null = unrestricted (SUPER_ADMIN, always) — an EMPLOYEE session is gated by this exactly like a CompanyUserProfile's access. */
+  access: UserAccess | null;
 }
 
 export interface AccessGrant {
@@ -27,6 +35,8 @@ export interface UserAccess {
   moduleCodes: string[];
   /** Every rightName this user's RoleAccess grants, e.g. "productiondetails_all_edit". Empty (not missing) when no RoleAccess is assigned. */
   rights: string[];
+  /** LK Space (platform-admin) sessions only — the assigned PlatformRoleAccess's display name (e.g. "Manager"), or null if none assigned. Absent/undefined for company-user sessions. */
+  roleName?: string | null;
 }
 
 export interface CompanyUserProfile {
@@ -63,27 +73,26 @@ async function postJson<T>(path: string, body: unknown): Promise<T> {
 }
 
 /**
- * The backend keeps platform admins (super admin, `platform_admins` table)
- * and company users (`users` table) as separate login endpoints with no
- * shared "who am I" call — a single mobile+password form tries the
- * platform-admin login first and falls back to the company login on
- * invalid credentials, since only one platform admin can ever exist.
+ * The backend keeps platform admins (super admin, `platform_admins` table) and company users
+ * (`users` table) as separate login endpoints — each of the two login pages (/admin-login,
+ * /login) knows which kind of account it's authenticating and calls the matching endpoint
+ * directly, rather than guessing via a try-then-fallback request.
  */
-export async function login(mobile: string, password: string): Promise<AuthUser> {
-  try {
-    const { admin } = await postJson<{ admin: Omit<PlatformAdminProfile, 'kind'> }>(
-      '/platform/admin/login',
-      { mobile, password },
-    );
-    return { kind: 'platform-admin', ...admin };
-  } catch {
-    const { user, company, access } = await postJson<{
-      user: Omit<CompanyUserProfile, 'kind' | 'company' | 'access'>;
-      company: CompanyUserProfile['company'];
-      access: UserAccess | null;
-    }>('/company/auth/login', { mobile, password });
-    return { kind: 'company-user', ...user, company, access };
-  }
+export async function loginPlatformAdmin(mobile: string, password: string): Promise<PlatformAdminProfile> {
+  const { admin, access } = await postJson<{ admin: Omit<PlatformAdminProfile, 'kind' | 'access'>; access: UserAccess | null }>(
+    '/platform/admin/login',
+    { mobile, password },
+  );
+  return { kind: 'platform-admin', ...admin, access };
+}
+
+export async function loginCompanyUser(mobile: string, password: string): Promise<CompanyUserProfile> {
+  const { user, company, access } = await postJson<{
+    user: Omit<CompanyUserProfile, 'kind' | 'company' | 'access'>;
+    company: CompanyUserProfile['company'];
+    access: UserAccess | null;
+  }>('/company/auth/login', { mobile, password });
+  return { kind: 'company-user', ...user, company, access };
 }
 
 /**
@@ -106,6 +115,24 @@ export async function fetchCurrentUser(): Promise<CompanyUserProfile | null> {
     // Swallowed deliberately (offline, expired session, etc. are all fine to ignore here) —
     // logged so a genuine bug doesn't look identical to "nothing happened" in devtools.
     console.error('fetchCurrentUser failed:', err);
+    return null;
+  }
+}
+
+/**
+ * Re-resolves the current LK Space session's profile + access from the server (GET
+ * /platform/admin/me) — the platform-admin mirror of fetchCurrentUser, so an already-logged-in
+ * Livik employee picks up a role change without re-authenticating. Returns null on failure
+ * (expired session, offline, etc.) — same convention as fetchCurrentUser.
+ */
+export async function fetchCurrentPlatformAdmin(): Promise<PlatformAdminProfile | null> {
+  try {
+    const { data } = await fetchJson<{ data: { admin: Omit<PlatformAdminProfile, 'kind' | 'access'>; access: UserAccess | null } }>(
+      '/platform/admin/me',
+    );
+    return { kind: 'platform-admin', ...data.admin, access: data.access };
+  } catch (err) {
+    console.error('fetchCurrentPlatformAdmin failed:', err);
     return null;
   }
 }

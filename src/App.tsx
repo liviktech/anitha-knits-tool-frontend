@@ -67,7 +67,8 @@ function RequireRole({ kind, children }: { kind: AuthUser['kind']; children: Rea
   const location = useLocation();
 
   if (!user) {
-    return <Navigate to="/login" state={{ from: location }} replace />;
+    const loginPath = kind === 'platform-admin' ? '/admin-login' : '/login';
+    return <Navigate to={loginPath} state={{ from: location }} replace />;
   }
   if (user.kind !== kind) {
     return <Navigate to={defaultRouteFor(user)} replace />;
