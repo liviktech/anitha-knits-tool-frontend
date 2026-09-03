@@ -4,6 +4,7 @@ import {
   fetchCurrentUser,
   loginCompanyUser as loginCompanyUserRequest,
   loginPlatformAdmin as loginPlatformAdminRequest,
+  loginWithOtp as loginWithOtpRequest,
   logoutRequest,
   type AuthUser,
   type CompanyUserProfile,
@@ -16,6 +17,8 @@ interface AuthContextValue {
   user: AuthUser | null;
   loginCompanyUser: (mobile: string, password: string) => Promise<CompanyUserProfile>;
   loginPlatformAdmin: (mobile: string, password: string) => Promise<PlatformAdminProfile>;
+  loginCompanyUserWithOtp: (mobile: string, otp: string) => Promise<CompanyUserProfile>;
+  loginPlatformAdminWithOtp: (mobile: string, otp: string) => Promise<PlatformAdminProfile>;
   logout: () => void;
 }
 
@@ -98,13 +101,33 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     return nextUser;
   }
 
+  // actorKind is fixed per function so callers (the OTP-login toggle on each login page) get
+  // the same narrowly-typed AuthUser subtype the password logins above already return.
+  async function loginCompanyUserWithOtp(mobile: string, otp: string) {
+    const nextUser = (await loginWithOtpRequest(mobile, otp, 'company')) as CompanyUserProfile;
+    setUser(nextUser);
+    return nextUser;
+  }
+
+  async function loginPlatformAdminWithOtp(mobile: string, otp: string) {
+    const nextUser = (await loginWithOtpRequest(mobile, otp, 'platform-admin')) as PlatformAdminProfile;
+    setUser(nextUser);
+    return nextUser;
+  }
+
   function logout() {
     setUser(null);
     queryClient.clear();
     logoutRequest().catch(console.error);
   }
 
-  return <AuthContext.Provider value={{ user, loginCompanyUser, loginPlatformAdmin, logout }}>{children}</AuthContext.Provider>;
+  return (
+    <AuthContext.Provider
+      value={{ user, loginCompanyUser, loginPlatformAdmin, loginCompanyUserWithOtp, loginPlatformAdminWithOtp, logout }}
+    >
+      {children}
+    </AuthContext.Provider>
+  );
 }
 
 export function useAuth() {
