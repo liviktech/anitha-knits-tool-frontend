@@ -69,6 +69,36 @@ export function useLoomsProductions(query: string = '', enabled: boolean = true)
   });
 }
 
+interface AvailableYarnResponse {
+  success: boolean;
+  data: { colorId: string; sizeId: string; availableKg: number };
+}
+
+export const availableYarnKeys = {
+  variant: (colorId?: string, sizeId?: string) => [...loomsKeys.all, 'available', colorId, sizeId] as const,
+};
+
+/**
+ * Cumulative, all-time yarn available for Looms to consume for a colour+size variant —
+ * total Extruder yarnOutputKg ever recorded for it, minus total Looms yarnInputKg already
+ * recorded against it. Backs GET /production/looms/available, the same figure the
+ * backend's create/update guard (YARN_INPUT_EXCEEDS_AVAILABLE) enforces, so the UI can't
+ * disagree with the server about what's allowed.
+ */
+export function useAvailableYarnKg(colorId?: string, sizeId?: string) {
+  const enabled = !!colorId && !!sizeId;
+  const { data, isLoading, isFetching } = useQuery({
+    queryKey: availableYarnKeys.variant(colorId, sizeId),
+    queryFn: () => fetchJson<AvailableYarnResponse>(`/production/looms/available?colorId=${colorId}&sizeId=${sizeId}`),
+    enabled,
+  });
+
+  return {
+    availableKg: enabled ? data?.data.availableKg : undefined,
+    isChecking: enabled && (isLoading || isFetching),
+  };
+}
+
 export interface LoomsSummary {
   input: number;
   output: number;
