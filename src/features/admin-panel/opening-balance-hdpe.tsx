@@ -56,11 +56,13 @@ export function OpeningBalanceHDPETab() {
     return Array.from(byGroup.values()).sort((a, b) => b.date.localeCompare(a.date));
   }, [recordsData]);
 
-  if (isLookupsLoading || isRecordsLoading) return <Loader className="m-auto mt-10" />;
+  // Hooks must run unconditionally on every render — kept above the loading-state early return
+  // below, otherwise the hook count differs between the loading and loaded renders (React error #310).
+  const hdpeNames = useMemo(() => (lookupsData?.brands ?? []).map((b) => b.name).sort(), [lookupsData?.brands]);
+  const chemicalNames = useMemo(() => (lookupsData?.chemicals ?? []).map((c) => c.name).sort(), [lookupsData?.chemicals]);
+  const colorNames = useMemo(() => (lookupsData?.colors ?? []).map((c) => c.name).sort(), [lookupsData?.colors]);
 
-  const hdpeNames = useMemo(() => (lookupsData?.brands ?? []).map((b: any) => b.name).sort(), [lookupsData?.brands]);
-  const chemicalNames = useMemo(() => (lookupsData?.chemicals ?? []).map((c: any) => c.name).sort(), [lookupsData?.chemicals]);
-  const colorNames = useMemo(() => (lookupsData?.colors ?? []).map((c: any) => c.name).sort(), [lookupsData?.colors]);
+  if (isLookupsLoading || isRecordsLoading) return <Loader className="m-auto mt-10" />;
 
   const handleDeleteConfirm = async () => {
     if (!deleteTarget) return;
