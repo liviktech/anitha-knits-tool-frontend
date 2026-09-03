@@ -35,5 +35,9 @@ export function useLookups() {
 export function findIdByName(items: LookupItem[], value: string): string | undefined {
   const normalize = (s: string) => s.toLowerCase().replace(/[^a-z0-9]/g, '');
   const target = normalize(value);
+  // An empty target (nothing selected yet) is a prefix of every name — guard it explicitly,
+  // otherwise `startsWith('')` would match the first item and callers would treat "no
+  // selection" as if the first item in the list had been picked.
+  if (!target) return undefined;
   return items.find((item) => normalize(item.name) === target || normalize(item.name).startsWith(target))?.id;
 }
