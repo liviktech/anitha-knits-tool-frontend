@@ -21,12 +21,13 @@ interface LoomModalFormProps {
   onCancel: () => void;
   /** Called after the entry is successfully persisted to the backend. */
   onSuccess: () => void;
+  entryType?: 'PRODUCTION' | 'SAMPLE';
 }
 
-export function LoomModalForm({ productionDate, initialData, isEditMode, onCancel, onSuccess }: LoomModalFormProps) {
+export function LoomModalForm({ productionDate, initialData, isEditMode, onCancel, onSuccess, entryType = 'PRODUCTION' }: LoomModalFormProps) {
   const queryClient = useQueryClient();
   const { data: lookupsData } = useLookups();
-  const lookups: Lookups = lookupsData ?? { brands: [], colors: [], chemicals: [], sizes: [] };
+  const lookups: Lookups = lookupsData ?? { brands: [], colors: [], chemicals: [], sizes: [], expenseNames: [] };
   const theme = themes.looms;
 
   const [draft, setDraft] = useState<LoomDraft>(initialData || { ...emptyLoomDraft });
@@ -38,27 +39,33 @@ export function LoomModalForm({ productionDate, initialData, isEditMode, onCance
   const [error, setError] = useState<string | null>(null);
 
   const hasSizeAndColor = !!draft.size && !!draft.color;
+  const hasSizeColorChemical = hasSizeAndColor && !!draft.chemical;
   const selectedColorId = draft.color ? findIdByName(lookups.colors, draft.color) : undefined;
   const selectedSizeId = draft.size ? findIdByName(lookups.sizes, draft.size) : undefined;
+  const selectedChemicalId = draft.chemical ? findIdByName(lookups.chemicals, draft.chemical) : undefined;
 
-  // Cumulative, all-time Extruder yarnOutputKg for this colour+size minus all-time Looms
-  // yarnInputKg already recorded against it — the same figure the backend's create/update
-  // guard (YARN_INPUT_EXCEEDS_AVAILABLE) enforces, so the UI can't disagree with the server
-  // about what's allowed.
-  const { availableKg: rawAvailableKg, isChecking: isCheckingAvailable } = useAvailableYarnKg(selectedColorId, selectedSizeId);
+  // Cumulative, all-time Extruder yarnOutputKg for this colour+size+chemical minus all-time
+  // Looms yarnInputKg already recorded against it — the same figure the backend's
+  // create/update guard (YARN_INPUT_EXCEEDS_AVAILABLE) enforces, so the UI can't disagree
+  // with the server about what's allowed.
+  const { availableKg: rawAvailableKg, isChecking: isCheckingAvailable } = useAvailableYarnKg(selectedColorId, selectedSizeId, selectedChemicalId);
   // Editing an existing record already "spent" its own yarnInputKg against that total —
   // add it back so editing isn't capped by a number that already excludes this record.
   const originalYarnInputKg = isEditMode && initialData ? parseFloat(initialData.input) || 0 : 0;
   const totalAvailableKg = rawAvailableKg !== undefined ? rawAvailableKg + originalYarnInputKg : undefined;
-  const noYarnAvailable = hasSizeAndColor && totalAvailableKg !== undefined && totalAvailableKg <= 0;
+  const noYarnAvailable = hasSizeColorChemical && totalAvailableKg !== undefined && totalAvailableKg <= 0;
 
   const loomProductionInputKg = parseFloat(draft.input) || 0;
-  const exceedsAvailable = hasSizeAndColor && totalAvailableKg !== undefined && loomProductionInputKg > totalAvailableKg;
+  const loomsWasteInputKg = parseFloat(draft.loomsWasteKg) || 0;
+  const exceedsAvailable = hasSizeColorChemical && totalAvailableKg !== undefined && loomProductionInputKg > totalAvailableKg;
+
+  // Yarn Balance = Available Yarn minus both Loom Production and Looms/Yarn Waste.
+  const yarnBalanceKg = totalAvailableKg !== undefined ? totalAvailableKg - loomProductionInputKg - loomsWasteInputKg : undefined;
 
   const updateField = (field: keyof LoomDraft, value: string) => {
     setDraft(prev => {
       const next = { ...prev, [field]: value };
-      if (!outputManuallyEdited && (field === 'input' || field === 'loomsWasteKg')) {
+      if (!outputManuallyEdited && field === 'input') {
         next.output = suggestLoomOutput(next);
       }
       return next;
@@ -75,10 +82,12 @@ export function LoomModalForm({ productionDate, initialData, isEditMode, onCance
 
     const colorId = findIdByName(lookups.colors, draft.color);
     const sizeId = findIdByName(lookups.sizes, draft.size);
+    const chemicalId = findIdByName(lookups.chemicals, draft.chemical);
 
     const missingFields: string[] = [];
     if (!sizeId) missingFields.push('Size');
     if (!colorId) missingFields.push('Color');
+    if (!chemicalId) missingFields.push('Chemical');
     if (!draft.input || draft.input.trim() === '') missingFields.push('Loom Production');
     if (!draft.loomsWasteKg || draft.loomsWasteKg.trim() === '') missingFields.push('Looms/Yarn Waste');
 
@@ -96,9 +105,11 @@ export function LoomModalForm({ productionDate, initialData, isEditMode, onCance
       productionDate,
       colorId: colorId!,
       sizeId: sizeId!,
+      chemicalId: chemicalId!,
       yarnInputKg: parseFloat(draft.input) || 0,
       fabricOutputKg: parseFloat(draft.output) || 0,
       loomsWasteKg: parseFloat(draft.loomsWasteKg) || 0,
+      type: entryType,
     };
 
     setSaving(true);
@@ -129,19 +140,26 @@ export function LoomModalForm({ productionDate, initialData, isEditMode, onCance
 
   return (
     <div className="flex flex-col h-full gap-2 px-1">
-      <div className="flex gap-6 p-3 rounded-lg border border-gray-400">
-        <div className="flex items-center gap-1 w-50">
-          <Label className="text-gray-600 text-xs font-semibold uppercase tracking-wider shrink-0 w-10">Size</Label>
+      <div className="grid grid-cols-3 gap-3 p-3 rounded-lg border border-gray-400">
+        <div className="space-y-1.5">
+          <Label className="text-gray-600 text-xs font-semibold uppercase tracking-wider">Size</Label>
           <Select value={draft.size} onValueChange={(v) => updateField('size', v)} disabled={isEditMode}>
-            <SelectTrigger><SelectValue placeholder="Select Size" /></SelectTrigger>
+            <SelectTrigger className="h-8 text-xs w-full"><SelectValue placeholder="Select Size" /></SelectTrigger>
             <SelectContent position="popper">{lookups.sizes?.map((s) => <SelectItem key={s.id} value={s.name}>{s.name}</SelectItem>)}</SelectContent>
           </Select>
         </div>
-        <div className="flex items-center gap-3 w-56">
-          <Label className="text-gray-600 text-xs font-semibold uppercase tracking-wider shrink-0 w-12">Color</Label>
+        <div className="space-y-1.5">
+          <Label className="text-gray-600 text-xs font-semibold uppercase tracking-wider">Color</Label>
           <Select value={draft.color} onValueChange={(v) => updateField('color', v)} disabled={isEditMode}>
-            <SelectTrigger className={draft.color ? `font-semibold ${colorFieldClasses(draft.color)}` : undefined}><SelectValue placeholder="Select Color" /></SelectTrigger>
+            <SelectTrigger className={`h-8 text-xs w-full ${draft.color ? `font-semibold ${colorFieldClasses(draft.color)}` : ''}`}><SelectValue placeholder="Select Color" /></SelectTrigger>
             <SelectContent position="popper">{lookups.colors?.map((c) => <SelectItem key={c.id} value={c.name}>{c.name}</SelectItem>)}</SelectContent>
+          </Select>
+        </div>
+        <div className="space-y-1.5">
+          <Label className="text-gray-600 text-xs font-semibold uppercase tracking-wider">Chemical</Label>
+          <Select value={draft.chemical} onValueChange={(v) => updateField('chemical', v)} disabled={isEditMode}>
+            <SelectTrigger className="h-8 text-xs w-full"><SelectValue placeholder="Select Chemical" /></SelectTrigger>
+            <SelectContent position="popper">{lookups.chemicals?.map((c) => <SelectItem key={c.id} value={c.name}>{c.name}</SelectItem>)}</SelectContent>
           </Select>
         </div>
       </div>
@@ -153,11 +171,22 @@ export function LoomModalForm({ productionDate, initialData, isEditMode, onCance
             <Label className="text-gray-600 text-xs font-semibold">Available Yarn (kg)</Label>
             <Input
               type="text"
-              placeholder="Select size & color"
-              value={hasSizeAndColor ? (isCheckingAvailable ? 'Checking…' : (totalAvailableKg ?? 0).toFixed(2)) : ''}
+              placeholder="Select size, color & chemical"
+              value={hasSizeColorChemical ? (isCheckingAvailable ? 'Checking…' : (totalAvailableKg ?? 0).toFixed(2)) : ''}
               disabled
               readOnly
               className="bg-gray-100 font-semibold"
+            />
+          </div>
+          <div className="space-y-1.5">
+            <Label className="text-gray-600 text-xs font-semibold">Yarn Balance (kg)</Label>
+            <Input
+              type="text"
+              placeholder="Select size, color & chemical"
+              value={hasSizeColorChemical ? (isCheckingAvailable ? 'Checking…' : (yarnBalanceKg ?? 0).toFixed(2)) : ''}
+              disabled
+              readOnly
+              className={`bg-gray-100 font-semibold ${hasSizeColorChemical && yarnBalanceKg !== undefined && yarnBalanceKg < 0 ? 'text-red-600' : ''}`}
             />
           </div>
           <div className="space-y-1.5">
@@ -181,7 +210,7 @@ export function LoomModalForm({ productionDate, initialData, isEditMode, onCance
         {noYarnAvailable && !exceedsAvailable && (
           <p className="mt-3 flex items-center gap-2 text-sm text-amber-700 bg-amber-50 border border-amber-200 rounded-md px-3 py-2">
             <AlertTriangle className="h-4 w-4 shrink-0" />
-            There is no Extruder yarn available for this size and color.
+            There is no Extruder yarn available for this size, color and chemical.
           </p>
         )}
 

@@ -27,6 +27,7 @@ export interface FabricRow {
   id: string;
   size: string;
   color: string;
+  chemical: string;
   kora: string;
   input: number;
   output: number;
@@ -45,6 +46,7 @@ export function mapFabricItem(item: FabricCheckingRecord): FabricRow {
     id: item.id,
     size: item.size?.name ?? '',
     color: item.color?.name ?? '',
+    chemical: item.chemical?.name ?? '',
     // Kora is not a field on the record — it's the live color+size balance from
     // GET /kora-balance, overlaid by callers via findKoraBalanceKg. Left blank here.
     kora: '',
@@ -64,6 +66,7 @@ export interface FabricDraft {
   id?: string; // If editing an existing (already-persisted) entry
   size: string;
   color: string;
+  chemical: string;
   kora: string;
   input: string;
   output: string;
@@ -71,23 +74,30 @@ export interface FabricDraft {
   bwKg: string;
 }
 
-export const emptyFabricDraft: FabricDraft = { key: '', size: '', color: '', kora: '', input: '', output: '', fwKg: '', bwKg: '' };
+export const emptyFabricDraft: FabricDraft = { key: '', size: '', color: '', chemical: '', kora: '', input: '', output: '', fwKg: '', bwKg: '' };
 
-/** Total Fabric Stock mirrors Fabric Production directly — wastage is tracked separately, not deducted here. */
-export function suggestFabricOutput(draft: Pick<FabricDraft, 'input'>): string {
+/** Total Fabric Stock = Finished Fabric minus wastage (Fabric Waste + Bit Waste). */
+export function suggestFabricOutput(draft: Pick<FabricDraft, 'input' | 'fwKg' | 'bwKg'>): string {
   const inputKg = parseFloat(draft.input) || 0;
-  return inputKg > 0 ? inputKg.toFixed(2) : '';
+  const fwKg = parseFloat(draft.fwKg) || 0;
+  const bwKg = parseFloat(draft.bwKg) || 0;
+  const suggested = Math.max(0, inputKg - fwKg - bwKg);
+  return suggested > 0 ? suggested.toFixed(2) : '';
 }
 
-export const FabricSection = forwardRef<SectionRef, SectionProps>(({ productionDate, readOnly, hideExisting, sessionStartTime, hideBanner, onEditFabricGroup }, ref) => {
+export interface FabricSectionProps extends SectionProps {
+  entryType?: 'PRODUCTION' | 'SAMPLE';
+}
+
+export const FabricSection = forwardRef<SectionRef, FabricSectionProps>(({ productionDate, readOnly, hideExisting, sessionStartTime, hideBanner, onEditFabricGroup, entryType = 'PRODUCTION' }, ref) => {
   const queryClient = useQueryClient();
   const { user } = useAuth();
   const { data, isLoading, isError, refetch } = useFabricCheckingRecords(
-    productionDate ? `?date_from=${productionDate}&date_to=${productionDate}` : '',
+    productionDate ? `?date_from=${productionDate}&date_to=${productionDate}&type=${entryType}` : `?type=${entryType}`,
     !hideExisting,
   );
   const { data: lookupsData } = useLookups();
-  const lookups: Lookups = lookupsData ?? { brands: [], colors: [], chemicals: [], sizes: [] };
+  const lookups: Lookups = lookupsData ?? { brands: [], colors: [], chemicals: [], sizes: [], expenseNames: [] };
   const { data: koraBalanceData } = useKoraBalances();
   const koraBalances = koraBalanceData?.data;
 
@@ -125,19 +135,22 @@ export const FabricSection = forwardRef<SectionRef, SectionProps>(({ productionD
       for (const row of newRows) {
         const colorId = findIdByName(lookups.colors, row.color);
         const sizeId = findIdByName(lookups.sizes, row.size);
-        if (!colorId || !sizeId) {
+        const chemicalId = findIdByName(lookups.chemicals, row.chemical);
+        if (!colorId || !sizeId || !chemicalId) {
           failed.push(row);
-          errorMessage = 'Could not resolve color/size for one or more entries.';
+          errorMessage = 'Could not resolve color/size/chemical for one or more entries.';
           continue;
         }
         const payload: FabricCheckingCreatePayload = {
           productionDate: productionDate ?? '',
           colorId,
           sizeId,
+          chemicalId,
           fabricInputKg: parseFloat(row.input) || 0,
           outputKg: parseFloat(row.output) || 0,
           fwKg: parseFloat(row.fwKg) || 0,
           bwKg: parseFloat(row.bwKg) || 0,
+          type: entryType,
         };
         try {
           const response = row.id
@@ -320,6 +333,7 @@ export const FabricSection = forwardRef<SectionRef, SectionProps>(({ productionD
                               id: row.id,
                               size: row.size,
                               color: row.color,
+                              chemical: row.chemical,
                               kora: row.kora,
                               input: String(row.input),
                               output: String(row.output),

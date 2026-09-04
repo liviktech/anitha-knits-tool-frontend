@@ -102,6 +102,7 @@ interface ExtruderModalFormProps {
   onCancel: () => void;
   /** Called after the entry is successfully persisted to the backend. */
   onSuccess: () => void;
+  entryType?: 'PRODUCTION' | 'SAMPLE';
 }
 
 const emptyBrandDraft = (): ExtruderBrandDraft => ({
@@ -126,10 +127,10 @@ const emptyGroupDraft = (): ExtruderGroupDraft => ({
   brands: [emptyBrandDraft()],
 });
 
-export function ExtruderModalForm({ productionDate, initialData, isEditMode, onCancel, onSuccess }: ExtruderModalFormProps) {
+export function ExtruderModalForm({ productionDate, initialData, isEditMode, onCancel, onSuccess, entryType = 'PRODUCTION' }: ExtruderModalFormProps) {
   const queryClient = useQueryClient();
   const { data: lookupsData } = useLookups();
-  const lookups: Lookups = lookupsData ?? { brands: [], colors: [], chemicals: [], sizes: [] };
+  const lookups: Lookups = lookupsData ?? { brands: [], colors: [], chemicals: [], sizes: [], expenseNames: [] };
   const theme = themes.extruder;
 
   // Brands with zero or negative live stock balance (received minus already-consumed)
@@ -158,20 +159,26 @@ export function ExtruderModalForm({ productionDate, initialData, isEditMode, onC
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  // Sample entries don't follow the company's Color Consumption Standard — Bag Weight,
+  // Chemical Weight and Color Weight are all typed in by hand instead of being derived from it.
+  const isSample = entryType === 'SAMPLE';
+
   const { data: standardData } = useColorConsumptionStandard(productionDate);
   const standard = standardData?.data;
   const chemicalWeightStandard = standard ? parseFloat(standard.chemicalWeight) : undefined;
   const basisWeightKg = standard ? parseFloat(standard.basisWeightKg) : undefined;
   const kgPerBasis = colorGramsPerBasis(standard, group.color); // actual API field is kg per basis unit
 
-  // Bag weight displayed comes from basisWeightKg standard (e.g. 25 kg per bag).
+  // Bag weight displayed comes from basisWeightKg standard (e.g. 25 kg per bag) — except for a
+  // Sample entry, where each row's own basisWeightKg is whatever the user typed into it.
   // Total = (bags × bagWt) + looseWt
   const bagWtStr = basisWeightKg !== undefined ? String(basisWeightKg) : '';
   const computedBrands = useMemo(
     () => group.brands.map((b) => {
-      return { ...b, basisWeightKg: bagWtStr, raw: computeRaw(b.bags, bagWtStr, b.looseWeight) };
+      const weightPerBag = isSample ? b.basisWeightKg : bagWtStr;
+      return { ...b, basisWeightKg: weightPerBag, raw: computeRaw(b.bags, weightPerBag, b.looseWeight) };
     }),
-    [group.brands, basisWeightKg, bagWtStr],
+    [group.brands, bagWtStr, isSample],
   );
 
   const totalRawKg = useMemo(
@@ -191,16 +198,22 @@ export function ExtruderModalForm({ productionDate, initialData, isEditMode, onC
     return roundKg(chemicalWeightStandard * (totalRawKg / basisWeightKg));
   }, [chemicalWeightStandard, basisWeightKg, totalRawKg]);
 
+  // The figures actually used to save/suggest-output — the standard-derived values for a real
+  // Production entry, or the user's own manual entries for a Sample one.
+  const effectiveChemicalConsumedKg = isSample ? parseFloat(group.chemicalKg) || 0 : (standardChemicalConsumedKg ?? 0);
+  const effectiveColorConsumedKg = isSample ? parseFloat(group.colorConsumedKg) || 0 : (standardColorConsumedKg ?? 0);
+
   // Total Loom Production suggestion — raw material + chemical + colour consumed, minus
   // recorded wastage. Mirrors suggestExtruderOutput() in day-entry-sections.tsx; recomputed
   // here rather than reused directly since this form tracks raw/chemical/colour as derived
-  // memos (from brand rows + the color-consumption standard) rather than group state.
+  // memos (from brand rows + the color-consumption standard, or manual entry for Sample)
+  // rather than group state.
   const suggestedOutputKg = useMemo(() => {
-    const inputMassKg = totalRawKg + (standardChemicalConsumedKg ?? 0) + (standardColorConsumedKg ?? 0);
+    const inputMassKg = totalRawKg + effectiveChemicalConsumedKg + effectiveColorConsumedKg;
     const wasteKg = (parseFloat(group.lumpsKg) || 0) + (parseFloat(group.yarnWasteKg) || 0);
     const suggested = Math.max(0, inputMassKg - wasteKg);
     return suggested > 0 ? suggested.toFixed(2) : '';
-  }, [totalRawKg, standardChemicalConsumedKg, standardColorConsumedKg, group.lumpsKg, group.yarnWasteKg]);
+  }, [totalRawKg, effectiveChemicalConsumedKg, effectiveColorConsumedKg, group.lumpsKg, group.yarnWasteKg]);
 
   const displayedOutputKg = outputManuallyEdited ? group.output : suggestedOutputKg;
 
@@ -273,7 +286,7 @@ export function ExtruderModalForm({ productionDate, initialData, isEditMode, onC
       return;
     }
 
-    if ((standardChemicalConsumedKg ?? 0) <= 0 || (parseFloat(displayedOutputKg) || 0) <= 0) {
+    if (effectiveChemicalConsumedKg <= 0 || (parseFloat(displayedOutputKg) || 0) <= 0) {
       setError('Chemical weight and total loom production must both be greater than 0.');
       return;
     }
@@ -283,8 +296,8 @@ export function ExtruderModalForm({ productionDate, initialData, isEditMode, onC
       const shares = splitGroupTotals({
         ...group,
         output: displayedOutputKg,
-        chemicalKg: String(standardChemicalConsumedKg ?? 0),
-        colorConsumedKg: String(standardColorConsumedKg ?? 0),
+        chemicalKg: String(effectiveChemicalConsumedKg),
+        colorConsumedKg: String(effectiveColorConsumedKg),
         brands: computedBrands,
       });
 
@@ -350,6 +363,7 @@ export function ExtruderModalForm({ productionDate, initialData, isEditMode, onC
             yarnOutputKg: share.yarnOutputKg,
             lumpsKg: share.lumpsKg,
             yarnWasteKg: share.yarnWasteKg,
+            type: entryType,
             ...brandBagFields(brandRow),
           };
           const response = await apiFetch('/production/extruder', {
@@ -379,22 +393,28 @@ export function ExtruderModalForm({ productionDate, initialData, isEditMode, onC
     <div className="flex flex-col gap-2 px-1">
 
       {/* General Settings */}
-      <div className="flex gap-6 p-3 rounded-lg border border-gray-400">
-        <div className="flex items-center gap-1 w-50">
-          <Label className="text-gray-600 text-xs font-semibold uppercase tracking-wider shrink-0 w-10">Size</Label>
+      <div className="grid grid-cols-3 gap-3 p-3 rounded-lg border border-gray-400">
+        <div className="space-y-1.5">
+          <Label className="text-gray-600 text-xs font-semibold uppercase tracking-wider">Size</Label>
           <Select value={group.size} onValueChange={(v) => updateGroupField('size', v)} disabled={isEditMode}>
-            <SelectTrigger><SelectValue placeholder="Select Size" /></SelectTrigger>
+            <SelectTrigger className="h-8 text-xs w-full"><SelectValue placeholder="Select Size" /></SelectTrigger>
             <SelectContent position="popper">{lookups.sizes?.map((s) => <SelectItem key={s.id} value={s.name}>{s.name}</SelectItem>)}</SelectContent>
           </Select>
         </div>
-        <div className="flex items-center gap-3 w-56">
-          <Label className="text-gray-600 text-xs font-semibold uppercase tracking-wider shrink-0 w-12">Color</Label>
+        <div className="space-y-1.5">
+          <Label className="text-gray-600 text-xs font-semibold uppercase tracking-wider">Color</Label>
           <Select value={group.color} onValueChange={(v) => updateGroupField('color', v)} disabled={isEditMode}>
-            <SelectTrigger className={group.color ? `font-semibold ${colorFieldClasses(group.color)}` : undefined}><SelectValue placeholder="Select Color" /></SelectTrigger>
+            <SelectTrigger className={`h-8 text-xs w-full ${group.color ? `font-semibold ${colorFieldClasses(group.color)}` : ''}`}><SelectValue placeholder="Select Color" /></SelectTrigger>
             <SelectContent position="popper">{lookups.colors?.map((c) => <SelectItem key={c.id} value={c.name}>{c.name}</SelectItem>)}</SelectContent>
           </Select>
         </div>
-
+        <div className="space-y-1.5">
+          <Label className="text-gray-600 text-xs font-semibold uppercase tracking-wider">Chemical Type</Label>
+          <Select value={group.chemical} onValueChange={(v) => updateGroupField('chemical', v)} disabled={isEditMode}>
+            <SelectTrigger className="h-8 text-xs w-full"><SelectValue placeholder="Select Chem" /></SelectTrigger>
+            <SelectContent position="popper">{lookups.chemicals?.map((c) => <SelectItem key={c.id} value={c.name}>{c.name}</SelectItem>)}</SelectContent>
+          </Select>
+        </div>
       </div>
 
       {/* HDPE Material */}
@@ -427,7 +447,17 @@ export function ExtruderModalForm({ productionDate, initialData, isEditMode, onC
               </div>
               <div className="space-y-1 flex-1">
                 {idx === 0 && <Label className="text-xs text-gray-500">Bag Weight(kg)</Label>}
-                <Input type="number" min="0" onKeyDown={(e) => e.key === '-' && e.preventDefault()} placeholder="Bag Wt" disabled readOnly value={computeBagWeightDisplay(brandRow.bags, brandRow.basisWeightKg)} className="h-8 text-xs w-full border border-gray-400 disabled:opacity-100" />
+                {isSample ? (
+                  <Input
+                    type="number" min="0" onKeyDown={(e) => e.key === '-' && e.preventDefault()}
+                    placeholder="Bag Wt"
+                    value={brandRow.basisWeightKg}
+                    onChange={(e) => updateBrandField(brandRow.key, 'basisWeightKg', e.target.value)}
+                    className="h-8 text-xs w-full"
+                  />
+                ) : (
+                  <Input type="number" min="0" onKeyDown={(e) => e.key === '-' && e.preventDefault()} placeholder="Bag Wt" disabled readOnly value={computeBagWeightDisplay(brandRow.bags, brandRow.basisWeightKg)} className="h-8 text-xs w-full border border-gray-400 disabled:opacity-100" />
+                )}
               </div>
               <div className="space-y-1 flex-1">
                 {idx === 0 && <Label className="text-xs text-gray-500 whitespace-nowrap">Loose Weight(kg)</Label>}
@@ -461,30 +491,36 @@ export function ExtruderModalForm({ productionDate, initialData, isEditMode, onC
         {/* Chemicals */}
         <div className="space-y-2 p-3 rounded-lg border border-gray-400">
           <h3 className={`text-xs font-semibold uppercase tracking-wider border-b pb-1.5 ${theme.headerText}`}>Chemicals & Colors</h3>
-          <div className="space-y-2">
-            <div className="grid grid-cols-2 gap-2">
-              <div className="space-y-1.5">
-                <Label className="text-gray-600 text-xs font-semibold">Chemical Type</Label>
-                <Select value={group.chemical} onValueChange={(v) => updateGroupField('chemical', v)} disabled={isEditMode}>
-                  <SelectTrigger className="h-8 text-xs"><SelectValue placeholder="Select Chem" /></SelectTrigger>
-                  <SelectContent position="popper">{lookups.chemicals?.map((c) => <SelectItem key={c.id} value={c.name}>{c.name}</SelectItem>)}</SelectContent>
-                </Select>
-              </div>
-              <div className="space-y-1.5">
-                <Label className="text-gray-600 text-xs font-semibold">Chemical Weight(kg)</Label>
+          <div className="space-y-2 pt-0.5">
+            <div className="space-y-1.5">
+              <Label className="text-gray-600 text-xs font-semibold">Chemical Weight(kg)</Label>
+              {isSample ? (
+                <Input
+                  type="number" min="0" onKeyDown={(e) => e.key === '-' && e.preventDefault()}
+                  placeholder="0.00"
+                  className="h-8 text-xs"
+                  value={group.chemicalKg}
+                  onChange={(e) => updateGroupField('chemicalKg', e.target.value)}
+                />
+              ) : (
                 <Input type="number" min="0" onKeyDown={(e) => e.key === '-' && e.preventDefault()} placeholder="0.00" className="h-8 text-xs bg-gray-100 border border-gray-400 disabled:opacity-100" value={standardChemicalConsumedKg !== undefined ? standardChemicalConsumedKg.toFixed(2) : ''} disabled readOnly />
-              </div>
+              )}
             </div>
-            <div className="grid grid-cols-2 gap-2">
-              <div className="space-y-1.5">
-                <Label className="text-gray-600 text-xs font-semibold">Color</Label>
-                <Input type="text" placeholder="Select color above" className={`h-8 text-xs border font-semibold disabled:opacity-100 ${colorFieldClasses(group.color)}`} value={group.color} disabled readOnly />
-              </div>
-              <div className="space-y-1.5">
-                <Label className="text-gray-600 text-xs font-semibold">Color Weight (kg)</Label>
+            <div className="space-y-1.5">
+              <Label className="text-gray-600 text-xs font-semibold">Color Weight (kg)</Label>
+              {isSample ? (
+                <Input
+                  type="number" min="0" onKeyDown={(e) => e.key === '-' && e.preventDefault()}
+                  placeholder="0.00"
+                  className="h-8 text-xs"
+                  value={group.colorConsumedKg}
+                  onChange={(e) => updateGroupField('colorConsumedKg', e.target.value)}
+                />
+              ) : (
                 <Input type="number" min="0" onKeyDown={(e) => e.key === '-' && e.preventDefault()} placeholder="0.00" className="h-8 text-xs bg-gray-100 border border-gray-400 disabled:opacity-100" value={standardColorConsumedKg !== undefined ? standardColorConsumedKg.toFixed(2) : ''} disabled readOnly />
-              </div>
+              )}
             </div>
+
           </div>
         </div>
 

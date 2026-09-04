@@ -56,12 +56,20 @@ function mapLoadSentRecord(record: LoadSentProductionRecord): FabricDeliveredRow
   };
 }
 
-export const FabricDeliveredSection = forwardRef<SectionRef, SectionProps & { onEditDeliveredGroup?: (draft: FabricDeliveredDraft) => void }>(({ productionDate, readOnly, hideExisting, sessionStartTime, hideBanner, onEditDeliveredGroup }, ref) => {
+export interface FabricDeliveredSectionProps extends SectionProps {
+  onEditDeliveredGroup?: (draft: FabricDeliveredDraft) => void;
+  entryType?: 'PRODUCTION' | 'SAMPLE';
+}
+
+export const FabricDeliveredSection = forwardRef<SectionRef, FabricDeliveredSectionProps>(({ productionDate, readOnly, hideExisting, sessionStartTime, hideBanner, onEditDeliveredGroup, entryType = 'PRODUCTION' }, ref) => {
   const queryClient = useQueryClient();
   const { user } = useAuth();
   const { data: lookupsData } = useLookups();
-  const lookups: Lookups = lookupsData ?? { brands: [], colors: [], chemicals: [], sizes: [] };
-  const { data, isLoading, isError, refetch } = useLoadSentRecords('?limit=100', !hideExisting);
+  const lookups: Lookups = lookupsData ?? { brands: [], colors: [], chemicals: [], sizes: [], expenseNames: [] };
+  const { data, isLoading, isError, refetch } = useLoadSentRecords(
+    productionDate ? `?date_from=${productionDate}&date_to=${productionDate}&type=${entryType}` : `?limit=100&type=${entryType}`,
+    !hideExisting
+  );
 
   const [newRows, setNewRows] = useState<FabricDeliveredDraft[]>([]);
   const [deleteTarget, setDeleteTarget] = useState<FabricDeliveredRow | null>(null);
@@ -104,6 +112,7 @@ export const FabricDeliveredSection = forwardRef<SectionRef, SectionProps & { on
           colorId,
           sizeId,
           fabricWeight: parseFloat(row.delivered) || 0,
+          type: entryType,
           vehicleNo: row.vehicleNo || undefined,
           driverName: row.driverName || undefined,
         };

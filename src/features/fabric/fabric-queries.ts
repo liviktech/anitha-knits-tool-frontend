@@ -26,6 +26,7 @@ export interface FabricCheckingRecord {
   remarks: string | null;
   color: MasterDataRef;
   size: MasterDataRef;
+  chemical: MasterDataRef | null;
   fabricCheck: FabricCheckDetail;
   wastages: WastageRecordSummary[];
   isApproved: boolean;
@@ -48,6 +49,7 @@ export interface FabricCheckingCreatePayload {
   productionDate: string; // date, e.g. "2026-08-19"
   colorId: string;
   sizeId: string;
+  chemicalId: string;
   fabricInputKg: number;
   outputKg: number;
   fwKg: number;
@@ -107,33 +109,70 @@ export function findKoraBalanceKg(balances: KoraBalanceEntry[] | undefined, size
   return balances?.find((b) => b.size.name === sizeName && b.color.name === colorName)?.balanceKg;
 }
 
+interface KoraBalanceExcludingRecordResponse {
+  success: boolean;
+  data: { colorId: string; sizeId: string; balanceKg: number };
+}
+
+const koraBalanceExcludingRecordKeys = {
+  variant: (colorId?: string, sizeId?: string, recordId?: string) => ['kora-balance-excluding-record', colorId, sizeId, recordId] as const,
+};
+
+/**
+ * Current kora balance for a colour+size variant with one specific production record's own
+ * ledger effect subtracted back out. GET /kora-balance (and useKoraBalances above) always
+ * returns the *current* balance, which already has that record's effect baked in — fine when
+ * adding a new entry, wrong when editing an existing one, since the figure would be
+ * understating/overstating stock by this record's own contribution. Backs the Fabric Checking
+ * edit form's Kora Stock figure.
+ *
+ * Deliberately keyed off the record's own id rather than "balance before its production
+ * date" — a date cutoff would also hide any other movement dated the same day (e.g. an
+ * Opening Balance entered for that date), understating what's really available.
+ */
+export function useKoraBalanceExcludingRecord(colorId: string | undefined, sizeId: string | undefined, recordId: string | undefined, enabled: boolean) {
+  const isEnabled = enabled && !!colorId && !!sizeId && !!recordId;
+  const { data, isLoading, isFetching } = useQuery({
+    queryKey: koraBalanceExcludingRecordKeys.variant(colorId, sizeId, recordId),
+    queryFn: () => fetchJson<KoraBalanceExcludingRecordResponse>(`/kora-balance/${colorId}/${sizeId}/excluding/${recordId}`),
+    enabled: isEnabled,
+  });
+
+  return {
+    balanceKg: isEnabled ? data?.data.balanceKg : undefined,
+    isChecking: isEnabled && (isLoading || isFetching),
+  };
+}
+
 interface AvailableFabricResponse {
   success: boolean;
-  data: { colorId: string; sizeId: string; availableKg: number };
+  data: { colorId: string; sizeId: string; chemicalId: string; availableKg: number };
 }
 
 // Deliberately not nested under fabricCheckingKeys.all — invalidateQueries prefix-matches,
 // so if this shared that root, every fabric-checking list/save invalidation elsewhere would
 // also refetch this while the entry dialog is still open, causing a visible balance flicker
 // right before it closes. Keep this key its own root; it only needs to load once per
-// colour+size selection (a fresh dialog mount always fetches fresh data on its own).
+// colour+size+chemical selection (a fresh dialog mount always fetches fresh data on its own).
 export const availableFabricKeys = {
-  variant: (colorId?: string, sizeId?: string) => ['fabric-checking-available', colorId, sizeId] as const,
+  variant: (colorId?: string, sizeId?: string, chemicalId?: string, date?: string) =>
+    ['fabric-checking-available', colorId, sizeId, chemicalId, date] as const,
 };
 
 /**
- * Cumulative, all-time fabric available to check for a colour+size variant — total Looms
- * fabricOutputKg ever recorded for it, minus total Fabric Checking fabricInputKg already
- * recorded against it. Backs GET /fabric-checking/available, the same figure the backend's
- * create/update guard (FABRIC_INPUT_EXCEEDS_AVAILABLE) enforces, so the UI can't disagree
- * with the server about what's allowed. Distinct from the Kora Balance ledger above, which
- * tracks a different, looser running total.
+ * Fabric available to check for a colour+size+chemical variant on `date` — that single day's
+ * Looms fabricOutputKg minus that same day's Fabric Checking fabricInputKg already recorded
+ * against it. Scoped to `date` only, not cumulative across history. Backs GET
+ * /fabric-checking/available, the same figure the backend's create/update guard
+ * (FABRIC_INPUT_EXCEEDS_AVAILABLE) enforces, so the UI can't disagree with the server about
+ * what's allowed. Distinct from the Kora Balance ledger above, which tracks a different, looser
+ * running total.
  */
-export function useAvailableFabricKg(colorId?: string, sizeId?: string) {
-  const enabled = !!colorId && !!sizeId;
+export function useAvailableFabricKg(colorId?: string, sizeId?: string, chemicalId?: string, date?: string) {
+  const enabled = !!colorId && !!sizeId && !!chemicalId && !!date;
   const { data, isLoading, isFetching } = useQuery({
-    queryKey: availableFabricKeys.variant(colorId, sizeId),
-    queryFn: () => fetchJson<AvailableFabricResponse>(`/fabric-checking/available?colorId=${colorId}&sizeId=${sizeId}`),
+    queryKey: availableFabricKeys.variant(colorId, sizeId, chemicalId, date),
+    queryFn: () => fetchJson<AvailableFabricResponse>(`/fabric-checking/available?colorId=${colorId}&sizeId=${sizeId}&chemicalId=${chemicalId}&date=${date}`),
     enabled,
   });
 

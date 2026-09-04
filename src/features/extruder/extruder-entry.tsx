@@ -41,7 +41,7 @@ export function ExtruderEntry({ onClose }: ExtruderEntryProps) {
   const queryClient = useQueryClient();
   const { data: productionsData, isLoading: loading } = useExtruderProductions();
   const { data: lookupsData } = useLookups();
-  const lookups: Lookups = lookupsData ?? { brands: [], colors: [], chemicals: [], sizes: [] };
+  const lookups: Lookups = lookupsData ?? { brands: [], colors: [], chemicals: [], sizes: [], expenseNames: [] };
 
   // Map backend DTO to match the UI rendering variables.
   // Names (not ids) are kept so an edit click can prefill the form's Selects directly.

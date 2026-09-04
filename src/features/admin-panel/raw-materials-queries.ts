@@ -4,8 +4,8 @@ import { lookupsKeys, useLookups, type Lookups, type LookupItem } from '@/lib/lo
 
 export { useLookups, lookupsKeys, type Lookups, type LookupItem };
 
-/** The four master-data categories managed on the Raw Materials admin screen — matches the /lookups/:resource route segments. */
-export type LookupResource = 'colors' | 'sizes' | 'chemicals' | 'brands';
+/** The master-data categories managed on the Raw Materials admin screen — matches the /lookups/:resource route segments. */
+export type LookupResource = 'colors' | 'sizes' | 'chemicals' | 'brands' | 'expense-names';
 
 function postLookupItem(resource: LookupResource, name: string) {
   return apiFetch(`/lookups/${resource}`, {

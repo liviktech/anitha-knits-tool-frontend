@@ -25,6 +25,7 @@ export interface LoomRow {
   id: string;
   size: string;
   color: string;
+  chemical: string;
   input: number;
   output: number;
   loomsWasteKg: number;
@@ -36,6 +37,7 @@ export function mapLoomItem(item: LoomsProductionItem): LoomRow {
     id: item.id,
     size: item.size?.name ?? '',
     color: item.color?.name ?? '',
+    chemical: item.chemical?.name ?? '',
     input: item.loom?.yarnInputKg ?? 0,
     output: item.loom?.fabricOutputKg ?? 0,
     loomsWasteKg: sumWastageByCode(item.wastages, 'LOOMS_WASTE'),
@@ -48,27 +50,41 @@ export interface LoomDraft {
   id?: string; // If editing an existing (already-persisted) entry
   size: string;
   color: string;
+  chemical: string;
   input: string;
   output: string;
   loomsWasteKg: string;
 }
 
-export const emptyLoomDraft: LoomDraft = { key: '', size: '', color: '', input: '', output: '', loomsWasteKg: '' };
+export const emptyLoomDraft: LoomDraft = { key: '', size: '', color: '', chemical: '', input: '', output: '', loomsWasteKg: '' };
 
-export function suggestLoomOutput(draft: Pick<LoomDraft, 'input' | 'loomsWasteKg'>): string {
-  const suggested = Math.max(0, (parseFloat(draft.input) || 0) - (parseFloat(draft.loomsWasteKg) || 0));
-  return suggested > 0 ? suggested.toFixed(2) : '';
+/** Total Fabric Production mirrors Loom Production directly — Looms/Yarn Waste is tracked separately, not deducted here. */
+export function suggestLoomOutput(draft: Pick<LoomDraft, 'input'>): string {
+  const inputKg = parseFloat(draft.input) || 0;
+  return inputKg > 0 ? inputKg.toFixed(2) : '';
 }
 
-export const LoomSection = forwardRef<SectionRef, SectionProps>(({ productionDate, readOnly, hideExisting, sessionStartTime, hideBanner, onEditLoomGroup }, ref) => {
+export interface LoomSectionProps extends SectionProps {
+  entryType?: 'PRODUCTION' | 'SAMPLE';
+}
+
+export const LoomSection = forwardRef<SectionRef, LoomSectionProps>(({
+  productionDate,
+  readOnly,
+  hideExisting = false,
+  sessionStartTime,
+  hideBanner = false,
+  onEditLoomGroup,
+  entryType = 'PRODUCTION',
+}, ref) => {
   const queryClient = useQueryClient();
   const { user } = useAuth();
   const { data, isLoading, isError, refetch } = useLoomsProductions(
-    productionDate ? `?date_from=${productionDate}&date_to=${productionDate}` : '',
+    productionDate ? `?date_from=${productionDate}&date_to=${productionDate}&type=${entryType}` : `?type=${entryType}`,
     !hideExisting,
   );
   const { data: lookupsData } = useLookups();
-  const lookups: Lookups = lookupsData ?? { brands: [], colors: [], chemicals: [], sizes: [] };
+  const lookups: Lookups = lookupsData ?? { brands: [], colors: [], chemicals: [], sizes: [], expenseNames: [] };
 
   const [newRows, setNewRows] = useState<LoomDraft[]>([]);
   const [deleteTarget, setDeleteTarget] = useState<LoomRow | null>(null);
@@ -102,15 +118,18 @@ export const LoomSection = forwardRef<SectionRef, SectionProps>(({ productionDat
       for (const row of newRows) {
         const colorId = findIdByName(lookups.colors, row.color);
         const sizeId = findIdByName(lookups.sizes, row.size);
-        if (!colorId || !sizeId) {
+        const chemicalId = findIdByName(lookups.chemicals, row.chemical);
+        if (!colorId || !sizeId || !chemicalId) {
           failed.push(row);
-          errorMessage = 'Could not resolve color/size for one or more entries.';
+          errorMessage = 'Could not resolve color/size/chemical for one or more entries.';
           continue;
         }
         const payload: LoomsCreatePayload = {
           productionDate: productionDate ?? '',
+          type: entryType,
           colorId,
           sizeId,
+          chemicalId,
           yarnInputKg: parseFloat(row.input) || 0,
           fabricOutputKg: parseFloat(row.output) || 0,
           loomsWasteKg: parseFloat(row.loomsWasteKg) || 0,
@@ -289,6 +308,7 @@ export const LoomSection = forwardRef<SectionRef, SectionProps>(({ productionDat
                               id: row.id,
                               size: row.size,
                               color: row.color,
+                              chemical: row.chemical,
                               input: String(row.input),
                               output: String(row.output),
                               loomsWasteKg: String(row.loomsWasteKg),

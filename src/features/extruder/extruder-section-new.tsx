@@ -61,15 +61,19 @@ export interface ExtruderGroupDraft {
   isApproved?: boolean;
 }
 
-export const ExtruderSection = forwardRef<SectionRef, SectionProps>(({ productionDate, readOnly, hideExisting, sessionStartTime, hideBanner, onEditExtruderGroup }, ref) => {
+export interface ExtruderSectionProps extends SectionProps {
+  entryType?: 'PRODUCTION' | 'SAMPLE';
+}
+
+export const ExtruderSection = forwardRef<SectionRef, ExtruderSectionProps>(({ productionDate, readOnly, hideExisting = false, sessionStartTime, hideBanner = false, onEditExtruderGroup, entryType = 'PRODUCTION' }, ref) => {
   const queryClient = useQueryClient();
   const { user } = useAuth();
   const { data, isLoading, isError, refetch } = useExtruderProductions(
-    productionDate ? `?date_from=${productionDate}&date_to=${productionDate}` : '',
+    productionDate ? `?date_from=${productionDate}&date_to=${productionDate}&type=${entryType}` : `?type=${entryType}`,
     !hideExisting,
   );
   const { data: lookupsData } = useLookups();
-  const lookups: Lookups = lookupsData ?? { brands: [], colors: [], chemicals: [], sizes: [] };
+  const lookups: Lookups = lookupsData ?? { brands: [], colors: [], chemicals: [], sizes: [], expenseNames: [] };
 
   const [newGroups, setNewGroups] = useState<ExtruderGroupDraft[]>([]);
   const [saving, setSaving] = useState(false);
@@ -212,6 +216,7 @@ export const ExtruderSection = forwardRef<SectionRef, SectionProps>(({ productio
               }
               const payload: ExtruderCreatePayload = {
                 productionDate: productionDate ?? '',
+                type: entryType,
                 colorId,
                 sizeId,
                 brandId,

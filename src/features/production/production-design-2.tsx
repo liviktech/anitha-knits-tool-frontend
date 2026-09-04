@@ -19,7 +19,7 @@ import { useExtruderProductions, extruderKeys } from '@/features/extruder/extrud
 import { useLoomsProductions, loomsKeys } from '@/features/looms/loom-queries';
 import { useFabricCheckingRecords, fabricCheckingKeys } from '@/features/fabric/fabric-queries';
 import { useLoadSentRecords, loadSentKeys } from '@/features/inventory/load-sent-queries';
-import { useDayWiseProduction, dashboardProductionKey, type DayWiseRow } from './day-wise-queries';
+import { useDayWiseProduction, dashboardProductionKey } from './day-wise-queries';
 import { mapExtruderItem, mapLoomItem, mapFabricItem } from './day-entry-sections';
 import { DayWiseReportModal } from './day-wise-report-modal';
 import { useProductionHeader } from './production-context';
@@ -218,26 +218,22 @@ function StageBlock({
   );
 }
 
-function DayDetailView({
+export function DayDetailView({
   date,
   onClose,
-  dayWiseRows,
-  fabricDeliveredRows,
-  loadingLoadSent,
+  onEditClick,
   onEditFabricDelivered,
+  entryType = 'PRODUCTION',
 }: {
   date: string;
   onClose: () => void;
-  dayWiseRows: DayWiseRow[];
-  fabricDeliveredRows: FabricDeliveredDetailRow[];
-  loadingLoadSent: boolean;
+  onEditClick: () => void;
   onEditFabricDelivered: (record: LoadSentRecord) => void;
+  entryType?: 'PRODUCTION' | 'SAMPLE';
 }) {
-  const navigate = useNavigate();
   const queryClient = useQueryClient();
   const { user } = useAuth();
   const { setHeaderTitle } = useProductionHeader();
-  const row = dayWiseRows.find((r) => r.date === date) || dayWiseRows[0];
   const formattedDate = format(parseISO(date), 'dd MMM, yyyy');
 
   const [expandedStages, setExpandedStages] = useState<Record<string, boolean>>({ extruder: true, looms: true, fabric: true, fabricDelivered: true });
@@ -248,10 +244,12 @@ function DayDetailView({
     return () => setHeaderTitle(null);
   }, [setHeaderTitle]);
 
-  const dateQuery = `?date_from=${date}&date_to=${date}`;
+  const dateQuery = `?date_from=${date}&date_to=${date}&type=${entryType}`;
   const { data: extruderData } = useExtruderProductions(dateQuery);
   const { data: loomsData } = useLoomsProductions(dateQuery);
   const { data: fabricData } = useFabricCheckingRecords(dateQuery);
+  const { data: loadSentData, isLoading: loadingLoadSent } = useLoadSentRecords(`?date_from=${date}&date_to=${date}&limit=100&type=${entryType}`);
+  const fabricDeliveredRows = useMemo(() => getFabricDeliveredRows(loadSentData?.data, date), [loadSentData, date]);
 
   const dayHasApprovedRecord =
     (extruderData?.data ?? []).some((r) => r.isApproved)
@@ -302,7 +300,7 @@ function DayDetailView({
             variant="outline"
             size="sm"
             className="h-[34px] px-4 text-[#00897B] border-[#00897B]/20 font-bold uppercase tracking-wider text-[11px] gap-2 hover:bg-[#00897B]/5 bg-white"
-            onClick={() => navigate(`/production/new-entry?date=${date}&from=details`)}
+            onClick={onEditClick}
           >
             <Edit className="w-3.5 h-3.5" /> EDIT ENTRY
           </Button>
@@ -310,7 +308,7 @@ function DayDetailView({
       </div>
     );
     return () => setHeaderRight(null);
-  }, [setHeaderRight, formattedDate, date, navigate, canEditDay]);
+  }, [setHeaderRight, formattedDate, date, onEditClick, canEditDay]);
 
   const handleDeleteDay = async () => {
     setDeletingDay(true);
@@ -366,6 +364,21 @@ function DayDetailView({
   );
   const fabricDeliveredTotal = fabricDeliveredRows.reduce((sum, record) => sum + record.delivered, 0);
 
+  // Summed straight from this date+type's own rows (rather than the dashboard's dayWiseRows,
+  // which is PRODUCTION-only) so this view stays correct for both real Production and Sample.
+  const extruderTotals = useMemo(
+    () => extruderRows.reduce((acc, r) => ({ output: acc.output + r.output, wastage: acc.wastage + r.yarnWasteKg + r.lumpsKg }), { output: 0, wastage: 0 }),
+    [extruderRows],
+  );
+  const loomsTotals = useMemo(
+    () => loomRows.reduce((acc, r) => ({ output: acc.output + r.output, wastage: acc.wastage + r.loomsWasteKg }), { output: 0, wastage: 0 }),
+    [loomRows],
+  );
+  const fabricTotals = useMemo(
+    () => fabricRows.reduce((acc, r) => ({ output: acc.output + r.output, wastage: acc.wastage + r.fwKg + r.bwKg }), { output: 0, wastage: 0 }),
+    [fabricRows],
+  );
+
   return (
     <>
       <div className="flex-1 flex flex-col lg:flex-row gap-4 p-3">
@@ -378,10 +391,10 @@ function DayDetailView({
               description=""
               theme={stageTheme.extruder}
               producedLabel="Extruder PRODUCED"
-              producedValue={formatNum(row.extruder.output)}
+              producedValue={formatNum(extruderTotals.output)}
               producedUnit="kg"
               wasteLabel="WASTE + LUMPS"
-              wasteValue={formatNum(row.extruder.wastage)}
+              wasteValue={formatNum(extruderTotals.wastage)}
               wasteUnit="kg"
               expanded={expandedStages.extruder}
               onToggle={() => toggleStage('extruder')}
@@ -413,10 +426,10 @@ function DayDetailView({
               description=""
               theme={stageTheme.looms}
               producedLabel="FABRIC PRODUCED"
-              producedValue={formatNum(row.looms.output)}
+              producedValue={formatNum(loomsTotals.output)}
               producedUnit="kg"
               wasteLabel="LOOMS WASTE"
-              wasteValue={formatNum(row.looms.wastage)}
+              wasteValue={formatNum(loomsTotals.wastage)}
               wasteUnit="kg"
               expanded={expandedStages.looms}
               onToggle={() => toggleStage('looms')}
@@ -447,10 +460,10 @@ function DayDetailView({
               description=""
               theme={stageTheme.fabric}
               producedLabel="FABRIC CHECKED"
-              producedValue={formatNum(row.fabric.output)}
+              producedValue={formatNum(fabricTotals.output)}
               producedUnit="kg"
               wasteLabel="FW + BW WASTE"
-              wasteValue={formatNum(row.fabric.wastage)}
+              wasteValue={formatNum(fabricTotals.wastage)}
               wasteUnit="kg"
               expanded={expandedStages.fabric}
               onToggle={() => toggleStage('fabric')}
@@ -570,7 +583,7 @@ export function ProductionDesign2() {
   });
   const monthStr = format(filterDate, 'yyyy-MM');
   const { rows: dayWiseRows, totals: dayWiseTotals, isLoading: loadingDayWise, apiSummary } = useDayWiseProduction(monthStr);
-  const { data: loadSentData, isLoading: loadingLoadSent } = useLoadSentRecords('?limit=100');
+  const { data: loadSentData } = useLoadSentRecords('?limit=100&type=PRODUCTION');
   const selectedMonthDeliveryRows = useMemo(
     () => getFabricDeliveredRows(loadSentData?.data, monthStr),
     [loadSentData, monthStr],
@@ -584,7 +597,7 @@ export function ProductionDesign2() {
     if (!deleteTargetDate) return;
     setDeletingDate(true);
     try {
-      const dateQuery = `?date_from=${deleteTargetDate}T00:00:00.000Z&date_to=${deleteTargetDate}T23:59:59.999Z&limit=100`;
+      const dateQuery = `?date_from=${deleteTargetDate}T00:00:00.000Z&date_to=${deleteTargetDate}T23:59:59.999Z&limit=100&type=PRODUCTION`;
       const [extruderRes, loomsRes, fabricRes, loadSentRes] = await Promise.all([
         fetchJson<{ data: { id: string }[] }>(`/production/extruder${dateQuery}`),
         fetchJson<{ data: { id: string }[] }>(`/production/looms${dateQuery}`),
@@ -623,7 +636,7 @@ export function ProductionDesign2() {
     if (!approveTargetDate) return;
     setApprovingDate(true);
     try {
-      const dateQuery = `?date_from=${approveTargetDate}T00:00:00.000Z&date_to=${approveTargetDate}T23:59:59.999Z&limit=100`;
+      const dateQuery = `?date_from=${approveTargetDate}T00:00:00.000Z&date_to=${approveTargetDate}T23:59:59.999Z&limit=100&type=PRODUCTION`;
       const [extruderRes, loomsRes, fabricRes] = await Promise.all([
         fetchJson<{ data: { id: string; isApproved: boolean }[] }>(`/production/extruder${dateQuery}`),
         fetchJson<{ data: { id: string; isApproved: boolean }[] }>(`/production/looms${dateQuery}`),
@@ -724,24 +737,22 @@ export function ProductionDesign2() {
     output: apiSummary?.extruder.outputKg ?? 0,
     wastage: apiSummary?.extruder.wastageKg ?? 0,
   };
-  const efficiency = apiSummary?.extruder.efficiencyPct ?? 0;
-  const wastePct = apiSummary?.extruder.wastePct ?? 0;
+  // Wastage % = (wastage / production) * 100
+  const wastePct = extruderSummary.output > 0 ? (extruderSummary.wastage / extruderSummary.output) * 100 : 0;
 
   const loomsSummary = {
     input: apiSummary?.looms.inputKg ?? 0,
     output: apiSummary?.looms.outputKg ?? 0,
     wastage: apiSummary?.looms.wastageKg ?? 0,
   };
-  const loomsEfficiency = apiSummary?.looms.efficiencyPct ?? 0;
-  const loomsWastePct = apiSummary?.looms.wastePct ?? 0;
+  const loomsWastePct = loomsSummary.output > 0 ? (loomsSummary.wastage / loomsSummary.output) * 100 : 0;
 
   const fabricSummary = {
     input: apiSummary?.fabricChecking.inputKg ?? 0,
     checked: apiSummary?.fabricChecking.outputKg ?? 0,
     wastage: apiSummary?.fabricChecking.wastageKg ?? 0,
   };
-  const fabricEfficiency = apiSummary?.fabricChecking.efficiencyPct ?? 0;
-  const fabricWastePct = apiSummary?.fabricChecking.wastePct ?? 0;
+  const fabricWastePct = fabricSummary.checked > 0 ? (fabricSummary.wastage / fabricSummary.checked) * 100 : 0;
 
   return (
     <div id="production-design-2-page" className="flex flex-col bg-[#004D40]/5 min-h-full relative">
@@ -761,9 +772,7 @@ export function ProductionDesign2() {
         <DayDetailView
           date={selectedDate}
           onClose={() => setSelectedDate(null)}
-          dayWiseRows={dayWiseRows}
-          fabricDeliveredRows={getFabricDeliveredRows(loadSentData?.data, selectedDate)}
-          loadingLoadSent={loadingLoadSent}
+          onEditClick={() => navigate(`/production/new-entry?date=${selectedDate}&from=details`)}
           onEditFabricDelivered={setEditingLoadSent}
         />
       ) : (
@@ -792,21 +801,9 @@ export function ProductionDesign2() {
                       <p className="text-[17px] font-bold text-[#004D40] leading-none font-inter">{formatNum(extruderSummary.wastage)}</p>
                     </div>
                     <div className="flex-1 px-2 sm:px-3 py-3 flex flex-col justify-center">
-                      <p className="text-[10.5px] font-extrabold uppercase tracking-wide text-gray-600 mb-1.5 whitespace-nowrap">EFFICIENCY</p>
-                      <p className="text-[17px] font-bold text-[#00A87E] leading-none font-inter">{efficiency.toFixed(2)}%</p>
+                      <p className="text-[10.5px] font-extrabold uppercase tracking-wide text-gray-600 mb-1.5 whitespace-nowrap">WASTAGE %</p>
+                      <p className="text-[17px] font-bold text-[#D32F2F] leading-none font-inter">{wastePct.toFixed(2)}%</p>
                     </div>
-                  </div>
-                  <div className="flex items-center px-1">
-                    <div className="flex-1">
-                      <p className="text-[10px] px-3 font-extrabold uppercase tracking-wide text-gray-600 mb-1.5">WASTE %</p>
-                      <p className="text-[17px] px-3 font-bold text-gray-900 leading-none font-inter">{wastePct.toFixed(2)}%</p>
-                    </div>
-                    {/* TODO: wire up a real Lums-only wastage figure, then uncomment.
-                    <div className="flex-[1.7]">
-                      <p className="text-[10px] px-3 font-extrabold uppercase tracking-wide text-gray-600 mb-1.5">LUMS WASTAGE (KG)</p>
-                      <p className="text-[17px] px-3 font-bold text-gray-900 leading-none font-inter">{formatNum(lumsWastageKg)}</p>
-                    </div>
-                    */}
                   </div>
                 </CardContent>
               </div>
@@ -834,16 +831,9 @@ export function ProductionDesign2() {
                       <p className="text-[17px] font-bold text-[#004D40] leading-none font-inter">{loomsSummary.wastage.toFixed(2)}</p>
                     </div>
                     <div className="flex-1 px-2 sm:px-3 py-3 flex flex-col justify-center">
-                      <p className="text-[10.5px] font-extrabold uppercase tracking-wide text-gray-600 mb-1.5 whitespace-nowrap">EFFICIENCY</p>
-                      <p className="text-[17px] font-bold text-[#00A87E] leading-none font-inter">{loomsEfficiency.toFixed(2)}%</p>
+                      <p className="text-[10.5px] font-extrabold uppercase tracking-wide text-gray-600 mb-1.5 whitespace-nowrap">WASTAGE %</p>
+                      <p className="text-[17px] font-bold text-[#D32F2F] leading-none font-inter">{loomsWastePct.toFixed(2)}%</p>
                     </div>
-                  </div>
-                  <div className="flex items-center px-1">
-                    <div className="flex-1">
-                      <p className="text-[10px] px-3 font-extrabold uppercase tracking-wide text-gray-600 mb-1">WASTE %</p>
-                      <p className="text-[17px] px-3 font-bold text-gray-900 leading-none font-inter">{loomsWastePct.toFixed(2)}%</p>
-                    </div>
-
                   </div>
                 </CardContent>
               </div>
@@ -871,22 +861,9 @@ export function ProductionDesign2() {
                       <p className="text-[17px] font-bold text-[#004D40] leading-none font-inter">{fabricSummary.wastage.toFixed(2)}</p>
                     </div>
                     <div className="flex-1 px-2 sm:px-3 py-3 flex flex-col justify-center">
-                      <p className="text-[10.5px] font-extrabold uppercase tracking-wide text-gray-600 mb-1.5 whitespace-nowrap">EFFICIENCY</p>
-                      <p className="text-[17px] font-bold text-[#00A87E] leading-none font-inter">{fabricEfficiency.toFixed(2)}%</p>
+                      <p className="text-[10.5px] font-extrabold uppercase tracking-wide text-gray-600 mb-1.5 whitespace-nowrap">WASTAGE %</p>
+                      <p className="text-[17px] font-bold text-[#D32F2F] leading-none font-inter">{fabricWastePct.toFixed(2)}%</p>
                     </div>
-                  </div>
-                  <div className="flex items-center px-1">
-                    <div className="flex-1">
-                      <p className="text-[10px] px-3 font-extrabold uppercase tracking-wide text-gray-600 mb-1">WASTE %</p>
-                      <p className="text-[17px] px-3 font-bold text-gray-900 leading-none font-inter">{fabricWastePct.toFixed(2)}%</p>
-                    </div>
-                    {/* TODO: decide what "Wastage Value" should represent (Bit Waste only? Fabric
-                    Waste only? Same as Total Wastage above?), wire it up, then uncomment.
-                    <div className="flex-[1.7]">
-                      <p className="text-[10px] px-3 font-extrabold uppercase tracking-wide text-gray-600 mb-1">WASTAGE VALUE (KG)</p>
-                      <p className="text-[17px] px-3 font-bold text-gray-900 leading-none font-inter">0.00</p>
-                    </div>
-                    */}
                   </div>
                 </CardContent>
               </div>

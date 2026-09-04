@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Boxes, Droplets, Edit2, Info, Palette, Plus, Ruler, Trash2, type LucideIcon } from 'lucide-react';
+import { Boxes, Droplets, Edit2, Info, Palette, Plus, Receipt, Ruler, Trash2, type LucideIcon } from 'lucide-react';
 import { Loader } from '@/components/shared/loader';
 import { DeleteConfirmDialog } from '@/components/shared/delete-confirm-dialog';
 import { AddMaterialItemDialog } from './add-material-item-dialog';
@@ -8,12 +8,15 @@ import {
   useDeleteLookupItem,
   useLookups,
   useUpdateLookupItem,
+  type Lookups,
   type LookupItem,
   type LookupResource,
 } from './raw-materials-queries';
 
 interface CategoryMeta {
   key: LookupResource;
+  /** The matching key on the /lookups response — differs from `key` for multi-word (kebab-case) resources. */
+  lookupsKey: keyof Lookups;
   title: string;
   singular: string;
   description: string;
@@ -24,6 +27,7 @@ interface CategoryMeta {
 const CATEGORY_META: CategoryMeta[] = [
   {
     key: 'brands',
+    lookupsKey: 'brands',
     title: 'Brands',
     singular: 'Brand',
     description: 'Registered raw material suppliers and brands.',
@@ -32,6 +36,7 @@ const CATEGORY_META: CategoryMeta[] = [
   },
   {
     key: 'chemicals',
+    lookupsKey: 'chemicals',
     title: 'Chemicals',
     singular: 'Chemical',
     description: 'Additive chemicals used in the color masterbatch mix.',
@@ -40,6 +45,7 @@ const CATEGORY_META: CategoryMeta[] = [
   },
   {
     key: 'colors',
+    lookupsKey: 'colors',
     title: 'Colors',
     singular: 'Color',
     description: 'Available color options for extruder and fabric production.',
@@ -48,11 +54,21 @@ const CATEGORY_META: CategoryMeta[] = [
   },
   {
     key: 'sizes',
+    lookupsKey: 'sizes',
     title: 'Sizes',
     singular: 'Size',
     description: 'Standard fitting sizes used across production lines.',
     icon: Ruler,
     accent: 'border-green-200 bg-green-50 text-green-700',
+  },
+  {
+    key: 'expense-names',
+    lookupsKey: 'expenseNames',
+    title: 'Expense Names',
+    singular: 'Expense Name',
+    description: 'Suggested expense names for the Employee Expenses screen.',
+    icon: Receipt,
+    accent: 'border-rose-200 bg-rose-50 text-rose-700',
   },
 ];
 
@@ -75,7 +91,7 @@ export function RawMaterialsTab() {
 
   const lookups = lookupsQuery.data;
   const selectedMeta = CATEGORY_META.find((c) => c.key === selectedKey) ?? CATEGORY_META[0];
-  const selectedItems = lookups?.[selectedKey] ?? [];
+  const selectedItems = lookups?.[selectedMeta.lookupsKey] ?? [];
   // const totalItems = lookups ? lookups.brands.length + lookups.colors.length + lookups.chemicals.length + lookups.sizes.length : 0;
 
   const handleOpenAdd = () => {
@@ -170,11 +186,11 @@ export function RawMaterialsTab() {
           );
         })}
       </div> */}
-      <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-4">
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
         {CATEGORY_META.map((category) => {
           const Icon = category.icon;
           const isSelected = category.key === selectedKey;
-          const count = lookups[category.key].length;
+          const count = lookups[category.lookupsKey].length;
 
           return (
             <button
@@ -218,9 +234,9 @@ export function RawMaterialsTab() {
       {/* DETAIL VIEW                                              */}
       {/* ========================================================= */}
 
-      <div className="grid grid-cols-1 items-start gap-4 lg:grid-cols-3">
+      <div className="grid grid-cols-1 items-start gap-4 lg:grid-cols-[45fr_55fr]">
 
-        <section className="overflow-hidden rounded-xl border border-gray-400 bg-white shadow-sm lg:col-span-2">
+        <section className="overflow-hidden rounded-xl border border-gray-400 bg-white shadow-sm">
 
           <div className="flex flex-col gap-4 border-b border-gray-100 bg-[#F8FAF9] px-5 py-3.5 md:flex-row md:items-center md:justify-between">
             <div className="flex items-center gap-3">
@@ -244,31 +260,27 @@ export function RawMaterialsTab() {
           </div>
 
           <div className="overflow-x-auto">
-            <table className="w-full min-w-[560px] border-collapse">
+            <table className="w-full min-w-[560px] table-fixed border-collapse">
               <thead>
                 <tr className="border-b border-emerald-300 bg-emerald-50/30">
-                  <th className="px-5 py-3 text-left text-sm font-semibold tracking-wide text-gray-800">Item Code</th>
-                  <th className="px-4 py-3 text-left text-sm font-semibold tracking-wide text-gray-800">Name</th>
-                  <th className="px-4 py-3 text-right text-sm font-semibold tracking-wide text-gray-800">Last Updated</th>
-                  <th className="px-5 py-3 text-right text-sm font-semibold tracking-wide text-gray-800">Actions</th>
+                  <th className="w-1/3 px-5 py-3 text-left text-sm font-semibold tracking-wide text-gray-800">Name</th>
+                  <th className="w-1/3 px-5 py-3 text-right text-sm font-semibold tracking-wide text-gray-800">Last Updated</th>
+                  <th className="w-1/3 px-5 py-3 text-right text-sm font-semibold tracking-wide text-gray-800">Actions</th>
                 </tr>
               </thead>
 
               <tbody>
                 {selectedItems.length === 0 ? (
                   <tr>
-                    <td colSpan={4} className="px-5 py-6 text-center text-[13px] text-gray-400">
+                    <td colSpan={3} className="px-5 py-6 text-center text-[13px] text-gray-400">
                       None configured yet.
                     </td>
                   </tr>
                 ) : (
                   selectedItems.map((item) => (
                     <tr key={item.id} className="group border-b border-emerald-300 last:border-b-0 transition-colors hover:bg-emerald-50/30">
-                      <td className="px-5 py-1.5 text-[13px] font-medium text-gray-900">
-                        {item.itemCode}
-                      </td>
-                      <td className="px-4 py-1.5 text-[13px] text-gray-700">{item.name}</td>
-                      <td className="px-4 py-1.5 text-right text-[12px] text-gray-500">{formatLastUpdated(item.updatedAt)}</td>
+                      <td className="px-5 py-1.5 text-[13px] font-medium text-gray-900">{item.name}</td>
+                      <td className="px-5 py-1.5 text-right text-[12px] text-gray-500">{formatLastUpdated(item.updatedAt)}</td>
                       <td className="px-5 py-1.5">
                         <div className="flex justify-end gap-1">
                           <button type="button" title="Edit" onClick={() => handleOpenEdit(item)} className="rounded-md p-1.5 text-[#004D40] transition-colors hover:bg-[#004D40]/10">
