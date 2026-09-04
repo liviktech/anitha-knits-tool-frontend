@@ -54,17 +54,20 @@ export function LivikAdminShell() {
   }
 
   return (
-    <div className="flex h-screen w-full bg-[#F4F1E8] font-['Hanken_Grotesk',sans-serif]">
-      <aside className="hidden lg:flex w-60 shrink-0 bg-[#233327] flex-col">
-        <div className="flex items-center gap-2 px-5 py-3 border-b border-white/10">
-          <InfinityIcon className="w-7 h-7 text-[#9AC08A] shrink-0" strokeWidth={2} />
+    <div className="flex flex-col h-screen w-full bg-[#F4F1E8] font-['Hanken_Grotesk',sans-serif]">
+      {/* Top Navigation - Finnova Style */}
+      <header className="flex items-center justify-between px-6 py-4 bg-[#F4F1E8] shrink-0">
+        {/* Left: Logo */}
+        <div className="flex items-center gap-2">
+          <InfinityIcon className="w-8 h-8 text-[#4F46E5]" strokeWidth={2.5} />
           <div className="leading-tight">
-            <div className="text-white font-bold text-[20px] tracking-wide">LK SPACE</div>
-            <div className="text-white/70 text-2xs tracking-[0.2em]"></div>
+            <div className="text-gray-900 font-extrabold text-[19px] tracking-wide">LK SPACE</div>
+            <div className="text-gray-500 text-[9px] tracking-[0.1em] font-semibold uppercase">Smart Production</div>
           </div>
         </div>
 
-        <nav className="flex-1 px-2 py-2 space-y-1.5 overflow-y-auto">
+        {/* Center: Pill Nav */}
+        <nav className="hidden lg:flex items-center p-1.5 bg-[#1c1c24] rounded-full gap-1 shadow-sm">
           {visibleNavItems.map((item) => {
             const Icon = item.icon;
             return (
@@ -72,38 +75,45 @@ export function LivikAdminShell() {
                 key={item.to}
                 to={item.to}
                 className={({ isActive }) =>
-                  `flex items-center gap-3 px-3 py-2.5 text-[14.5px] font-medium rounded-md transition-colors ${isActive ? 'bg-[#3A5240] text-white' : 'text-white/70 hover:bg-white/5 hover:text-white'
+                  `flex items-center gap-2 px-5 py-2 text-[13.5px] font-semibold rounded-full transition-all ${
+                    isActive ? 'bg-[#4F46E5] text-white shadow-md' : 'text-gray-400 hover:text-white hover:bg-white/10'
                   }`
                 }
               >
-                <Icon className="w-5 h-5 shrink-0" strokeWidth={1.75} />
+                <Icon className="w-4 h-4 shrink-0" strokeWidth={2} />
                 {item.label}
               </NavLink>
             );
           })}
         </nav>
 
-        <div className="border-t border-white/10 px-4 py-4 flex items-center justify-between">
-          <div className="min-w-0">
-            <div className="text-white text-[13px] font-semibold leading-tight truncate">
-              {user?.kind === 'platform-admin' ? user.name : 'System Admin'}
+        {/* Right: User Profile & Actions */}
+        <div className="flex items-center gap-4">
+          <div className="flex items-center gap-3">
+            <div className="text-right hidden md:block">
+              <div className="text-gray-900 text-[13px] font-bold leading-tight">
+                {user?.kind === 'platform-admin' ? user.name : 'System Admin'}
+              </div>
+              <div className="text-gray-500 text-[11px] font-medium">
+                {user?.kind === 'platform-admin'
+                  ? (user.role === 'SUPER_ADMIN' ? 'Super Admin' : (user.access?.roleName ?? 'Employee'))
+                  : 'Super Admin'}
+              </div>
             </div>
-            <div className="text-white/50 text-[11px] truncate">
-              {user?.kind === 'platform-admin'
-                ? (user.role === 'SUPER_ADMIN' ? 'Super Admin' : (user.access?.roleName ?? 'Employee'))
-                : 'Super Admin'}
+            <div className="w-10 h-10 rounded-full bg-gray-200 border-2 border-white shadow-sm overflow-hidden flex items-center justify-center">
+              <Users className="w-5 h-5 text-gray-500" />
             </div>
+            <button
+              type="button"
+              onClick={handleLogout}
+              aria-label="Log out"
+              className="p-2 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded-full transition-colors ml-1 border border-gray-200 bg-white shadow-sm"
+            >
+              <LogOut className="w-4.5 h-4.5" strokeWidth={2} />
+            </button>
           </div>
-          <button
-            type="button"
-            onClick={handleLogout}
-            aria-label="Log out"
-            className="p-2 text-white/60 hover:text-white hover:bg-white/10 rounded-lg transition-colors"
-          >
-            <LogOut className="w-4 h-4" strokeWidth={1.75} />
-          </button>
         </div>
-      </aside>
+      </header>
 
       <main className="flex-1 overflow-auto">
         <Routes>
