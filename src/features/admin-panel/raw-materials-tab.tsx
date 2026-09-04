@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Boxes, Droplets, Edit2, Info, Palette, Plus, Ruler, Trash2, type LucideIcon } from 'lucide-react';
+import { Boxes, Droplets, Edit2, Info, Palette, Plus, Receipt, Ruler, Trash2, type LucideIcon } from 'lucide-react';
 import { Loader } from '@/components/shared/loader';
 import { DeleteConfirmDialog } from '@/components/shared/delete-confirm-dialog';
 import { AddMaterialItemDialog } from './add-material-item-dialog';
@@ -8,12 +8,15 @@ import {
   useDeleteLookupItem,
   useLookups,
   useUpdateLookupItem,
+  type Lookups,
   type LookupItem,
   type LookupResource,
 } from './raw-materials-queries';
 
 interface CategoryMeta {
   key: LookupResource;
+  /** The matching key on the /lookups response — differs from `key` for multi-word (kebab-case) resources. */
+  lookupsKey: keyof Lookups;
   title: string;
   singular: string;
   description: string;
@@ -24,6 +27,7 @@ interface CategoryMeta {
 const CATEGORY_META: CategoryMeta[] = [
   {
     key: 'brands',
+    lookupsKey: 'brands',
     title: 'Brands',
     singular: 'Brand',
     description: 'Registered raw material suppliers and brands.',
@@ -32,6 +36,7 @@ const CATEGORY_META: CategoryMeta[] = [
   },
   {
     key: 'chemicals',
+    lookupsKey: 'chemicals',
     title: 'Chemicals',
     singular: 'Chemical',
     description: 'Additive chemicals used in the color masterbatch mix.',
@@ -40,6 +45,7 @@ const CATEGORY_META: CategoryMeta[] = [
   },
   {
     key: 'colors',
+    lookupsKey: 'colors',
     title: 'Colors',
     singular: 'Color',
     description: 'Available color options for extruder and fabric production.',
@@ -48,11 +54,21 @@ const CATEGORY_META: CategoryMeta[] = [
   },
   {
     key: 'sizes',
+    lookupsKey: 'sizes',
     title: 'Sizes',
     singular: 'Size',
     description: 'Standard fitting sizes used across production lines.',
     icon: Ruler,
     accent: 'border-green-200 bg-green-50 text-green-700',
+  },
+  {
+    key: 'expense-names',
+    lookupsKey: 'expenseNames',
+    title: 'Expense Names',
+    singular: 'Expense Name',
+    description: 'Suggested expense names for the Employee Expenses screen.',
+    icon: Receipt,
+    accent: 'border-rose-200 bg-rose-50 text-rose-700',
   },
 ];
 
@@ -75,7 +91,7 @@ export function RawMaterialsTab() {
 
   const lookups = lookupsQuery.data;
   const selectedMeta = CATEGORY_META.find((c) => c.key === selectedKey) ?? CATEGORY_META[0];
-  const selectedItems = lookups?.[selectedKey] ?? [];
+  const selectedItems = lookups?.[selectedMeta.lookupsKey] ?? [];
   // const totalItems = lookups ? lookups.brands.length + lookups.colors.length + lookups.chemicals.length + lookups.sizes.length : 0;
 
   const handleOpenAdd = () => {
@@ -170,11 +186,11 @@ export function RawMaterialsTab() {
           );
         })}
       </div> */}
-      <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-4">
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
         {CATEGORY_META.map((category) => {
           const Icon = category.icon;
           const isSelected = category.key === selectedKey;
-          const count = lookups[category.key].length;
+          const count = lookups[category.lookupsKey].length;
 
           return (
             <button
