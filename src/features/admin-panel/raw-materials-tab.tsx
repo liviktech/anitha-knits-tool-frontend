@@ -234,9 +234,9 @@ export function RawMaterialsTab() {
       {/* DETAIL VIEW                                              */}
       {/* ========================================================= */}
 
-      <div className="grid grid-cols-1 items-start gap-4 lg:grid-cols-3">
+      <div className="grid grid-cols-1 items-start gap-4 lg:grid-cols-[45fr_55fr]">
 
-        <section className="overflow-hidden rounded-xl border border-gray-400 bg-white shadow-sm lg:col-span-2">
+        <section className="overflow-hidden rounded-xl border border-gray-400 bg-white shadow-sm">
 
           <div className="flex flex-col gap-4 border-b border-gray-100 bg-[#F8FAF9] px-5 py-3.5 md:flex-row md:items-center md:justify-between">
             <div className="flex items-center gap-3">
@@ -260,12 +260,12 @@ export function RawMaterialsTab() {
           </div>
 
           <div className="overflow-x-auto">
-            <table className="w-full min-w-[560px] border-collapse">
+            <table className="w-full min-w-[560px] table-fixed border-collapse">
               <thead>
                 <tr className="border-b border-emerald-300 bg-emerald-50/30">
-                  <th className="px-5 py-3 text-left text-sm font-semibold tracking-wide text-gray-800">Name</th>
-                  <th className="px-5 py-3 text-right text-sm font-semibold tracking-wide text-gray-800">Last Updated</th>
-                  <th className="px-5 py-3 text-right text-sm font-semibold tracking-wide text-gray-800">Actions</th>
+                  <th className="w-1/3 px-5 py-3 text-left text-sm font-semibold tracking-wide text-gray-800">Name</th>
+                  <th className="w-1/3 px-5 py-3 text-right text-sm font-semibold tracking-wide text-gray-800">Last Updated</th>
+                  <th className="w-1/3 px-5 py-3 text-right text-sm font-semibold tracking-wide text-gray-800">Actions</th>
                 </tr>
               </thead>
 
