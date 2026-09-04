@@ -9,7 +9,16 @@ export interface WastageCategorySummary {
   quantityKg: number;
 }
 
-export interface ExtruderProductionSummary {
+export interface ExtruderProductionVariantSummary {
+  color: { id: string; name: string };
+  size: { id: string; name: string };
+  production: number;
+  lumsKg: number;
+  yarnWasteKg: number;
+  total: number;
+}
+
+export interface ExtruderProductionColorSummary {
   color: { id: string; name: string };
   production: number;
   lumsKg: number;
@@ -18,10 +27,28 @@ export interface ExtruderProductionSummary {
   total: number;
 }
 
-export interface LoomsProductionSummary {
+export interface LoomsProductionVariantSummary {
+  color: { id: string; name: string };
+  size: { id: string; name: string };
+  production: number;
+  waste: number;
+  total: number;
+}
+
+export interface LoomsProductionColorSummary {
   color: { id: string; name: string };
   production: number;
   waste: number;
+  total: number;
+}
+
+export interface FabricProductionVariantSummary {
+  color: { id: string; name: string };
+  size: { id: string; name: string };
+  fabricInputKg: number;
+  outputKg: number;
+  fwWasteKg: number;
+  bwWasteKg: number;
   total: number;
 }
 
@@ -37,6 +64,7 @@ export interface InventoryItem {
   id: string;
   name: string;
   weightKg: number;
+  bagCount: number | null;
 }
 
 export interface LoadSentItem {
@@ -66,6 +94,7 @@ export interface DashboardResponse {
       daily: { date: string; quantityKg: number }[];
     };
     fabricProduction: {
+      byVariant: FabricProductionVariantSummary[];
       byColor: FabricProductionColorSummary[];
       overall: { fabricInputKg: number; outputKg: number };
     };
@@ -78,8 +107,16 @@ export interface DashboardResponse {
       byType: WastageCategorySummary[];
       totalKg: number;
     };
-    extruderProduction: ExtruderProductionSummary[];
-    loomsProduction: LoomsProductionSummary[];
+    extruderProduction: {
+      byVariant: ExtruderProductionVariantSummary[];
+      byColor: ExtruderProductionColorSummary[];
+      overall: { production: number };
+    };
+    loomsProduction: {
+      byVariant: LoomsProductionVariantSummary[];
+      byColor: LoomsProductionColorSummary[];
+      overall: { production: number };
+    };
     stockBalance: StockBalance[];
   };
 }
