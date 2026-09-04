@@ -112,8 +112,13 @@ interface AvailableFabricResponse {
   data: { colorId: string; sizeId: string; availableKg: number };
 }
 
+// Deliberately not nested under fabricCheckingKeys.all — invalidateQueries prefix-matches,
+// so if this shared that root, every fabric-checking list/save invalidation elsewhere would
+// also refetch this while the entry dialog is still open, causing a visible balance flicker
+// right before it closes. Keep this key its own root; it only needs to load once per
+// colour+size selection (a fresh dialog mount always fetches fresh data on its own).
 export const availableFabricKeys = {
-  variant: (colorId?: string, sizeId?: string) => ['fabric-checking', 'available', colorId, sizeId] as const,
+  variant: (colorId?: string, sizeId?: string) => ['fabric-checking-available', colorId, sizeId] as const,
 };
 
 /**
