@@ -247,9 +247,8 @@ export function RawMaterialsTab() {
             <table className="w-full min-w-[560px] border-collapse">
               <thead>
                 <tr className="border-b border-emerald-300 bg-emerald-50/30">
-                  <th className="px-5 py-3 text-left text-sm font-semibold tracking-wide text-gray-800">Item Code</th>
-                  <th className="px-4 py-3 text-left text-sm font-semibold tracking-wide text-gray-800">Name</th>
-                  <th className="px-4 py-3 text-right text-sm font-semibold tracking-wide text-gray-800">Last Updated</th>
+                  <th className="px-5 py-3 text-left text-sm font-semibold tracking-wide text-gray-800">Name</th>
+                  <th className="px-5 py-3 text-right text-sm font-semibold tracking-wide text-gray-800">Last Updated</th>
                   <th className="px-5 py-3 text-right text-sm font-semibold tracking-wide text-gray-800">Actions</th>
                 </tr>
               </thead>
@@ -257,18 +256,15 @@ export function RawMaterialsTab() {
               <tbody>
                 {selectedItems.length === 0 ? (
                   <tr>
-                    <td colSpan={4} className="px-5 py-6 text-center text-[13px] text-gray-400">
+                    <td colSpan={3} className="px-5 py-6 text-center text-[13px] text-gray-400">
                       None configured yet.
                     </td>
                   </tr>
                 ) : (
                   selectedItems.map((item) => (
                     <tr key={item.id} className="group border-b border-emerald-300 last:border-b-0 transition-colors hover:bg-emerald-50/30">
-                      <td className="px-5 py-1.5 text-[13px] font-medium text-gray-900">
-                        {item.itemCode}
-                      </td>
-                      <td className="px-4 py-1.5 text-[13px] text-gray-700">{item.name}</td>
-                      <td className="px-4 py-1.5 text-right text-[12px] text-gray-500">{formatLastUpdated(item.updatedAt)}</td>
+                      <td className="px-5 py-1.5 text-[13px] font-medium text-gray-900">{item.name}</td>
+                      <td className="px-5 py-1.5 text-right text-[12px] text-gray-500">{formatLastUpdated(item.updatedAt)}</td>
                       <td className="px-5 py-1.5">
                         <div className="flex justify-end gap-1">
                           <button type="button" title="Edit" onClick={() => handleOpenEdit(item)} className="rounded-md p-1.5 text-[#004D40] transition-colors hover:bg-[#004D40]/10">

@@ -73,10 +73,13 @@ export interface FabricDraft {
 
 export const emptyFabricDraft: FabricDraft = { key: '', size: '', color: '', kora: '', input: '', output: '', fwKg: '', bwKg: '' };
 
-/** Total Fabric Stock mirrors Fabric Production directly — wastage is tracked separately, not deducted here. */
-export function suggestFabricOutput(draft: Pick<FabricDraft, 'input'>): string {
+/** Total Fabric Stock = Finished Fabric minus wastage (Fabric Waste + Bit Waste). */
+export function suggestFabricOutput(draft: Pick<FabricDraft, 'input' | 'fwKg' | 'bwKg'>): string {
   const inputKg = parseFloat(draft.input) || 0;
-  return inputKg > 0 ? inputKg.toFixed(2) : '';
+  const fwKg = parseFloat(draft.fwKg) || 0;
+  const bwKg = parseFloat(draft.bwKg) || 0;
+  const suggested = Math.max(0, inputKg - fwKg - bwKg);
+  return suggested > 0 ? suggested.toFixed(2) : '';
 }
 
 export const FabricSection = forwardRef<SectionRef, SectionProps>(({ productionDate, readOnly, hideExisting, sessionStartTime, hideBanner, onEditFabricGroup }, ref) => {
