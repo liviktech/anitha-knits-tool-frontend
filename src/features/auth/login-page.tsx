@@ -179,6 +179,27 @@ export function LoginPage() {
           </button>
         </form>
       </div>
+
+      {/* Footer */}
+      <div
+        className="absolute bottom-4 left-0 right-0 text-center z-10"
+        style={{
+          opacity: mounted ? 1 : 0,
+          transition: `opacity 0.8s ${ease} 0.5s`
+        }}
+      >
+        <span className="text-sm text-white/80 font-medium">
+          Build by{' '}
+          <a
+            href="https://www.liviktech.com/"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="text-white hover:underline font-bold"
+          >
+            Liviktech
+          </a>
+        </span>
+      </div>
     </div>
   );
 }

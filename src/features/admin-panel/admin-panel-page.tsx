@@ -67,10 +67,6 @@ export function AdminPanelPage() {
           <RolesTab />
         </TabsContent>
       </Tabs>
-
-      <div className="py-4 text-center border-t border-gray-200 bg-[#F4F1E8] shrink-0">
-        <span className="text-sm text-gray-500 font-medium font-inter">Build by <a href="https://www.liviktech.com/" target="_blank" rel="noopener noreferrer" className="text-[#004D40] hover:underline font-bold">Liviktech</a></span>
-      </div>
     </div>
   );
 }
