@@ -424,10 +424,10 @@ function StockSummaryCard({ month, onEditDate, onDeleteDate }: { month: string; 
   const getCategoryDataWithOb = (type: InventoryType) => {
     const categoryRecords = monthRecords.filter(r => r.type === type);
     const obRecords = obRawMaterials.filter(r => r.type === type);
-    
+
     const obWeight = obRecords.reduce((sum, r) => sum + r.weightKg, 0);
     const recordWeight = categoryRecords.reduce((sum, r) => sum + r.weightKg, 0);
-    
+
     const weight = recordWeight + obWeight;
 
     const itemsMap = new Map<string, { weight: number; bags: number }>();
@@ -509,11 +509,11 @@ function StockSummaryCard({ month, onEditDate, onDeleteDate }: { month: string; 
           </div>
           <div className="mt-auto relative z-10 pt-1 border-t border-gray-50">
             {rawMaterials.items.length > 0 ? (
-              <div className={`flex flex-wrap items-center gap-x-9 gap-y-1 ${rawMaterials.items.length === 1 ? 'justify-center' : 'justify-start'}`}>
+              <div className={`flex flex-wrap items-center gap-x-6 gap-y-1 ${rawMaterials.items.length === 1 ? 'justify-center' : 'justify-start'}`}>
                 {rawMaterials.items.map(item => (
                   <div key={item.name} className={`flex flex-col gap-0.5 ${rawMaterials.items.length === 1 ? 'items-center text-center' : 'items-start text-left'}`}>
                     <span className="font-medium text-gray-500 text-sm">{item.name}</span>
-                    <span className="font-extrabold text-[#004D40] text-sm">{item.weight.toFixed(2)}kg/{item.bags} bags(Nos)</span>
+                    <span className="font-extrabold text-[#004D40] text-sm">{item.weight.toFixed(2)}kg / {item.bags} bags</span>
                   </div>
                 ))}
               </div>

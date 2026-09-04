@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
-import { AlertTriangle, Info } from 'lucide-react';
+import { AlertTriangle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -56,10 +56,11 @@ export function LoomModalForm({ productionDate, initialData, isEditMode, onCance
   const noYarnAvailable = hasSizeColorChemical && totalAvailableKg !== undefined && totalAvailableKg <= 0;
 
   const loomProductionInputKg = parseFloat(draft.input) || 0;
+  const loomsWasteInputKg = parseFloat(draft.loomsWasteKg) || 0;
   const exceedsAvailable = hasSizeColorChemical && totalAvailableKg !== undefined && loomProductionInputKg > totalAvailableKg;
 
-  // Yarn Stock = Available Yarn minus Loom Production (not net of Looms/Yarn Waste).
-  const yarnStockKg = totalAvailableKg !== undefined ? totalAvailableKg - loomProductionInputKg : undefined;
+  // Yarn Balance = Available Yarn minus both Loom Production and Looms/Yarn Waste.
+  const yarnBalanceKg = totalAvailableKg !== undefined ? totalAvailableKg - loomProductionInputKg - loomsWasteInputKg : undefined;
 
   const updateField = (field: keyof LoomDraft, value: string) => {
     setDraft(prev => {
@@ -178,6 +179,17 @@ export function LoomModalForm({ productionDate, initialData, isEditMode, onCance
             />
           </div>
           <div className="space-y-1.5">
+            <Label className="text-gray-600 text-xs font-semibold">Yarn Balance (kg)</Label>
+            <Input
+              type="text"
+              placeholder="Select size, color & chemical"
+              value={hasSizeColorChemical ? (isCheckingAvailable ? 'Checking…' : (yarnBalanceKg ?? 0).toFixed(2)) : ''}
+              disabled
+              readOnly
+              className={`bg-gray-100 font-semibold ${hasSizeColorChemical && yarnBalanceKg !== undefined && yarnBalanceKg < 0 ? 'text-red-600' : ''}`}
+            />
+          </div>
+          <div className="space-y-1.5">
             <Label className="text-gray-600 text-xs font-semibold">Loom Production (kg)</Label>
             <Input
               type="number"
@@ -222,14 +234,6 @@ export function LoomModalForm({ productionDate, initialData, isEditMode, onCance
           />
         </div>
       </div>
-
-      {hasSizeColorChemical && yarnStockKg !== undefined && (
-        <p className="flex items-center gap-2 text-sm text-gray-700 bg-gray-50 border border-gray-200 rounded-md px-3 py-2">
-          <Info className="h-4 w-4 shrink-0 text-gray-500" />
-          <span className="font-semibold">After Fabric Production Yarn Stock:</span>
-          <span className="font-extrabold">{isCheckingAvailable ? 'Checking…' : `${yarnStockKg.toFixed(2)} kg`}</span>
-        </p>
-      )}
 
       {error && (
         <p className="text-sm text-red-600 bg-red-50 border border-red-200 rounded-md px-3 py-2">{error}</p>
