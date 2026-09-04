@@ -1,5 +1,5 @@
 import { useState, forwardRef, useImperativeHandle } from 'react';
-import { Search, Wallet, FileText, Banknote, Calendar, Loader2 } from 'lucide-react';
+import { Search, Wallet, FileText, Banknote, Calendar, Loader2, MinusCircle, Pencil } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { motion } from 'framer-motion';
@@ -10,7 +10,7 @@ import { Label } from '@/components/ui/label';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Loader } from '@/components/shared/loader';
 import { TablePaginationControls, RowsPerPageSelect } from '@/components/shared/table-pagination-controls';
-import { useEmployees, useDistributeMarketValue, usePayrollSummary, useGrantSalaryAdvance, useSavePayrollRecords, useSavedPayrollRecords, useMarketValueAllocations, useSalaryAdvances, type SalaryAdvanceStatus } from './employee-queries';
+import { useEmployees, useDistributeMarketValue, usePayrollSummary, useGrantSalaryAdvance, useGrantMarketValueDeduction, useSavePayrollRecords, useSavedPayrollRecords, useMarketValueAllocations, useSalaryAdvances, type SalaryAdvanceStatus } from './employee-queries';
 import { useAttendanceRecords } from './attendance-queries';
 
 
@@ -37,6 +37,7 @@ export const PayrollTab = forwardRef<PayrollTabRef>((_, ref) => {
   const [searchQuery, setSearchQuery] = useState('');
   const [isAdvanceModalOpen, setIsAdvanceModalOpen] = useState(false);
   const [isMarketValueModalOpen, setIsMarketValueModalOpen] = useState(false);
+  const [isMarketValueDeductionModalOpen, setIsMarketValueDeductionModalOpen] = useState(false);
   const [isGenerateModalOpen, setIsGenerateModalOpen] = useState(false);
   const { data: employees = [] } = useEmployees();
   const { mutate: distributeMarketValue, isPending: isDistributing } = useDistributeMarketValue();
@@ -52,6 +53,7 @@ export const PayrollTab = forwardRef<PayrollTabRef>((_, ref) => {
   const endDateStr = `${currentYear}-${currentMonth.toString().padStart(2, '0')}-${endDay.toString().padStart(2, '0')}`;
   const { data: attendanceRecords = [] } = useAttendanceRecords(startDateStr, endDateStr);
   const { mutate: grantAdvance, isPending: isGrantingAdvance } = useGrantSalaryAdvance();
+  const { mutate: grantMarketValueDeduction, isPending: isGrantingMarketValueDeduction } = useGrantMarketValueDeduction();
   const { mutateAsync: savePayrollRecords } = useSavePayrollRecords();
   const { data: salaryAdvances = [], isLoading: isAdvancesLoading } = useSalaryAdvances();
 
@@ -105,6 +107,20 @@ export const PayrollTab = forwardRef<PayrollTabRef>((_, ref) => {
   const [marketValuePool, setMarketValuePool] = useState<string>('');
   const [marketValueDate, setMarketValueDate] = useState<string>('');
   const [allocations, setAllocations] = useState<Record<string, number>>({});
+
+  // Market Value Deduction Form State — like Salary Advance, but single-payment only (no EMI)
+  const [mvdEmployeeId, setMvdEmployeeId] = useState('');
+  const [mvdAmount, setMvdAmount] = useState('');
+  const [mvdDate, setMvdDate] = useState('');
+
+  const mvdAmountNum = parseFloat(mvdAmount) || 0;
+  const isMvdFormValid = !!mvdEmployeeId && mvdAmountNum > 0 && !!mvdDate;
+
+  const resetMvdForm = () => {
+    setMvdEmployeeId('');
+    setMvdAmount('');
+    setMvdDate('');
+  };
 
   const totalPoolNum = parseInt(marketValuePool || '0', 10);
   const currentAllocated = Object.values(allocations).reduce((a, b) => a + b, 0);
@@ -202,7 +218,7 @@ export const PayrollTab = forwardRef<PayrollTabRef>((_, ref) => {
         <div className="bg-white rounded-xl border border-gray-400 shadow-sm p-4 relative overflow-hidden group/card hover:border-blue-300 transition-colors flex flex-col justify-center">
           <div className="flex justify-between items-center relative z-10">
             <div>
-              <h3 className="font-semibold text-gray-500 text-xs uppercase tracking-wide">Market Value</h3>
+              <h3 className="font-semibold text-gray-500 text-xs uppercase tracking-wide">Machine Value</h3>
               <div className="text-xl font-bold text-gray-800 mt-1">₹ {isGenerated ? totalMarketValue.toLocaleString() : '0'}</div>
             </div>
             <div className="h-10 w-10 rounded-full bg-blue-50 flex items-center justify-center"><Banknote className="w-5 h-5 text-blue-600" /></div>
@@ -279,11 +295,14 @@ export const PayrollTab = forwardRef<PayrollTabRef>((_, ref) => {
                   }}
                   className="h-8 text-xs w-40 border-gray-400 bg-gray-50/50"
                 />
+                <Button size="sm" variant="outline" className="h-8 text-sm font-semibold bg-[#004D40] hover:bg-[#00382e] hover:text-white text-white" onClick={() => setIsMarketValueModalOpen(true)}>
+                  <Wallet className="w-3.5 h-3.5 mr-1" /> Machine Value
+                </Button>
+                <Button size="sm" variant="outline" className="h-8 text-sm font-semibold bg-[#004D40] hover:bg-[#00382e] hover:text-white text-white" onClick={() => setIsMarketValueDeductionModalOpen(true)}>
+                  <MinusCircle className="w-3.5 h-3.5 mr-1" /> Market Value
+                </Button>
                 <Button size="sm" variant="outline" className="h-8 text-sm font-semibold bg-[#004D40] hover:bg-[#00382e] hover:text-white text-white" onClick={() => setIsAdvanceModalOpen(true)}>
                   <Banknote className="w-3.5 h-3.5 mr-1" /> Salary Advance
-                </Button>
-                <Button size="sm" variant="outline" className="h-8 text-sm font-semibold bg-[#004D40] hover:bg-[#00382e] hover:text-white text-white" onClick={() => setIsMarketValueModalOpen(true)}>
-                  <Wallet className="w-3.5 h-3.5 mr-1" /> Market Value
                 </Button>
               </div>
             </div>
@@ -298,7 +317,7 @@ export const PayrollTab = forwardRef<PayrollTabRef>((_, ref) => {
                 <TableHead className="text-sm font-semibold tracking-wide text-gray-800 text-center px-5 py-2 border-r border-gray-300">Days Worked</TableHead>
                 <TableHead className="text-sm font-semibold tracking-wide text-gray-800 text-right px-5 py-2 border-r border-gray-300">Gross Salary</TableHead>
                 <TableHead className="text-sm font-semibold tracking-wide text-gray-800 text-right text-amber-700 px-5 py-2 border-r border-gray-300">Advance Deducted</TableHead>
-                <TableHead className="text-sm font-semibold tracking-wide text-gray-800 text-right text-blue-700 px-5 py-2 border-r border-gray-300">Market Value Share</TableHead>
+                <TableHead className="text-sm font-semibold tracking-wide text-gray-800 text-right text-blue-700 px-5 py-2 border-r border-gray-300">Machine Value</TableHead>
                 <TableHead className="text-sm font-extrabold tracking-wide text-gray-900 text-right px-5 py-2">Net Payable</TableHead>
               </TableRow>
             </TableHeader>
@@ -554,22 +573,87 @@ export const PayrollTab = forwardRef<PayrollTabRef>((_, ref) => {
         </DialogContent>
       </Dialog>
 
+      {/* Market Value Deduction Modal */}
+      <Dialog open={isMarketValueDeductionModalOpen} onOpenChange={(open) => { setIsMarketValueDeductionModalOpen(open); if (!open) resetMvdForm(); }}>
+        <DialogContent className="sm:max-w-md border border-gray-400 font-hanken">
+          <DialogHeader className="-mx-4 -mt-4 mb-2 rounded-t-xl border-b border-gray-200 bg-[#A8DCAB] px-4 py-3">
+            <DialogTitle className="text-lg font-bold text-black flex items-center gap-2">
+              <MinusCircle className="w-5 h-5" /> Grant Market Value Deduction
+            </DialogTitle>
+          </DialogHeader>
+          <div className="grid gap-4 py-2">
+            <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 text-xs text-blue-800 leading-relaxed">
+              <strong>Info:</strong> Market value is deducted from the employee's salary, like a salary advance, but always as a single deduction in its effective month — there is no EMI option.
+            </div>
+
+            <div className="flex flex-col gap-1.5">
+              <Label className="text-xs font-semibold text-gray-700">Select Employee</Label>
+              <Select value={mvdEmployeeId} onValueChange={setMvdEmployeeId}>
+                <SelectTrigger className="h-9 text-xs"><SelectValue placeholder="Choose Employee..." /></SelectTrigger>
+                <SelectContent position="popper">
+                  {employees.map(emp => (
+                    <SelectItem key={emp.id} value={emp.id}>{emp.employeeDetails?.customUserId || emp.id} - {emp.name || 'Unnamed'}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div className="flex gap-4">
+              <div className="flex flex-col gap-1.5 flex-1">
+                <Label className="text-xs font-semibold text-gray-700">Deduction Amount (₹)</Label>
+                <Input type="number" placeholder="e.g. 2000" className="h-9 text-xs" value={mvdAmount} onChange={(e) => setMvdAmount(e.target.value)} />
+              </div>
+              <div className="flex flex-col gap-1.5 flex-1">
+                <Label className="text-xs font-semibold text-gray-700">Effective Date</Label>
+                <Input type="date" className="h-9 text-xs" value={mvdDate} onChange={(e) => setMvdDate(e.target.value)} />
+              </div>
+            </div>
+          </div>
+          <DialogFooter className="border-t border-gray-200 bg-white pt-2">
+            <Button variant="outline" size="sm" onClick={() => setIsMarketValueDeductionModalOpen(false)} className="h-8 text-xs">Cancel</Button>
+            <Button
+              size="sm"
+              className="h-8 bg-[#004D40] hover:bg-[#00332a] text-white text-xs px-4"
+              disabled={isGrantingMarketValueDeduction || !isMvdFormValid}
+              onClick={() => {
+                grantMarketValueDeduction({
+                  employeeId: mvdEmployeeId,
+                  amount: mvdAmountNum,
+                  effectiveDate: mvdDate,
+                }, {
+                  onSuccess: () => {
+                    setIsMarketValueDeductionModalOpen(false);
+                    resetMvdForm();
+                    alert('Market value deduction granted successfully!');
+                  },
+                  onError: (err) => {
+                    alert('Failed to grant deduction: ' + err.message);
+                  }
+                });
+              }}
+            >
+              {isGrantingMarketValueDeduction ? 'Granting...' : 'Grant Deduction'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
       {/* Market Value Modal */}
       <Dialog open={isMarketValueModalOpen} onOpenChange={setIsMarketValueModalOpen}>
         <DialogContent className="sm:max-w-2xl border border-gray-400 font-hanken">
           <DialogHeader className="-mx-4 -mt-4 mb-2 rounded-t-xl border-b border-gray-200 bg-[#A8DCAB] px-4 py-3">
             <DialogTitle className="text-lg font-bold text-black flex items-center gap-2">
-              <Wallet className="w-5 h-5" /> Distribute Market Value
+              <Wallet className="w-5 h-5" /> Distribute Machine Value
             </DialogTitle>
           </DialogHeader>
           <div className="grid gap-4 py-2">
             <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 text-xs text-blue-800 leading-relaxed">
-              <strong>Info:</strong> Market value is an additional bonus amount shared by the owner to the employees. It is added to their payroll as an earning.
+              <strong>Info:</strong> Machine value is an additional bonus amount shared by the owner to the employees. It is added to their payroll as an earning.
             </div>
 
             <div className="flex gap-4">
               <div className="flex flex-col gap-1.5 flex-1">
-                <Label className="text-xs font-semibold text-gray-700">Total Market Value Pool (₹)</Label>
+                <Label className="text-xs font-semibold text-gray-700">Total Machine Value Pool (₹)</Label>
                 <Input
                   type="number"
                   placeholder="e.g. 20000"
@@ -645,7 +729,7 @@ export const PayrollTab = forwardRef<PayrollTabRef>((_, ref) => {
                     setMarketValuePool('');
                     setMarketValueDate('');
                     setAllocations({});
-                    alert('Market value distributed successfully!');
+                    alert('Machine value distributed successfully!');
                   },
                   onError: (err) => {
                     alert('Failed to distribute: ' + err.message);
@@ -689,7 +773,7 @@ export const PayrollTab = forwardRef<PayrollTabRef>((_, ref) => {
                   <TableHead colSpan={6} className="text-sm font-bold text-gray-800 !text-center border-r border-gray-300">Employee Details</TableHead>
                   <TableHead colSpan={3} className="text-sm font-bold text-blue-700 text-center border-r border-gray-300 bg-blue-50/30">Bonuses</TableHead>
                   <TableHead colSpan={1} className="text-sm font-bold text-gray-800 text-center border-r border-gray-300 bg-emerald-50/30">Gross</TableHead>
-                  <TableHead colSpan={2} className="text-sm font-bold text-red-700 text-center border-r border-gray-300 bg-red-50/30">Deductions</TableHead>
+                  <TableHead colSpan={3} className="text-sm font-bold text-red-700 text-center border-r border-gray-300 bg-red-50/30">Deductions</TableHead>
                   <TableHead colSpan={1} className="text-sm font-bold text-gray-800 !text-center bg-emerald-50/30">Final</TableHead>
                 </TableRow>
                 <TableRow className="border-b border-gray-300">
@@ -701,10 +785,11 @@ export const PayrollTab = forwardRef<PayrollTabRef>((_, ref) => {
                   <TableHead className="text-xs font-semibold text-gray-800 text-right border-r border-gray-300">Base Salary</TableHead>
                   <TableHead className="text-xs font-semibold text-gray-800 text-center text-purple-700 border-r border-gray-300">Sunday Bonus (Days)</TableHead>
                   <TableHead className="text-xs font-semibold text-gray-800 text-right text-purple-700 border-r border-gray-300">Sunday Bonus</TableHead>
-                  <TableHead className="text-xs font-semibold text-gray-800 text-right text-blue-700 border-r border-gray-300">Market Value Share</TableHead>
+                  <TableHead className="text-xs font-semibold text-gray-800 text-right text-blue-700 border-r border-gray-300">Machine Value</TableHead>
                   <TableHead className="text-xs font-semibold text-gray-800 text-right border-r border-gray-300">Gross Pay</TableHead>
                   <TableHead className="text-xs font-semibold text-gray-800 text-right text-red-600 border-r border-gray-300">LOP Deduction</TableHead>
                   <TableHead className="text-xs font-semibold text-gray-800 text-right text-amber-700 border-r border-gray-300">Advance Deducted</TableHead>
+                  <TableHead className="text-xs font-semibold text-gray-800 text-right text-red-600 border-r border-gray-300">Market Value</TableHead>
                   <TableHead className="text-xs font-extrabold text-gray-900 text-right pr-4">Net Payable</TableHead>
                 </TableRow>
               </TableHeader>
@@ -749,7 +834,8 @@ export const PayrollTab = forwardRef<PayrollTabRef>((_, ref) => {
                   const summary = payrollSummary.find(s => s.id === emp.id);
                   const advanceDeduction = summary?.advanceDeduction || 0;
                   const marketValueBonus = marketValueAllocations[emp.id] || summary?.marketValueBonus || 0;
-                  const netSalary = grossSalary - advanceDeduction + marketValueBonus;
+                  const marketValueDeduction = summary?.marketValueDeduction || 0;
+                  const netSalary = grossSalary - advanceDeduction + marketValueBonus - marketValueDeduction;
 
                   return (
                     <TableRow key={emp.id} className="border-b border-gray-300">
@@ -765,6 +851,7 @@ export const PayrollTab = forwardRef<PayrollTabRef>((_, ref) => {
                       <TableCell className="text-sm text-right font-semibold text-gray-800 border-r border-gray-300">₹{grossSalary.toLocaleString()}</TableCell>
                       <TableCell className="text-sm text-right font-medium text-red-600 border-r border-gray-300">- ₹{lopDeduction.toLocaleString()}</TableCell>
                       <TableCell className="text-sm text-right font-medium text-amber-700 border-r border-gray-300">- ₹{advanceDeduction.toLocaleString()}</TableCell>
+                      <TableCell className="text-sm text-right font-medium text-red-600 border-r border-gray-300">- ₹{marketValueDeduction.toLocaleString()}</TableCell>
                       <TableCell className="text-sm text-right font-extrabold text-emerald-800 pr-4">₹{netSalary.toLocaleString()}</TableCell>
                     </TableRow>
                   );
