@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
-import { AlertTriangle } from 'lucide-react';
+import { AlertTriangle, Info } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -34,10 +34,13 @@ export function LoomModalForm({ productionDate, initialData, isEditMode, onCance
   // fields that can trigger a recompute here — starting this `true` in edit mode (as it used to)
   // disabled the auto-calc entirely, since neither of those fields could ever re-enable it.
   const [outputManuallyEdited, setOutputManuallyEdited] = useState(false);
+  // Chemical is UI-only for now — not part of LoomDraft and not sent to the backend.
+  const [chemical, setChemical] = useState('');
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   const hasSizeAndColor = !!draft.size && !!draft.color;
+  const hasSizeColorChemical = hasSizeAndColor;
   const selectedColorId = draft.color ? findIdByName(lookups.colors, draft.color) : undefined;
   const selectedSizeId = draft.size ? findIdByName(lookups.sizes, draft.size) : undefined;
 
@@ -54,6 +57,10 @@ export function LoomModalForm({ productionDate, initialData, isEditMode, onCance
 
   const loomProductionInputKg = parseFloat(draft.input) || 0;
   const exceedsAvailable = hasSizeAndColor && totalAvailableKg !== undefined && loomProductionInputKg > totalAvailableKg;
+
+  // Yarn Stock = Available Yarn minus Total Fabric Production (the yarn left over after this entry).
+  const totalFabricProductionKg = parseFloat(draft.output) || 0;
+  const yarnStockKg = totalAvailableKg !== undefined ? totalAvailableKg - totalFabricProductionKg : undefined;
 
   const updateField = (field: keyof LoomDraft, value: string) => {
     setDraft(prev => {
@@ -129,19 +136,26 @@ export function LoomModalForm({ productionDate, initialData, isEditMode, onCance
 
   return (
     <div className="flex flex-col h-full gap-2 px-1">
-      <div className="flex gap-6 p-3 rounded-lg border border-gray-400">
-        <div className="flex items-center gap-1 w-50">
-          <Label className="text-gray-600 text-xs font-semibold uppercase tracking-wider shrink-0 w-10">Size</Label>
+      <div className="grid grid-cols-3 gap-3 p-3 rounded-lg border border-gray-400">
+        <div className="space-y-1.5">
+          <Label className="text-gray-600 text-xs font-semibold uppercase tracking-wider">Size</Label>
           <Select value={draft.size} onValueChange={(v) => updateField('size', v)} disabled={isEditMode}>
-            <SelectTrigger><SelectValue placeholder="Select Size" /></SelectTrigger>
+            <SelectTrigger className="h-8 text-xs w-full"><SelectValue placeholder="Select Size" /></SelectTrigger>
             <SelectContent position="popper">{lookups.sizes?.map((s) => <SelectItem key={s.id} value={s.name}>{s.name}</SelectItem>)}</SelectContent>
           </Select>
         </div>
-        <div className="flex items-center gap-3 w-56">
-          <Label className="text-gray-600 text-xs font-semibold uppercase tracking-wider shrink-0 w-12">Color</Label>
+        <div className="space-y-1.5">
+          <Label className="text-gray-600 text-xs font-semibold uppercase tracking-wider">Color</Label>
           <Select value={draft.color} onValueChange={(v) => updateField('color', v)} disabled={isEditMode}>
-            <SelectTrigger className={draft.color ? `font-semibold ${colorFieldClasses(draft.color)}` : undefined}><SelectValue placeholder="Select Color" /></SelectTrigger>
+            <SelectTrigger className={`h-8 text-xs w-full ${draft.color ? `font-semibold ${colorFieldClasses(draft.color)}` : ''}`}><SelectValue placeholder="Select Color" /></SelectTrigger>
             <SelectContent position="popper">{lookups.colors?.map((c) => <SelectItem key={c.id} value={c.name}>{c.name}</SelectItem>)}</SelectContent>
+          </Select>
+        </div>
+        <div className="space-y-1.5">
+          <Label className="text-gray-600 text-xs font-semibold uppercase tracking-wider">Chemical</Label>
+          <Select value={chemical} onValueChange={setChemical}>
+            <SelectTrigger className="h-8 text-xs w-full"><SelectValue placeholder="Select Chemical" /></SelectTrigger>
+            <SelectContent position="popper">{lookups.chemicals?.map((c) => <SelectItem key={c.id} value={c.name}>{c.name}</SelectItem>)}</SelectContent>
           </Select>
         </div>
       </div>
@@ -205,6 +219,13 @@ export function LoomModalForm({ productionDate, initialData, isEditMode, onCance
           />
         </div>
       </div>
+
+      {hasSizeColorChemical && yarnStockKg !== undefined && (
+        <p className="flex items-center gap-2 text-sm text-gray-700 bg-gray-50 border border-gray-200 rounded-md px-3 py-2">
+          <Info className="h-4 w-4 shrink-0 text-gray-500" />
+          <span className="font-semibold">Yarn Stock:</span> {isCheckingAvailable ? 'Checking…' : `${yarnStockKg.toFixed(2)} kg`}
+        </p>
+      )}
 
       {error && (
         <p className="text-sm text-red-600 bg-red-50 border border-red-200 rounded-md px-3 py-2">{error}</p>

@@ -379,22 +379,28 @@ export function ExtruderModalForm({ productionDate, initialData, isEditMode, onC
     <div className="flex flex-col gap-2 px-1">
 
       {/* General Settings */}
-      <div className="flex gap-6 p-3 rounded-lg border border-gray-400">
-        <div className="flex items-center gap-1 w-50">
-          <Label className="text-gray-600 text-xs font-semibold uppercase tracking-wider shrink-0 w-10">Size</Label>
+      <div className="grid grid-cols-3 gap-3 p-3 rounded-lg border border-gray-400">
+        <div className="space-y-1.5">
+          <Label className="text-gray-600 text-xs font-semibold uppercase tracking-wider">Size</Label>
           <Select value={group.size} onValueChange={(v) => updateGroupField('size', v)} disabled={isEditMode}>
-            <SelectTrigger><SelectValue placeholder="Select Size" /></SelectTrigger>
+            <SelectTrigger className="h-8 text-xs w-full"><SelectValue placeholder="Select Size" /></SelectTrigger>
             <SelectContent position="popper">{lookups.sizes?.map((s) => <SelectItem key={s.id} value={s.name}>{s.name}</SelectItem>)}</SelectContent>
           </Select>
         </div>
-        <div className="flex items-center gap-3 w-56">
-          <Label className="text-gray-600 text-xs font-semibold uppercase tracking-wider shrink-0 w-12">Color</Label>
+        <div className="space-y-1.5">
+          <Label className="text-gray-600 text-xs font-semibold uppercase tracking-wider">Color</Label>
           <Select value={group.color} onValueChange={(v) => updateGroupField('color', v)} disabled={isEditMode}>
-            <SelectTrigger className={group.color ? `font-semibold ${colorFieldClasses(group.color)}` : undefined}><SelectValue placeholder="Select Color" /></SelectTrigger>
+            <SelectTrigger className={`h-8 text-xs w-full ${group.color ? `font-semibold ${colorFieldClasses(group.color)}` : ''}`}><SelectValue placeholder="Select Color" /></SelectTrigger>
             <SelectContent position="popper">{lookups.colors?.map((c) => <SelectItem key={c.id} value={c.name}>{c.name}</SelectItem>)}</SelectContent>
           </Select>
         </div>
-
+        <div className="space-y-1.5">
+          <Label className="text-gray-600 text-xs font-semibold uppercase tracking-wider">Chemical Type</Label>
+          <Select value={group.chemical} onValueChange={(v) => updateGroupField('chemical', v)} disabled={isEditMode}>
+            <SelectTrigger className="h-8 text-xs w-full"><SelectValue placeholder="Select Chem" /></SelectTrigger>
+            <SelectContent position="popper">{lookups.chemicals?.map((c) => <SelectItem key={c.id} value={c.name}>{c.name}</SelectItem>)}</SelectContent>
+          </Select>
+        </div>
       </div>
 
       {/* HDPE Material */}
@@ -461,30 +467,16 @@ export function ExtruderModalForm({ productionDate, initialData, isEditMode, onC
         {/* Chemicals */}
         <div className="space-y-2 p-3 rounded-lg border border-gray-400">
           <h3 className={`text-xs font-semibold uppercase tracking-wider border-b pb-1.5 ${theme.headerText}`}>Chemicals & Colors</h3>
-          <div className="space-y-2">
-            <div className="grid grid-cols-2 gap-2">
-              <div className="space-y-1.5">
-                <Label className="text-gray-600 text-xs font-semibold">Chemical Type</Label>
-                <Select value={group.chemical} onValueChange={(v) => updateGroupField('chemical', v)} disabled={isEditMode}>
-                  <SelectTrigger className="h-8 text-xs"><SelectValue placeholder="Select Chem" /></SelectTrigger>
-                  <SelectContent position="popper">{lookups.chemicals?.map((c) => <SelectItem key={c.id} value={c.name}>{c.name}</SelectItem>)}</SelectContent>
-                </Select>
-              </div>
-              <div className="space-y-1.5">
-                <Label className="text-gray-600 text-xs font-semibold">Chemical Weight(kg)</Label>
-                <Input type="number" min="0" onKeyDown={(e) => e.key === '-' && e.preventDefault()} placeholder="0.00" className="h-8 text-xs bg-gray-100 border border-gray-400 disabled:opacity-100" value={standardChemicalConsumedKg !== undefined ? standardChemicalConsumedKg.toFixed(2) : ''} disabled readOnly />
-              </div>
+          <div className="space-y-2 pt-0.5">
+            <div className="space-y-1.5">
+              <Label className="text-gray-600 text-xs font-semibold">Chemical Weight(kg)</Label>
+              <Input type="number" min="0" onKeyDown={(e) => e.key === '-' && e.preventDefault()} placeholder="0.00" className="h-8 text-xs bg-gray-100 border border-gray-400 disabled:opacity-100" value={standardChemicalConsumedKg !== undefined ? standardChemicalConsumedKg.toFixed(2) : ''} disabled readOnly />
             </div>
-            <div className="grid grid-cols-2 gap-2">
-              <div className="space-y-1.5">
-                <Label className="text-gray-600 text-xs font-semibold">Color</Label>
-                <Input type="text" placeholder="Select color above" className={`h-8 text-xs border font-semibold disabled:opacity-100 ${colorFieldClasses(group.color)}`} value={group.color} disabled readOnly />
-              </div>
-              <div className="space-y-1.5">
-                <Label className="text-gray-600 text-xs font-semibold">Color Weight (kg)</Label>
-                <Input type="number" min="0" onKeyDown={(e) => e.key === '-' && e.preventDefault()} placeholder="0.00" className="h-8 text-xs bg-gray-100 border border-gray-400 disabled:opacity-100" value={standardColorConsumedKg !== undefined ? standardColorConsumedKg.toFixed(2) : ''} disabled readOnly />
-              </div>
+            <div className="space-y-1.5">
+              <Label className="text-gray-600 text-xs font-semibold">Color Weight (kg)</Label>
+              <Input type="number" min="0" onKeyDown={(e) => e.key === '-' && e.preventDefault()} placeholder="0.00" className="h-8 text-xs bg-gray-100 border border-gray-400 disabled:opacity-100" value={standardColorConsumedKg !== undefined ? standardColorConsumedKg.toFixed(2) : ''} disabled readOnly />
             </div>
+
           </div>
         </div>
 
