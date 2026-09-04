@@ -20,9 +20,10 @@ interface FabricModalFormProps {
   onCancel: () => void;
   /** Called after the entry is successfully persisted to the backend. */
   onSuccess: () => void;
+  entryType?: 'PRODUCTION' | 'SAMPLE';
 }
 
-export function FabricModalForm({ productionDate, initialData, isEditMode, onCancel, onSuccess }: FabricModalFormProps) {
+export function FabricModalForm({ productionDate, initialData, isEditMode, onCancel, onSuccess, entryType = 'PRODUCTION' }: FabricModalFormProps) {
   const queryClient = useQueryClient();
   const { data: lookupsData } = useLookups();
   const lookups: Lookups = lookupsData ?? { brands: [], colors: [], chemicals: [], sizes: [] };
@@ -130,6 +131,7 @@ export function FabricModalForm({ productionDate, initialData, isEditMode, onCan
       outputKg: parseFloat(draft.output) || 0,
       fwKg: parseFloat(draft.fwKg) || 0,
       bwKg: parseFloat(draft.bwKg) || 0,
+      type: entryType,
     };
 
     setSaving(true);

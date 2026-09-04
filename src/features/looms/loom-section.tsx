@@ -64,11 +64,23 @@ export function suggestLoomOutput(draft: Pick<LoomDraft, 'input'>): string {
   return inputKg > 0 ? inputKg.toFixed(2) : '';
 }
 
-export const LoomSection = forwardRef<SectionRef, SectionProps>(({ productionDate, readOnly, hideExisting, sessionStartTime, hideBanner, onEditLoomGroup }, ref) => {
+export interface LoomSectionProps extends SectionProps {
+  entryType?: 'PRODUCTION' | 'SAMPLE';
+}
+
+export const LoomSection = forwardRef<SectionRef, LoomSectionProps>(({
+  productionDate,
+  readOnly,
+  hideExisting = false,
+  sessionStartTime,
+  hideBanner = false,
+  onEditLoomGroup,
+  entryType = 'PRODUCTION',
+}, ref) => {
   const queryClient = useQueryClient();
   const { user } = useAuth();
   const { data, isLoading, isError, refetch } = useLoomsProductions(
-    productionDate ? `?date_from=${productionDate}&date_to=${productionDate}` : '',
+    productionDate ? `?date_from=${productionDate}&date_to=${productionDate}&type=${entryType}` : `?type=${entryType}`,
     !hideExisting,
   );
   const { data: lookupsData } = useLookups();
@@ -114,6 +126,7 @@ export const LoomSection = forwardRef<SectionRef, SectionProps>(({ productionDat
         }
         const payload: LoomsCreatePayload = {
           productionDate: productionDate ?? '',
+          type: entryType,
           colorId,
           sizeId,
           chemicalId,
