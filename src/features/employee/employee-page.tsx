@@ -513,7 +513,7 @@ const EmployeeDirectoryTab = forwardRef<EmployeeDirectoryTabRef>((_props, ref) =
                 </TableRow>
               ) : pagedEmployees.length === 0 ? (
                 <TableRow>
-                  <TableCell colSpan={11} className="h-28 !text-center text-gray-500 text-sm">No employees found matching your criteria.</TableCell>
+                  <TableCell colSpan={11} className="h-28 !text-center text-gray-500 text-sm">No employees found.</TableCell>
                 </TableRow>
               ) : (
                 pagedEmployees.map((emp) => (

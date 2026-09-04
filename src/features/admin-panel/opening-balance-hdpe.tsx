@@ -488,7 +488,10 @@ function HDPEModal({ onClose, onSave, initialData, lookupsData, error }: {
 
     setIsSaving(true);
     try {
-      await onSave({ date: date.toISOString().slice(0, 10), items });
+      // date-fns's format() reads the Date's local components — unlike toISOString(), it doesn't
+      // convert to UTC first, so a locally-selected day can't shift backward for timezones ahead
+      // of UTC (e.g. IST selecting 25 Aug would otherwise save as 24 Aug).
+      await onSave({ date: format(date, 'yyyy-MM-dd'), items });
     } finally {
       setIsSaving(false);
     }

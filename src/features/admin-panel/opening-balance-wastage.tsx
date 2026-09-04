@@ -363,7 +363,10 @@ function WastageModal({ onClose, onSave, initialData, lookupsData, error }: {
   const handleSubmit = async () => {
     if (!date) return;
 
-    const dateStr = date.toISOString().slice(0, 10);
+    // date-fns's format() reads the Date's local components — unlike toISOString(), it doesn't
+    // convert to UTC first, so a locally-selected day can't shift backward for timezones ahead
+    // of UTC (e.g. IST selecting 25 Aug would otherwise save as 24 Aug).
+    const dateStr = format(date, 'yyyy-MM-dd');
     const parsedData: OpeningBalanceWastagePayload[] = rows.map(r => ({
       date: dateStr,
       colorId: r.color && r.color !== 'none' ? findIdByName(lookupsData?.colors ?? [], r.color) : undefined,
@@ -462,7 +465,6 @@ function WastageModal({ onClose, onSave, initialData, lookupsData, error }: {
                             <SelectValue placeholder="Color" />
                           </SelectTrigger>
                           <SelectContent>
-                            <SelectItem value="none">No Color</SelectItem>
                             {colorNames.map((c: string) => (
                               <SelectItem key={c} value={c}>{c}</SelectItem>
                             ))}
@@ -475,7 +477,6 @@ function WastageModal({ onClose, onSave, initialData, lookupsData, error }: {
                             <SelectValue placeholder="Size" />
                           </SelectTrigger>
                           <SelectContent>
-                            <SelectItem value="none">No Size</SelectItem>
                             {sizeNames.map((s: string) => (
                               <SelectItem key={s} value={s}>{s}</SelectItem>
                             ))}
