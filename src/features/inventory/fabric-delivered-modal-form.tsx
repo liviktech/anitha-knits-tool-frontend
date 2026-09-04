@@ -26,7 +26,7 @@ interface FabricDeliveredModalFormProps {
 export function FabricDeliveredModalForm({ productionDate, initialData, isEditMode, onCancel, onSuccess, entryType = 'PRODUCTION' }: FabricDeliveredModalFormProps) {
   const queryClient = useQueryClient();
   const { data: lookupsData } = useLookups();
-  const lookups: Lookups = lookupsData ?? { brands: [], colors: [], chemicals: [], sizes: [] };
+  const lookups: Lookups = lookupsData ?? { brands: [], colors: [], chemicals: [], sizes: [], expenseNames: [] };
   const theme = themes.fabricDelivered;
 
   const { data: sentData } = useLoadSentRecords('?limit=100');

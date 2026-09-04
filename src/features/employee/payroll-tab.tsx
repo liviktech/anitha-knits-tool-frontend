@@ -1,5 +1,5 @@
 import { useState, forwardRef, useImperativeHandle } from 'react';
-import { Search, Wallet, FileText, Banknote, Calendar, Loader2, MinusCircle, Pencil } from 'lucide-react';
+import { Search, Wallet, FileText, Banknote, Calendar, Loader2, MinusCircle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { motion } from 'framer-motion';

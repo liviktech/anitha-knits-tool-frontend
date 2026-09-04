@@ -84,7 +84,7 @@ export const LoomSection = forwardRef<SectionRef, LoomSectionProps>(({
     !hideExisting,
   );
   const { data: lookupsData } = useLookups();
-  const lookups: Lookups = lookupsData ?? { brands: [], colors: [], chemicals: [], sizes: [] };
+  const lookups: Lookups = lookupsData ?? { brands: [], colors: [], chemicals: [], sizes: [], expenseNames: [] };
 
   const [newRows, setNewRows] = useState<LoomDraft[]>([]);
   const [deleteTarget, setDeleteTarget] = useState<LoomRow | null>(null);

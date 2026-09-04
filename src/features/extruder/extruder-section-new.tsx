@@ -73,7 +73,7 @@ export const ExtruderSection = forwardRef<SectionRef, ExtruderSectionProps>(({ p
     !hideExisting,
   );
   const { data: lookupsData } = useLookups();
-  const lookups: Lookups = lookupsData ?? { brands: [], colors: [], chemicals: [], sizes: [] };
+  const lookups: Lookups = lookupsData ?? { brands: [], colors: [], chemicals: [], sizes: [], expenseNames: [] };
 
   const [newGroups, setNewGroups] = useState<ExtruderGroupDraft[]>([]);
   const [saving, setSaving] = useState(false);

@@ -130,7 +130,7 @@ const emptyGroupDraft = (): ExtruderGroupDraft => ({
 export function ExtruderModalForm({ productionDate, initialData, isEditMode, onCancel, onSuccess, entryType = 'PRODUCTION' }: ExtruderModalFormProps) {
   const queryClient = useQueryClient();
   const { data: lookupsData } = useLookups();
-  const lookups: Lookups = lookupsData ?? { brands: [], colors: [], chemicals: [], sizes: [] };
+  const lookups: Lookups = lookupsData ?? { brands: [], colors: [], chemicals: [], sizes: [], expenseNames: [] };
   const theme = themes.extruder;
 
   // Brands with zero or negative live stock balance (received minus already-consumed)

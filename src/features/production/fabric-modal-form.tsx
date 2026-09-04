@@ -26,7 +26,7 @@ interface FabricModalFormProps {
 export function FabricModalForm({ productionDate, initialData, isEditMode, onCancel, onSuccess, entryType = 'PRODUCTION' }: FabricModalFormProps) {
   const queryClient = useQueryClient();
   const { data: lookupsData } = useLookups();
-  const lookups: Lookups = lookupsData ?? { brands: [], colors: [], chemicals: [], sizes: [] };
+  const lookups: Lookups = lookupsData ?? { brands: [], colors: [], chemicals: [], sizes: [], expenseNames: [] };
   const theme = themes.fabric;
 
   const [draft, setDraft] = useState<FabricDraft>(initialData || { ...emptyFabricDraft });

@@ -65,7 +65,7 @@ export const FabricDeliveredSection = forwardRef<SectionRef, FabricDeliveredSect
   const queryClient = useQueryClient();
   const { user } = useAuth();
   const { data: lookupsData } = useLookups();
-  const lookups: Lookups = lookupsData ?? { brands: [], colors: [], chemicals: [], sizes: [] };
+  const lookups: Lookups = lookupsData ?? { brands: [], colors: [], chemicals: [], sizes: [], expenseNames: [] };
   const { data, isLoading, isError, refetch } = useLoadSentRecords(
     productionDate ? `?date_from=${productionDate}&date_to=${productionDate}&type=${entryType}` : `?limit=100&type=${entryType}`,
     !hideExisting
