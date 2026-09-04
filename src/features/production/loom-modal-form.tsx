@@ -21,9 +21,10 @@ interface LoomModalFormProps {
   onCancel: () => void;
   /** Called after the entry is successfully persisted to the backend. */
   onSuccess: () => void;
+  entryType?: 'PRODUCTION' | 'SAMPLE';
 }
 
-export function LoomModalForm({ productionDate, initialData, isEditMode, onCancel, onSuccess }: LoomModalFormProps) {
+export function LoomModalForm({ productionDate, initialData, isEditMode, onCancel, onSuccess, entryType = 'PRODUCTION' }: LoomModalFormProps) {
   const queryClient = useQueryClient();
   const { data: lookupsData } = useLookups();
   const lookups: Lookups = lookupsData ?? { brands: [], colors: [], chemicals: [], sizes: [] };
@@ -107,6 +108,7 @@ export function LoomModalForm({ productionDate, initialData, isEditMode, onCance
       yarnInputKg: parseFloat(draft.input) || 0,
       fabricOutputKg: parseFloat(draft.output) || 0,
       loomsWasteKg: parseFloat(draft.loomsWasteKg) || 0,
+      type: entryType,
     };
 
     setSaving(true);

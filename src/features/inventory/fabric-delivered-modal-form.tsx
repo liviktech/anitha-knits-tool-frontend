@@ -20,9 +20,10 @@ interface FabricDeliveredModalFormProps {
   onCancel: () => void;
   /** Called after the entry is successfully persisted to the backend. */
   onSuccess: () => void;
+  entryType?: 'PRODUCTION' | 'SAMPLE';
 }
 
-export function FabricDeliveredModalForm({ productionDate, initialData, isEditMode, onCancel, onSuccess }: FabricDeliveredModalFormProps) {
+export function FabricDeliveredModalForm({ productionDate, initialData, isEditMode, onCancel, onSuccess, entryType = 'PRODUCTION' }: FabricDeliveredModalFormProps) {
   const queryClient = useQueryClient();
   const { data: lookupsData } = useLookups();
   const lookups: Lookups = lookupsData ?? { brands: [], colors: [], chemicals: [], sizes: [] };
@@ -89,6 +90,7 @@ export function FabricDeliveredModalForm({ productionDate, initialData, isEditMo
       colorId: colorId!,
       sizeId: sizeId!,
       fabricWeight: parseFloat(draft.delivered) || 0,
+      type: entryType,
       ...(draft.vehicleNo?.trim() ? { vehicleNo: draft.vehicleNo.trim() } : {}),
       ...(draft.driverName?.trim() ? { driverName: draft.driverName.trim() } : {}),
     };

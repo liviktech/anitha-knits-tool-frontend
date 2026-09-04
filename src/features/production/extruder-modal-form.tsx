@@ -102,6 +102,7 @@ interface ExtruderModalFormProps {
   onCancel: () => void;
   /** Called after the entry is successfully persisted to the backend. */
   onSuccess: () => void;
+  entryType?: 'PRODUCTION' | 'SAMPLE';
 }
 
 const emptyBrandDraft = (): ExtruderBrandDraft => ({
@@ -126,7 +127,7 @@ const emptyGroupDraft = (): ExtruderGroupDraft => ({
   brands: [emptyBrandDraft()],
 });
 
-export function ExtruderModalForm({ productionDate, initialData, isEditMode, onCancel, onSuccess }: ExtruderModalFormProps) {
+export function ExtruderModalForm({ productionDate, initialData, isEditMode, onCancel, onSuccess, entryType = 'PRODUCTION' }: ExtruderModalFormProps) {
   const queryClient = useQueryClient();
   const { data: lookupsData } = useLookups();
   const lookups: Lookups = lookupsData ?? { brands: [], colors: [], chemicals: [], sizes: [] };
@@ -350,6 +351,7 @@ export function ExtruderModalForm({ productionDate, initialData, isEditMode, onC
             yarnOutputKg: share.yarnOutputKg,
             lumpsKg: share.lumpsKg,
             yarnWasteKg: share.yarnWasteKg,
+            type: entryType,
             ...brandBagFields(brandRow),
           };
           const response = await apiFetch('/production/extruder', {

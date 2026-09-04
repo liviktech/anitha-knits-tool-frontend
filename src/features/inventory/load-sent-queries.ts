@@ -39,6 +39,7 @@ export interface LoadSentCreatePayload {
   bwWeight?: number;
   vehicleNo?: string;
   driverName?: string;
+  type?: 'PRODUCTION' | 'SAMPLE';
 }
 
 /** Matches LoadSentUpdateRequest — every field optional, at least one required. */

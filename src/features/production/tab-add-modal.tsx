@@ -27,12 +27,13 @@ interface TabAddModalProps {
   onSaveLoom?: (data: LoomDraft) => void;
   onSaveFabric?: (data: FabricDraft) => void;
   onSaveDelivered?: (data: FabricDeliveredDraft) => void;
+  entryType?: 'PRODUCTION' | 'SAMPLE';
 }
 
 export function TabAddModal({
   isOpen, onClose, activeTab, productionDate,
   initialExtruderData, initialLoomData, initialFabricData, initialDeliveredData,
-  isEditMode,
+  isEditMode, entryType = 'PRODUCTION'
 }: TabAddModalProps) {
   const activeThemeKey = activeTab === 'delivered' ? 'fabricDelivered' : activeTab as Theme;
   const theme = themes[activeThemeKey];
@@ -77,6 +78,7 @@ export function TabAddModal({
               productionDate={productionDate}
               initialData={initialExtruderData}
               isEditMode={isEditMode}
+              entryType={entryType}
               onCancel={onClose}
               onSuccess={onClose}
             />
@@ -85,6 +87,7 @@ export function TabAddModal({
               productionDate={productionDate}
               initialData={initialLoomData}
               isEditMode={isEditMode}
+              entryType={entryType}
               onCancel={onClose}
               onSuccess={onClose}
             />
@@ -93,6 +96,7 @@ export function TabAddModal({
               productionDate={productionDate}
               initialData={initialFabricData}
               isEditMode={isEditMode}
+              entryType={entryType}
               onCancel={onClose}
               onSuccess={onClose}
             />
@@ -101,6 +105,7 @@ export function TabAddModal({
               productionDate={productionDate}
               initialData={initialDeliveredData}
               isEditMode={isEditMode}
+              entryType={entryType}
               onCancel={onClose}
               onSuccess={onClose}
             />

@@ -7,7 +7,7 @@ import { ForgotPasswordPage } from './features/auth/forgot-password-page';
 import { useAuth, defaultRouteFor } from './features/auth/auth-context';
 import type { AuthUser, CompanyUserProfile } from './features/auth/auth-service';
 import { hasModuleAccess } from '@/lib/access';
-import { Settings, User, Wallet, Menu, Package, LineChart, LogOut, LayoutDashboard } from 'lucide-react';
+import { Settings, User, Wallet, Menu, Package, LineChart, LogOut, LayoutDashboard, Layers } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet';
 import { Loader } from '@/components/shared/loader';
@@ -19,6 +19,7 @@ import threadIcon from '@/assets/thread.png';
 // fetched on demand instead of bloating the single main bundle.
 const DashboardModule = lazy(() => import('./features/dashboard/dashboard-module').then((m) => ({ default: m.DashboardModule })));
 const ProductionDetails = lazy(() => import('./features/production/production-details').then((m) => ({ default: m.ProductionDetails })));
+const SampleProductionPage = lazy(() => import('./features/sample-production/sample-production-page').then((m) => ({ default: m.SampleProductionPage })));
 const InventoryPage = lazy(() => import('./features/inventory/inventory-page').then((m) => ({ default: m.InventoryPage })));
 const LivikAdminShell = lazy(() => import('./features/admin/livik-admin-shell').then((m) => ({ default: m.LivikAdminShell })));
 const EmpExpensesPage = lazy(() => import('./features/emp-expenses/emp-expenses-page').then((m) => ({ default: m.EmpExpensesPage })));
@@ -42,6 +43,10 @@ function PageLoader() {
 const navItems = [
   { to: '/dashboard', label: 'Dashboard', icon: LayoutDashboard, moduleCode: 'dashboard' },
   { to: '/production', label: 'Production Details', icon: LineChart, moduleCode: 'productiondetails' },
+  // UI-only preview tab (no backend/module yet) — always visible regardless of RoleAccess grants,
+  // see the bypass in getNavItems() below. Remove that bypass once a real "sampleproduction"
+  // module is seeded and this should be gated like everything else.
+  { to: '/sample-production', label: 'Sample Production', icon: Layers, moduleCode: 'sampleproduction' },
   { to: '/inventory', label: 'Inventory', icon: Package, moduleCode: 'inventory' },
   { to: '/employees', label: 'Employees', icon: User, moduleCode: 'employees' },
   { to: '/expenses', label: 'Expenses', icon: Wallet, moduleCode: 'expenses' },
@@ -56,7 +61,7 @@ function getNavItems(user: CompanyUserProfile | undefined) {
     if (user.role === 'SUPERVISOR') return navItems.filter((item) => item.moduleCode === 'dashboard');
     return navItems;
   }
-  return navItems.filter((item) => user.access!.moduleCodes.includes(item.moduleCode));
+  return navItems.filter((item) => item.moduleCode === 'sampleproduction' || user.access!.moduleCodes.includes(item.moduleCode));
 }
 
 /** First nav item `user` actually has access to, or null if none (used as a safe redirect target). */
@@ -232,6 +237,8 @@ function AppShell() {
           <Route path="/" element={<Navigate to="/dashboard" replace />} />
           <Route path="/dashboard/*" element={<RequireModule moduleCode="dashboard"><DashboardModule /></RequireModule>} />
           <Route path="/production/*" element={<RequireModule moduleCode="productiondetails"><ProductionDetails /></RequireModule>} />
+          {/* UI-only preview, not yet module-gated — see the navItems comment above. */}
+          <Route path="/sample-production" element={<SampleProductionPage />} />
           <Route path="/inventory" element={<RequireModule moduleCode="inventory"><InventoryPage /></RequireModule>} />
           <Route path="/employees/*" element={<RequireModule moduleCode="employees"><EmployeePage /></RequireModule>} />
           <Route path="/expenses/*" element={<RequireModule moduleCode="expenses"><EmpExpensesPage /></RequireModule>} />

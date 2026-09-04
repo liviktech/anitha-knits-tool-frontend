@@ -85,11 +85,15 @@ export function suggestFabricOutput(draft: Pick<FabricDraft, 'input' | 'fwKg' | 
   return suggested > 0 ? suggested.toFixed(2) : '';
 }
 
-export const FabricSection = forwardRef<SectionRef, SectionProps>(({ productionDate, readOnly, hideExisting, sessionStartTime, hideBanner, onEditFabricGroup }, ref) => {
+export interface FabricSectionProps extends SectionProps {
+  entryType?: 'PRODUCTION' | 'SAMPLE';
+}
+
+export const FabricSection = forwardRef<SectionRef, FabricSectionProps>(({ productionDate, readOnly, hideExisting, sessionStartTime, hideBanner, onEditFabricGroup, entryType = 'PRODUCTION' }, ref) => {
   const queryClient = useQueryClient();
   const { user } = useAuth();
   const { data, isLoading, isError, refetch } = useFabricCheckingRecords(
-    productionDate ? `?date_from=${productionDate}&date_to=${productionDate}` : '',
+    productionDate ? `?date_from=${productionDate}&date_to=${productionDate}&type=${entryType}` : `?type=${entryType}`,
     !hideExisting,
   );
   const { data: lookupsData } = useLookups();
@@ -146,6 +150,7 @@ export const FabricSection = forwardRef<SectionRef, SectionProps>(({ productionD
           outputKg: parseFloat(row.output) || 0,
           fwKg: parseFloat(row.fwKg) || 0,
           bwKg: parseFloat(row.bwKg) || 0,
+          type: entryType,
         };
         try {
           const response = row.id
