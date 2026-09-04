@@ -159,20 +159,26 @@ export function ExtruderModalForm({ productionDate, initialData, isEditMode, onC
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  // Sample entries don't follow the company's Color Consumption Standard — Bag Weight,
+  // Chemical Weight and Color Weight are all typed in by hand instead of being derived from it.
+  const isSample = entryType === 'SAMPLE';
+
   const { data: standardData } = useColorConsumptionStandard(productionDate);
   const standard = standardData?.data;
   const chemicalWeightStandard = standard ? parseFloat(standard.chemicalWeight) : undefined;
   const basisWeightKg = standard ? parseFloat(standard.basisWeightKg) : undefined;
   const kgPerBasis = colorGramsPerBasis(standard, group.color); // actual API field is kg per basis unit
 
-  // Bag weight displayed comes from basisWeightKg standard (e.g. 25 kg per bag).
+  // Bag weight displayed comes from basisWeightKg standard (e.g. 25 kg per bag) — except for a
+  // Sample entry, where each row's own basisWeightKg is whatever the user typed into it.
   // Total = (bags × bagWt) + looseWt
   const bagWtStr = basisWeightKg !== undefined ? String(basisWeightKg) : '';
   const computedBrands = useMemo(
     () => group.brands.map((b) => {
-      return { ...b, basisWeightKg: bagWtStr, raw: computeRaw(b.bags, bagWtStr, b.looseWeight) };
+      const weightPerBag = isSample ? b.basisWeightKg : bagWtStr;
+      return { ...b, basisWeightKg: weightPerBag, raw: computeRaw(b.bags, weightPerBag, b.looseWeight) };
     }),
-    [group.brands, basisWeightKg, bagWtStr],
+    [group.brands, bagWtStr, isSample],
   );
 
   const totalRawKg = useMemo(
@@ -192,16 +198,22 @@ export function ExtruderModalForm({ productionDate, initialData, isEditMode, onC
     return roundKg(chemicalWeightStandard * (totalRawKg / basisWeightKg));
   }, [chemicalWeightStandard, basisWeightKg, totalRawKg]);
 
+  // The figures actually used to save/suggest-output — the standard-derived values for a real
+  // Production entry, or the user's own manual entries for a Sample one.
+  const effectiveChemicalConsumedKg = isSample ? parseFloat(group.chemicalKg) || 0 : (standardChemicalConsumedKg ?? 0);
+  const effectiveColorConsumedKg = isSample ? parseFloat(group.colorConsumedKg) || 0 : (standardColorConsumedKg ?? 0);
+
   // Total Loom Production suggestion — raw material + chemical + colour consumed, minus
   // recorded wastage. Mirrors suggestExtruderOutput() in day-entry-sections.tsx; recomputed
   // here rather than reused directly since this form tracks raw/chemical/colour as derived
-  // memos (from brand rows + the color-consumption standard) rather than group state.
+  // memos (from brand rows + the color-consumption standard, or manual entry for Sample)
+  // rather than group state.
   const suggestedOutputKg = useMemo(() => {
-    const inputMassKg = totalRawKg + (standardChemicalConsumedKg ?? 0) + (standardColorConsumedKg ?? 0);
+    const inputMassKg = totalRawKg + effectiveChemicalConsumedKg + effectiveColorConsumedKg;
     const wasteKg = (parseFloat(group.lumpsKg) || 0) + (parseFloat(group.yarnWasteKg) || 0);
     const suggested = Math.max(0, inputMassKg - wasteKg);
     return suggested > 0 ? suggested.toFixed(2) : '';
-  }, [totalRawKg, standardChemicalConsumedKg, standardColorConsumedKg, group.lumpsKg, group.yarnWasteKg]);
+  }, [totalRawKg, effectiveChemicalConsumedKg, effectiveColorConsumedKg, group.lumpsKg, group.yarnWasteKg]);
 
   const displayedOutputKg = outputManuallyEdited ? group.output : suggestedOutputKg;
 
@@ -274,7 +286,7 @@ export function ExtruderModalForm({ productionDate, initialData, isEditMode, onC
       return;
     }
 
-    if ((standardChemicalConsumedKg ?? 0) <= 0 || (parseFloat(displayedOutputKg) || 0) <= 0) {
+    if (effectiveChemicalConsumedKg <= 0 || (parseFloat(displayedOutputKg) || 0) <= 0) {
       setError('Chemical weight and total loom production must both be greater than 0.');
       return;
     }
@@ -284,8 +296,8 @@ export function ExtruderModalForm({ productionDate, initialData, isEditMode, onC
       const shares = splitGroupTotals({
         ...group,
         output: displayedOutputKg,
-        chemicalKg: String(standardChemicalConsumedKg ?? 0),
-        colorConsumedKg: String(standardColorConsumedKg ?? 0),
+        chemicalKg: String(effectiveChemicalConsumedKg),
+        colorConsumedKg: String(effectiveColorConsumedKg),
         brands: computedBrands,
       });
 
@@ -435,7 +447,17 @@ export function ExtruderModalForm({ productionDate, initialData, isEditMode, onC
               </div>
               <div className="space-y-1 flex-1">
                 {idx === 0 && <Label className="text-xs text-gray-500">Bag Weight(kg)</Label>}
-                <Input type="number" min="0" onKeyDown={(e) => e.key === '-' && e.preventDefault()} placeholder="Bag Wt" disabled readOnly value={computeBagWeightDisplay(brandRow.bags, brandRow.basisWeightKg)} className="h-8 text-xs w-full border border-gray-400 disabled:opacity-100" />
+                {isSample ? (
+                  <Input
+                    type="number" min="0" onKeyDown={(e) => e.key === '-' && e.preventDefault()}
+                    placeholder="Bag Wt"
+                    value={brandRow.basisWeightKg}
+                    onChange={(e) => updateBrandField(brandRow.key, 'basisWeightKg', e.target.value)}
+                    className="h-8 text-xs w-full"
+                  />
+                ) : (
+                  <Input type="number" min="0" onKeyDown={(e) => e.key === '-' && e.preventDefault()} placeholder="Bag Wt" disabled readOnly value={computeBagWeightDisplay(brandRow.bags, brandRow.basisWeightKg)} className="h-8 text-xs w-full border border-gray-400 disabled:opacity-100" />
+                )}
               </div>
               <div className="space-y-1 flex-1">
                 {idx === 0 && <Label className="text-xs text-gray-500 whitespace-nowrap">Loose Weight(kg)</Label>}
@@ -472,11 +494,31 @@ export function ExtruderModalForm({ productionDate, initialData, isEditMode, onC
           <div className="space-y-2 pt-0.5">
             <div className="space-y-1.5">
               <Label className="text-gray-600 text-xs font-semibold">Chemical Weight(kg)</Label>
-              <Input type="number" min="0" onKeyDown={(e) => e.key === '-' && e.preventDefault()} placeholder="0.00" className="h-8 text-xs bg-gray-100 border border-gray-400 disabled:opacity-100" value={standardChemicalConsumedKg !== undefined ? standardChemicalConsumedKg.toFixed(2) : ''} disabled readOnly />
+              {isSample ? (
+                <Input
+                  type="number" min="0" onKeyDown={(e) => e.key === '-' && e.preventDefault()}
+                  placeholder="0.00"
+                  className="h-8 text-xs"
+                  value={group.chemicalKg}
+                  onChange={(e) => updateGroupField('chemicalKg', e.target.value)}
+                />
+              ) : (
+                <Input type="number" min="0" onKeyDown={(e) => e.key === '-' && e.preventDefault()} placeholder="0.00" className="h-8 text-xs bg-gray-100 border border-gray-400 disabled:opacity-100" value={standardChemicalConsumedKg !== undefined ? standardChemicalConsumedKg.toFixed(2) : ''} disabled readOnly />
+              )}
             </div>
             <div className="space-y-1.5">
               <Label className="text-gray-600 text-xs font-semibold">Color Weight (kg)</Label>
-              <Input type="number" min="0" onKeyDown={(e) => e.key === '-' && e.preventDefault()} placeholder="0.00" className="h-8 text-xs bg-gray-100 border border-gray-400 disabled:opacity-100" value={standardColorConsumedKg !== undefined ? standardColorConsumedKg.toFixed(2) : ''} disabled readOnly />
+              {isSample ? (
+                <Input
+                  type="number" min="0" onKeyDown={(e) => e.key === '-' && e.preventDefault()}
+                  placeholder="0.00"
+                  className="h-8 text-xs"
+                  value={group.colorConsumedKg}
+                  onChange={(e) => updateGroupField('colorConsumedKg', e.target.value)}
+                />
+              ) : (
+                <Input type="number" min="0" onKeyDown={(e) => e.key === '-' && e.preventDefault()} placeholder="0.00" className="h-8 text-xs bg-gray-100 border border-gray-400 disabled:opacity-100" value={standardColorConsumedKg !== undefined ? standardColorConsumedKg.toFixed(2) : ''} disabled readOnly />
+              )}
             </div>
 
           </div>

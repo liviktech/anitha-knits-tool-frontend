@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
-import { AlertTriangle } from 'lucide-react';
+import { AlertTriangle, Info } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -278,6 +278,14 @@ export function FabricModalForm({ productionDate, initialData, isEditMode, onCan
           />
         </div>
       </div>
+
+      {hasSizeAndColor && koraStockKg !== undefined && (
+        <p className="flex items-center gap-2 text-sm text-gray-700 bg-gray-50 border border-gray-200 rounded-md px-3 py-2">
+          <Info className="h-4 w-4 shrink-0 text-gray-500" />
+          <span className="font-semibold">Kora Balance:</span>
+          <span className="font-extrabold">{isCheckingKora ? 'Checking…' : `${koraStockKg.toFixed(2)} kg`}</span>
+        </p>
+      )}
 
       {error && (
         <p className="text-sm text-red-600 bg-red-50 border border-red-200 rounded-md px-3 py-2">{error}</p>

@@ -738,7 +738,8 @@ export function ProductionDesign2() {
     wastage: apiSummary?.extruder.wastageKg ?? 0,
   };
   const efficiency = apiSummary?.extruder.efficiencyPct ?? 0;
-  const wastePct = apiSummary?.extruder.wastePct ?? 0;
+  // Wastage % = (wastage / production) * 100
+  const wastePct = extruderSummary.output > 0 ? (extruderSummary.wastage / extruderSummary.output) * 100 : 0;
 
   const loomsSummary = {
     input: apiSummary?.looms.inputKg ?? 0,
@@ -746,7 +747,7 @@ export function ProductionDesign2() {
     wastage: apiSummary?.looms.wastageKg ?? 0,
   };
   const loomsEfficiency = apiSummary?.looms.efficiencyPct ?? 0;
-  const loomsWastePct = apiSummary?.looms.wastePct ?? 0;
+  const loomsWastePct = loomsSummary.output > 0 ? (loomsSummary.wastage / loomsSummary.output) * 100 : 0;
 
   const fabricSummary = {
     input: apiSummary?.fabricChecking.inputKg ?? 0,
@@ -754,7 +755,7 @@ export function ProductionDesign2() {
     wastage: apiSummary?.fabricChecking.wastageKg ?? 0,
   };
   const fabricEfficiency = apiSummary?.fabricChecking.efficiencyPct ?? 0;
-  const fabricWastePct = apiSummary?.fabricChecking.wastePct ?? 0;
+  const fabricWastePct = fabricSummary.checked > 0 ? (fabricSummary.wastage / fabricSummary.checked) * 100 : 0;
 
   return (
     <div id="production-design-2-page" className="flex flex-col bg-[#004D40]/5 min-h-full relative">
@@ -803,21 +804,9 @@ export function ProductionDesign2() {
                       <p className="text-[17px] font-bold text-[#004D40] leading-none font-inter">{formatNum(extruderSummary.wastage)}</p>
                     </div>
                     <div className="flex-1 px-2 sm:px-3 py-3 flex flex-col justify-center">
-                      <p className="text-[10.5px] font-extrabold uppercase tracking-wide text-gray-600 mb-1.5 whitespace-nowrap">EFFICIENCY</p>
-                      <p className="text-[17px] font-bold text-[#00A87E] leading-none font-inter">{efficiency.toFixed(2)}%</p>
+                      <p className="text-[10.5px] font-extrabold uppercase tracking-wide text-gray-600 mb-1.5 whitespace-nowrap">WASTAGE %</p>
+                      <p className="text-[17px] font-bold text-[#D32F2F] leading-none font-inter">{wastePct.toFixed(2)}%</p>
                     </div>
-                  </div>
-                  <div className="flex items-center px-1">
-                    <div className="flex-1">
-                      <p className="text-[10px] px-3 font-extrabold uppercase tracking-wide text-gray-600 mb-1.5">WASTE %</p>
-                      <p className="text-[17px] px-3 font-bold text-gray-900 leading-none font-inter">{wastePct.toFixed(2)}%</p>
-                    </div>
-                    {/* TODO: wire up a real Lums-only wastage figure, then uncomment.
-                    <div className="flex-[1.7]">
-                      <p className="text-[10px] px-3 font-extrabold uppercase tracking-wide text-gray-600 mb-1.5">LUMS WASTAGE (KG)</p>
-                      <p className="text-[17px] px-3 font-bold text-gray-900 leading-none font-inter">{formatNum(lumsWastageKg)}</p>
-                    </div>
-                    */}
                   </div>
                 </CardContent>
               </div>
@@ -845,16 +834,9 @@ export function ProductionDesign2() {
                       <p className="text-[17px] font-bold text-[#004D40] leading-none font-inter">{loomsSummary.wastage.toFixed(2)}</p>
                     </div>
                     <div className="flex-1 px-2 sm:px-3 py-3 flex flex-col justify-center">
-                      <p className="text-[10.5px] font-extrabold uppercase tracking-wide text-gray-600 mb-1.5 whitespace-nowrap">EFFICIENCY</p>
-                      <p className="text-[17px] font-bold text-[#00A87E] leading-none font-inter">{loomsEfficiency.toFixed(2)}%</p>
+                      <p className="text-[10.5px] font-extrabold uppercase tracking-wide text-gray-600 mb-1.5 whitespace-nowrap">WASTAGE %</p>
+                      <p className="text-[17px] font-bold text-[#D32F2F] leading-none font-inter">{loomsWastePct.toFixed(2)}%</p>
                     </div>
-                  </div>
-                  <div className="flex items-center px-1">
-                    <div className="flex-1">
-                      <p className="text-[10px] px-3 font-extrabold uppercase tracking-wide text-gray-600 mb-1">WASTE %</p>
-                      <p className="text-[17px] px-3 font-bold text-gray-900 leading-none font-inter">{loomsWastePct.toFixed(2)}%</p>
-                    </div>
-
                   </div>
                 </CardContent>
               </div>
@@ -882,22 +864,9 @@ export function ProductionDesign2() {
                       <p className="text-[17px] font-bold text-[#004D40] leading-none font-inter">{fabricSummary.wastage.toFixed(2)}</p>
                     </div>
                     <div className="flex-1 px-2 sm:px-3 py-3 flex flex-col justify-center">
-                      <p className="text-[10.5px] font-extrabold uppercase tracking-wide text-gray-600 mb-1.5 whitespace-nowrap">EFFICIENCY</p>
-                      <p className="text-[17px] font-bold text-[#00A87E] leading-none font-inter">{fabricEfficiency.toFixed(2)}%</p>
+                      <p className="text-[10.5px] font-extrabold uppercase tracking-wide text-gray-600 mb-1.5 whitespace-nowrap">WASTAGE %</p>
+                      <p className="text-[17px] font-bold text-[#D32F2F] leading-none font-inter">{fabricWastePct.toFixed(2)}%</p>
                     </div>
-                  </div>
-                  <div className="flex items-center px-1">
-                    <div className="flex-1">
-                      <p className="text-[10px] px-3 font-extrabold uppercase tracking-wide text-gray-600 mb-1">WASTE %</p>
-                      <p className="text-[17px] px-3 font-bold text-gray-900 leading-none font-inter">{fabricWastePct.toFixed(2)}%</p>
-                    </div>
-                    {/* TODO: decide what "Wastage Value" should represent (Bit Waste only? Fabric
-                    Waste only? Same as Total Wastage above?), wire it up, then uncomment.
-                    <div className="flex-[1.7]">
-                      <p className="text-[10px] px-3 font-extrabold uppercase tracking-wide text-gray-600 mb-1">WASTAGE VALUE (KG)</p>
-                      <p className="text-[17px] px-3 font-bold text-gray-900 leading-none font-inter">0.00</p>
-                    </div>
-                    */}
                   </div>
                 </CardContent>
               </div>
