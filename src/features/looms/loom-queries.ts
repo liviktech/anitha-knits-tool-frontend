@@ -25,6 +25,7 @@ export interface LoomsProductionItem {
   remarks: string | null;
   color: MasterDataRef;
   size: MasterDataRef;
+  chemical: MasterDataRef | null;
   loom: LoomDetail;
   wastages: WastageRecordSummary[];
   isApproved: boolean;
@@ -47,6 +48,7 @@ export interface LoomsCreatePayload {
   productionDate: string; // date, e.g. "2026-08-19"
   colorId: string;
   sizeId: string;
+  chemicalId: string;
   yarnInputKg: number;
   fabricOutputKg: number;
   loomsWasteKg: number;
@@ -71,30 +73,30 @@ export function useLoomsProductions(query: string = '', enabled: boolean = true)
 
 interface AvailableYarnResponse {
   success: boolean;
-  data: { colorId: string; sizeId: string; availableKg: number };
+  data: { colorId: string; sizeId: string; chemicalId: string; availableKg: number };
 }
 
 // Deliberately not nested under loomsKeys.all — invalidateQueries prefix-matches, so if this
 // shared that root, every looms list/save invalidation elsewhere would also refetch this while
 // the entry dialog is still open, causing a visible balance flicker right before it closes.
-// Keep this key its own root; it only needs to load once per colour+size selection (a fresh
-// dialog mount always fetches fresh data on its own).
+// Keep this key its own root; it only needs to load once per colour+size+chemical selection (a
+// fresh dialog mount always fetches fresh data on its own).
 export const availableYarnKeys = {
-  variant: (colorId?: string, sizeId?: string) => ['looms-available', colorId, sizeId] as const,
+  variant: (colorId?: string, sizeId?: string, chemicalId?: string) => ['looms-available', colorId, sizeId, chemicalId] as const,
 };
 
 /**
- * Cumulative, all-time yarn available for Looms to consume for a colour+size variant —
+ * Cumulative, all-time yarn available for Looms to consume for a colour+size+chemical variant —
  * total Extruder yarnOutputKg ever recorded for it, minus total Looms yarnInputKg already
  * recorded against it. Backs GET /production/looms/available, the same figure the
  * backend's create/update guard (YARN_INPUT_EXCEEDS_AVAILABLE) enforces, so the UI can't
  * disagree with the server about what's allowed.
  */
-export function useAvailableYarnKg(colorId?: string, sizeId?: string) {
-  const enabled = !!colorId && !!sizeId;
+export function useAvailableYarnKg(colorId?: string, sizeId?: string, chemicalId?: string) {
+  const enabled = !!colorId && !!sizeId && !!chemicalId;
   const { data, isLoading, isFetching } = useQuery({
-    queryKey: availableYarnKeys.variant(colorId, sizeId),
-    queryFn: () => fetchJson<AvailableYarnResponse>(`/production/looms/available?colorId=${colorId}&sizeId=${sizeId}`),
+    queryKey: availableYarnKeys.variant(colorId, sizeId, chemicalId),
+    queryFn: () => fetchJson<AvailableYarnResponse>(`/production/looms/available?colorId=${colorId}&sizeId=${sizeId}&chemicalId=${chemicalId}`),
     enabled,
   });
 

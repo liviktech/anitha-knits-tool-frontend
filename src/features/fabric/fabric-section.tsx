@@ -27,6 +27,7 @@ export interface FabricRow {
   id: string;
   size: string;
   color: string;
+  chemical: string;
   kora: string;
   input: number;
   output: number;
@@ -45,6 +46,7 @@ export function mapFabricItem(item: FabricCheckingRecord): FabricRow {
     id: item.id,
     size: item.size?.name ?? '',
     color: item.color?.name ?? '',
+    chemical: item.chemical?.name ?? '',
     // Kora is not a field on the record — it's the live color+size balance from
     // GET /kora-balance, overlaid by callers via findKoraBalanceKg. Left blank here.
     kora: '',
@@ -64,6 +66,7 @@ export interface FabricDraft {
   id?: string; // If editing an existing (already-persisted) entry
   size: string;
   color: string;
+  chemical: string;
   kora: string;
   input: string;
   output: string;
@@ -71,7 +74,7 @@ export interface FabricDraft {
   bwKg: string;
 }
 
-export const emptyFabricDraft: FabricDraft = { key: '', size: '', color: '', kora: '', input: '', output: '', fwKg: '', bwKg: '' };
+export const emptyFabricDraft: FabricDraft = { key: '', size: '', color: '', chemical: '', kora: '', input: '', output: '', fwKg: '', bwKg: '' };
 
 /** Total Fabric Stock = Finished Fabric minus wastage (Fabric Waste + Bit Waste). */
 export function suggestFabricOutput(draft: Pick<FabricDraft, 'input' | 'fwKg' | 'bwKg'>): string {
@@ -128,15 +131,17 @@ export const FabricSection = forwardRef<SectionRef, SectionProps>(({ productionD
       for (const row of newRows) {
         const colorId = findIdByName(lookups.colors, row.color);
         const sizeId = findIdByName(lookups.sizes, row.size);
-        if (!colorId || !sizeId) {
+        const chemicalId = findIdByName(lookups.chemicals, row.chemical);
+        if (!colorId || !sizeId || !chemicalId) {
           failed.push(row);
-          errorMessage = 'Could not resolve color/size for one or more entries.';
+          errorMessage = 'Could not resolve color/size/chemical for one or more entries.';
           continue;
         }
         const payload: FabricCheckingCreatePayload = {
           productionDate: productionDate ?? '',
           colorId,
           sizeId,
+          chemicalId,
           fabricInputKg: parseFloat(row.input) || 0,
           outputKg: parseFloat(row.output) || 0,
           fwKg: parseFloat(row.fwKg) || 0,
@@ -323,6 +328,7 @@ export const FabricSection = forwardRef<SectionRef, SectionProps>(({ productionD
                               id: row.id,
                               size: row.size,
                               color: row.color,
+                              chemical: row.chemical,
                               kora: row.kora,
                               input: String(row.input),
                               output: String(row.output),

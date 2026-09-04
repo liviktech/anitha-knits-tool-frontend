@@ -33,20 +33,20 @@ export function FabricModalForm({ productionDate, initialData, isEditMode, onCan
   // should keep recomputing as those fields change even when editing an existing entry —
   // only typing directly into Total Fabric Stock itself should stop the auto-follow.
   const [outputManuallyEdited, setOutputManuallyEdited] = useState(false);
-  // Chemical is UI-only for now — not part of FabricDraft and not sent to the backend.
-  const [chemical, setChemical] = useState('');
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   const hasSizeAndColor = !!draft.size && !!draft.color;
+  const hasSizeColorChemical = hasSizeAndColor && !!draft.chemical;
   const selectedColorId = draft.color ? findIdByName(lookups.colors, draft.color) : undefined;
   const selectedSizeId = draft.size ? findIdByName(lookups.sizes, draft.size) : undefined;
+  const selectedChemicalId = draft.chemical ? findIdByName(lookups.chemicals, draft.chemical) : undefined;
 
-  // That single day's (productionDate) Looms fabricOutputKg for this colour+size minus that
-  // same day's Fabric Checking fabricInputKg already recorded against it — the same figure
-  // the backend's create/update guard (FABRIC_INPUT_EXCEEDS_AVAILABLE) enforces, so the UI
-  // can't disagree with the server about what's allowed.
-  const { availableKg: rawAvailableKg, isChecking: isCheckingAvailable } = useAvailableFabricKg(selectedColorId, selectedSizeId, productionDate);
+  // That single day's (productionDate) Looms fabricOutputKg for this colour+size+chemical
+  // minus that same day's Fabric Checking fabricInputKg already recorded against it — the
+  // same figure the backend's create/update guard (FABRIC_INPUT_EXCEEDS_AVAILABLE) enforces,
+  // so the UI can't disagree with the server about what's allowed.
+  const { availableKg: rawAvailableKg, isChecking: isCheckingAvailable } = useAvailableFabricKg(selectedColorId, selectedSizeId, selectedChemicalId, productionDate);
   // Editing an existing record already "spent" its own fabricInputKg against that total —
   // add it back so editing isn't capped by a number that already excludes this record.
   const originalFabricInputKg = isEditMode && initialData ? parseFloat(initialData.input) || 0 : 0;
@@ -73,10 +73,10 @@ export function FabricModalForm({ productionDate, initialData, isEditMode, onCan
 
   const totalAvailableKg =
     productionAvailableKg !== undefined && koraStockKg !== undefined ? (productionAvailableKg + koraStockKg) : undefined;
-  const showNoStockWarning = hasSizeAndColor && totalAvailableKg !== undefined && totalAvailableKg <= 0;
+  const showNoStockWarning = hasSizeColorChemical && totalAvailableKg !== undefined && totalAvailableKg <= 0;
 
   const fabricProductionInputKg = parseFloat(draft.input) || 0;
-  const exceedsAvailable = hasSizeAndColor && totalAvailableKg !== undefined && fabricProductionInputKg > totalAvailableKg;
+  const exceedsAvailable = hasSizeColorChemical && totalAvailableKg !== undefined && fabricProductionInputKg > totalAvailableKg;
 
   const updateField = (field: keyof FabricDraft, value: string) => {
     setError(null);
@@ -99,10 +99,12 @@ export function FabricModalForm({ productionDate, initialData, isEditMode, onCan
 
     const colorId = findIdByName(lookups.colors, draft.color);
     const sizeId = findIdByName(lookups.sizes, draft.size);
+    const chemicalId = findIdByName(lookups.chemicals, draft.chemical);
 
     const missingFields: string[] = [];
     if (!sizeId) missingFields.push('Size');
     if (!colorId) missingFields.push('Color');
+    if (!chemicalId) missingFields.push('Chemical');
     if (!draft.input || draft.input.trim() === '') missingFields.push('Finished Fabric');
     if (!draft.fwKg || draft.fwKg.trim() === '') missingFields.push('Fabric Waste');
     if (!draft.bwKg || draft.bwKg.trim() === '') missingFields.push('Bit Wastage');
@@ -123,6 +125,7 @@ export function FabricModalForm({ productionDate, initialData, isEditMode, onCan
       productionDate,
       colorId: colorId!,
       sizeId: sizeId!,
+      chemicalId: chemicalId!,
       fabricInputKg: parseFloat(finalFabricInput.toFixed(2)) || 0,
       outputKg: parseFloat(draft.output) || 0,
       fwKg: parseFloat(draft.fwKg) || 0,
@@ -174,7 +177,7 @@ export function FabricModalForm({ productionDate, initialData, isEditMode, onCan
         </div>
         <div className="space-y-1.5">
           <Label className="text-gray-600 text-xs font-semibold uppercase tracking-wider">Chemical</Label>
-          <Select value={chemical} onValueChange={setChemical}>
+          <Select value={draft.chemical} onValueChange={(v) => updateField('chemical', v)} disabled={isEditMode}>
             <SelectTrigger className="h-8 text-xs w-full"><SelectValue placeholder="Select Chemical" /></SelectTrigger>
             <SelectContent position="popper">{lookups.chemicals?.map((c) => <SelectItem key={c.id} value={c.name}>{c.name}</SelectItem>)}</SelectContent>
           </Select>
@@ -189,8 +192,8 @@ export function FabricModalForm({ productionDate, initialData, isEditMode, onCan
             <Label className="text-gray-600 text-xs font-semibold">Production Available (kg)</Label>
             <Input
               type="text"
-              placeholder="Select size & color"
-              value={hasSizeAndColor ? (isCheckingTotal ? 'Checking…' : (productionAvailableKg ?? 0).toFixed(2)) : ''}
+              placeholder="Select size, color & chemical"
+              value={hasSizeColorChemical ? (isCheckingTotal ? 'Checking…' : (productionAvailableKg ?? 0).toFixed(2)) : ''}
               disabled
               readOnly
               className="bg-gray-100 font-semibold"
@@ -211,8 +214,8 @@ export function FabricModalForm({ productionDate, initialData, isEditMode, onCan
             <Label className="text-gray-600 text-xs font-semibold">Total Available (kg)</Label>
             <Input
               type="text"
-              placeholder="Select size & color"
-              value={hasSizeAndColor ? (isCheckingTotal ? 'Checking…' : (totalAvailableKg ?? 0).toFixed(2)) : ''}
+              placeholder="Select size, color & chemical"
+              value={hasSizeColorChemical ? (isCheckingTotal ? 'Checking…' : (totalAvailableKg ?? 0).toFixed(2)) : ''}
               disabled
               readOnly
               className="bg-gray-100 font-bold"
@@ -235,7 +238,7 @@ export function FabricModalForm({ productionDate, initialData, isEditMode, onCan
         {showNoStockWarning && !exceedsAvailable && (
           <p className="mt-3 flex items-center gap-2 text-sm text-amber-700 bg-amber-50 border border-amber-200 rounded-md px-3 py-2">
             <AlertTriangle className="h-4 w-4 shrink-0" />
-            There is no fabric available for this size and color.
+            There is no fabric available for this size, color and chemical.
           </p>
         )}
 
