@@ -16,6 +16,7 @@ import { RIGHTS } from '@/lib/permissions';
 import { useOpeningBalanceRawMaterials } from '@/features/admin-panel/opening-balance-queries';
 import { canCreateProductionRecord, canDeleteProductionRecord, canEditProductionRecord } from '@/lib/production-permissions';
 import { currentMonthStr } from '@/lib/date-utils';
+import { RawMaterialCard } from '@/features/dashboard/card';
 import { formatDate, formatDateDisplay } from './inventory-utils';
 import { InventoryFormDialog } from './inventory-form-dialog';
 import { LoadSentFormDialog } from './load-sent-form-dialog';
@@ -495,80 +496,57 @@ function StockSummaryCard({ month, onEditDate, onDeleteDate }: { month: string; 
 
   return (
     <div className="flex flex-col gap-2">
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-2">
-        <div className="bg-white rounded-xl border border-gray-400 shadow-sm p-4 relative overflow-hidden group/card hover:border-blue-200 transition-colors flex flex-col">
-          <div className="absolute top-0 right-0 p-4 opacity-5 group-hover/card:opacity-10 transition-opacity">
-            <img src="/hdpe.png" alt="" className="w-26 h-26 object-contain" />
-          </div>
-          <div className="flex justify-between items-center mb-2 relative z-10">
-            <div className="flex items-center gap-2">
-              <div className=""><img src="/hdpe.png" alt="HDPE" className="w-12 h-12 object-contain" /></div>
-              <h3 className="font-extrabold text-gray-800 text-lg">HDPE Materials</h3>
-            </div>
-            <div className="text-lg font-bold text-gray-800 leading-none">{rawMaterials.weight.toFixed(2)} <span className="text-xs font-medium text-gray-500">kg</span></div>
-          </div>
-          <div className="mt-auto relative z-10 pt-1 border-t border-gray-50">
-            {rawMaterials.items.length > 0 ? (
-              <div className={`flex flex-wrap items-center gap-x-6 gap-y-1 ${rawMaterials.items.length === 1 ? 'justify-center' : 'justify-start'}`}>
-                {rawMaterials.items.map(item => (
-                  <div key={item.name} className={`flex flex-col gap-0.5 ${rawMaterials.items.length === 1 ? 'items-center text-center' : 'items-start text-left'}`}>
-                    <span className="font-medium text-gray-500 text-sm">{item.name}</span>
-                    <span className="font-extrabold text-[#004D40] text-sm">{item.weight.toFixed(2)}kg / {item.bags} bags</span>
-                  </div>
-                ))}
-              </div>
-            ) : <span className="text-xs text-gray-400 italic">No HDPE brands configured</span>}
-          </div>
+      <div className="grid grid-cols-1 md:grid-cols-4 gap-2">
+        <div className="md:col-span-2 flex flex-col">
+          <RawMaterialCard
+            icon="/hdpe.png"
+            iconAlt="HDPE"
+            title="HDPE Materials"
+            totalWeight={rawMaterials.weight}
+            totalValueClassName="text-gray-800"
+            hoverBorderClassName="hover:border-blue-200"
+            items={rawMaterials.items}
+            itemsGapClassName="gap-x-12 gap-y-1"
+            weightSuffixVariant="inline-bags"
+            emptyMessage="No HDPE brands configured"
+            headerRowClassName="flex justify-between items-center mb-2 relative z-10"
+            contentWrapperClassName="mt-auto relative z-10 pt-1 border-t border-gray-50"
+            className="h-full"
+          />
         </div>
 
-        <div className="bg-white rounded-xl border border-gray-400 shadow-sm p-4 relative overflow-hidden group/card hover:border-orange-200 transition-colors flex flex-col">
-          <div className="absolute top-0 right-0 p-4 opacity-5 group-hover/card:opacity-10 transition-opacity">
-            <img src="/chemical.png" alt="" className="w-26 h-26 object-contain" />
-          </div>
-          <div className="flex justify-between items-center mb-2 relative z-10">
-            <div className="flex items-center gap-2">
-              <div className=""><img src="/chemical.png" alt="Chemicals" className="w-12 h-12 object-contain" /></div>
-              <h3 className="font-extrabold text-gray-800 text-lg">Chemicals</h3>
-            </div>
-            <div className="text-lg font-bold text-gray-800 leading-none">{chemicals.weight.toFixed(2)} <span className="text-xs font-medium text-gray-500">kg</span></div>
-          </div>
-          <div className="mt-auto relative z-10 pt-2 border-t border-gray-50">
-            {chemicals.items.length > 0 ? (
-              <div className={`flex flex-wrap items-center gap-x-9 gap-y-3 mt-2 ${chemicals.items.length === 1 ? 'justify-center' : 'justify-start'}`}>
-                {chemicals.items.map(item => (
-                  <div key={item.name} className={`flex flex-col gap-0.5 ${chemicals.items.length === 1 ? 'items-center text-center' : 'items-start text-left'}`}>
-                    <span className="font-medium text-gray-500 text-sm">{item.name}</span>
-                    <span className="font-extrabold text-[#004D40] text-sm">{item.weight.toFixed(2)}<span className="text-gray-500 font-normal text-xs ml-0.5">kg</span></span>
-                  </div>
-                ))}
-              </div>
-            ) : <span className="text-xs text-gray-400 italic">No chemicals configured</span>}
-          </div>
+        <div className="md:col-span-1 flex flex-col">
+          <RawMaterialCard
+            icon="/chemical.png"
+            iconAlt="Chemicals"
+            title="Chemicals"
+            totalWeight={chemicals.weight}
+            totalValueClassName="text-gray-800"
+            hoverBorderClassName="hover:border-orange-200"
+            items={chemicals.items}
+            itemsGapClassName="gap-x-9 gap-y-3 mt-2"
+            weightSuffixVariant="styled"
+            emptyMessage="No chemicals configured"
+            headerRowClassName="flex justify-between items-center mb-2 relative z-10"
+            className="h-full"
+          />
         </div>
 
-        <div className="bg-white rounded-xl border border-gray-400 shadow-sm p-4 relative overflow-hidden group/card hover:border-purple-200 transition-colors flex flex-col">
-          <div className="absolute top-0 right-0 p-4 opacity-5 group-hover/card:opacity-10 transition-opacity">
-            <img src="/color.png" alt="" className="w-26 h-26 object-contain" />
-          </div>
-          <div className="flex justify-between items-center mb-2 relative z-10">
-            <div className="flex items-center gap-2">
-              <div className=""><img src="/color.png" alt="Colors" className="w-12 h-12 object-contain" /></div>
-              <h3 className="font-extrabold text-gray-800 text-lg">Colors</h3>
-            </div>
-            <div className="text-lg font-bold text-gray-800 leading-none">{colors.weight.toFixed(2)} <span className="text-xs font-medium text-gray-500">kg</span></div>
-          </div>
-          <div className="mt-auto relative z-10 pt-2 border-t border-gray-50">
-            {colors.items.length > 0 ? (
-              <div className={`flex flex-wrap items-center gap-x-9 gap-y-3 mt-2 ${colors.items.length === 1 ? 'justify-center' : 'justify-start'}`}>
-                {colors.items.map(item => (
-                  <div key={item.name} className={`flex flex-col gap-0.5 ${colors.items.length === 1 ? 'items-center text-center' : 'items-start text-left'}`}>
-                    <span className="font-medium text-gray-500 text-sm">{item.name}</span>
-                    <span className="font-extrabold text-[#004D40] text-sm">{item.weight.toFixed(2)}<span className="text-gray-500 font-normal text-xs ml-0.5">kg</span></span>
-                  </div>
-                ))}
-              </div>
-            ) : <span className="text-xs text-gray-400 italic">No colors configured</span>}
-          </div>
+        <div className="md:col-span-1 flex flex-col">
+          <RawMaterialCard
+            icon="/color.png"
+            iconAlt="Colors"
+            title="Colors"
+            totalWeight={colors.weight}
+            totalValueClassName="text-gray-800"
+            hoverBorderClassName="hover:border-purple-200"
+            items={colors.items}
+            itemsGapClassName="gap-x-9 gap-y-3 mt-2"
+            weightSuffixVariant="styled"
+            emptyMessage="No colors configured"
+            headerRowClassName="flex justify-between items-center mb-2 relative z-10"
+            className="h-full"
+          />
         </div>
       </div>
 
