@@ -1,5 +1,5 @@
 import { useState, forwardRef, useImperativeHandle } from 'react';
-import { Search, Wallet, FileText, Banknote, Calendar, Loader2, MinusCircle, Edit2, Trash2, Download } from 'lucide-react';
+import { Search, Wallet, FileText, Banknote, Calendar, Loader2, MinusCircle, Edit2, Trash2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { motion } from 'framer-motion';
@@ -19,6 +19,7 @@ import { PayrollReportModal } from './payroll-report-modal';
 
 export interface PayrollTabRef {
   openGenerateModal: () => void;
+  openReportModal: () => void;
 }
 
 function formatDateDisplay(isoDate: string) {
@@ -66,6 +67,7 @@ export const PayrollTab = forwardRef<PayrollTabRef>((_, ref) => {
 
   useImperativeHandle(ref, () => ({
     openGenerateModal: () => setIsGenerateModalOpen(true),
+    openReportModal: () => setIsReportModalOpen(true),
   }));
 
   // Advance Form State
@@ -470,9 +472,6 @@ export const PayrollTab = forwardRef<PayrollTabRef>((_, ref) => {
                 </Button>
                 <Button size="sm" variant="outline" className="h-8 text-sm font-semibold bg-[#004D40] hover:bg-[#00382e] hover:text-white text-white" onClick={() => setIsAdvanceModalOpen(true)}>
                   <Banknote className="w-3.5 h-3.5 mr-1" /> Salary Advance
-                </Button>
-                <Button size="sm" variant="outline" className="h-8 text-sm font-semibold bg-[#004D40] hover:bg-[#00382e] hover:text-white text-white" onClick={() => setIsReportModalOpen(true)}>
-                  <Download className="w-3.5 h-3.5 mr-1" /> Report
                 </Button>
               </div>
             </div>

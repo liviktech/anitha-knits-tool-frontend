@@ -1,5 +1,5 @@
 import { useState, useMemo, forwardRef, useImperativeHandle } from 'react';
-import { Search, Edit2, Download } from 'lucide-react';
+import { Search, Edit2 } from 'lucide-react';
 import { format } from 'date-fns';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -32,6 +32,7 @@ export interface AttendanceRecord {
 
 export interface AttendanceTabRef {
   openAddModal: () => void;
+  openReportModal: () => void;
 }
 
 export const AttendanceTab = forwardRef<AttendanceTabRef>((_props, ref) => {
@@ -56,7 +57,9 @@ export const AttendanceTab = forwardRef<AttendanceTabRef>((_props, ref) => {
     setIsModalOpen(true);
   };
 
-  useImperativeHandle(ref, () => ({ openAddModal }));
+  const openReportModal = () => setIsReportModalOpen(true);
+
+  useImperativeHandle(ref, () => ({ openAddModal, openReportModal }));
 
   // We pass 'isActive=true' or just fetch all for employeeOptions
   const { data: employeesData } = useEmployees('isActive=true');
@@ -236,9 +239,6 @@ export const AttendanceTab = forwardRef<AttendanceTabRef>((_props, ref) => {
         <div className="border-b border-emerald-400 p-3 bg-white flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
           <div className="flex items-center gap-3"></div>
           <div className="flex flex-wrap items-center gap-2 justify-end">
-            <Button size="sm" variant="outline" className="h-8 text-sm font-semibold bg-[#004D40] hover:bg-[#00382e] hover:text-white text-white" onClick={() => setIsReportModalOpen(true)}>
-              <Download className="w-3.5 h-3.5 mr-1" /> Report
-            </Button>
             <div className="relative">
               <Search className="w-3.5 h-3.5 absolute left-2.5 top-1/2 -translate-y-1/2 text-gray-500" />
               <Input

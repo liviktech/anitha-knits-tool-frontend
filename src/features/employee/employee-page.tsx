@@ -917,6 +917,14 @@ export function EmployeePage() {
               <span className="text-sm font-medium text-gray-700">{todayFormatted()}</span>
               <Calendar className="h-4 w-4 text-gray-500" />
             </div> */}
+            <Button
+              variant="outline"
+              className="flex items-center gap-2 border-[#004D40] text-[#004D40] hover:bg-[#004D40]/10 rounded-md px-3 py-2 h-auto text-[12px] font-bold tracking-wide"
+              onClick={() => attendanceRef.current?.openReportModal()}
+            >
+              <Download className="w-3 h-3" />
+              REPORT
+            </Button>
             {canMarkAttendance && (
               <Button
                 className="flex items-center gap-2 bg-[#004D40] hover:bg-[#00382e] text-white rounded-md px-3 py-2 h-auto text-[12px] font-bold tracking-wide shadow-[0_1px_2px_rgba(0,45,35,0.2)]"
@@ -950,13 +958,23 @@ export function EmployeePage() {
           </div>
         )}
         {activeTab === 'payroll' && (
-          <Button
-            className="flex items-center gap-2 bg-[#004D40] hover:bg-[#00382e] text-white rounded-md px-3 py-2 h-auto text-[12px] font-bold tracking-wide shadow-[0_1px_2px_rgba(0,45,35,0.2)]"
-            onClick={() => payrollRef.current?.openGenerateModal()}
-          >
-            <FileText className="w-3 h-3" />
-            GENERATE PAYROLL
-          </Button>
+          <div className="flex items-center gap-3">
+            <Button
+              variant="outline"
+              className="flex items-center gap-2 border-[#004D40] text-[#004D40] hover:bg-[#004D40]/10 rounded-md px-3 py-2 h-auto text-[12px] font-bold tracking-wide"
+              onClick={() => payrollRef.current?.openReportModal()}
+            >
+              <Download className="w-3 h-3" />
+              REPORT
+            </Button>
+            <Button
+              className="flex items-center gap-2 bg-[#004D40] hover:bg-[#00382e] text-white rounded-md px-3 py-2 h-auto text-[12px] font-bold tracking-wide shadow-[0_1px_2px_rgba(0,45,35,0.2)]"
+              onClick={() => payrollRef.current?.openGenerateModal()}
+            >
+              <FileText className="w-3 h-3" />
+              GENERATE PAYROLL
+            </Button>
+          </div>
         )}
       </div>
 
