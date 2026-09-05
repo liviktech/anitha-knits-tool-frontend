@@ -17,6 +17,9 @@ interface ApproveConfirmDialogProps {
   title?: string;
   description?: string;
   isPending?: boolean;
+  confirmLabel?: string;
+  confirmingLabel?: string;
+  confirmClassName?: string;
 }
 
 /** Admin-only, one-way approval — mirrors DeleteConfirmDialog's shape/props but with non-destructive styling. */
@@ -27,6 +30,9 @@ export function ApproveConfirmDialog({
   title = 'Approve this entry?',
   description = 'Once approved, it can no longer be edited or deleted by a Manager — this cannot be undone.',
   isPending = false,
+  confirmLabel = 'Approve',
+  confirmingLabel = 'Approving...',
+  confirmClassName,
 }: ApproveConfirmDialogProps) {
   return (
     <AlertDialog open={open} onOpenChange={isPending ? undefined : onOpenChange}>
@@ -39,14 +45,14 @@ export function ApproveConfirmDialog({
           <AlertDialogCancel disabled={isPending} className="h-8 text-xs">Cancel</AlertDialogCancel>
           <AlertDialogAction
             disabled={isPending}
-            className="h-8 text-xs bg-[#004D40] hover:bg-[#00332a]"
+            className={confirmClassName ?? 'h-8 text-xs bg-[#004D40] hover:bg-[#00332a]'}
             onClick={(e) => {
               e.preventDefault();
               onConfirm();
             }}
           >
             {isPending && <Loader size="sm" className="mr-1.5" />}
-            {isPending ? 'Approving...' : 'Approve'}
+            {isPending ? confirmingLabel : confirmLabel}
           </AlertDialogAction>
         </AlertDialogFooter>
       </AlertDialogContent>

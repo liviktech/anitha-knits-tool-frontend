@@ -407,7 +407,7 @@ export function SampleProductionPage() {
                         <TableCell className="!text-center text-gray-800 font-medium text-[14px] py-1 border-r border-gray-300">{formatNum(delivered.output)}</TableCell>
                         <TableCell className="py-1">
                           <div className="flex items-center justify-center gap-2">
-                            <Button variant="outline" size="icon" className="h-6 w-6 text-[#004D40] hover:bg-[#004D40]/10" onClick={() => setView({ kind: 'entry', date: day.date })}>
+                            <Button variant="outline" size="icon" className="h-6 w-6 text-[#004D40] hover:bg-[#004D40]/10" onClick={() => setView({ kind: 'entry', date: day.date })} title="Edit the sample entry">
                               <Edit className="h-[13px] w-[13px]" />
                             </Button>
                             <Button
@@ -416,6 +416,7 @@ export function SampleProductionPage() {
                               className="h-6 w-6 text-red-600 hover:bg-red-50"
                               onClick={() => setDeleteTargetDate(day.date)}
                               disabled={!canDeleteProduction}
+                              title="Delete the sample entry"
                             >
                               <Trash2 className="h-[13px] w-[13px]" />
                             </Button>

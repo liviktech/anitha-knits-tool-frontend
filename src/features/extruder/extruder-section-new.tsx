@@ -365,7 +365,7 @@ export const ExtruderSection = forwardRef<SectionRef, ExtruderSectionProps>(({ p
               <TableCell rowSpan={group.brands.length} className="!text-center align-middle border-l border-gray-300">
                 <div className="flex flex-row items-center justify-center gap-1.5 mt-1">
                   {(isNew || canEditProductionRecord(user, group.isApproved ?? false)) && (
-                    <Button variant="ghost" size="icon-sm" disabled={saving} className="h-6 w-6 p-0 rounded bg-blue-50 text-blue-500 hover:bg-blue-100" onClick={() => onEditExtruderGroup?.(group)}>
+                    <Button variant="ghost" size="icon-sm" disabled={saving} className="h-6 w-6 p-0 rounded bg-blue-50 text-blue-500 hover:bg-blue-100" onClick={() => onEditExtruderGroup?.(group)} title="Edit entry">
                       <Edit2 className="h-3 w-3" />
                     </Button>
                   )}
@@ -375,7 +375,7 @@ export const ExtruderSection = forwardRef<SectionRef, ExtruderSectionProps>(({ p
                     </Button>
                   ) : (
                     canDeleteProductionRecord(user) && (
-                      <Button variant="ghost" size="icon-sm" disabled={saving} className="h-6 w-6 p-0 rounded bg-red-50 text-red-500 hover:bg-red-100" onClick={() => setDeleteTarget({ groupId: group.key, size: group.size, color: group.color })}>
+                      <Button variant="ghost" size="icon-sm" disabled={saving} className="h-6 w-6 p-0 rounded bg-red-50 text-red-500 hover:bg-red-100" onClick={() => setDeleteTarget({ groupId: group.key, size: group.size, color: group.color })}title="Delete entry">
                         <Trash2 className="h-3 w-3" />
                       </Button>
                     )

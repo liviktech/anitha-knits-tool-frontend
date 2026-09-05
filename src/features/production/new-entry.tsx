@@ -13,6 +13,7 @@ import { useExtruderProductions, useLookups } from '@/features/extruder/extruder
 
 import { useInventoryRecords } from '@/features/inventory/inventory-queries';
 import { useOpeningBalanceRawMaterials } from '@/features/admin-panel/opening-balance-queries';
+import { useLatestProductionConfig } from '@/features/admin-panel/production-config-queries';
 import { useProductionHeader } from './production-context';
 import { useAuth } from '@/features/auth/auth-context';
 import { canCreateProductionRecord } from '@/lib/production-permissions';
@@ -71,6 +72,12 @@ export function NewEntry({ onClose, defaultDate, readOnly: propsReadOnly = false
   const completedDateStrings = new Set(
     (allExtruderData?.data ?? []).map(r => r.productionDate?.split('T')[0]).filter(Boolean) as string[]
   );
+
+  // Inventory balances below are a single physical pool shared by both Production and Sample
+  // entries, so consumption must be pulled across both types (no `type` filter) — unlike
+  // allExtruderData above, which stays scoped to entryType for the "already has an entry"
+  // calendar-disabling check.
+  const { data: allExtruderDataForBalances } = useExtruderProductions('?limit=100', !readOnly);
 
   useEffect(() => {
     setHeaderTitle(isCreateMode ? 'Add New Daily Production Details' : 'Edit Daily Production Details');
@@ -134,10 +141,16 @@ export function NewEntry({ onClose, defaultDate, readOnly: propsReadOnly = false
   // Data for calculating live stock balances in create mode
   const { data: allInvData } = useInventoryRecords('?limit=100', !readOnly);
   const inventoryRecords = allInvData?.data ?? [];
-  const extruderRecords = allExtruderData?.data ?? [];
+  const extruderRecords = allExtruderDataForBalances?.data ?? [];
 
   const { data: rawMaterialsOBData } = useOpeningBalanceRawMaterials('?limit=100', !readOnly);
   const rawMaterialsOBRecords = rawMaterialsOBData?.data ?? [];
+
+  // HDPE bags are derived from the colour-consumption config's basisWeightKg
+  // (how much HDPE one bag holds) — same config used to determine chemical/colour ratios.
+  const { data: productionConfig } = useLatestProductionConfig();
+  const basisWeightKg = productionConfig?.basisWeightKg;
+  const getHDPEBagsCount = (kg: number) => (basisWeightKg ? Math.floor(kg / basisWeightKg) : undefined);
 
   // Balances shown here are stock levels, not ledgers — they never display
   // below 0.00 even if consumption momentarily outpaces recorded receipts.
@@ -162,10 +175,6 @@ export function NewEntry({ onClose, defaultDate, readOnly: propsReadOnly = false
     return Math.max(0, received - consumed).toFixed(2);
   };
 
-  const totalRawMaterial = lookups.brands.reduce((sum, b) => sum + parseFloat(getHDPEBalance(b.name) || '0'), 0).toFixed(2);
-  const totalChemical = lookups.chemicals.reduce((sum, c) => sum + parseFloat(getChemicalBalance(c.name) || '0'), 0).toFixed(2);
-  const totalColor = lookups.colors.reduce((sum, c) => sum + parseFloat(getColorBalance(c.name) || '0'), 0).toFixed(2);
-
   return (
     <div className="flex flex-col h-full bg-[#004D40]/5">
       <div className="flex-1 p-2 md:p-2 overflow-y-auto ">
@@ -183,40 +192,78 @@ export function NewEntry({ onClose, defaultDate, readOnly: propsReadOnly = false
                 {isInventoryMinimized ? <ChevronDown className="h-4 w-4" /> : <ChevronUp className="h-4 w-4" />}
               </Button>
             </div>
-            <div className={`px-4 grid grid-cols-1 sm:grid-cols-3 sm:divide-x divide-gray-200 transition-all duration-500 ease-in-out ${isInventoryMinimized ? 'py-3 gap-2' : 'py-3 gap-3'}`}>
+            <div className={`px-4 grid grid-cols-1 sm:grid-cols-3 sm:divide-x divide-gray-200 transition-all duration-500 ease-in-out ${isInventoryMinimized ? 'py-3 gap-2 items-center' : 'py-3 gap-3'}`}>
               <div className="flex flex-col sm:pr-4">
-                <div className="flex justify-between items-center border-b border-gray-200 pb-1">
-                  <label className="flex items-center gap-2 text-[13px] font-bold uppercase tracking-wide text-gray-500">
-                    <img src="/hdpe-in.png" alt="" className="h-9 w-9 object-contain" />
-                    HDPE
-                  </label>
-                  <span className={`text-[13px] font-bold text-gray-900 transition-opacity duration-300 ${isInventoryMinimized ? 'opacity-100' : 'opacity-0'}`}>
-                    {totalRawMaterial} kg
-                  </span>
-                </div>
+                {!isInventoryMinimized && (
+                  <div className="flex justify-between items-center border-b border-gray-200 pb-1">
+                    <label className="flex items-center gap-2 text-[13px] font-bold uppercase tracking-wide text-gray-500">
+                      <img src="/hdpe-in.png" alt="" className="h-9 w-9 object-contain" />
+                      HDPE
+                    </label>
+                  </div>
+                )}
+                {isInventoryMinimized && (
+                  <div className="flex items-center gap-3 pt-1.5">
+                    <div className="flex items-center gap-1.5 shrink-0 border-r border-gray-200 pr-3">
+                      <img src="/hdpe-in.png" alt="" className="h-7 w-7 object-contain" />
+                      <span className="text-[12px] font-extrabold uppercase tracking-wide text-gray-500">HDPE</span>
+                    </div>
+                    <div className="flex flex-wrap gap-x-4 gap-y-0.5 ml-auto justify-end">
+                      {lookups.brands.map((b) => {
+                        const kg = parseFloat(getHDPEBalance(b.name));
+                        const bags = getHDPEBagsCount(kg);
+                        return (
+                          <div key={b.id} className="flex flex-col items-end">
+                            <span className="text-[10px] text-gray-400 leading-tight">{b.name}</span>
+                            <span className="text-[12px] font-bold text-gray-900 leading-tight">{kg.toFixed(2)} kg{bags !== undefined && ` / ${bags} bags`}</span>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+                )}
                 <div className={`grid transition-[grid-template-rows] duration-500 ease-in-out ${isInventoryMinimized ? 'grid-rows-[0fr]' : 'grid-rows-[1fr]'}`}>
                   <div className="overflow-hidden">
                     <div className="flex flex-col gap-2 pr-1 pt-2">
-                      {lookups.brands.map((b) => (
-                        <div key={b.id} className="flex justify-between items-center rounded-lg border border-gray-100 bg-gray-50 px-3 py-2.5 text-[12.5px]">
-                          <span className="text-gray-700">{b.name}</span>
-                          <span className="font-bold text-gray-900">{getHDPEBalance(b.name)} kg</span>
-                        </div>
-                      ))}
+                      {lookups.brands.map((b) => {
+                        const kg = parseFloat(getHDPEBalance(b.name));
+                        const bags = getHDPEBagsCount(kg);
+                        return (
+                          <div key={b.id} className="flex justify-between items-center rounded-lg border border-gray-100 bg-gray-50 px-3 py-2.5 text-[12.5px]">
+                            <span className="text-gray-700">{b.name}</span>
+                            <span className="font-bold text-gray-900">{kg.toFixed(2)} kg{bags !== undefined && ` / ${bags} bags`}</span>
+                          </div>
+                        );
+                      })}
                     </div>
                   </div>
                 </div>
               </div>
               <div className="flex flex-col sm:px-4 pt-3 sm:pt-0 border-t sm:border-t-0 border-gray-200">
-                <div className="flex justify-between items-center border-b border-gray-200 pb-2">
-                  <label className="flex items-center gap-2 text-[13px] font-bold uppercase tracking-wide text-gray-500">
-                    <img src="/chemical-in.png" alt="" className="h-8 w-8 object-contain" />
-                    Chemical
-                  </label>
-                  <span className={`text-[13px] font-bold text-gray-900 transition-opacity duration-300 ${isInventoryMinimized ? 'opacity-100' : 'opacity-0'}`}>
-                    {totalChemical} kg
-                  </span>
-                </div>
+                {!isInventoryMinimized && (
+                  <div className="flex justify-between items-center border-b border-gray-200 pb-2">
+                    <label className="flex items-center gap-2 text-[13px] font-bold uppercase tracking-wide text-gray-500">
+                      <img src="/chemical-in.png" alt="" className="h-8 w-8 object-contain" />
+                      Chemical
+                    </label>
+                  </div>
+                )}
+                {isInventoryMinimized && (
+                  <div className="flex items-center gap-3">
+                    <div className="flex items-center gap-1.5 shrink-0 border-r border-gray-200 pr-3">
+                      <img src="/chemical-in.png" alt="" className="h-7 w-7 object-contain" />
+                      <span className="text-[12px] font-extrabold uppercase tracking-wide text-gray-500">Chemical</span>
+                    </div>
+                    <div className="flex flex-wrap gap-x-4 gap-y-0.5 ml-auto justify-end">
+                      {lookups.chemicals.map((c) => (
+                        <div key={c.id} className="flex flex-col items-end">
+                          <span className="text-[10px] text-gray-400 leading-tight">{c.name}</span>
+                          <span className="text-[12px] font-bold text-gray-900 leading-tight">{getChemicalBalance(c.name)} kg</span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
                 <div className={`grid transition-[grid-template-rows] duration-500 ease-in-out ${isInventoryMinimized ? 'grid-rows-[0fr]' : 'grid-rows-[1fr]'}`}>
                   <div className="overflow-hidden">
                     <div className="flex flex-col gap-2 pr-1 pt-2">
@@ -231,15 +278,30 @@ export function NewEntry({ onClose, defaultDate, readOnly: propsReadOnly = false
                 </div>
               </div>
               <div className="flex flex-col sm:pl-4 pt-3 sm:pt-0 border-t sm:border-t-0 border-gray-200">
-                <div className="flex justify-between items-center border-b border-gray-200 pb-2">
-                  <label className="flex items-center gap-2.5 text-[13px] font-bold uppercase tracking-wide text-gray-500">
-                    <img src="/color-in.png" alt="" className="h-8 w-8 object-contain" />
-                    Color
-                  </label>
-                  <span className={`text-[13px] font-bold text-gray-900 transition-opacity duration-300 ${isInventoryMinimized ? 'opacity-100' : 'opacity-0'}`}>
-                    {totalColor} kg
-                  </span>
-                </div>
+                {!isInventoryMinimized && (
+                  <div className="flex justify-between items-center border-b border-gray-200 pb-2">
+                    <label className="flex items-center gap-2.5 text-[13px] font-bold uppercase tracking-wide text-gray-500">
+                      <img src="/color-in.png" alt="" className="h-8 w-8 object-contain" />
+                      Color
+                    </label>
+                  </div>
+                )}
+                {isInventoryMinimized && (
+                  <div className="flex items-center gap-3 pt-1.5">
+                    <div className="flex items-center gap-1.5 shrink-0 border-r border-gray-200 pr-3">
+                      <img src="/color-in.png" alt="" className="h-7 w-7 object-contain" />
+                      <span className="text-[12px] font-extrabold uppercase tracking-wide text-gray-500">Color</span>
+                    </div>
+                    <div className="flex flex-wrap gap-x-4 gap-y-0.5 ml-auto justify-end">
+                      {lookups.colors.map((c) => (
+                        <div key={c.id} className="flex flex-col items-end">
+                          <span className="text-[10px] text-gray-400 leading-tight">{c.name}</span>
+                          <span className="text-[12px] font-bold text-gray-900 leading-tight">{getColorBalance(c.name)} kg</span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
                 <div className={`grid transition-[grid-template-rows] duration-500 ease-in-out ${isInventoryMinimized ? 'grid-rows-[0fr]' : 'grid-rows-[1fr]'}`}>
                   <div className="overflow-hidden">
                     <div className="flex flex-col gap-2 pr-1 pt-2">

@@ -301,6 +301,33 @@ export function useGrantMarketValueDeduction() {
   });
 }
 
+export function useGrantOtherDeduction() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async (data: {
+      employeeId: string;
+      amount: number;
+      name: string;
+      effectiveDate: string;
+    }) => {
+      const response = await fetchJson<{ data: any }>(
+        '/company/payroll/other-deduction',
+        {
+          method: 'POST',
+          body: JSON.stringify(data),
+          headers: {
+            'Content-Type': 'application/json',
+          },
+        },
+      );
+      return response.data;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: employeeKeys.lists() });
+    },
+  });
+}
+
 export type SalaryAdvanceStatus = 'ACTIVE' | 'COMPLETED';
 
 export interface SalaryAdvanceRecord {
@@ -371,6 +398,8 @@ export function useUpdatePayrollRecord() {
         daysWorked: number;
         advanceDeduction: number;
         marketValueBonus: number;
+        marketValueDeduction: number;
+        otherDeduction: number;
       };
     }) => {
       const response = await fetchJson<{ data: any }>(
@@ -384,6 +413,26 @@ export function useUpdatePayrollRecord() {
         },
       );
       return response.data;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: employeeKeys.lists() });
+    },
+  });
+}
+
+/** Clears one employee's payroll record for one month — backs the Payroll tab's Actions > Delete. */
+export function useDeletePayrollRecord() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async ({ employeeId, month, year }: { employeeId: string; month: number; year: number }) => {
+      const response = await apiFetch(`/company/payroll/records/${employeeId}?month=${month}&year=${year}`, {
+        method: 'DELETE',
+      });
+      if (!response.ok) {
+        const err = await response.json().catch(() => ({}));
+        throw new Error(err.error?.message || 'Failed to delete payroll record');
+      }
+      return true;
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: employeeKeys.lists() });

@@ -790,19 +790,19 @@ export function ProductionDesign2() {
                     <img src={extruderIcon} alt="Extruder" className="w-[35px] h-[35px] object-contain opacity-90" />
                   </div>
                 </CardHeader>
-                <CardContent className="px-3 pb-4 pt-0 flex-1 flex flex-col justify-between">
+                <CardContent className="px-3 pt-0 flex-1 flex flex-col justify-between">
                   <div className="flex border border-gray-100 rounded-lg mb-4 bg-white overflow-hidden">
                     <div className="flex-1 border-r border-gray-100 px-2 sm:px-3 py-3 flex flex-col justify-center">
                       <p className="text-[10.5px] font-extrabold uppercase tracking-wide text-gray-600 mb-1.5 whitespace-nowrap">TOTAL PRODUCTION (KG)</p>
-                      <p className="text-[18px] font-bold text-[#004D40] leading-none font-inter">{formatNum(extruderSummary.output)}</p>
+                      <p className="text-[18px] font-bold text-[#004D40] leading-none font-inter text-center">{formatNum(extruderSummary.output)}</p>
                     </div>
                     <div className="flex-1 border-r border-gray-100 px-2 sm:px-3 py-3 flex flex-col justify-center">
                       <p className="text-[10.5px] font-extrabold uppercase tracking-wide text-gray-600 mb-1.5 whitespace-nowrap">TOTAL WASTAGE (KG)</p>
-                      <p className="text-[17px] font-bold text-[#004D40] leading-none font-inter">{formatNum(extruderSummary.wastage)}</p>
+                      <p className="text-[17px] font-bold text-[#004D40] leading-none font-inter text-center">{formatNum(extruderSummary.wastage)}</p>
                     </div>
                     <div className="flex-1 px-2 sm:px-3 py-3 flex flex-col justify-center">
-                      <p className="text-[10.5px] font-extrabold uppercase tracking-wide text-gray-600 mb-1.5 whitespace-nowrap">WASTAGE %</p>
-                      <p className="text-[17px] font-bold text-[#D32F2F] leading-none font-inter">{wastePct.toFixed(2)}%</p>
+                      <p className="text-[10.5px] font-extrabold uppercase tracking-wide text-gray-600 mb-1.5 whitespace-nowrap text-center">WASTAGE %</p>
+                      <p className="text-[17px] font-bold text-[#D32F2F] leading-none font-inter text-center">{wastePct.toFixed(2)}%</p>
                     </div>
                   </div>
                 </CardContent>
@@ -820,19 +820,19 @@ export function ProductionDesign2() {
                     <img src={loomsIcon} alt="Looms" className="w-[35px] h-[35px] object-contain opacity-90" />
                   </div>
                 </CardHeader>
-                <CardContent className="px-3 pb-4 pt-0 flex-1 flex flex-col justify-between">
+                <CardContent className="px-3 pt-0 flex-1 flex flex-col justify-between">
                   <div className="flex border border-gray-100 rounded-lg mb-4 bg-white overflow-hidden">
                     <div className="flex-1 border-r border-gray-100 px-2 sm:px-3 py-3 flex flex-col justify-center">
                       <p className="text-[10.5px] font-extrabold uppercase tracking-wide text-gray-600 mb-1.5 whitespace-nowrap">TOTAL PRODUCTION (KG)</p>
-                      <p className="text-[18px] font-bold text-[#004D40] leading-none font-inter">{loomsSummary.output.toFixed(2)}</p>
+                      <p className="text-[18px] font-bold text-[#004D40] leading-none font-inter text-center">{loomsSummary.output.toFixed(2)}</p>
                     </div>
                     <div className="flex-1 border-r border-gray-100 px-2 sm:px-3 py-3 flex flex-col justify-center">
                       <p className="text-[10.5px] font-extrabold uppercase tracking-wide text-gray-600 mb-1.5 whitespace-nowrap">TOTAL WASTAGE (KG)</p>
-                      <p className="text-[17px] font-bold text-[#004D40] leading-none font-inter">{loomsSummary.wastage.toFixed(2)}</p>
+                      <p className="text-[17px] font-bold text-[#004D40] leading-none font-inter text-center">{loomsSummary.wastage.toFixed(2)}</p>
                     </div>
                     <div className="flex-1 px-2 sm:px-3 py-3 flex flex-col justify-center">
-                      <p className="text-[10.5px] font-extrabold uppercase tracking-wide text-gray-600 mb-1.5 whitespace-nowrap">WASTAGE %</p>
-                      <p className="text-[17px] font-bold text-[#D32F2F] leading-none font-inter">{loomsWastePct.toFixed(2)}%</p>
+                      <p className="text-[10.5px] font-extrabold uppercase tracking-wide text-gray-600 mb-1.5 whitespace-nowrap text-center">WASTAGE %</p>
+                      <p className="text-[17px] font-bold text-[#D32F2F] leading-none font-inter text-center">{loomsWastePct.toFixed(2)}%</p>
                     </div>
                   </div>
                 </CardContent>
@@ -850,19 +850,19 @@ export function ProductionDesign2() {
                     <img src="/fabric-prod.png" alt="Fabric Production" className="w-[35px] h-[35px] object-contain" />
                   </div>
                 </CardHeader>
-                <CardContent className="px-3 pb-4 pt-0 flex-1 flex flex-col justify-between">
+                <CardContent className="px-3 pt-0 flex-1 flex flex-col justify-between">
                   <div className="flex border border-gray-100 rounded-lg mb-4 bg-white overflow-hidden">
                     <div className="flex-1 border-r border-gray-100 px-2 sm:px-3 py-3 flex flex-col justify-center">
                       <p className="text-[10.5px] font-extrabold uppercase tracking-wide text-gray-600 mb-1.5 whitespace-nowrap">TOTAL PRODUCTION (KG)</p>
-                      <p className="text-[18px] font-bold text-[#004D40] leading-none font-inter">{fabricSummary.checked.toFixed(2)}</p>
+                      <p className="text-[18px] font-bold text-[#004D40] leading-none font-inter text-center">{fabricSummary.checked.toFixed(2)}</p>
                     </div>
                     <div className="flex-1 border-r border-gray-100 px-2 sm:px-3 py-3 flex flex-col justify-center">
                       <p className="text-[10.5px] font-extrabold uppercase tracking-wide text-gray-600 mb-1.5 whitespace-nowrap">TOTAL WASTAGE (KG)</p>
-                      <p className="text-[17px] font-bold text-[#004D40] leading-none font-inter">{fabricSummary.wastage.toFixed(2)}</p>
+                      <p className="text-[17px] font-bold text-[#004D40] leading-none font-inter text-center">{fabricSummary.wastage.toFixed(2)}</p>
                     </div>
                     <div className="flex-1 px-2 sm:px-3 py-3 flex flex-col justify-center">
-                      <p className="text-[10.5px] font-extrabold uppercase tracking-wide text-gray-600 mb-1.5 whitespace-nowrap">WASTAGE %</p>
-                      <p className="text-[17px] font-bold text-[#D32F2F] leading-none font-inter">{fabricWastePct.toFixed(2)}%</p>
+                      <p className="text-[10.5px] font-extrabold uppercase tracking-wide text-gray-600 mb-1.5 whitespace-nowrap text-center">WASTAGE %</p>
+                      <p className="text-[17px] font-bold text-[#D32F2F] leading-none font-inter text-center">{fabricWastePct.toFixed(2)}%</p>
                     </div>
                   </div>
                 </CardContent>
@@ -1015,6 +1015,7 @@ export function ProductionDesign2() {
                                 className="h-6 w-6 text-[#004D40] hover:bg-[#004D40]/10"
                                 onClick={() => navigate(`/production/new-entry?date=${row.date}`)}
                                 disabled={!canEditProduction}
+                                title="Edit Production Entry"
                               >
                                 <Edit className="h-[13px] w-[13px]" />
                               </Button>
@@ -1024,6 +1025,7 @@ export function ProductionDesign2() {
                                 className="h-6 w-6 text-red-600 hover:bg-red-50"
                                 onClick={() => setDeleteTargetDate(row.date)}
                                 disabled={!canDeleteProduction}
+                                title="Delete Production Entry"
                               >
                                 <Trash2 className="h-[13px] w-[13px]" />
                               </Button>

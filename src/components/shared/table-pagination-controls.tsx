@@ -43,7 +43,7 @@ export function TablePaginationControls({ currentPage, totalPages, onPageChange 
             key={p}
             variant={p === currentPage ? 'outline' : 'ghost'}
             size="icon"
-            className={p === currentPage ? 'h-5 w-5 rounded-sm bg-[#004D40] text-white text-xs hover:bg-[#00382e] border-[#004D40]' : 'h-5 w-5 rounded-sm text-xs text-gray-600 hover:bg-gray-100'}
+            className={p === currentPage ? 'h-5 w-5 rounded-sm bg-[#004D40] text-white text-xs hover:bg-[#00382e] hover:text-white border-[#004D40]' : 'h-5 w-5 rounded-sm text-xs text-gray-600 hover:bg-gray-100'}
             onClick={() => onPageChange(p)}
           >
             {p}

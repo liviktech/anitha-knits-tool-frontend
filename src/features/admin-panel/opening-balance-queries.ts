@@ -68,6 +68,7 @@ export interface OpeningBalanceWastageRecord {
   date: string;
   color: MasterDataRef | null;
   size: MasterDataRef | null;
+  chemical: MasterDataRef | null;
   extruderLumpsKg: number;
   extruderLoomsWasteKg: number;
   loomsYarnWasteKg: number;
@@ -89,6 +90,7 @@ export interface OpeningBalanceWastagePayload {
   date: string;
   colorId?: string;
   sizeId?: string;
+  chemicalId?: string;
   extruderLumpsKg: number;
   extruderLoomsWasteKg: number;
   loomsYarnWasteKg: number;
@@ -117,6 +119,7 @@ export interface OpeningBalanceFabricStockRecord {
   date: string;
   color: MasterDataRef | null;
   size: MasterDataRef | null;
+  chemical: MasterDataRef | null;
   koraBalanceKg: number;
   fabricStockKg: number;
   createdAt: string;
@@ -135,6 +138,7 @@ export interface OpeningBalanceFabricStockPayload {
   date: string;
   colorId?: string;
   sizeId?: string;
+  chemicalId?: string;
   koraBalanceKg: number;
   fabricStockKg: number;
 }

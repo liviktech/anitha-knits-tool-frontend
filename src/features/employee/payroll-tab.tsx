@@ -1,5 +1,5 @@
 import { useState, forwardRef, useImperativeHandle } from 'react';
-import { Search, Wallet, FileText, Banknote, Calendar, Loader2, MinusCircle } from 'lucide-react';
+import { Search, Wallet, FileText, Banknote, Calendar, Loader2, MinusCircle, Edit2, Trash2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { motion } from 'framer-motion';
@@ -9,8 +9,10 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Label } from '@/components/ui/label';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Loader } from '@/components/shared/loader';
+import { DeleteConfirmDialog } from '@/components/shared/delete-confirm-dialog';
+import { ApproveConfirmDialog } from '@/components/shared/approve-confirm-dialog';
 import { TablePaginationControls, RowsPerPageSelect } from '@/components/shared/table-pagination-controls';
-import { useEmployees, useDistributeMarketValue, usePayrollSummary, useGrantSalaryAdvance, useGrantMarketValueDeduction, useSavePayrollRecords, useSavedPayrollRecords, useMarketValueAllocations, useSalaryAdvances, type SalaryAdvanceStatus } from './employee-queries';
+import { useEmployees, useDistributeMarketValue, usePayrollSummary, useGrantSalaryAdvance, useGrantMarketValueDeduction, useGrantOtherDeduction, useSavePayrollRecords, useSavedPayrollRecords, useUpdatePayrollRecord, useDeletePayrollRecord, useMarketValueAllocations, useSalaryAdvances, type SalaryAdvanceStatus } from './employee-queries';
 import { useAttendanceRecords } from './attendance-queries';
 
 
@@ -36,8 +38,8 @@ export const PayrollTab = forwardRef<PayrollTabRef>((_, ref) => {
   const [activeSubTab, setActiveSubTab] = useState<'payroll' | 'advance'>('payroll');
   const [searchQuery, setSearchQuery] = useState('');
   const [isAdvanceModalOpen, setIsAdvanceModalOpen] = useState(false);
-  const [isMarketValueModalOpen, setIsMarketValueModalOpen] = useState(false);
-  const [isMarketValueDeductionModalOpen, setIsMarketValueDeductionModalOpen] = useState(false);
+  const [isValueModalOpen, setIsValueModalOpen] = useState(false);
+  const [valueModalTab, setValueModalTab] = useState<'machine' | 'market' | 'other'>('machine');
   const [isGenerateModalOpen, setIsGenerateModalOpen] = useState(false);
   const { data: employees = [] } = useEmployees();
   const { mutate: distributeMarketValue, isPending: isDistributing } = useDistributeMarketValue();
@@ -53,9 +55,12 @@ export const PayrollTab = forwardRef<PayrollTabRef>((_, ref) => {
   const endDateStr = `${currentYear}-${currentMonth.toString().padStart(2, '0')}-${endDay.toString().padStart(2, '0')}`;
   const { data: attendanceRecords = [] } = useAttendanceRecords(startDateStr, endDateStr);
   const { mutate: grantAdvance, isPending: isGrantingAdvance } = useGrantSalaryAdvance();
-  const { mutate: grantMarketValueDeduction, isPending: isGrantingMarketValueDeduction } = useGrantMarketValueDeduction();
+  const { mutateAsync: grantMarketValueDeduction } = useGrantMarketValueDeduction();
+  const { mutateAsync: grantOtherDeduction } = useGrantOtherDeduction();
   const { mutateAsync: savePayrollRecords } = useSavePayrollRecords();
   const { data: salaryAdvances = [], isLoading: isAdvancesLoading } = useSalaryAdvances();
+  const { mutate: updatePayrollRecord, isPending: isUpdatingPayrollRecord } = useUpdatePayrollRecord();
+  const { mutate: deletePayrollRecord, isPending: isDeletingPayrollRecord } = useDeletePayrollRecord();
 
   useImperativeHandle(ref, () => ({
     openGenerateModal: () => setIsGenerateModalOpen(true),
@@ -103,28 +108,73 @@ export const PayrollTab = forwardRef<PayrollTabRef>((_, ref) => {
   const [advancePage, setAdvancePage] = useState(1);
   const [advancePageSize, setAdvancePageSize] = useState(10);
 
-  // Market Value Form State
-  const [marketValuePool, setMarketValuePool] = useState<string>('');
-  const [marketValueDate, setMarketValueDate] = useState<string>('');
+  // Machine Value (distribution) Form State — no Effective Date input anymore; the effective
+  // date is derived from the Payroll tab's own month/year picker (shown in the modal header).
   const [allocations, setAllocations] = useState<Record<string, number>>({});
 
-  // Market Value Deduction Form State — like Salary Advance, but single-payment only (no EMI)
-  const [mvdEmployeeId, setMvdEmployeeId] = useState('');
-  const [mvdAmount, setMvdAmount] = useState('');
-  const [mvdDate, setMvdDate] = useState('');
+  // Market Value (deduction) Form State — same per-employee list shape as Machine Value, but
+  // with no shared pool to match: each employee's deduction is independent.
+  const [marketDeductions, setMarketDeductions] = useState<Record<string, number>>({});
+  const [isSavingMarketDeductions, setIsSavingMarketDeductions] = useState(false);
 
-  const mvdAmountNum = parseFloat(mvdAmount) || 0;
-  const isMvdFormValid = !!mvdEmployeeId && mvdAmountNum > 0 && !!mvdDate;
+  // Other Deductions Form State — per-employee name + amount, since different employees can
+  // have different deduction reasons in the same batch (unlike Machine/Market Value, which are
+  // a single shared name/reason applied across everyone).
+  const [otherDeductions, setOtherDeductions] = useState<Record<string, number>>({});
+  const [otherDeductionNames, setOtherDeductionNames] = useState<Record<string, string>>({});
+  const [isSavingOtherDeductions, setIsSavingOtherDeductions] = useState(false);
 
-  const resetMvdForm = () => {
-    setMvdEmployeeId('');
-    setMvdAmount('');
-    setMvdDate('');
+  // Confirmation dialog state for value modal actions
+  const [pendingValueConfirm, setPendingValueConfirm] = useState<'machine' | 'market' | 'other' | null>(null);
+
+  const currentAllocated = Object.values(allocations).reduce((a, b) => a + b, 0);
+  const totalDeductions = Object.values(marketDeductions).reduce((a, b) => a + b, 0);
+  const totalOtherDeductions = Object.values(otherDeductions).reduce((a, b) => a + b, 0);
+
+  // First day of the currently selected Payroll month/year — every mutation in this modal
+  // (both tabs) uses this as its effectiveDate now that there's no separate date field.
+  const valueModalEffectiveDate = `${currentYear}-${currentMonth.toString().padStart(2, '0')}-01`;
+
+  const resetValueModalState = () => {
+    setAllocations({});
+    setMarketDeductions({});
+    setOtherDeductions({});
+    setOtherDeductionNames({});
   };
 
-  const totalPoolNum = parseInt(marketValuePool || '0', 10);
-  const currentAllocated = Object.values(allocations).reduce((a, b) => a + b, 0);
-  const remainingPool = Math.max(0, totalPoolNum - currentAllocated);
+  // Pre-fill modal with current month's existing values when opening
+  const openValueModal = (tab: 'machine' | 'market' | 'other') => {
+    // Machine Value: pre-fill from marketValueAllocations (API data for current month)
+    const prefillAllocations: Record<string, number> = {};
+    for (const [empId, val] of Object.entries(marketValueAllocations)) {
+      if (val > 0) prefillAllocations[empId] = val;
+    }
+    setAllocations(prefillAllocations);
+
+    // Market Value Deduction: pre-fill from payrollSummary
+    const prefillMarket: Record<string, number> = {};
+    for (const s of payrollSummary) {
+      if (s.marketValueDeduction > 0) prefillMarket[s.id] = s.marketValueDeduction;
+    }
+    setMarketDeductions(prefillMarket);
+
+    // Other Deductions: pre-fill amount + a representative name from payrollSummary. An
+    // employee can have several differently-named deductions in one month, so the name is
+    // best-effort (the backend's most-recently-created one) — still editable per row here.
+    const prefillOther: Record<string, number> = {};
+    const prefillOtherNames: Record<string, string> = {};
+    for (const s of payrollSummary) {
+      if (s.otherDeduction > 0) {
+        prefillOther[s.id] = s.otherDeduction;
+        if (s.otherDeductionName) prefillOtherNames[s.id] = s.otherDeductionName;
+      }
+    }
+    setOtherDeductions(prefillOther);
+    setOtherDeductionNames(prefillOtherNames);
+
+    setValueModalTab(tab);
+    setIsValueModalOpen(true);
+  };
 
   const handleAllocationChange = (empId: string, val: string) => {
     if (val === '') {
@@ -139,12 +189,88 @@ export const PayrollTab = forwardRef<PayrollTabRef>((_, ref) => {
     const numValue = parseInt(val, 10);
     if (isNaN(numValue) || numValue < 0) return;
 
-    setAllocations(prev => {
-      const otherTotal = Object.entries(prev).reduce((acc, [id, v]) => acc + (id === empId ? 0 : v), 0);
-      const maxAllowed = Math.max(0, totalPoolNum - otherTotal);
-      const finalValue = Math.min(numValue, maxAllowed);
-      return { ...prev, [empId]: finalValue };
-    });
+    setAllocations(prev => ({ ...prev, [empId]: numValue }));
+  };
+
+  const handleDeductionChange = (empId: string, val: string) => {
+    if (val === '') {
+      setMarketDeductions(prev => {
+        const next = { ...prev };
+        delete next[empId];
+        return next;
+      });
+      return;
+    }
+
+    const numValue = parseInt(val, 10);
+    if (isNaN(numValue) || numValue < 0) return;
+
+    setMarketDeductions(prev => ({ ...prev, [empId]: numValue }));
+  };
+
+  const handleSaveMarketDeductions = async () => {
+    const entries = Object.entries(marketDeductions).filter(([, amount]) => amount > 0);
+    if (entries.length === 0) return;
+
+    setIsSavingMarketDeductions(true);
+    try {
+      await Promise.all(
+        entries.map(([employeeId, amount]) =>
+          grantMarketValueDeduction({ employeeId, amount, effectiveDate: valueModalEffectiveDate }),
+        ),
+      );
+      setIsValueModalOpen(false);
+      resetValueModalState();
+    } catch (err) {
+      console.error('Failed to grant deductions:', err);
+    } finally {
+      setIsSavingMarketDeductions(false);
+    }
+  };
+
+  const handleOtherDeductionChange = (empId: string, val: string) => {
+    if (val === '') {
+      setOtherDeductions(prev => {
+        const next = { ...prev };
+        delete next[empId];
+        return next;
+      });
+      return;
+    }
+
+    const numValue = parseInt(val, 10);
+    if (isNaN(numValue) || numValue < 0) return;
+
+    setOtherDeductions(prev => ({ ...prev, [empId]: numValue }));
+  };
+
+  const handleOtherDeductionNameChange = (empId: string, val: string) => {
+    setOtherDeductionNames(prev => ({ ...prev, [empId]: val }));
+  };
+
+  const handleSaveOtherDeductions = async () => {
+    const entries = Object.entries(otherDeductions).filter(([, amount]) => amount > 0);
+    if (entries.length === 0) return;
+
+    setIsSavingOtherDeductions(true);
+    try {
+      await Promise.all(
+        entries.map(([employeeId, amount]) =>
+          grantOtherDeduction({
+            employeeId,
+            amount,
+            name: (otherDeductionNames[employeeId] || '').trim() || 'Other Deduction',
+            effectiveDate: valueModalEffectiveDate,
+          }),
+        ),
+      );
+      setIsValueModalOpen(false);
+      resetValueModalState();
+    } catch (err) {
+      console.error('Failed to grant other deductions:', err);
+    } finally {
+      setIsSavingOtherDeductions(false);
+    }
   };
 
   const filteredPayroll = employees.filter(p =>
@@ -161,10 +287,66 @@ export const PayrollTab = forwardRef<PayrollTabRef>((_, ref) => {
       grossSalary: saved ? Number(saved.grossSalary) : 0,
       advanceDeduction: saved ? Number(saved.advanceDeduction) : (summary?.advanceDeduction || 0),
       marketValueBonus: saved ? Number(saved.marketValueBonus) : (marketValueAllocations[emp.id] || 0),
+      marketValueDeduction: saved ? Number(saved.marketValueDeduction) : (summary?.marketValueDeduction || 0),
+      otherDeduction: saved ? Number(saved.otherDeduction || 0) : (summary?.otherDeduction || 0),
       netSalary: saved ? Number(saved.netSalary) : 0,
       status: saved?.status || 'Pending'
     };
   });
+
+  type PayrollRow = (typeof filteredPayroll)[number];
+
+  // Payroll Edit Modal — Salary Advance / Machine Value / Market Value cards for one employee
+  const [editingPayrollRow, setEditingPayrollRow] = useState<PayrollRow | null>(null);
+  const [editMarketValueBonus, setEditMarketValueBonus] = useState('');
+  const [editMarketValueDeduction, setEditMarketValueDeduction] = useState('');
+  const [editOtherDeductionName, setEditOtherDeductionName] = useState('');
+  const [editOtherDeductionAmount, setEditOtherDeductionAmount] = useState('');
+
+  const openEditPayrollModal = (row: PayrollRow) => {
+    setEditingPayrollRow(row);
+    setEditMarketValueBonus(String(row.marketValueBonus));
+    setEditMarketValueDeduction(String(row.marketValueDeduction));
+    setEditOtherDeductionName('');
+    setEditOtherDeductionAmount(String(row.otherDeduction ?? 0));
+  };
+
+  const closeEditPayrollModal = () => setEditingPayrollRow(null);
+
+  const handleSavePayrollEdit = () => {
+    if (!editingPayrollRow) return;
+    updatePayrollRecord({
+      employeeId: editingPayrollRow.id,
+      data: {
+        month: currentMonth,
+        year: currentYear,
+        baseSalary: editingPayrollRow.baseSalary,
+        daysWorked: editingPayrollRow.daysWorked,
+        advanceDeduction: editingPayrollRow.advanceDeduction,
+        marketValueBonus: parseFloat(editMarketValueBonus) || 0,
+        marketValueDeduction: parseFloat(editMarketValueDeduction) || 0,
+        otherDeduction: parseFloat(editOtherDeductionAmount) || 0,
+      },
+    }, {
+      onSuccess: () => closeEditPayrollModal(),
+      onError: (err) => alert('Failed to update payroll record: ' + err.message),
+    });
+  };
+
+  // Delete Payroll Record confirmation
+  const [deletePayrollTarget, setDeletePayrollTarget] = useState<PayrollRow | null>(null);
+
+  const handleDeletePayrollConfirm = () => {
+    if (!deletePayrollTarget) return;
+    deletePayrollRecord({
+      employeeId: deletePayrollTarget.id,
+      month: currentMonth,
+      year: currentYear,
+    }, {
+      onSuccess: () => setDeletePayrollTarget(null),
+      onError: (err) => alert('Failed to delete payroll record: ' + err.message),
+    });
+  };
 
   const payrollTotalPages = Math.max(1, Math.ceil(filteredPayroll.length / payrollPageSize));
   const payrollCurrentPage = Math.min(payrollPage, payrollTotalPages);
@@ -189,6 +371,14 @@ export const PayrollTab = forwardRef<PayrollTabRef>((_, ref) => {
   const totalMarketValue = isGenerated
     ? savedRecords.reduce((sum, p) => sum + Number(p.marketValueBonus), 0)
     : Object.values(marketValueAllocations).reduce((sum, val) => sum + val, 0);
+
+  const dynamicNetPay = editingPayrollRow
+    ? editingPayrollRow.grossSalary -
+    editingPayrollRow.advanceDeduction +
+    (parseFloat(editMarketValueBonus) || 0) -
+    (parseFloat(editMarketValueDeduction) || 0) -
+    (parseFloat(editOtherDeductionAmount) || 0)
+    : 0;
 
   return (
     <div className="flex flex-col gap-2 h-[calc(100%-3px)] flex-1 min-h-0 p-2 font-hanken">
@@ -238,8 +428,8 @@ export const PayrollTab = forwardRef<PayrollTabRef>((_, ref) => {
 
       <Tabs value={activeSubTab} onValueChange={(v) => setActiveSubTab(v as 'payroll' | 'advance')} className="flex-1 flex flex-col min-h-0 gap-2">
         <TabsList className="bg-transparent gap-2 h-9 p-0 mb-4 shrink-0">
-          <TabsTrigger 
-            value="payroll" 
+          <TabsTrigger
+            value="payroll"
             className="relative h-full px-5 rounded-full data-[state=active]:bg-transparent data-[state=active]:text-white text-gray-600 font-semibold text-sm transition-colors z-10 overflow-hidden shadow-none border-none data-[state=active]:shadow-none"
           >
             {activeSubTab === 'payroll' && (
@@ -251,8 +441,8 @@ export const PayrollTab = forwardRef<PayrollTabRef>((_, ref) => {
             )}
             Payroll
           </TabsTrigger>
-          <TabsTrigger 
-            value="advance" 
+          <TabsTrigger
+            value="advance"
             className="relative h-full px-5 rounded-full data-[state=active]:bg-transparent data-[state=active]:text-white text-gray-600 font-semibold text-sm transition-colors z-10 overflow-hidden shadow-none border-none data-[state=active]:shadow-none"
           >
             {activeSubTab === 'advance' && (
@@ -295,11 +485,8 @@ export const PayrollTab = forwardRef<PayrollTabRef>((_, ref) => {
                   }}
                   className="h-8 text-xs w-40 border-gray-400 bg-gray-50/50"
                 />
-                <Button size="sm" variant="outline" className="h-8 text-sm font-semibold bg-[#004D40] hover:bg-[#00382e] hover:text-white text-white" onClick={() => setIsMarketValueModalOpen(true)}>
-                  <Wallet className="w-3.5 h-3.5 mr-1" /> Machine Value
-                </Button>
-                <Button size="sm" variant="outline" className="h-8 text-sm font-semibold bg-[#004D40] hover:bg-[#00382e] hover:text-white text-white" onClick={() => setIsMarketValueDeductionModalOpen(true)}>
-                  <MinusCircle className="w-3.5 h-3.5 mr-1" /> Market Value
+                <Button size="sm" variant="outline" className="h-8 text-sm font-semibold bg-[#004D40] hover:bg-[#00382e] hover:text-white text-white" onClick={() => openValueModal('machine')}>
+                  <Wallet className="w-3.5 h-3.5 mr-1" /> Machine, Market & Other
                 </Button>
                 <Button size="sm" variant="outline" className="h-8 text-sm font-semibold bg-[#004D40] hover:bg-[#00382e] hover:text-white text-white" onClick={() => setIsAdvanceModalOpen(true)}>
                   <Banknote className="w-3.5 h-3.5 mr-1" /> Salary Advance
@@ -307,60 +494,87 @@ export const PayrollTab = forwardRef<PayrollTabRef>((_, ref) => {
               </div>
             </div>
 
-        <div className="overflow-x-auto overflow-y-auto flex-1 min-h-0">
-          <Table className="border-collapse font-hanken">
-            <TableHeader className="bg-emerald-50/30 sticky top-0 z-10">
-              <TableRow className="hover:bg-transparent border-b border-gray-300">
-                <TableHead className="text-sm font-semibold tracking-wide text-gray-800 w-[100px] px-5 py-2 border-r border-gray-300">Emp ID</TableHead>
-                <TableHead className="text-sm font-semibold tracking-wide text-gray-800 px-5 py-2 border-r border-gray-300">Name</TableHead>
-                <TableHead className="text-sm font-semibold tracking-wide text-gray-800 text-right px-5 py-2 border-r border-gray-300">Base Salary</TableHead>
-                <TableHead className="text-sm font-semibold tracking-wide text-gray-800 text-center px-5 py-2 border-r border-gray-300">Days Worked</TableHead>
-                <TableHead className="text-sm font-semibold tracking-wide text-gray-800 text-right px-5 py-2 border-r border-gray-300">Gross Salary</TableHead>
-                <TableHead className="text-sm font-semibold tracking-wide text-gray-800 text-right text-amber-700 px-5 py-2 border-r border-gray-300">Advance Deducted</TableHead>
-                <TableHead className="text-sm font-semibold tracking-wide text-gray-800 text-right text-blue-700 px-5 py-2 border-r border-gray-300">Machine Value</TableHead>
-                <TableHead className="text-sm font-extrabold tracking-wide text-gray-900 text-right px-5 py-2">Net Payable</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {isPayrollLoading ? (
-                <TableRow>
-                  <TableCell colSpan={8} className="h-28 text-center text-gray-500 text-sm">
-                    <div className="flex items-center justify-center gap-2"><Loader size="sm" /> Loading payroll data...</div>
-                  </TableCell>
-                </TableRow>
-              ) : pagedPayroll.length === 0 ? (
-                <TableRow>
-                  <TableCell colSpan={8} className="h-28 !text-center text-gray-500 text-sm">No payroll data found matching your criteria.</TableCell>
-                </TableRow>
-              ) : (
-                pagedPayroll.map((row) => (
-                  <TableRow key={row.id} className="border-b border-gray-300 hover:bg-emerald-50/30 transition-colors">
-                    <TableCell className="px-5 py-3 text-sm font-bold text-gray-900 border-r border-gray-300">{row.customUserId || row.id}</TableCell>
-                    <TableCell className="px-5 py-3 text-sm font-semibold text-gray-800 border-r border-gray-300">{row.name}</TableCell>
-                    <TableCell className="px-5 py-3 text-sm text-right border-r border-gray-300">₹{row.baseSalary.toLocaleString()}</TableCell>
-                    <TableCell className="px-5 py-3 text-sm text-center font-medium bg-gray-50/50 border-r border-gray-300">{row.daysWorked}</TableCell>
-                    <TableCell className="px-5 py-3 text-sm text-right font-semibold text-gray-700 border-r border-gray-300">₹{row.grossSalary.toLocaleString()}</TableCell>
-                    <TableCell className="px-5 py-3 text-sm text-right font-medium text-amber-700 border-r border-gray-300">- ₹{row.advanceDeduction.toLocaleString()}</TableCell>
-                    <TableCell className="px-5 py-3 text-sm text-right font-medium text-blue-700 border-r border-gray-300">+ ₹{row.marketValueBonus.toLocaleString()}</TableCell>
-                    <TableCell className="px-5 py-3 text-sm font-extrabold text-right text-emerald-800">₹{row.netSalary.toLocaleString()}</TableCell>
+            <div className="overflow-x-auto overflow-y-auto flex-1 min-h-0">
+              <Table className="border-collapse font-hanken">
+                <TableHeader className="bg-emerald-50/30 sticky top-0 z-10">
+                  <TableRow className="hover:bg-transparent border-b border-gray-300">
+                    <TableHead className="text-sm font-semibold tracking-wide text-gray-800 w-[100px] px-5 py-2 border-r border-gray-300">Emp ID</TableHead>
+                    <TableHead className="text-sm font-semibold tracking-wide text-gray-800 px-5 py-2 border-r border-gray-300">Name</TableHead>
+                    <TableHead className="text-sm font-semibold tracking-wide text-gray-800 text-right px-5 py-2 border-r border-gray-300">Base Salary</TableHead>
+                    <TableHead className="text-sm font-semibold tracking-wide text-gray-800 text-center px-5 py-2 border-r border-gray-300">Days Worked</TableHead>
+                    <TableHead className="text-sm font-semibold tracking-wide text-gray-800 text-right px-5 py-2 border-r border-gray-300">Gross Salary</TableHead>
+                    <TableHead className="text-sm font-semibold tracking-wide text-gray-800 text-right text-amber-700 px-5 py-2 border-r border-gray-300">Advance Deducted</TableHead>
+                    <TableHead className="text-sm font-semibold tracking-wide text-gray-800 text-right text-blue-700 px-5 py-2 border-r border-gray-300">Machine Value</TableHead>
+                    <TableHead className="text-sm font-semibold tracking-wide text-gray-800 text-right text-red-700 px-5 py-2 border-r border-gray-300">Market Value</TableHead>
+                    <TableHead className="text-sm font-semibold tracking-wide text-gray-800 text-right text-orange-700 px-5 py-2 border-r border-gray-300">Other Deduction</TableHead>
+                    <TableHead className="text-sm font-extrabold tracking-wide text-gray-900 text-right px-5 py-2 border-r border-gray-300">Net Payable</TableHead>
+                    <TableHead className="text-sm font-semibold tracking-wide text-gray-800 text-center px-5 py-2">Actions</TableHead>
                   </TableRow>
-                ))
-              )}
-            </TableBody>
-          </Table>
-        </div>
+                </TableHeader>
+                <TableBody>
+                  {isPayrollLoading ? (
+                    <TableRow>
+                      <TableCell colSpan={10} className="h-28 text-center text-gray-500 text-sm">
+                        <div className="flex items-center justify-center gap-2"><Loader size="sm" /> Loading payroll data...</div>
+                      </TableCell>
+                    </TableRow>
+                  ) : pagedPayroll.length === 0 ? (
+                    <TableRow>
+                      <TableCell colSpan={10} className="h-28 !text-center text-gray-500 text-sm">No payroll data found matching your criteria.</TableCell>
+                    </TableRow>
+                  ) : (
+                    pagedPayroll.map((row) => (
+                      <TableRow key={row.id} className="border-b border-gray-300 hover:bg-emerald-50/30 transition-colors">
+                        <TableCell className="px-5 py-3 text-sm font-bold text-gray-900 border-r border-gray-300">{row.customUserId || row.id}</TableCell>
+                        <TableCell className="px-5 py-3 text-sm font-semibold text-gray-800 border-r border-gray-300">{row.name}</TableCell>
+                        <TableCell className="px-5 py-3 text-sm text-right border-r border-gray-300">₹{row.baseSalary.toLocaleString()}</TableCell>
+                        <TableCell className="px-5 py-3 text-sm text-center font-medium bg-gray-50/50 border-r border-gray-300">{row.daysWorked}</TableCell>
+                        <TableCell className="px-5 py-3 text-sm text-right font-semibold text-gray-700 border-r border-gray-300">₹{row.grossSalary.toLocaleString()}</TableCell>
+                        <TableCell className="px-5 py-3 text-sm text-right font-medium text-amber-700 border-r border-gray-300">- ₹{row.advanceDeduction.toLocaleString()}</TableCell>
+                        <TableCell className="px-5 py-3 text-sm text-right font-medium text-blue-700 border-r border-gray-300">+ ₹{row.marketValueBonus.toLocaleString()}</TableCell>
+                        <TableCell className="px-5 py-3 text-sm text-right font-medium text-red-700 border-r border-gray-300">- ₹{row.marketValueDeduction.toLocaleString()}</TableCell>
+                        <TableCell className="px-5 py-3 text-sm text-right font-medium text-orange-700 border-r border-gray-300">- ₹{(row.otherDeduction ?? 0).toLocaleString()}</TableCell>
+                        <TableCell className="px-5 py-3 text-sm font-extrabold text-right text-emerald-800 border-r border-gray-300">₹{row.netSalary.toLocaleString()}</TableCell>
+                        <TableCell className="px-5 py-3">
+                          <div className="flex items-center justify-center gap-2">
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              aria-label="Edit payroll record"
+                              className="h-7 w-7 text-blue-600 hover:bg-blue-50"
+                              onClick={() => openEditPayrollModal(row)}
+                            >
+                              <Edit2 className="h-3.5 w-3.5" />
+                            </Button>
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              aria-label="Delete payroll record"
+                              className="h-7 w-7 text-red-600 hover:bg-red-50"
+                              onClick={() => setDeletePayrollTarget(row)}
+                            >
+                              <Trash2 className="h-3.5 w-3.5" />
+                            </Button>
+                          </div>
+                        </TableCell>
+                      </TableRow>
+                    ))
+                  )}
+                </TableBody>
+              </Table>
+            </div>
 
-        {/* Payroll Table Footer */}
-        <div className="shrink-0 p-3 border-t border-gray-400 bg-emerald-50/20 text-xs text-gray-700 flex flex-wrap justify-between items-center gap-3 px-4">
-          <span>
-            Showing{" "}
-            {filteredPayroll.length === 0 ? 0 : (payrollCurrentPage - 1) * payrollPageSize + 1}-
-            {Math.min(payrollCurrentPage * payrollPageSize, filteredPayroll.length)} of{" "}
-            {filteredPayroll.length} entries
-          </span>
-          <TablePaginationControls currentPage={payrollCurrentPage} totalPages={payrollTotalPages} onPageChange={setPayrollPage} />
-          <RowsPerPageSelect pageSize={payrollPageSize} onPageSizeChange={(size) => { setPayrollPageSize(size); setPayrollPage(1); }} />
-        </div>
+            {/* Payroll Table Footer */}
+            <div className="shrink-0 p-3 border-t border-gray-400 bg-emerald-50/20 text-xs text-gray-700 flex flex-wrap justify-between items-center gap-3 px-4">
+              <span>
+                Showing{" "}
+                {filteredPayroll.length === 0 ? 0 : (payrollCurrentPage - 1) * payrollPageSize + 1}-
+                {Math.min(payrollCurrentPage * payrollPageSize, filteredPayroll.length)} of{" "}
+                {filteredPayroll.length} entries
+              </span>
+              <TablePaginationControls currentPage={payrollCurrentPage} totalPages={payrollTotalPages} onPageChange={setPayrollPage} />
+              <RowsPerPageSelect pageSize={payrollPageSize} onPageSizeChange={(size) => { setPayrollPageSize(size); setPayrollPage(1); }} />
+            </div>
           </div>
         </TabsContent>
 
@@ -573,115 +787,40 @@ export const PayrollTab = forwardRef<PayrollTabRef>((_, ref) => {
         </DialogContent>
       </Dialog>
 
-      {/* Market Value Deduction Modal */}
-      <Dialog open={isMarketValueDeductionModalOpen} onOpenChange={(open) => { setIsMarketValueDeductionModalOpen(open); if (!open) resetMvdForm(); }}>
-        <DialogContent className="sm:max-w-md border border-gray-400 font-hanken">
-          <DialogHeader className="-mx-4 -mt-4 mb-2 rounded-t-xl border-b border-gray-200 bg-[#A8DCAB] px-4 py-3">
-            <DialogTitle className="text-lg font-bold text-black flex items-center gap-2">
-              <MinusCircle className="w-5 h-5" /> Grant Market Value Deduction
-            </DialogTitle>
-          </DialogHeader>
-          <div className="grid gap-4 py-2">
-            <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 text-xs text-blue-800 leading-relaxed">
-              <strong>Info:</strong> Market value is deducted from the employee's salary, like a salary advance, but always as a single deduction in its effective month — there is no EMI option.
-            </div>
-
-            <div className="flex flex-col gap-1.5">
-              <Label className="text-xs font-semibold text-gray-700">Select Employee</Label>
-              <Select value={mvdEmployeeId} onValueChange={setMvdEmployeeId}>
-                <SelectTrigger className="h-9 text-xs"><SelectValue placeholder="Choose Employee..." /></SelectTrigger>
-                <SelectContent position="popper">
-                  {employees.map(emp => (
-                    <SelectItem key={emp.id} value={emp.id}>{emp.employeeDetails?.customUserId || emp.id} - {emp.name || 'Unnamed'}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-
-            <div className="flex gap-4">
-              <div className="flex flex-col gap-1.5 flex-1">
-                <Label className="text-xs font-semibold text-gray-700">Deduction Amount (₹)</Label>
-                <Input type="number" placeholder="e.g. 2000" className="h-9 text-xs" value={mvdAmount} onChange={(e) => setMvdAmount(e.target.value)} />
-              </div>
-              <div className="flex flex-col gap-1.5 flex-1">
-                <Label className="text-xs font-semibold text-gray-700">Effective Date</Label>
-                <Input type="date" className="h-9 text-xs" value={mvdDate} onChange={(e) => setMvdDate(e.target.value)} />
-              </div>
-            </div>
-          </div>
-          <DialogFooter className="border-t border-gray-200 bg-white pt-2">
-            <Button variant="outline" size="sm" onClick={() => setIsMarketValueDeductionModalOpen(false)} className="h-8 text-xs">Cancel</Button>
-            <Button
-              size="sm"
-              className="h-8 bg-[#004D40] hover:bg-[#00332a] text-white text-xs px-4"
-              disabled={isGrantingMarketValueDeduction || !isMvdFormValid}
-              onClick={() => {
-                grantMarketValueDeduction({
-                  employeeId: mvdEmployeeId,
-                  amount: mvdAmountNum,
-                  effectiveDate: mvdDate,
-                }, {
-                  onSuccess: () => {
-                    setIsMarketValueDeductionModalOpen(false);
-                    resetMvdForm();
-                    alert('Market value deduction granted successfully!');
-                  },
-                  onError: (err) => {
-                    alert('Failed to grant deduction: ' + err.message);
-                  }
-                });
-              }}
-            >
-              {isGrantingMarketValueDeduction ? 'Granting...' : 'Grant Deduction'}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-
-      {/* Market Value Modal */}
-      <Dialog open={isMarketValueModalOpen} onOpenChange={setIsMarketValueModalOpen}>
+      {/* Machine Value / Market Value Modal — one dialog, two tabs, no separate date pickers
+          (both mutations use the Payroll tab's own month/year, shown in the header badge). */}
+      <Dialog open={isValueModalOpen} onOpenChange={(open) => { setIsValueModalOpen(open); if (!open) resetValueModalState(); }}>
         <DialogContent className="sm:max-w-2xl border border-gray-400 font-hanken">
           <DialogHeader className="-mx-4 -mt-4 mb-2 rounded-t-xl border-b border-gray-200 bg-[#A8DCAB] px-4 py-3">
-            <DialogTitle className="text-lg font-bold text-black flex items-center gap-2">
-              <Wallet className="w-5 h-5" /> Distribute Machine Value
+            <DialogTitle className="text-lg font-bold text-black flex items-center justify-between gap-2 pr-6">
+              <span className="flex items-center gap-2">
+                <Wallet className="w-5 h-5" /> Machine &amp; Market Value
+              </span>
+              <span className="inline-flex items-center gap-1.5 rounded-full bg-white/70 border border-gray-300 px-2.5 py-1 text-xs font-semibold text-gray-700">
+                <Calendar className="w-3.5 h-3.5" />
+                {new Date(currentYear, currentMonth - 1).toLocaleString('default', { month: 'long', year: 'numeric' })}
+              </span>
             </DialogTitle>
           </DialogHeader>
-          <div className="grid gap-4 py-2">
-            <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 text-xs text-blue-800 leading-relaxed">
-              <strong>Info:</strong> Machine value is an additional bonus amount shared by the owner to the employees. It is added to their payroll as an earning.
-            </div>
 
-            <div className="flex gap-4">
-              <div className="flex flex-col gap-1.5 flex-1">
-                <Label className="text-xs font-semibold text-gray-700">Total Machine Value Pool (₹)</Label>
-                <Input
-                  type="number"
-                  placeholder="e.g. 20000"
-                  className="h-9 text-xs font-bold text-lg"
-                  value={marketValuePool}
-                  onChange={(e) => setMarketValuePool(e.target.value)}
-                />
-              </div>
+          <Tabs value={valueModalTab} onValueChange={(v) => setValueModalTab(v as 'machine' | 'market')} className="gap-3">
+            <TabsList className="grid grid-cols-3 h-9 bg-gray-200/60 p-1 rounded-md">
+              <TabsTrigger value="machine" className="group text-xs font-semibold text-gray-600 data-[state=active]:!bg-[#004D40] data-[state=active]:!text-white rounded">
+                <Wallet className="w-3.5 h-3.5 mr-1 text-[#004D40] group-data-[state=active]:text-white" /> Machine Value
+              </TabsTrigger>
+              <TabsTrigger value="market" className="group text-xs font-semibold text-gray-600 data-[state=active]:!bg-[#004D40] data-[state=active]:!text-white rounded">
+                <MinusCircle className="w-3.5 h-3.5 mr-1 text-[#004D40] group-data-[state=active]:text-white" /> Market Value
+              </TabsTrigger>
+              <TabsTrigger value="other" className="group text-xs font-semibold text-gray-600 data-[state=active]:!bg-[#004D40] data-[state=active]:!text-white rounded">
+                <MinusCircle className="w-3.5 h-3.5 mr-1 text-[#004D40] group-data-[state=active]:text-white" /> Other Deductions
+              </TabsTrigger>
+            </TabsList>
 
-              <div className="flex flex-col gap-1.5 flex-1">
-                <Label className="text-xs font-semibold text-gray-700">Effective Date</Label>
-                <Input
-                  type="date"
-                  className="h-9 text-xs"
-                  value={marketValueDate}
-                  onChange={(e) => setMarketValueDate(e.target.value)}
-                />
-              </div>
-            </div>
+            {/* Machine Value tab — employee list first, Total Pool / Remaining last */}
+            <TabsContent value="machine" className="grid gap-3 mt-0">
 
-            <div className="flex flex-col gap-1.5 mt-2">
-              <div className="flex justify-between items-end">
-                <Label className="text-xs font-semibold text-gray-700">Employee Allocation</Label>
-                <div className={`text-xs font-semibold ${remainingPool === 0 && totalPoolNum > 0 ? 'text-green-600' : 'text-blue-700'}`}>
-                  Remaining Pool: ₹{remainingPool.toLocaleString()}
-                </div>
-              </div>
-              <div className="border border-gray-200 rounded-lg overflow-hidden max-h-[270px] overflow-y-auto">
+
+              <div className="border border-gray-200 rounded-lg overflow-hidden max-h-[280px] overflow-y-auto">
                 <Table className="font-hanken">
                   <TableHeader className="bg-gray-50 sticky top-0 z-10 shadow-sm">
                     <TableRow className="hover:bg-transparent border-b border-gray-200">
@@ -710,42 +849,185 @@ export const PayrollTab = forwardRef<PayrollTabRef>((_, ref) => {
                   </TableBody>
                 </Table>
               </div>
-            </div>
-          </div>
+
+              <div className="flex justify-end pt-1 pr-2">
+                <div className="text-sm font-bold text-gray-800">Total Machine Value: <span className="text-blue-700">₹{currentAllocated.toLocaleString()}</span></div>
+              </div>
+            </TabsContent>
+
+            {/* Market Value tab — same shape: employee list first, Total last, no pool to match */}
+            <TabsContent value="market" className="grid gap-3 mt-0">
+
+
+              <div className="border border-gray-200 rounded-lg overflow-hidden max-h-[280px] overflow-y-auto">
+                <Table className="font-hanken">
+                  <TableHeader className="bg-gray-50 sticky top-0 z-10 shadow-sm">
+                    <TableRow className="hover:bg-transparent border-b border-gray-200">
+                      <TableHead className="text-xs font-semibold text-gray-700 h-8 py-1">Employee</TableHead>
+                      <TableHead className="text-xs font-semibold text-gray-700 text-right h-8 py-1 w-[120px]">Deduction (₹)</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {employees.map((emp) => (
+                      <TableRow key={emp.id} className="border-b border-gray-100 hover:bg-gray-50/50">
+                        <TableCell className="py-1.5 text-xs">
+                          <div className="font-medium text-gray-900">{emp.name || 'Unnamed Employee'}</div>
+                          <div className="text-[10px] text-gray-500">{emp.employeeDetails?.customUserId || emp.mobile || emp.id}</div>
+                        </TableCell>
+                        <TableCell className="py-1.5 text-right">
+                          <Input
+                            type="number"
+                            placeholder="0"
+                            className="h-7 text-xs text-right w-full"
+                            value={marketDeductions[emp.id] || ''}
+                            onChange={(e) => handleDeductionChange(emp.id, e.target.value)}
+                          />
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </div>
+
+              <div className="flex justify-end pt-1 pr-2">
+                <div className="text-sm font-bold text-gray-800">Total Deduction: <span className="text-red-700">₹{totalDeductions.toLocaleString()}</span></div>
+              </div>
+            </TabsContent>
+
+            {/* Other Deductions tab — per-employee name + amount, since different employees
+                can have different deduction reasons in the same batch. */}
+            <TabsContent value="other" className="grid gap-3 mt-0">
+              <div className="border border-gray-200 rounded-lg overflow-hidden max-h-[280px] overflow-y-auto">
+                <Table className="font-hanken">
+                  <TableHeader className="bg-gray-50 sticky top-0 z-10 shadow-sm">
+                    <TableRow className="hover:bg-transparent border-b border-gray-200">
+                      <TableHead className="text-xs font-semibold text-gray-700 h-8 py-1">Employee</TableHead>
+                      <TableHead className="text-xs font-semibold text-gray-700 h-8 py-1 w-[160px]">Deduction Name</TableHead>
+                      <TableHead className="text-xs font-semibold text-gray-700 text-right h-8 py-1 w-[120px]">Deduction (₹)</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {employees.map((emp) => (
+                      <TableRow key={emp.id} className="border-b border-gray-100 hover:bg-gray-50/50">
+                        <TableCell className="py-1.5 text-xs">
+                          <div className="font-medium text-gray-900">{emp.name || 'Unnamed Employee'}</div>
+                          <div className="text-[10px] text-gray-500">{emp.employeeDetails?.customUserId || emp.mobile || emp.id}</div>
+                        </TableCell>
+                        <TableCell className="py-1.5">
+                          <Input
+                            type="text"
+                            placeholder="e.g. Canteen, Transport"
+                            className="h-7 text-xs w-full"
+                            value={otherDeductionNames[emp.id] || ''}
+                            onChange={(e) => handleOtherDeductionNameChange(emp.id, e.target.value)}
+                          />
+                        </TableCell>
+                        <TableCell className="py-1.5 text-right">
+                          <Input
+                            type="number"
+                            placeholder="0"
+                            className="h-7 text-xs text-right w-full"
+                            value={otherDeductions[emp.id] || ''}
+                            onChange={(e) => handleOtherDeductionChange(emp.id, e.target.value)}
+                          />
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </div>
+
+              <div className="flex justify-end pt-1 pr-2">
+                <div className="text-sm font-bold text-gray-800">Total Deduction: <span className="text-orange-700">₹{totalOtherDeductions.toLocaleString()}</span></div>
+              </div>
+            </TabsContent>
+          </Tabs>
+
           <DialogFooter className="border-t border-gray-200 bg-white pt-2">
-            <Button variant="outline" size="sm" onClick={() => setIsMarketValueModalOpen(false)} className="h-8 text-xs">Cancel</Button>
-            <Button
-              size="sm"
-              className="h-8 bg-blue-600 hover:bg-blue-700 text-white text-xs px-4"
-              disabled={isDistributing || remainingPool !== 0 || !marketValueDate || totalPoolNum <= 0}
-              onClick={() => {
-                distributeMarketValue({
-                  marketValueDate,
-                  totalPool: totalPoolNum,
-                  allocations
-                }, {
-                  onSuccess: () => {
-                    setIsMarketValueModalOpen(false);
-                    setMarketValuePool('');
-                    setMarketValueDate('');
-                    setAllocations({});
-                    alert('Machine value distributed successfully!');
-                  },
-                  onError: (err) => {
-                    alert('Failed to distribute: ' + err.message);
-                  }
-                });
-              }}
-            >
-              {isDistributing ? 'Distributing...' : 'Apply & Distribute'}
-            </Button>
+            <Button variant="outline" size="sm" onClick={() => setIsValueModalOpen(false)} className="h-8 text-xs">Cancel</Button>
+            {valueModalTab === 'machine' ? (
+              <Button
+                size="sm"
+                className="h-8 bg-[#004D40] hover:bg-[#00382e] text-white text-xs px-4"
+                disabled={isDistributing || currentAllocated <= 0}
+                onClick={() => setPendingValueConfirm('machine')}
+              >
+                Apply & Distribute
+              </Button>
+            ) : valueModalTab === 'market' ? (
+              <Button
+                size="sm"
+                className="h-8 bg-red-600 hover:bg-red-700 text-white text-xs px-4"
+                disabled={isSavingMarketDeductions || totalDeductions <= 0}
+                onClick={() => setPendingValueConfirm('market')}
+              >
+                Grant Deductions
+              </Button>
+            ) : (
+              <Button
+                size="sm"
+                className="h-8 bg-orange-600 hover:bg-orange-700 text-white text-xs px-4"
+                disabled={isSavingOtherDeductions || totalOtherDeductions <= 0}
+                onClick={() => setPendingValueConfirm('other')}
+              >
+                Grant Other Deductions
+              </Button>
+            )}
           </DialogFooter>
         </DialogContent>
       </Dialog>
 
+      {/* Value Modal Confirmation Dialog */}
+      <ApproveConfirmDialog
+        open={!!pendingValueConfirm}
+        onOpenChange={(open) => { if (!open) setPendingValueConfirm(null); }}
+        isPending={isDistributing || isSavingMarketDeductions || isSavingOtherDeductions}
+        title={
+          pendingValueConfirm === 'machine' ? 'Apply Machine Value?' :
+          pendingValueConfirm === 'market' ? 'Grant Market Value Deductions?' :
+          'Grant Other Deductions?'
+        }
+        description={
+          pendingValueConfirm === 'machine'
+            ? `Distribute ₹${currentAllocated.toLocaleString()} machine value across employees for ${new Date(currentYear, currentMonth - 1).toLocaleString('default', { month: 'long', year: 'numeric' })}. This will overwrite any existing allocations.`
+            : pendingValueConfirm === 'market'
+            ? `Grant market value deductions totalling ₹${totalDeductions.toLocaleString()} for ${new Date(currentYear, currentMonth - 1).toLocaleString('default', { month: 'long', year: 'numeric' })}.`
+            : `Grant other deductions totalling ₹${totalOtherDeductions.toLocaleString()} for ${new Date(currentYear, currentMonth - 1).toLocaleString('default', { month: 'long', year: 'numeric' })}.`
+        }
+        confirmLabel={
+          pendingValueConfirm === 'machine' ? 'Apply & Distribute' :
+          pendingValueConfirm === 'market' ? 'Grant Deductions' :
+          'Grant Other Deductions'
+        }
+        confirmingLabel="Processing..."
+        onConfirm={() => {
+          if (pendingValueConfirm === 'machine') {
+            distributeMarketValue({
+              marketValueDate: valueModalEffectiveDate,
+              totalPool: currentAllocated,
+              allocations
+            }, {
+              onSuccess: () => {
+                setPendingValueConfirm(null);
+                setIsValueModalOpen(false);
+                resetValueModalState();
+              },
+              onError: (err) => {
+                setPendingValueConfirm(null);
+                console.error('Failed to distribute:', err);
+              }
+            });
+          } else if (pendingValueConfirm === 'market') {
+            handleSaveMarketDeductions().then(() => setPendingValueConfirm(null)).catch(() => setPendingValueConfirm(null));
+          } else if (pendingValueConfirm === 'other') {
+            handleSaveOtherDeductions().then(() => setPendingValueConfirm(null)).catch(() => setPendingValueConfirm(null));
+          }
+        }}
+      />
+
       {/* Generate Payroll Modal */}
       <Dialog open={isGenerateModalOpen} onOpenChange={setIsGenerateModalOpen}>
-        <DialogContent className="max-w-[98vw] w-fit min-w-[min(100vw,1400px)] border border-gray-400 font-hanken">
+        <DialogContent className="max-w-[98vw] w-fit min-w-[min(98vw,1600px)] border border-gray-400 font-hanken">
           <DialogHeader className="-mx-4 -mt-4 mb-2 rounded-t-xl border-b border-gray-200 bg-purple-100 px-4 py-3">
             <DialogTitle className="text-lg font-bold text-black flex items-center justify-between gap-2 pr-6">
               <div className="flex items-center gap-2">
@@ -770,27 +1052,29 @@ export const PayrollTab = forwardRef<PayrollTabRef>((_, ref) => {
             <Table className="border-collapse">
               <TableHeader className="bg-gray-50/50 sticky top-0 z-10">
                 <TableRow className="border-b border-gray-300">
-                  <TableHead colSpan={6} className="text-sm font-bold text-gray-800 !text-center border-r border-gray-300">Employee Details</TableHead>
-                  <TableHead colSpan={3} className="text-sm font-bold text-blue-700 text-center border-r border-gray-300 bg-blue-50/30">Bonuses</TableHead>
+                  <TableHead colSpan={7} className="text-sm font-bold text-gray-800 !text-center border-r border-gray-300">Employee Details</TableHead>
+                  <TableHead colSpan={2} className="text-sm font-bold text-blue-700 text-center border-r border-gray-300 bg-blue-50/30">Sunday/Machine value</TableHead>
                   <TableHead colSpan={1} className="text-sm font-bold text-gray-800 text-center border-r border-gray-300 bg-emerald-50/30">Gross</TableHead>
                   <TableHead colSpan={3} className="text-sm font-bold text-red-700 text-center border-r border-gray-300 bg-red-50/30">Deductions</TableHead>
-                  <TableHead colSpan={1} className="text-sm font-bold text-gray-800 !text-center bg-emerald-50/30">Final</TableHead>
+                  <TableHead colSpan={3} className="text-sm font-bold text-gray-800 !text-center bg-emerald-50/30">Final</TableHead>
                 </TableRow>
                 <TableRow className="border-b border-gray-300">
-                  <TableHead className="text-xs font-semibold text-gray-800 border-r border-gray-300">Emp ID</TableHead>
-                  <TableHead className="text-xs font-semibold text-gray-800 border-r border-gray-300">Employee Name</TableHead>
-                  <TableHead className="text-xs font-semibold text-gray-800 text-center border-r border-gray-300">Month Days</TableHead>
-                  <TableHead className="text-xs font-semibold text-gray-800 text-center border-r border-gray-300">Days Present</TableHead>
-                  <TableHead className="text-xs font-semibold text-gray-800 text-center border-r border-gray-300">Absent Days</TableHead>
-                  <TableHead className="text-xs font-semibold text-gray-800 text-right border-r border-gray-300">Base Salary</TableHead>
-                  <TableHead className="text-xs font-semibold text-gray-800 text-center text-purple-700 border-r border-gray-300">Sunday Bonus (Days)</TableHead>
-                  <TableHead className="text-xs font-semibold text-gray-800 text-right text-purple-700 border-r border-gray-300">Sunday Bonus</TableHead>
-                  <TableHead className="text-xs font-semibold text-gray-800 text-right text-blue-700 border-r border-gray-300">Machine Value</TableHead>
-                  <TableHead className="text-xs font-semibold text-gray-800 text-right border-r border-gray-300">Gross Pay</TableHead>
-                  <TableHead className="text-xs font-semibold text-gray-800 text-right text-red-600 border-r border-gray-300">LOP Deduction</TableHead>
-                  <TableHead className="text-xs font-semibold text-gray-800 text-right text-amber-700 border-r border-gray-300">Advance Deducted</TableHead>
-                  <TableHead className="text-xs font-semibold text-gray-800 text-right text-red-600 border-r border-gray-300">Market Value</TableHead>
-                  <TableHead className="text-xs font-extrabold text-gray-900 text-right pr-4">Net Payable</TableHead>
+                  <TableHead className="text-xs font-semibold text-gray-800 px-2 border-r border-gray-300">Emp ID</TableHead>
+                  <TableHead className="text-xs font-semibold text-gray-800 px-2 border-r border-gray-300">Employee Name</TableHead>
+                  <TableHead className="text-xs font-semibold text-gray-800 text-right px-2 border-r border-gray-300">Base Salary</TableHead>
+                  <TableHead className="text-xs font-semibold text-gray-800 text-center px-2 border-r border-gray-300" title="Present">P</TableHead>
+                  <TableHead className="text-xs font-semibold text-gray-800 text-center px-2 border-r border-gray-300" title="Company Holiday">L</TableHead>
+                  <TableHead className="text-xs font-semibold text-gray-800 text-center px-2 border-r border-gray-300" title="Sunday Allowance (Days)">S</TableHead>
+                  <TableHead className="text-xs font-semibold text-gray-800 text-center px-2 border-r border-gray-300" title="Absent">A</TableHead>
+                  <TableHead className="text-xs font-semibold text-gray-800 text-right text-purple-700 px-2 border-r border-gray-300">Sunday Bonus</TableHead>
+                  <TableHead className="text-xs font-semibold text-gray-800 text-right text-blue-700 px-2 border-r border-gray-300">Machine Value</TableHead>
+                  <TableHead className="text-xs font-semibold text-gray-800 text-right px-2 border-r border-gray-300">Gross Pay</TableHead>
+                  <TableHead className="text-xs font-semibold text-gray-800 text-right text-red-600 px-2 border-r border-gray-300">LOP</TableHead>
+                  <TableHead className="text-xs font-semibold text-gray-800 text-right text-amber-700 px-2 border-r border-gray-300">Advance Deducted</TableHead>
+                  <TableHead className="text-xs font-semibold text-gray-800 text-right text-red-600 px-2 border-r border-gray-300">Market Value</TableHead>
+                  <TableHead className="text-xs font-extrabold text-gray-900 text-right px-2 border-r border-gray-300 bg-emerald-50/50">Net Payable</TableHead>
+                  <TableHead className="text-xs font-semibold text-gray-800 text-right text-orange-700 px-2 border-r border-gray-300 bg-emerald-50/50">Other Deduction</TableHead>
+                  <TableHead className="text-xs font-semibold text-gray-800 text-right text-amber-900 px-2 bg-emerald-50/50">Advance Balance</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -805,26 +1089,29 @@ export const PayrollTab = forwardRef<PayrollTabRef>((_, ref) => {
                   let absentDays = 0;
                   let sundayBonuses = 0;
                   let sundayBonusDays = 0;
+                  let companyHolidays = 0;
 
                   // Use YYYY-MM-DD for checking
                   const attendanceMap = new Map(empAttendances.map(a => [a.date.split('T')[0], a.status]));
 
                   for (let day = 1; day <= totalDays; day++) {
-                      const dateStr = `${currentYear}-${currentMonth.toString().padStart(2, '0')}-${day.toString().padStart(2, '0')}`;
-                      const currentDate = new Date(currentYear, currentMonth - 1, day);
-                      const isSunday = currentDate.getDay() === 0;
-                      const status = attendanceMap.get(dateStr);
+                    const dateStr = `${currentYear}-${currentMonth.toString().padStart(2, '0')}-${day.toString().padStart(2, '0')}`;
+                    const currentDate = new Date(currentYear, currentMonth - 1, day);
+                    const isSunday = currentDate.getDay() === 0;
+                    const status = attendanceMap.get(dateStr);
 
-                      if (status === 'DAY_SHIFT' || status === 'NIGHT_SHIFT' || status === 'HALF_DAY') {
-                          presentDays += (status === 'HALF_DAY' ? 0.5 : 1);
-                      }
+                    if (status === 'DAY_SHIFT' || status === 'NIGHT_SHIFT' || status === 'HALF_DAY') {
+                      presentDays += (status === 'HALF_DAY' ? 0.5 : 1);
+                    } else if (status === 'COMPANY_HOLIDAY') {
+                      companyHolidays += 1;
+                    }
 
-                      if (isSunday && (status === 'DAY_SHIFT' || status === 'NIGHT_SHIFT')) {
-                          sundayBonuses += (3 * oneDaySalary);
-                          sundayBonusDays += 1;
-                      } else if (!isSunday && status === 'ABSENT') {
-                          absentDays++;
-                      }
+                    if (isSunday && (status === 'DAY_SHIFT' || status === 'NIGHT_SHIFT')) {
+                      sundayBonuses += (3 * oneDaySalary);
+                      sundayBonusDays += 1;
+                    } else if (!isSunday && status === 'ABSENT') {
+                      absentDays++;
+                    }
                   }
 
                   const lopDeduction = Math.round(absentDays * oneDaySalary);
@@ -833,26 +1120,34 @@ export const PayrollTab = forwardRef<PayrollTabRef>((_, ref) => {
 
                   const summary = payrollSummary.find(s => s.id === emp.id);
                   const advanceDeduction = summary?.advanceDeduction || 0;
+
+                  const activeAdvances = salaryAdvances.filter(a => a.employeeId === emp.id && a.status === 'ACTIVE');
+                  const currentRemainingAdvance = activeAdvances.reduce((sum, a) => sum + a.remainingAmount, 0);
+                  const advanceBalance = Math.max(0, currentRemainingAdvance - (isGenerated ? 0 : advanceDeduction));
+
                   const marketValueBonus = marketValueAllocations[emp.id] || summary?.marketValueBonus || 0;
                   const marketValueDeduction = summary?.marketValueDeduction || 0;
-                  const netSalary = grossSalary - advanceDeduction + marketValueBonus - marketValueDeduction;
+                  const otherDeduction = summary?.otherDeduction || 0;
+                  const netSalary = grossSalary - advanceDeduction + marketValueBonus - marketValueDeduction - otherDeduction;
 
                   return (
                     <TableRow key={emp.id} className="border-b border-gray-300">
-                      <TableCell className="text-sm font-bold text-gray-900 border-r border-gray-300">{emp.employeeDetails?.customUserId || emp.id}</TableCell>
-                      <TableCell className="text-sm font-semibold text-gray-800 border-r border-gray-300">{emp.name}</TableCell>
-                      <TableCell className="text-sm text-center font-medium bg-gray-50/50 border-r border-gray-300">{totalDays}</TableCell>
-                      <TableCell className="text-sm text-center font-bold text-emerald-600 border-r border-gray-300">{presentDays}</TableCell>
-                      <TableCell className="text-sm text-center font-bold text-red-600 border-r border-gray-300">{absentDays}</TableCell>
-                      <TableCell className="text-sm text-right border-r border-gray-300">₹{baseSalary.toLocaleString()}</TableCell>
-                      <TableCell className="text-sm text-center font-bold text-purple-700 border-r border-gray-300">{sundayBonusDays}</TableCell>
-                      <TableCell className="text-sm text-right font-medium text-purple-700 border-r border-gray-300">+ ₹{sundayBonusAmount.toLocaleString()}</TableCell>
-                      <TableCell className="text-sm text-right font-medium text-blue-700 border-r border-gray-300">+ ₹{marketValueBonus.toLocaleString()}</TableCell>
-                      <TableCell className="text-sm text-right font-semibold text-gray-800 border-r border-gray-300">₹{grossSalary.toLocaleString()}</TableCell>
-                      <TableCell className="text-sm text-right font-medium text-red-600 border-r border-gray-300">- ₹{lopDeduction.toLocaleString()}</TableCell>
-                      <TableCell className="text-sm text-right font-medium text-amber-700 border-r border-gray-300">- ₹{advanceDeduction.toLocaleString()}</TableCell>
-                      <TableCell className="text-sm text-right font-medium text-red-600 border-r border-gray-300">- ₹{marketValueDeduction.toLocaleString()}</TableCell>
-                      <TableCell className="text-sm text-right font-extrabold text-emerald-800 pr-4">₹{netSalary.toLocaleString()}</TableCell>
+                      <TableCell className="text-sm font-bold text-gray-900 px-2 border-r border-gray-300">{emp.employeeDetails?.customUserId || emp.id}</TableCell>
+                      <TableCell className="text-sm font-semibold text-gray-800 px-2 border-r border-gray-300">{emp.name}</TableCell>
+                      <TableCell className="text-sm text-right px-2 border-r border-gray-300">₹{baseSalary.toLocaleString()}</TableCell>
+                      <TableCell className="text-sm text-center font-bold text-emerald-600 px-2 border-r border-gray-300">{presentDays}</TableCell>
+                      <TableCell className="text-sm text-center font-bold text-blue-600 px-2 border-r border-gray-300">{companyHolidays}</TableCell>
+                      <TableCell className="text-sm text-center font-bold text-purple-700 px-2 border-r border-gray-300">{sundayBonusDays}</TableCell>
+                      <TableCell className="text-sm text-center font-bold text-red-600 px-2 border-r border-gray-300">{absentDays}</TableCell>
+                      <TableCell className="text-sm text-right font-medium text-purple-700 px-2 border-r border-gray-300">+ ₹{sundayBonusAmount.toLocaleString()}</TableCell>
+                      <TableCell className="text-sm text-right font-medium text-blue-700 px-2 border-r border-gray-300">+ ₹{marketValueBonus.toLocaleString()}</TableCell>
+                      <TableCell className="text-sm text-right font-semibold text-gray-800 px-2 border-r border-gray-300">₹{grossSalary.toLocaleString()}</TableCell>
+                      <TableCell className="text-sm text-right font-medium text-red-600 px-2 border-r border-gray-300">- ₹{lopDeduction.toLocaleString()}</TableCell>
+                      <TableCell className="text-sm text-right font-medium text-amber-700 px-2 border-r border-gray-300">- ₹{advanceDeduction.toLocaleString()}</TableCell>
+                      <TableCell className="text-sm text-right font-medium text-red-600 px-2 border-r border-gray-300">- ₹{marketValueDeduction.toLocaleString()}</TableCell>
+                      <TableCell className="text-sm text-right font-extrabold text-emerald-800 px-2 border-r border-gray-300 bg-emerald-50/30">₹{netSalary.toLocaleString()}</TableCell>
+                      <TableCell className="text-sm text-right font-medium text-orange-700 px-2 border-r border-gray-300 bg-emerald-50/30">- ₹{otherDeduction.toLocaleString()}</TableCell>
+                      <TableCell className="text-sm text-right font-bold text-amber-900 px-2 bg-emerald-50/30">₹{advanceBalance.toLocaleString()}</TableCell>
                     </TableRow>
                   );
                 })}
@@ -882,6 +1177,137 @@ export const PayrollTab = forwardRef<PayrollTabRef>((_, ref) => {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* Edit Payroll Record Modal */}
+      <Dialog open={!!editingPayrollRow} onOpenChange={(open) => !open && closeEditPayrollModal()}>
+        <DialogContent className="sm:max-w-lg border border-gray-400 font-hanken">
+          <DialogHeader className="-mx-4 -mt-4 mb-2 rounded-t-xl border-b border-gray-200 bg-[#A8DCAB] px-4 py-3">
+            <DialogTitle className="text-lg font-bold text-black flex items-center gap-2">
+              <Edit2 className="w-4.5 h-4.5" /> Edit Payroll — {editingPayrollRow?.name}
+            </DialogTitle>
+          </DialogHeader>
+
+          {editingPayrollRow && (
+            <div className="bg-white border border-gray-200 rounded-lg p-3 grid grid-cols-2 sm:grid-cols-4 gap-2 mb-1 shadow-sm">
+              <div>
+                <p className="text-[10px] uppercase text-gray-500 font-bold">Employee</p>
+                <p className="text-sm font-semibold text-gray-900 truncate">{editingPayrollRow.name}</p>
+              </div>
+              <div>
+                <p className="text-[10px] uppercase text-gray-500 font-bold">Base Salary</p>
+                <p className="text-sm font-semibold text-gray-900">₹{editingPayrollRow.baseSalary.toLocaleString()}</p>
+              </div>
+              <div>
+                <p className="text-[10px] uppercase text-gray-500 font-bold">Gross Pay</p>
+                <p className="text-sm font-semibold text-gray-900">₹{editingPayrollRow.grossSalary.toLocaleString()}</p>
+              </div>
+              <div>
+                <p className="text-[10px] uppercase text-gray-500 font-bold">Net Pay</p>
+                <p className="text-sm font-extrabold text-emerald-700">₹{dynamicNetPay.toLocaleString()}</p>
+              </div>
+            </div>
+          )}
+
+          <div className="grid gap-3 py-2">
+            <div className="bg-orange-50 border border-orange-200 rounded-xl p-3 flex flex-col gap-2">
+              <div className="flex items-center gap-2">
+                <div className="h-7 w-7 rounded-full bg-orange-100 flex items-center justify-center shrink-0"><MinusCircle className="w-3.5 h-3.5 text-orange-700" /></div>
+                <Label className="text-xs font-semibold text-orange-800 uppercase tracking-wide">Other Deduction</Label>
+              </div>
+              <Input
+                type="text"
+                placeholder="Deduction name (e.g. Canteen, Transport)"
+                className="h-9 text-sm bg-white"
+                value={editOtherDeductionName}
+                onChange={(e) => setEditOtherDeductionName(e.target.value)}
+              />
+              <Input
+                type="number"
+                min="0"
+                placeholder="0"
+                className="h-9 text-sm font-semibold bg-white"
+                value={editOtherDeductionAmount}
+                onChange={(e) => setEditOtherDeductionAmount(e.target.value)}
+              />
+              <div className="flex justify-between items-center text-[11px] mt-1">
+                <span className="text-orange-800/70 font-medium">Deduction Amount</span>
+                <span className="font-semibold text-emerald-700">Net Pay: ₹{dynamicNetPay.toLocaleString()}</span>
+              </div>
+            </div>
+
+            <div className="bg-blue-50 border border-blue-200 rounded-xl p-3 flex flex-col gap-2">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <div className="h-7 w-7 rounded-full bg-blue-100 flex items-center justify-center shrink-0"><Wallet className="w-3.5 h-3.5 text-blue-700" /></div>
+                  <Label className="text-xs font-semibold text-blue-800 uppercase tracking-wide">Machine Value</Label>
+                </div>
+                <div className="text-[11px] text-blue-700 font-medium bg-blue-100/50 px-2 py-0.5 rounded-full">
+                  Effective: {new Date(currentYear, currentMonth - 1).toLocaleString('default', { month: 'short', year: 'numeric' })}
+                </div>
+              </div>
+              <Input
+                type="number"
+                min="0"
+                className="h-9 text-sm font-semibold bg-white"
+                value={editMarketValueBonus}
+                onChange={(e) => setEditMarketValueBonus(e.target.value)}
+              />
+              <div className="flex justify-between items-center text-[11px] mt-1">
+                <span className="text-blue-800/70 font-medium">Bonus Amount</span>
+                <span className="font-semibold text-emerald-700">Net Pay: ₹{dynamicNetPay.toLocaleString()}</span>
+              </div>
+            </div>
+
+            <div className="bg-red-50 border border-red-200 rounded-xl p-3 flex flex-col gap-2">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <div className="h-7 w-7 rounded-full bg-red-100 flex items-center justify-center shrink-0"><MinusCircle className="w-3.5 h-3.5 text-red-700" /></div>
+                  <Label className="text-xs font-semibold text-red-800 uppercase tracking-wide">Market Value</Label>
+                </div>
+                <div className="text-[11px] text-red-700 font-medium bg-red-100/50 px-2 py-0.5 rounded-full">
+                  Effective: {new Date(currentYear, currentMonth - 1).toLocaleString('default', { month: 'short', year: 'numeric' })}
+                </div>
+              </div>
+              <Input
+                type="number"
+                min="0"
+                className="h-9 text-sm font-semibold bg-white"
+                value={editMarketValueDeduction}
+                onChange={(e) => setEditMarketValueDeduction(e.target.value)}
+              />
+              <div className="flex justify-between items-center text-[11px] mt-1">
+                <span className="text-red-800/70 font-medium">Deduction Amount</span>
+                <span className="font-semibold text-emerald-700">Net Pay: ₹{dynamicNetPay.toLocaleString()}</span>
+              </div>
+            </div>
+          </div>
+          <DialogFooter className="border-t border-gray-200 bg-white pt-2">
+            <Button variant="outline" size="sm" onClick={closeEditPayrollModal} disabled={isUpdatingPayrollRecord} className="h-8 text-xs">Cancel</Button>
+            <Button
+              size="sm"
+              className="h-8 bg-[#004D40] hover:bg-[#00332a] text-white text-xs px-4"
+              disabled={isUpdatingPayrollRecord}
+              onClick={handleSavePayrollEdit}
+            >
+              {isUpdatingPayrollRecord ? 'Saving...' : 'Save Changes'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Delete Payroll Record Confirmation */}
+      <DeleteConfirmDialog
+        open={!!deletePayrollTarget}
+        onOpenChange={(open) => !open && setDeletePayrollTarget(null)}
+        onConfirm={handleDeletePayrollConfirm}
+        isPending={isDeletingPayrollRecord}
+        title="Clear this payroll record?"
+        description={
+          deletePayrollTarget
+            ? `This removes ${deletePayrollTarget.name}'s payroll record for ${new Date(currentYear, currentMonth - 1).toLocaleString('default', { month: 'long', year: 'numeric' })}. The employee record itself is not affected.`
+            : undefined
+        }
+      />
     </div>
   );
 });

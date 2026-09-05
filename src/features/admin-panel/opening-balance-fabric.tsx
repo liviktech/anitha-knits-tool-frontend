@@ -121,6 +121,9 @@ export function OpeningBalanceFabricTab() {
                 <th className="px-3 py-2 text-center font-bold text-gray-700 uppercase tracking-wide border-r border-gray-200">
                   SIZE
                 </th>
+                <th className="px-3 py-2 text-center font-bold text-gray-700 uppercase tracking-wide border-r border-gray-200">
+                  CHEMICAL
+                </th>
                 <th className="px-3 py-2 text-center font-bold text-blue-700 tracking-wide bg-blue-50/50 border-r border-gray-200">
                   KORA BALANCE (Kg)
                 </th>
@@ -135,7 +138,7 @@ export function OpeningBalanceFabricTab() {
             <tbody>
               {records.length === 0 ? (
                 <tr>
-                  <td colSpan={6} className="py-12 text-center text-gray-500 text-sm">
+                  <td colSpan={7} className="py-12 text-center text-gray-500 text-sm">
                     No fabric stock balances found. Add one to get started.
                   </td>
                 </tr>
@@ -161,6 +164,9 @@ export function OpeningBalanceFabricTab() {
                       <td className="border-r border-gray-200 px-3 py-2 text-center text-gray-700 whitespace-nowrap">
                         {r.size?.name || '—'}
                       </td>
+                      <td className="border-r border-gray-200 px-3 py-2 text-center text-gray-700 whitespace-nowrap">
+                        {r.chemical?.name || '—'}
+                      </td>
                       <td className="border-r border-gray-200 px-2 py-2 text-center text-gray-600">
                         {r.koraBalanceKg ? r.koraBalanceKg.toFixed(2) : '—'}
                       </td>
@@ -185,7 +191,7 @@ export function OpeningBalanceFabricTab() {
             <tfoot>
               {records.length > 0 && (
                 <tr className="bg-gray-100 font-bold border-t-2 border-gray-300">
-                  <td colSpan={3} className="px-3 py-3 text-center text-gray-800 uppercase tracking-wide border-r border-gray-200">Grand Total</td>
+                  <td colSpan={4} className="px-3 py-3 text-center text-gray-800 uppercase tracking-wide border-r border-gray-200">Grand Total</td>
                   <td className="px-2 py-3 text-center text-blue-900 bg-blue-100/50 border-r border-gray-200">
                     {records.reduce((acc, r) => acc + (r.koraBalanceKg || 0), 0).toFixed(2)}
                   </td>
@@ -226,6 +232,7 @@ type FabricRowState = {
   id: string;
   color: string;
   size: string;
+  chemical: string;
   kora: string;
   fabric: string;
 };
@@ -245,6 +252,7 @@ function FabricModal({ onClose, onSave, initialData, lookupsData, error }: {
     id: Math.random().toString(36).slice(2, 11),
     color: '',
     size: '',
+    chemical: '',
     kora: '',
     fabric: ''
   });
@@ -255,6 +263,7 @@ function FabricModal({ onClose, onSave, initialData, lookupsData, error }: {
         id: initialData.id,
         color: initialData.color?.name || '',
         size: initialData.size?.name || '',
+        chemical: initialData.chemical?.name || '',
         kora: initialData.koraBalanceKg ? String(initialData.koraBalanceKg) : '',
         fabric: initialData.fabricStockKg ? String(initialData.fabricStockKg) : '',
       }];
@@ -264,6 +273,7 @@ function FabricModal({ onClose, onSave, initialData, lookupsData, error }: {
 
   const colorNames = useMemo(() => (lookupsData?.colors ?? []).map((c: any) => c.name).sort(), [lookupsData?.colors]);
   const sizeNames = useMemo(() => (lookupsData?.sizes ?? []).map((s: any) => s.name).sort(), [lookupsData?.sizes]);
+  const chemicalNames = useMemo(() => (lookupsData?.chemicals ?? []).map((c: any) => c.name).sort(), [lookupsData?.chemicals]);
 
   const handleRowChange = (id: string, field: keyof FabricRowState, value: string) => {
     setRows(rows.map(r => r.id === id ? { ...r, [field]: value } : r));
@@ -294,6 +304,7 @@ function FabricModal({ onClose, onSave, initialData, lookupsData, error }: {
       date: dateStr,
       colorId: r.color && r.color !== 'none' ? findIdByName(lookupsData?.colors ?? [], r.color) : undefined,
       sizeId: r.size && r.size !== 'none' ? findIdByName(lookupsData?.sizes ?? [], r.size) : undefined,
+      chemicalId: r.chemical && r.chemical !== 'none' ? findIdByName(lookupsData?.chemicals ?? [], r.chemical) : undefined,
       koraBalanceKg: parseFloat(r.kora) || 0,
       fabricStockKg: parseFloat(r.fabric) || 0,
     }));
@@ -352,6 +363,9 @@ function FabricModal({ onClose, onSave, initialData, lookupsData, error }: {
                     <th className="px-3 py-2 text-center font-bold text-gray-700 uppercase tracking-wide border-r border-gray-200 align-middle w-[140px]">
                       SIZE
                     </th>
+                    <th className="px-3 py-2 text-center font-bold text-gray-700 uppercase tracking-wide border-r border-gray-200 align-middle w-[140px]">
+                      CHEMICAL
+                    </th>
                     <th className="px-3 py-2 text-center font-bold text-blue-700 uppercase tracking-wide bg-blue-50/50 border-r border-gray-200">
                       KORA BALANCE (Kg)
                     </th>
@@ -384,6 +398,18 @@ function FabricModal({ onClose, onSave, initialData, lookupsData, error }: {
                           <SelectContent>
                             {sizeNames.map((s: string) => (
                               <SelectItem key={s} value={s}>{s}</SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </td>
+                      <td className="border-r border-gray-200 p-2">
+                        <Select value={row.chemical} onValueChange={(val) => handleRowChange(row.id, 'chemical', val)}>
+                          <SelectTrigger className="w-full h-9 bg-white text-xs border-gray-300">
+                            <SelectValue placeholder="Chemical" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {chemicalNames.map((c: string) => (
+                              <SelectItem key={c} value={c}>{c}</SelectItem>
                             ))}
                           </SelectContent>
                         </Select>
