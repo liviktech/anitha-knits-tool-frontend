@@ -78,6 +78,8 @@ export function FabricModalForm({ productionDate, initialData, isEditMode, onCan
 
   const fabricProductionInputKg = parseFloat(draft.input) || 0;
   const exceedsAvailable = hasSizeColorChemical && totalAvailableKg !== undefined && fabricProductionInputKg > totalAvailableKg;
+  // Projected Kora Balance after this entry: simple client-side subtraction, no backend call.
+  const projectedKoraBalanceKg = totalAvailableKg !== undefined ? totalAvailableKg - fabricProductionInputKg : undefined;
 
   const updateField = (field: keyof FabricDraft, value: string) => {
     setError(null);
@@ -279,11 +281,11 @@ export function FabricModalForm({ productionDate, initialData, isEditMode, onCan
         </div>
       </div>
 
-      {hasSizeAndColor && koraStockKg !== undefined && (
+      {hasSizeAndColor && projectedKoraBalanceKg !== undefined && (
         <p className="flex items-center gap-2 text-sm text-gray-700 bg-gray-50 border border-gray-200 rounded-md px-3 py-2">
           <Info className="h-4 w-4 shrink-0 text-gray-500" />
           <span className="font-semibold">Kora Balance:</span>
-          <span className="font-extrabold">{isCheckingKora ? 'Checking…' : `${koraStockKg.toFixed(2)} kg`}</span>
+          <span className="font-extrabold">{isCheckingTotal ? 'Checking…' : `${projectedKoraBalanceKg.toFixed(2)} kg`}</span>
         </p>
       )}
 
