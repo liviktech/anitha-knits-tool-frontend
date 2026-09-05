@@ -27,7 +27,7 @@ interface LoomModalFormProps {
 export function LoomModalForm({ productionDate, initialData, isEditMode, onCancel, onSuccess, entryType = 'PRODUCTION' }: LoomModalFormProps) {
   const queryClient = useQueryClient();
   const { data: lookupsData } = useLookups();
-  const lookups: Lookups = lookupsData ?? { brands: [], colors: [], chemicals: [], sizes: [] };
+  const lookups: Lookups = lookupsData ?? { brands: [], colors: [], chemicals: [], sizes: [], expenseNames: [] };
   const theme = themes.looms;
 
   const [draft, setDraft] = useState<LoomDraft>(initialData || { ...emptyLoomDraft });

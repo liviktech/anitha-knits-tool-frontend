@@ -65,7 +65,7 @@ export function NewEntry({ onClose, defaultDate, readOnly: propsReadOnly = false
   const [editingDeliveredGroup, setEditingDeliveredGroup] = useState<any>(null);
 
   const { data: lookupsData } = useLookups();
-  const lookups = lookupsData ?? { brands: [], colors: [], chemicals: [], sizes: [] };
+  const lookups = lookupsData ?? { brands: [], colors: [], chemicals: [], sizes: [], expenseNames: [] };
 
   const { data: allExtruderData } = useExtruderProductions(`?limit=100&type=${entryType}`, !readOnly);
   const completedDateStrings = new Set(

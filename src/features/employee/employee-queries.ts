@@ -275,6 +275,32 @@ export function useGrantSalaryAdvance() {
   });
 }
 
+export function useGrantMarketValueDeduction() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async (data: {
+      employeeId: string;
+      amount: number;
+      effectiveDate: string;
+    }) => {
+      const response = await fetchJson<{ data: any }>(
+        '/company/payroll/market-value-deduction',
+        {
+          method: 'POST',
+          body: JSON.stringify(data),
+          headers: {
+            'Content-Type': 'application/json',
+          },
+        },
+      );
+      return response.data;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: employeeKeys.lists() });
+    },
+  });
+}
+
 export type SalaryAdvanceStatus = 'ACTIVE' | 'COMPLETED';
 
 export interface SalaryAdvanceRecord {
@@ -327,6 +353,41 @@ export function useSavePayrollRecords() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: employeeKeys.lists() });
     }
+  });
+}
+
+export function useUpdatePayrollRecord() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async ({
+      employeeId,
+      data,
+    }: {
+      employeeId: string;
+      data: {
+        month: number;
+        year: number;
+        baseSalary: number;
+        daysWorked: number;
+        advanceDeduction: number;
+        marketValueBonus: number;
+      };
+    }) => {
+      const response = await fetchJson<{ data: any }>(
+        `/company/payroll/records/${employeeId}`,
+        {
+          method: 'PATCH',
+          body: JSON.stringify(data),
+          headers: {
+            'Content-Type': 'application/json',
+          },
+        },
+      );
+      return response.data;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: employeeKeys.lists() });
+    },
   });
 }
 

@@ -15,6 +15,7 @@ export interface Lookups {
   colors: LookupItem[];
   chemicals: LookupItem[];
   sizes: LookupItem[];
+  expenseNames: LookupItem[];
 }
 
 export const lookupsKeys = {

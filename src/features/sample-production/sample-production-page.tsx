@@ -1,20 +1,25 @@
 import { useMemo, useState } from 'react';
+import { useQueryClient } from '@tanstack/react-query';
 import '@fontsource-variable/hanken-grotesk';
 import '@fontsource-variable/inter';
 import { format, parseISO } from 'date-fns';
-import { ArrowLeft, Edit, Plus } from 'lucide-react';
+import { ArrowLeft, Edit, Plus, Trash2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+import { DeleteConfirmDialog } from '@/components/shared/delete-confirm-dialog';
+import { apiFetch, fetchJson } from '@/lib/api-client';
 import { currentMonthStr } from '@/lib/date-utils';
 import extruderIcon from '@/assets/extruder-icon.png';
 import loomsIcon from '@/assets/looms-icon.png';
 import { sumWastageByCode } from '@/lib/api-types';
-import { useExtruderProductions } from '@/features/extruder/extruder-queries';
-import { useLoomsProductions } from '@/features/looms/loom-queries';
-import { useFabricCheckingRecords } from '@/features/fabric/fabric-queries';
-import { useLoadSentRecords, getLoadSentWeight, type LoadSentRecord } from '@/features/inventory/load-sent-queries';
+import { useAuth } from '@/features/auth/auth-context';
+import { canDeleteProductionRecord } from '@/lib/production-permissions';
+import { useExtruderProductions, extruderKeys } from '@/features/extruder/extruder-queries';
+import { useLoomsProductions, loomsKeys } from '@/features/looms/loom-queries';
+import { useFabricCheckingRecords, fabricCheckingKeys } from '@/features/fabric/fabric-queries';
+import { useLoadSentRecords, getLoadSentWeight, type LoadSentRecord, loadSentKeys } from '@/features/inventory/load-sent-queries';
 import { LoadSentFormDialog } from '@/features/inventory/load-sent-form-dialog';
 import { ProductionHeaderContext } from '@/features/production/production-context';
 import { NewEntry } from '@/features/production/new-entry';
@@ -145,9 +150,14 @@ function statCard(opts: {
 type View = { kind: 'list' } | { kind: 'detail'; date: string } | { kind: 'entry'; date: string | null };
 
 export function SampleProductionPage() {
+  const queryClient = useQueryClient();
+  const { user } = useAuth();
+  const canDeleteProduction = canDeleteProductionRecord(user);
   const [view, setView] = useState<View>({ kind: 'list' });
   const [monthFilter, setMonthFilter] = useState<Date>(new Date());
-  
+  const [deleteTargetDate, setDeleteTargetDate] = useState<string | null>(null);
+  const [deletingDate, setDeletingDate] = useState(false);
+
   const monthStr = format(monthFilter, 'yyyy-MM');
 
   const { data: extruderData } = useExtruderProductions('?limit=100&type=SAMPLE');
@@ -166,7 +176,7 @@ export function SampleProductionPage() {
           extruder: { input: 0, wastage: 0, output: 0 },
           looms: { input: 0, wastage: 0, output: 0 },
           fabric: { input: 0, wastage: 0, output: 0 },
-          delivered: { input: 0, wastage: 0, output: 0 },
+          delivered: { input: 0, wastage: 0, output: 0, colors: new Set<string>() },
         });
       }
       return dates.get(d);
@@ -204,6 +214,7 @@ export function SampleProductionPage() {
       const wt = getLoadSentWeight(item);
       d.delivered.input += wt;
       d.delivered.output += wt;
+      if (item.color?.name) d.delivered.colors.add(item.color.name);
     }
 
     return Array.from(dates.values()).sort((a, b) => b.date.localeCompare(a.date));
@@ -225,6 +236,43 @@ export function SampleProductionPage() {
     }
     return acc;
   }, [rows]);
+
+  // Deletes every SAMPLE-type Extruder/Looms/Fabric Checking/Fabric Delivered record for one
+  // date — mirrors production-design-2.tsx's own handleDeleteDate, scoped to type=SAMPLE so a
+  // real Production entry sharing the same date is never touched.
+  const handleDeleteDate = async () => {
+    if (!deleteTargetDate) return;
+    setDeletingDate(true);
+    try {
+      const dateQuery = `?date_from=${deleteTargetDate}T00:00:00.000Z&date_to=${deleteTargetDate}T23:59:59.999Z&limit=100&type=SAMPLE`;
+      const [extruderRes, loomsRes, fabricRes, loadSentRes] = await Promise.all([
+        fetchJson<{ data: { id: string }[] }>(`/production/extruder${dateQuery}`),
+        fetchJson<{ data: { id: string }[] }>(`/production/looms${dateQuery}`),
+        fetchJson<{ data: { id: string }[] }>(`/fabric-checking${dateQuery}`),
+        fetchJson<{ data: { id: string }[] }>(`/load-sent${dateQuery}`),
+      ]);
+
+      const results = await Promise.all([
+        ...extruderRes.data.map((r) => apiFetch(`/production/extruder/${r.id}`, { method: 'DELETE' })),
+        ...loomsRes.data.map((r) => apiFetch(`/production/looms/${r.id}`, { method: 'DELETE' })),
+        ...fabricRes.data.map((r) => apiFetch(`/fabric-checking/${r.id}`, { method: 'DELETE' })),
+        ...loadSentRes.data.map((r) => apiFetch(`/load-sent/${r.id}`, { method: 'DELETE' })),
+      ]);
+      if (results.length > 0 && results.some((r) => !r.ok)) throw new Error('Failed to delete one or more entries');
+
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: extruderKeys.all }),
+        queryClient.invalidateQueries({ queryKey: loomsKeys.all }),
+        queryClient.invalidateQueries({ queryKey: fabricCheckingKeys.all }),
+        queryClient.invalidateQueries({ queryKey: loadSentKeys.all }),
+      ]);
+    } catch (error) {
+      console.error('Error deleting sample day entries:', error);
+    } finally {
+      setDeletingDate(false);
+      setDeleteTargetDate(null);
+    }
+  };
 
   if (view.kind === 'entry') {
     return <SampleNewEntryWrapper date={view.date} onClose={() => setView(view.date ? { kind: 'detail', date: view.date } : { kind: 'list' })} />;
@@ -319,7 +367,7 @@ export function SampleProductionPage() {
                   <TableHead className="!text-center text-gray-800 font-extrabold text-[12px] uppercase tracking-wider h-8">Wastage</TableHead>
                   <TableHead className="!text-center text-gray-800 font-extrabold text-[12px] uppercase tracking-wider border-r border-gray-300 h-8">Output</TableHead>
                   <TableHead className="!text-center text-gray-800 font-extrabold text-[12px] uppercase tracking-wider h-8">Input</TableHead>
-                  <TableHead className="!text-center text-gray-800 font-extrabold text-[12px] uppercase tracking-wider h-8">Wastage</TableHead>
+                  <TableHead className="!text-center text-gray-800 font-extrabold text-[12px] uppercase tracking-wider h-8">Color</TableHead>
                   <TableHead className="!text-center text-gray-800 font-extrabold text-[12px] uppercase tracking-wider border-r border-gray-300 h-8">Output</TableHead>
                 </TableRow>
               </TableHeader>
@@ -334,6 +382,7 @@ export function SampleProductionPage() {
                     const looms = day.looms;
                     const fabric = day.fabric;
                     const delivered = day.delivered;
+                    const deliveredColors: string[] = Array.from(delivered.colors ?? []);
                     return (
                       <TableRow key={day.date} className="border-b border-gray-300 hover:bg-gray-50 transition-colors group">
                         <TableCell
@@ -352,15 +401,24 @@ export function SampleProductionPage() {
                         <TableCell className="text-center text-gray-800 font-medium text-[14px] py-1">{formatNum(fabric.wastage)}</TableCell>
                         <TableCell className="text-center text-gray-800 font-medium text-[14px] py-1 border-r border-gray-300">{formatNum(fabric.output)}</TableCell>
                         <TableCell className="text-center text-gray-800 font-medium text-[14px] py-1">{formatNum(delivered.input)}</TableCell>
-                        <TableCell className="text-center text-gray-800 font-medium text-[14px] py-1">{formatNum(delivered.wastage)}</TableCell>
+                        <TableCell className="text-center text-gray-800 font-medium text-[14px] py-1" title={deliveredColors.join(', ') || '-'}>
+                          {deliveredColors.length > 1 ? 'Mixed' : (deliveredColors[0] || '-')}
+                        </TableCell>
                         <TableCell className="!text-center text-gray-800 font-medium text-[14px] py-1 border-r border-gray-300">{formatNum(delivered.output)}</TableCell>
                         <TableCell className="py-1">
                           <div className="flex items-center justify-center gap-2">
-                           
                             <Button variant="outline" size="icon" className="h-6 w-6 text-[#004D40] hover:bg-[#004D40]/10" onClick={() => setView({ kind: 'entry', date: day.date })}>
                               <Edit className="h-[13px] w-[13px]" />
                             </Button>
-                            
+                            <Button
+                              variant="outline"
+                              size="icon"
+                              className="h-6 w-6 text-red-600 hover:bg-red-50"
+                              onClick={() => setDeleteTargetDate(day.date)}
+                              disabled={!canDeleteProduction}
+                            >
+                              <Trash2 className="h-[13px] w-[13px]" />
+                            </Button>
                           </div>
                         </TableCell>
                       </TableRow>
@@ -381,7 +439,7 @@ export function SampleProductionPage() {
                     <TableCell className="text-center text-[#00897B] text-[14px]">{formatNum(totals.fabric.wastage)}</TableCell>
                     <TableCell className="text-center text-[#00897B] text-[14px] border-r border-gray-300">{formatNum(totals.fabric.output)}</TableCell>
                     <TableCell className="!text-center text-[#00897B] text-[14px]">{formatNum(totals.delivered.input)}</TableCell>
-                    <TableCell className="!text-center text-[#00897B] text-[14px]">{formatNum(totals.delivered.wastage)}</TableCell>
+                    <TableCell className="!text-center text-[#00897B] text-[14px]">-</TableCell>
                     <TableCell className="!text-center text-[#00897B] text-[14px] border-r border-gray-300">{formatNum(totals.delivered.output)}</TableCell>
                     <TableCell></TableCell>
                   </TableRow>
@@ -396,6 +454,14 @@ export function SampleProductionPage() {
         </Card>
       </div>
 
+      <DeleteConfirmDialog
+        open={!!deleteTargetDate}
+        onOpenChange={(open) => !open && setDeleteTargetDate(null)}
+        title="Delete this day's entries?"
+        description={deleteTargetDate ? 'Are you sure want to delete this record?' : undefined}
+        isPending={deletingDate}
+        onConfirm={handleDeleteDate}
+      />
     </div>
   );
 }

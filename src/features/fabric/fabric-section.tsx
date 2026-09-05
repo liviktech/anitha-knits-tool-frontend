@@ -97,7 +97,7 @@ export const FabricSection = forwardRef<SectionRef, FabricSectionProps>(({ produ
     !hideExisting,
   );
   const { data: lookupsData } = useLookups();
-  const lookups: Lookups = lookupsData ?? { brands: [], colors: [], chemicals: [], sizes: [] };
+  const lookups: Lookups = lookupsData ?? { brands: [], colors: [], chemicals: [], sizes: [], expenseNames: [] };
   const { data: koraBalanceData } = useKoraBalances();
   const koraBalances = koraBalanceData?.data;
 

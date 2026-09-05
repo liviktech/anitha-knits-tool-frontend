@@ -186,6 +186,12 @@ export function DashboardDesign2() {
   const loomsGrandTotal = dashboardData?.loomsProduction?.overall.production || 0;
 
   const fabricByColorMap = new Map((dashboardData?.fabricProduction.byColor || []).map(r => [r.color.name, r]));
+  // FabricProductionColorSummary (byColor) has no fabricInputKg of its own — only byVariant
+  // does — so it's summed here across every size for the color, for the Kora Balance calc below.
+  const fabricInputByColorMap = new Map<string, number>();
+  (dashboardData?.fabricProduction.byVariant || []).forEach(r => {
+    fabricInputByColorMap.set(r.color.name, (fabricInputByColorMap.get(r.color.name) ?? 0) + r.fabricInputKg);
+  });
   const fabricWasteByColor = FABRIC_COLORS.map(color => {
     const r = fabricByColorMap.get(color);
     const ob = obWastageByColor.get(color) || { fw: 0, bw: 0 };
@@ -267,7 +273,7 @@ export function DashboardDesign2() {
   const koraBalanceByColor = FABRIC_COLORS.map(color => {
     const obKora = obKoraByColor.get(color) ?? 0;
     const loomsOutput = loomsByColorMap.get(color)?.production ?? 0;
-    const fabricInput = fabricByColorMap.get(color)?.fabricInputKg ?? 0;
+    const fabricInput = fabricInputByColorMap.get(color) ?? 0;
     return { color, balance: Math.max(0, obKora + loomsOutput - fabricInput) };
   });
 

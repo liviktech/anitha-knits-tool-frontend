@@ -36,6 +36,7 @@ import { DeleteConfirmDialog } from "@/components/shared/delete-confirm-dialog";
 import { Loader } from "@/components/shared/loader";
 import { TablePaginationControls, RowsPerPageSelect } from "@/components/shared/table-pagination-controls";
 import { apiFetch, extractApiErrorMessage } from "@/lib/api-client";
+import { useLookups } from "@/lib/lookups";
 import {
   expenseKeys,
   useExpenses,
@@ -80,16 +81,10 @@ function monthRange(monthStr: string): { from: string; to: string } {
   };
 }
 
-const EXPENSE_NAME_SUGGESTIONS = [
-  "Electricity Charges",
-  "Water Charges",
-  "Machine Maintenance",
-  "Transportation",
-  "Office Supplies",
-];
-
 export function EmpExpensesPage() {
   const queryClient = useQueryClient();
+  const { data: lookups } = useLookups();
+  const expenseNameSuggestions = lookups?.expenseNames.map((item) => item.name) ?? [];
 
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedMonth, setSelectedMonth] = useState<string>(currentMonthStr());
@@ -165,7 +160,7 @@ export function EmpExpensesPage() {
     setFormDate(expense.date.slice(0, 10));
     setFormName(expense.expenseName);
     setExpenseNameOption(
-      EXPENSE_NAME_SUGGESTIONS.includes(expense.expenseName) ? expense.expenseName : "OTHER",
+      expenseNameSuggestions.includes(expense.expenseName) ? expense.expenseName : "OTHER",
     );
     setFormAmount(String(expense.amount));
     setFormError(null);
@@ -527,7 +522,7 @@ export function EmpExpensesPage() {
                       <SelectValue placeholder="Select expense name" />
                     </SelectTrigger>
                     <SelectContent>
-                      {EXPENSE_NAME_SUGGESTIONS.map((name) => (
+                      {expenseNameSuggestions.map((name) => (
                         <SelectItem key={name} value={name}>
                           {name}
                         </SelectItem>

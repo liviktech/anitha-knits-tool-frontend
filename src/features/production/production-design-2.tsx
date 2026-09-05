@@ -737,7 +737,6 @@ export function ProductionDesign2() {
     output: apiSummary?.extruder.outputKg ?? 0,
     wastage: apiSummary?.extruder.wastageKg ?? 0,
   };
-  const efficiency = apiSummary?.extruder.efficiencyPct ?? 0;
   // Wastage % = (wastage / production) * 100
   const wastePct = extruderSummary.output > 0 ? (extruderSummary.wastage / extruderSummary.output) * 100 : 0;
 
@@ -746,7 +745,6 @@ export function ProductionDesign2() {
     output: apiSummary?.looms.outputKg ?? 0,
     wastage: apiSummary?.looms.wastageKg ?? 0,
   };
-  const loomsEfficiency = apiSummary?.looms.efficiencyPct ?? 0;
   const loomsWastePct = loomsSummary.output > 0 ? (loomsSummary.wastage / loomsSummary.output) * 100 : 0;
 
   const fabricSummary = {
@@ -754,7 +752,6 @@ export function ProductionDesign2() {
     checked: apiSummary?.fabricChecking.outputKg ?? 0,
     wastage: apiSummary?.fabricChecking.wastageKg ?? 0,
   };
-  const fabricEfficiency = apiSummary?.fabricChecking.efficiencyPct ?? 0;
   const fabricWastePct = fabricSummary.checked > 0 ? (fabricSummary.wastage / fabricSummary.checked) * 100 : 0;
 
   return (
