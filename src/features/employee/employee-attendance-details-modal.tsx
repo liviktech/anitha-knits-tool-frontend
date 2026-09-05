@@ -52,8 +52,8 @@ export function EmployeeAttendanceDetailsModal({ isOpen, onClose, employeeId, em
 
   return (
     <Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
-      <DialogContent className="sm:max-w-2xl p-0 overflow-hidden gap-0 rounded-2xl border border-gray-400">
-        <DialogHeader className="px-6 py-4 border-b border-gray-200 bg-[#A8DCAB]">
+      <DialogContent className="sm:max-w-sm p-0 overflow-hidden gap-0 rounded-2xl border border-gray-400">
+        <DialogHeader className="px-4 py-3 border-b border-gray-200 bg-[#A8DCAB]">
           <DialogTitle className="text-xl font-semibold text-black">{employeeName}'s Attendance Details</DialogTitle>
         </DialogHeader>
 
@@ -73,7 +73,7 @@ export function EmployeeAttendanceDetailsModal({ isOpen, onClose, employeeId, em
               <TableBody>
                 {records.length === 0 ? (
                   <TableRow>
-                    <TableCell colSpan={2} className="h-28 text-center text-gray-500">
+                    <TableCell colSpan={2} className="h-28 !text-center text-gray-500">
                       No attendance records found for this period.
                     </TableCell>
                   </TableRow>
@@ -111,15 +111,13 @@ export function EmployeeAttendanceDetailsModal({ isOpen, onClose, employeeId, em
           </div>
         </div>
 
-        <DialogFooter className="px-6 py-5 border-t border-gray-200 bg-white flex justify-between items-center w-full sm:justify-between">
-          <Button onClick={onClose} variant="outline" className="bg-white text-gray-700 hover:bg-gray-50 rounded-lg h-9 px-6">
-            Cancel
-          </Button>
+        <DialogFooter className="px-2 py-3 border-t border-gray-200 bg-white flex justify-end items-center w-full sm:justify-end">
+
           {onSave && (
             <Button
               onClick={handleSave}
               disabled={!hasChanges || isSaving}
-              className="bg-[#004D40] text-white hover:bg-[#00332a] rounded-lg h-9 px-6"
+              className="bg-[#004D40] text-white hover:bg-[#00332a] rounded-lg h-9 px-2 mb-5"
             >
               Update
               {isSaving && <Loader2 className="ml-2 h-4 w-4 animate-spin" />}
