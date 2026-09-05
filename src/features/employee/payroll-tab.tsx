@@ -1,5 +1,5 @@
 import { useState, forwardRef, useImperativeHandle } from 'react';
-import { Search, Wallet, FileText, Banknote, Calendar, Loader2, MinusCircle, Edit2, Trash2 } from 'lucide-react';
+import { Search, Wallet, FileText, Banknote, Calendar, Loader2, MinusCircle, Edit2, Trash2, Download } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { motion } from 'framer-motion';
@@ -14,6 +14,7 @@ import { ApproveConfirmDialog } from '@/components/shared/approve-confirm-dialog
 import { TablePaginationControls, RowsPerPageSelect } from '@/components/shared/table-pagination-controls';
 import { useEmployees, useDistributeMarketValue, usePayrollSummary, useGrantSalaryAdvance, useGrantMarketValueDeduction, useGrantOtherDeduction, useSavePayrollRecords, useSavedPayrollRecords, useUpdatePayrollRecord, useDeletePayrollRecord, useMarketValueAllocations, useSalaryAdvances, type SalaryAdvanceStatus } from './employee-queries';
 import { useAttendanceRecords } from './attendance-queries';
+import { PayrollReportModal } from './payroll-report-modal';
 
 
 export interface PayrollTabRef {
@@ -40,6 +41,7 @@ export const PayrollTab = forwardRef<PayrollTabRef>((_, ref) => {
   const [isAdvanceModalOpen, setIsAdvanceModalOpen] = useState(false);
   const [isValueModalOpen, setIsValueModalOpen] = useState(false);
   const [valueModalTab, setValueModalTab] = useState<'machine' | 'market' | 'other'>('machine');
+  const [isReportModalOpen, setIsReportModalOpen] = useState(false);
   const [isGenerateModalOpen, setIsGenerateModalOpen] = useState(false);
   const { data: employees = [] } = useEmployees();
   const { mutate: distributeMarketValue, isPending: isDistributing } = useDistributeMarketValue();
@@ -468,6 +470,9 @@ export const PayrollTab = forwardRef<PayrollTabRef>((_, ref) => {
                 </Button>
                 <Button size="sm" variant="outline" className="h-8 text-sm font-semibold bg-[#004D40] hover:bg-[#00382e] hover:text-white text-white" onClick={() => setIsAdvanceModalOpen(true)}>
                   <Banknote className="w-3.5 h-3.5 mr-1" /> Salary Advance
+                </Button>
+                <Button size="sm" variant="outline" className="h-8 text-sm font-semibold bg-[#004D40] hover:bg-[#00382e] hover:text-white text-white" onClick={() => setIsReportModalOpen(true)}>
+                  <Download className="w-3.5 h-3.5 mr-1" /> Report
                 </Button>
               </div>
             </div>
@@ -1285,6 +1290,27 @@ export const PayrollTab = forwardRef<PayrollTabRef>((_, ref) => {
             ? `This removes ${deletePayrollTarget.name}'s payroll record for ${new Date(currentYear, currentMonth - 1).toLocaleString('default', { month: 'long', year: 'numeric' })}. The employee record itself is not affected.`
             : undefined
         }
+      />
+
+      <PayrollReportModal
+        open={isReportModalOpen}
+        onOpenChange={setIsReportModalOpen}
+        monthStr={`${currentYear}-${currentMonth.toString().padStart(2, '0')}`}
+        rows={filteredPayroll.map(row => ({
+          employeeId: row.customUserId || row.id,
+          name: row.name || '-',
+          baseSalary: row.baseSalary,
+          daysWorked: row.daysWorked,
+          grossSalary: row.grossSalary,
+          advanceDeduction: row.advanceDeduction,
+          marketValueBonus: row.marketValueBonus,
+          marketValueDeduction: row.marketValueDeduction,
+          otherDeduction: row.otherDeduction ?? 0,
+          netSalary: row.netSalary,
+        }))}
+        totalPayroll={totalPayroll}
+        totalAdvances={totalAdvances}
+        totalMachineValue={totalMarketValue}
       />
     </div>
   );

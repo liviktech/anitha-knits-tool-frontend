@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
-import { Plus, Edit2, Trash2, PackagePlus, PackageMinus, ArrowLeft, ChevronRight } from 'lucide-react';
+import { Plus, Edit2, Trash2, PackagePlus, PackageMinus, ArrowLeft, ChevronRight, Download } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
@@ -20,6 +20,7 @@ import { RawMaterialCard } from '@/features/dashboard/card';
 import { formatDate, formatDateDisplay } from './inventory-utils';
 import { InventoryFormDialog } from './inventory-form-dialog';
 import { LoadSentFormDialog } from './load-sent-form-dialog';
+import { InventoryReportModal } from './inventory-report-modal';
 import {
   useInventoryRecords, inventoryKeys,
   inventoryTypeLabels,
@@ -828,6 +829,7 @@ export function InventoryPage() {
   const [month, setMonth] = useState(() => new Date().toISOString().slice(0, 7)); // YYYY-MM
   const [stockFormOpen, setStockFormOpen] = useState(false);
   const [editTargetGroup, setEditTargetGroup] = useState<{ date: string, groupId: string, records: InventoryRecord[] } | null>(null);
+  const [isReportModalOpen, setIsReportModalOpen] = useState(false);
 
   const { data: allInvData } = useInventoryRecords('?limit=100');
   const existingDates = Array.from(new Set((allInvData?.data ?? []).map(r => r.date.split('T')[0])));
@@ -864,6 +866,14 @@ export function InventoryPage() {
               onChange={(e) => e.target.value && setMonth(e.target.value)}
               className="h-9 w-40 bg-white border border-gray-400 rounded-md px-3 py-2 text-sm font-semibold text-[#003140] shadow-[0_1px_2px_rgba(0,0,0,0.05)] hover:bg-gray-50 focus-visible:ring-1 focus-visible:ring-[#004D40]"
             />
+            <Button
+              variant="outline"
+              className="flex items-center gap-2 border-[#004D40] text-[#004D40] hover:bg-[#004D40]/10 rounded-md px-3 py-2 h-auto text-[12px] font-bold tracking-wide"
+              onClick={() => setIsReportModalOpen(true)}
+            >
+              <Download className="w-3 h-3" />
+              REPORT
+            </Button>
             {canAddStock && (
               <Button
                 className="flex items-center gap-2 bg-[#004D40] hover:bg-[#00382e] text-white rounded-md px-3 py-2 h-auto text-[12px] font-bold tracking-wide shadow-[0_1px_2px_rgba(0,45,35,0.2)]"
@@ -896,6 +906,12 @@ export function InventoryPage() {
           existingDates={existingDates}
         />
       )}
+
+      <InventoryReportModal
+        open={isReportModalOpen}
+        onOpenChange={setIsReportModalOpen}
+        month={month}
+      />
     </div>
   );
 }

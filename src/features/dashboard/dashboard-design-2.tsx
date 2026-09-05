@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react';
+import { useState } from 'react';
 import '@fontsource-variable/hanken-grotesk';
 import { RefreshCw, Factory, Trash2, FlaskConical } from 'lucide-react';
 import { format, parseISO } from 'date-fns';
@@ -11,11 +11,6 @@ import { useAuth } from '@/features/auth/auth-context';
 import { currentMonthStr as todayMonthStr } from '@/lib/date-utils';
 import { useOpeningBalanceWastage, useOpeningBalanceFabricStock, useOpeningBalanceRawMaterials } from '@/features/admin-panel/opening-balance-queries';
 import { ProductionSummaryCard, DetailBreakdownCard, SectionSummaryCard, RawMaterialsSection, RawMaterialCard } from './card';
-import { useExtruderProductions } from '@/features/extruder/extruder-queries';
-import { useLoomsProductions } from '@/features/looms/loom-queries';
-import { useFabricCheckingRecords } from '@/features/fabric/fabric-queries';
-import { useLoadSentRecords, getLoadSentWeight } from '@/features/inventory/load-sent-queries';
-import { sumWastageByCode } from '@/lib/api-types';
 
 function formatNum(n: number): string {
   return n.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
@@ -332,73 +327,6 @@ export function DashboardDesign2() {
   });
   const selectedMonthDeliveryTotal = dashboardData?.loadSent.totals.fabricWeightKg || 0;
   const loadingLoadSent = isLoading;
-
-  // ── Sample Production Data ──────────────────────────────────────────────
-  // date_from/date_to let the backend filter by month so we don't over-fetch.
-  const [sampleYear, sampleMonth] = currentMonthStr.split('-');
-  const sampleDateFrom = `${currentMonthStr}-01`;
-  const sampleDateTo = new Date(+sampleYear, +sampleMonth, 0).toISOString().split('T')[0]; // last day of month
-  const sampleQuery = `?limit=100&type=SAMPLE&date_from=${sampleDateFrom}&date_to=${sampleDateTo}`;
-  const { data: sampleExtruderData } = useExtruderProductions(sampleQuery);
-  const { data: sampleLoomsData } = useLoomsProductions(sampleQuery);
-  const { data: sampleFabricData } = useFabricCheckingRecords(sampleQuery);
-  const { data: sampleDeliveredData } = useLoadSentRecords(sampleQuery);
-
-  const sampleSummary = useMemo(() => {
-    const extruderByColor = new Map<string, { production: number; waste: number }>();
-    const loomsByColor = new Map<string, { production: number; waste: number }>();
-    const fabricByColor = new Map<string, { production: number; waste: number }>();
-    const deliveredByColor = new Map<string, { total: number; deliveries: { label: string; value: number }[] }>();
-
-    for (const item of (sampleExtruderData?.data || [])) {
-      const color = item.color?.name ?? 'Unknown';
-      const entry = extruderByColor.get(color) ?? { production: 0, waste: 0 };
-      entry.production += item.extruder?.yarnOutputKg ?? 0;
-      entry.waste += sumWastageByCode(item.wastages, 'LUMPS') + sumWastageByCode(item.wastages, 'YARN_WASTE');
-      extruderByColor.set(color, entry);
-    }
-
-    for (const item of (sampleLoomsData?.data || [])) {
-      const color = item.color?.name ?? 'Unknown';
-      const entry = loomsByColor.get(color) ?? { production: 0, waste: 0 };
-      entry.production += item.loom?.fabricOutputKg ?? 0;
-      entry.waste += sumWastageByCode(item.wastages, 'LOOMS_WASTE');
-      loomsByColor.set(color, entry);
-    }
-
-    for (const item of (sampleFabricData?.data || [])) {
-      const color = item.color?.name ?? 'Unknown';
-      const entry = fabricByColor.get(color) ?? { production: 0, waste: 0 };
-      entry.production += item.fabricCheck?.outputKg ?? 0;
-      entry.waste += sumWastageByCode(item.wastages, 'FW') + sumWastageByCode(item.wastages, 'BW');
-      fabricByColor.set(color, entry);
-    }
-
-    for (const item of (sampleDeliveredData?.data || [])) {
-      const color = item.color?.name ?? 'Unknown';
-      const entry = deliveredByColor.get(color) ?? { total: 0, deliveries: [] };
-      const wt = getLoadSentWeight(item);
-      entry.total += wt;
-      entry.deliveries.push({ label: item.size?.name ?? '-', value: wt });
-      deliveredByColor.set(color, entry);
-    }
-
-    const colors = Array.from(new Set([
-      ...extruderByColor.keys(),
-      ...loomsByColor.keys(),
-      ...fabricByColor.keys(),
-      ...deliveredByColor.keys(),
-    ])).sort();
-
-    // Compute totals in one pass alongside the aggregation above
-    let extruderTotal = 0, loomsTotal = 0, fabricTotal = 0, deliveredTotal = 0;
-    extruderByColor.forEach(v => { extruderTotal += v.production; });
-    loomsByColor.forEach(v => { loomsTotal += v.production; });
-    fabricByColor.forEach(v => { fabricTotal += v.production; });
-    deliveredByColor.forEach(v => { deliveredTotal += v.total; });
-
-    return { extruderByColor, loomsByColor, fabricByColor, deliveredByColor, colors, extruderTotal, loomsTotal, fabricTotal, deliveredTotal };
-  }, [sampleExtruderData, sampleLoomsData, sampleFabricData, sampleDeliveredData]);
 
   // Production Summary / Fabric Stock / Fabric Delivered — shared verbatim between the
   // "Production Summary" and "Sample Production" tabs at the user's request.

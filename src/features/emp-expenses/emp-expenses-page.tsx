@@ -6,6 +6,7 @@ import {
   Edit2,
   Trash2,
   Search,
+  Download,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -42,6 +43,7 @@ import {
   useExpenses,
   type ExpenseRecord,
 } from "./expense-queries";
+import { ExpenseReportModal } from "./expense-report-modal";
 
 function formatCurrency(num: number) {
   return new Intl.NumberFormat("en-IN", {
@@ -99,6 +101,7 @@ export function EmpExpensesPage() {
   const [deleteTarget, setDeleteTarget] = useState<ExpenseRecord | null>(null);
   const [isSaving, setIsSaving] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
+  const [isReportModalOpen, setIsReportModalOpen] = useState(false);
 
   // Form input states
   const [formDate, setFormDate] = useState(todayIso());
@@ -271,6 +274,14 @@ export function EmpExpensesPage() {
           >
             <Plus className="w-3 h-3" />
             ADD EXPENSE
+          </Button>
+          <Button
+            variant="outline"
+            className="flex items-center gap-2 border-[#004D40] text-[#004D40] hover:bg-[#004D40]/10 rounded-md px-3 py-2 h-auto text-[12px] font-bold tracking-wide"
+            onClick={() => setIsReportModalOpen(true)}
+          >
+            <Download className="w-3 h-3" />
+            REPORT
           </Button>
         </div>
       </div>
@@ -605,6 +616,13 @@ export function EmpExpensesPage() {
           />
         </div>
       </div>
+      
+      {/* Report Modal */}
+      <ExpenseReportModal
+        open={isReportModalOpen}
+        onOpenChange={setIsReportModalOpen}
+        monthStr={selectedMonth}
+      />
     </div>
   );
 }
