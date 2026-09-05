@@ -3,7 +3,7 @@ import { useQueryClient } from '@tanstack/react-query';
 import '@fontsource-variable/hanken-grotesk';
 import '@fontsource-variable/inter';
 import { format, parseISO } from 'date-fns';
-import { ArrowLeft, Edit, Plus, Trash2 } from 'lucide-react';
+import { ArrowLeft, Edit, Plus, Trash2, Download } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -24,6 +24,7 @@ import { LoadSentFormDialog } from '@/features/inventory/load-sent-form-dialog';
 import { ProductionHeaderContext } from '@/features/production/production-context';
 import { NewEntry } from '@/features/production/new-entry';
 import { DayDetailView } from '@/features/production/production-design-2';
+import { SampleProductionReportModal } from './sample-production-report-modal';
 
 // Shared header chrome for both the entry form and the day-detail view — mirrors
 // ProductionLayout's header from production-details.tsx (back button, title, header-right
@@ -157,6 +158,7 @@ export function SampleProductionPage() {
   const [monthFilter, setMonthFilter] = useState<Date>(new Date());
   const [deleteTargetDate, setDeleteTargetDate] = useState<string | null>(null);
   const [deletingDate, setDeletingDate] = useState(false);
+  const [isReportOpen, setIsReportOpen] = useState(false);
 
   const monthStr = format(monthFilter, 'yyyy-MM');
 
@@ -308,6 +310,14 @@ export function SampleProductionPage() {
             onChange={(e) => e.target.value && setMonthFilter(parseISO(`${e.target.value}-01`))}
             className="h-9 w-40 bg-white border border-gray-400 rounded-md px-3 py-2 text-sm font-semibold text-[#003140] shadow-[0_1px_2px_rgba(0,0,0,0.05)] hover:bg-gray-50 focus-visible:ring-1 focus-visible:ring-[#004D40]"
           />
+          <Button
+            variant="outline"
+            className="flex items-center gap-2 border-[#004D40] text-[#004D40] hover:bg-[#004D40]/10 rounded-md px-3 py-2 h-auto text-[12px] font-bold tracking-wide"
+            onClick={() => setIsReportOpen(true)}
+          >
+            <Download className="w-3 h-3" />
+            REPORT
+          </Button>
           <Button
             className="flex items-center gap-2 bg-[#004D40] hover:bg-[#00382e] text-white rounded-md px-3 py-2 h-auto text-[12px] font-bold tracking-wide shadow-[0_1px_2px_rgba(0,45,35,0.2)] cursor-pointer"
             onClick={() => setView({ kind: 'entry', date: null })}
@@ -462,6 +472,14 @@ export function SampleProductionPage() {
         description={deleteTargetDate ? 'Are you sure want to delete this record?' : undefined}
         isPending={deletingDate}
         onConfirm={handleDeleteDate}
+      />
+
+      <SampleProductionReportModal
+        open={isReportOpen}
+        onOpenChange={setIsReportOpen}
+        monthStr={monthStr}
+        rows={rows}
+        totals={totals}
       />
     </div>
   );

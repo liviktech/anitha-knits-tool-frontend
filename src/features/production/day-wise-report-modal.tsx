@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react';
 import { format, parseISO } from 'date-fns';
-import { Download } from 'lucide-react';
+import { Download, FileDown } from 'lucide-react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -53,6 +53,24 @@ const DEL_SUB_HEADERS = [
 function fmt(n: number): string {
   return n === 0 ? '' : n.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 }
+
+function hexToRgb(hex: string): [number, number, number] {
+  const clean = hex.replace('#', '');
+  const bigint = parseInt(clean, 16);
+  return [(bigint >> 16) & 255, (bigint >> 8) & 255, bigint & 255];
+}
+
+// Flattened "Group - SubHeader" column labels plus a per-column group (for the PDF header's
+// fill color), built once from the same PRODUCTION_GROUPS/DELIVERY_GROUPS/*_SUB_HEADERS the
+// on-screen table and CSV export already use — so the PDF never drifts from those.
+const PDF_COLUMNS = (() => {
+  const groups = [...PRODUCTION_GROUPS, ...DELIVERY_GROUPS];
+  const subHeaders = [...PROD_SUB_HEADERS, ...DEL_SUB_HEADERS];
+  let i = 0;
+  return groups.flatMap((g) =>
+    Array.from({ length: g.span }, () => ({ label: `${g.label} - ${subHeaders[i++]}`, bg: g.bg, fg: g.fg }))
+  );
+})();
 
 function Cell({ value, isLast }: { value: string | number; isLast?: boolean }) {
   const displayValue = typeof value === 'number' ? fmt(value) : value;
@@ -222,6 +240,83 @@ export function DayWiseReportModal({ open, onOpenChange }: DayWiseReportModalPro
     URL.revokeObjectURL(url);
   };
 
+  const handleDownloadPdf = async () => {
+    if (rows.length === 0) return;
+
+    const { jsPDF } = await import('jspdf');
+    const { default: autoTable } = await import('jspdf-autotable');
+
+    const doc = new jsPDF({ orientation: 'landscape' });
+    const TEAL: [number, number, number] = [0, 77, 64];
+
+    doc.setFontSize(16);
+    doc.setFont('helvetica', 'bold');
+    doc.setTextColor(...TEAL);
+    doc.text('ANITHA KNITS', 148, 14, { align: 'center' });
+
+    doc.setFontSize(11);
+    doc.setFont('helvetica', 'normal');
+    doc.setTextColor(90, 90, 90);
+    doc.text('DAY WISE PRODUCTION & WASTAGE REPORT', 148, 21, { align: 'center' });
+    doc.text(`Period: ${format(new Date(year, monthIndex, 1), 'MMMM yyyy')}`, 148, 27, { align: 'center' });
+
+    const body = rows.map((row) => {
+      const values = [
+        row.extruder.hdpe, row.extruder.loomsWaste, row.extruder.lums, row.extruder.total,
+        row.loomsProduction.c180A, row.loomsProduction.dnPlus180, row.loomsProduction.c180B, row.loomsProduction.total,
+        row.fabricChecking.white, row.fabricChecking.blue, row.fabricChecking.total,
+        row.fabricWaste.fwWhite180, row.fabricWaste.fwBlue180, row.fabricWaste.white, row.fabricWaste.blue, row.fabricWaste.total,
+        row.delivery.blue, row.delivery.white, row.delivery.green,
+        row.delivery.s150, row.delivery.s160, row.delivery.s170, row.delivery.s180, row.delivery.s190,
+        row.delivery.output
+      ];
+      return [format(parseISO(row.date), 'd-MMM-yy'), ...values.map(fmt)];
+    });
+
+    const totalRow = [
+      'TOTAL',
+      ...[
+        apiTotals.extruder.input, apiTotals.extruder.yarnWasteKg || 0, apiTotals.extruder.lumpsKg || 0, apiTotals.extruder.output,
+        0, 0, 0, apiTotals.looms.output,
+        0, 0, apiTotals.fabric.output,
+        0, 0, 0, 0, apiTotals.fabric.wastage,
+        deliveryTotals.blue, deliveryTotals.white, deliveryTotals.green,
+        deliveryTotals.s150, deliveryTotals.s160, deliveryTotals.s170, deliveryTotals.s180, deliveryTotals.s190,
+        deliveryTotals.output
+      ].map(fmt),
+    ];
+
+    autoTable(doc, {
+      startY: 32,
+      margin: { left: 8, right: 8 },
+      head: [['Date', ...PDF_COLUMNS.map((c) => c.label)]],
+      body,
+      foot: [totalRow],
+      styles: { fontSize: 5.5, cellPadding: 1.2, halign: 'right' },
+      headStyles: { fontSize: 5.5, fontStyle: 'bold', textColor: 30 },
+      footStyles: { fillColor: [240, 240, 240], textColor: 30, fontStyle: 'bold' },
+      columnStyles: { 0: { halign: 'left' } },
+      didParseCell: (data) => {
+        if (data.section === 'head' && data.column.index > 0) {
+          const col = PDF_COLUMNS[data.column.index - 1];
+          if (col) data.cell.styles.fillColor = hexToRgb(col.bg);
+        }
+      },
+    });
+
+    const pageHeight = doc.internal.pageSize.getHeight();
+    doc.setFontSize(8);
+    doc.setTextColor(150, 150, 150);
+    doc.text(
+      `Generated on ${new Date().toLocaleDateString('en-IN')} at ${new Date().toLocaleTimeString('en-IN')}`,
+      148,
+      pageHeight - 8,
+      { align: 'center' },
+    );
+
+    doc.save(`production-report-${selectedMonth}.pdf`);
+  };
+
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-[95vw] sm:max-w-[95vw] max-h-[90vh] overflow-hidden flex flex-col">
@@ -242,10 +337,18 @@ export function DayWiseReportModal({ open, onOpenChange }: DayWiseReportModalPro
               variant="outline"
               size="sm"
               className="h-9 gap-1.5 rounded-full border-[#004D40]/30 text-[#004D40] hover:bg-[#004D40]/10"
+              onClick={handleDownloadPdf}
+              disabled={rows.length === 0}
+            >
+              <FileDown className="h-3.5 w-3.5" /> Download PDF
+            </Button>
+            <Button
+              size="sm"
+              className="h-9 gap-1.5 rounded-full bg-[#004D40] hover:bg-[#00382e] text-white"
               onClick={handleDownloadCsv}
               disabled={rows.length === 0}
             >
-              <Download className="h-3.5 w-3.5" /> Download
+              <Download className="h-3.5 w-3.5" /> Download CSV
             </Button>
           </div>
         </DialogHeader>

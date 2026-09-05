@@ -1,9 +1,10 @@
 import { useState } from 'react';
 import '@fontsource-variable/hanken-grotesk';
-import { RefreshCw, Factory, Trash2, FlaskConical } from 'lucide-react';
+import { RefreshCw, Factory, Trash2, FlaskConical, Download } from 'lucide-react';
 import { format, parseISO } from 'date-fns';
 import { Loader } from '@/components/shared/loader';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useMonthlyDashboard } from './dashboard-queries';
@@ -11,6 +12,7 @@ import { useAuth } from '@/features/auth/auth-context';
 import { currentMonthStr as todayMonthStr } from '@/lib/date-utils';
 import { useOpeningBalanceWastage, useOpeningBalanceFabricStock, useOpeningBalanceRawMaterials } from '@/features/admin-panel/opening-balance-queries';
 import { ProductionSummaryCard, DetailBreakdownCard, SectionSummaryCard, RawMaterialsSection, RawMaterialCard } from './card';
+import { DashboardReportModal } from './dashboard-report-modal';
 
 function formatNum(n: number): string {
   return n.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
@@ -41,6 +43,7 @@ export function DashboardDesign2() {
   const [filterDate, setFilterDate] = useState<Date>(new Date());
   const [isManualRefreshing, setIsManualRefreshing] = useState(false);
   const [activeTab, setActiveTab] = useState<'production' | 'wastage' | 'sample'>('production');
+  const [isReportModalOpen, setIsReportModalOpen] = useState(false);
   const currentMonthStr = format(filterDate, 'yyyy-MM');
 
   const handleRefresh = () => {
@@ -773,7 +776,7 @@ export function DashboardDesign2() {
             {/* Dashboard Tabs: Production Summary / Wastage Summary / Sample Production */}
             <div className="mt-4">
               <Tabs value={activeTab} onValueChange={(value) => setActiveTab(value as typeof activeTab)} className="gap-4 cursor-pointer">
-                <div className="border-b border-gray-400 px-3">
+                <div className="border-b border-gray-400 px-3 flex items-center justify-between gap-2">
                   <TabsList variant="underline" className="border-b-0">
                     <TabsTrigger value="production">
                       <span className="flex items-center gap-1 text-[15px] font-extrabold">
@@ -794,6 +797,17 @@ export function DashboardDesign2() {
                       </span>
                     </TabsTrigger>
                   </TabsList>
+                  {activeTab !== 'wastage' && (
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="mb-2 shrink-0 flex items-center gap-2 border-[#004D40] text-[#004D40] hover:bg-[#004D40]/10 rounded-md px-3 py-2 h-auto text-[12px] font-bold tracking-wide"
+                      onClick={() => setIsReportModalOpen(true)}
+                    >
+                      <Download className="w-3 h-3" />
+                      REPORT
+                    </Button>
+                  )}
                 </div>
 
                 <TabsContent value="production" className="flex flex-col gap-4">
@@ -823,6 +837,26 @@ export function DashboardDesign2() {
           </div>
         )}
       </div>
+
+      <DashboardReportModal
+        open={isReportModalOpen}
+        onOpenChange={setIsReportModalOpen}
+        reportTitle={activeTab === 'sample' ? 'Sample Production Report' : 'Production Summary Report'}
+        companyName={companyName}
+        monthStr={currentMonthStr}
+        extruderByColor={activeTab === 'sample' ? sampleExtruderSummaryByColor : extruderSummaryByColor}
+        extruderTotal={activeTab === 'sample' ? sampleExtruderGrandTotal : extruderGrandTotal}
+        loomsByColor={activeTab === 'sample' ? sampleLoomsSummaryByColor : loomsSummaryByColor}
+        loomsTotal={activeTab === 'sample' ? sampleLoomsGrandTotal : loomsGrandTotal}
+        fabricByColor={activeTab === 'sample' ? sampleFabricSummaryByColor : fabricSummaryByColor}
+        fabricTotal={activeTab === 'sample' ? sampleFabricGrandTotal : fabricGrandTotal}
+        yarnBalanceByColor={activeTab === 'sample' ? sampleYarnBalanceByColor : yarnBalanceByColor}
+        koraBalanceByColor={activeTab === 'sample' ? sampleKoraBalanceByColor : koraBalanceByColor}
+        fabricStockByColor={activeTab === 'sample' ? sampleFabricStockByColor : fabricStockByColor}
+        totalFabricStock={activeTab === 'sample' ? sampleTotalFabricStockKg : totalFabricStockKg}
+        deliveriesByColor={activeTab === 'sample' ? sampleDeliveriesByColor : monthDeliveriesByColor}
+        totalDelivered={activeTab === 'sample' ? sampleSelectedMonthDeliveryTotal : selectedMonthDeliveryTotal}
+      />
     </div>
   );
 }

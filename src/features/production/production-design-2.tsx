@@ -3,7 +3,7 @@ import { useQueryClient } from '@tanstack/react-query';
 import '@fontsource-variable/hanken-grotesk';
 import '@fontsource-variable/inter';
 import { parseISO, format } from 'date-fns';
-import { Trash2, Calendar, Plus, Edit2, Edit, Layers, ChevronRight, CheckCircle2 } from 'lucide-react';
+import { Trash2, Calendar, Plus, Edit2, Edit, Layers, ChevronRight, CheckCircle2, Download } from 'lucide-react';
 import { LoadSentFormDialog } from '../inventory/load-sent-form-dialog';
 import { type LoadSentRecord } from '../inventory/load-sent-queries';
 import { Loader } from '@/components/shared/loader';
@@ -701,6 +701,14 @@ export function ProductionDesign2() {
               className="h-9 w-40 bg-white border border-gray-400 rounded-md px-3 py-2 text-sm font-semibold text-[#003140] shadow-[0_1px_2px_rgba(0,0,0,0.05)] hover:bg-gray-50 focus-visible:ring-1 focus-visible:ring-[#004D40]"
             />
           </div>
+          <Button
+            variant="outline"
+            className="flex items-center gap-2 border-[#004D40] text-[#004D40] hover:bg-[#004D40]/10 rounded-md px-3 py-2 h-auto text-[12px] font-bold tracking-wide"
+            onClick={() => setIsReportOpen(true)}
+          >
+            <Download className="w-3 h-3" />
+            REPORT
+          </Button>
           {canCreateProductionRecord(user) && (
             <Button
               className="flex items-center gap-2 bg-[#004D40] hover:bg-[#00382e] text-white rounded-md px-3 py-2 h-auto text-[12px] font-bold tracking-wide shadow-[0_1px_2px_rgba(0,45,35,0.2)] cursor-pointer"
@@ -878,16 +886,6 @@ export function ProductionDesign2() {
                 <img src="/Table-icon.jpg" alt="" className="w-10 h-10 object-contain rounded-sm" />
                 Day Wise Production & Wastage Details
               </CardTitle>
-              {/* <div className="flex flex-wrap gap-2">
-                <Button
-                  variant="outline"
-                  size="sm"
-                  className="flex gap-2 font-bold uppercase tracking-wider text-[11px] h-8 px-3 text-gray-600 border-gray-400"
-                  onClick={() => setIsReportOpen(true)}
-                >
-                  <Download className="w-[14px] h-[14px]" /> REPORT
-                </Button>
-              </div> */}
             </CardHeader>
             <div className="overflow-x-auto w-full">
               <Table className="w-full table-fixed">
