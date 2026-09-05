@@ -117,9 +117,11 @@ export const PayrollTab = forwardRef<PayrollTabRef>((_, ref) => {
   const [marketDeductions, setMarketDeductions] = useState<Record<string, number>>({});
   const [isSavingMarketDeductions, setIsSavingMarketDeductions] = useState(false);
 
-  // Other Deductions Form State
+  // Other Deductions Form State — per-employee name + amount, since different employees can
+  // have different deduction reasons in the same batch (unlike Machine/Market Value, which are
+  // a single shared name/reason applied across everyone).
   const [otherDeductions, setOtherDeductions] = useState<Record<string, number>>({});
-  const [otherDeductionName, setOtherDeductionName] = useState('');
+  const [otherDeductionNames, setOtherDeductionNames] = useState<Record<string, string>>({});
   const [isSavingOtherDeductions, setIsSavingOtherDeductions] = useState(false);
 
   // Confirmation dialog state for value modal actions
@@ -137,7 +139,7 @@ export const PayrollTab = forwardRef<PayrollTabRef>((_, ref) => {
     setAllocations({});
     setMarketDeductions({});
     setOtherDeductions({});
-    setOtherDeductionName('');
+    setOtherDeductionNames({});
   };
 
   // Pre-fill modal with current month's existing values when opening
@@ -156,9 +158,19 @@ export const PayrollTab = forwardRef<PayrollTabRef>((_, ref) => {
     }
     setMarketDeductions(prefillMarket);
 
-    // Other deductions — start blank (name is free-text, can't auto-fill)
-    setOtherDeductions({});
-    setOtherDeductionName('');
+    // Other Deductions: pre-fill amount + a representative name from payrollSummary. An
+    // employee can have several differently-named deductions in one month, so the name is
+    // best-effort (the backend's most-recently-created one) — still editable per row here.
+    const prefillOther: Record<string, number> = {};
+    const prefillOtherNames: Record<string, string> = {};
+    for (const s of payrollSummary) {
+      if (s.otherDeduction > 0) {
+        prefillOther[s.id] = s.otherDeduction;
+        if (s.otherDeductionName) prefillOtherNames[s.id] = s.otherDeductionName;
+      }
+    }
+    setOtherDeductions(prefillOther);
+    setOtherDeductionNames(prefillOtherNames);
 
     setValueModalTab(tab);
     setIsValueModalOpen(true);
@@ -232,15 +244,24 @@ export const PayrollTab = forwardRef<PayrollTabRef>((_, ref) => {
     setOtherDeductions(prev => ({ ...prev, [empId]: numValue }));
   };
 
+  const handleOtherDeductionNameChange = (empId: string, val: string) => {
+    setOtherDeductionNames(prev => ({ ...prev, [empId]: val }));
+  };
+
   const handleSaveOtherDeductions = async () => {
     const entries = Object.entries(otherDeductions).filter(([, amount]) => amount > 0);
-    if (entries.length === 0 || !otherDeductionName.trim()) return;
+    if (entries.length === 0) return;
 
     setIsSavingOtherDeductions(true);
     try {
       await Promise.all(
         entries.map(([employeeId, amount]) =>
-          grantOtherDeduction({ employeeId, amount, name: otherDeductionName, effectiveDate: valueModalEffectiveDate }),
+          grantOtherDeduction({
+            employeeId,
+            amount,
+            name: (otherDeductionNames[employeeId] || '').trim() || 'Other Deduction',
+            effectiveDate: valueModalEffectiveDate,
+          }),
         ),
       );
       setIsValueModalOpen(false);
@@ -267,7 +288,7 @@ export const PayrollTab = forwardRef<PayrollTabRef>((_, ref) => {
       advanceDeduction: saved ? Number(saved.advanceDeduction) : (summary?.advanceDeduction || 0),
       marketValueBonus: saved ? Number(saved.marketValueBonus) : (marketValueAllocations[emp.id] || 0),
       marketValueDeduction: saved ? Number(saved.marketValueDeduction) : (summary?.marketValueDeduction || 0),
-      otherDeduction: saved ? Number(saved.otherDeduction) : (summary?.otherDeduction || 0),
+      otherDeduction: saved ? Number(saved.otherDeduction || 0) : (summary?.otherDeduction || 0),
       netSalary: saved ? Number(saved.netSalary) : 0,
       status: saved?.status || 'Pending'
     };
@@ -287,7 +308,7 @@ export const PayrollTab = forwardRef<PayrollTabRef>((_, ref) => {
     setEditMarketValueBonus(String(row.marketValueBonus));
     setEditMarketValueDeduction(String(row.marketValueDeduction));
     setEditOtherDeductionName('');
-    setEditOtherDeductionAmount(String((row as any).otherDeduction ?? 0));
+    setEditOtherDeductionAmount(String(row.otherDeduction ?? 0));
   };
 
   const closeEditPayrollModal = () => setEditingPayrollRow(null);
@@ -304,6 +325,7 @@ export const PayrollTab = forwardRef<PayrollTabRef>((_, ref) => {
         advanceDeduction: editingPayrollRow.advanceDeduction,
         marketValueBonus: parseFloat(editMarketValueBonus) || 0,
         marketValueDeduction: parseFloat(editMarketValueDeduction) || 0,
+        otherDeduction: parseFloat(editOtherDeductionAmount) || 0,
       },
     }, {
       onSuccess: () => closeEditPayrollModal(),
@@ -872,24 +894,15 @@ export const PayrollTab = forwardRef<PayrollTabRef>((_, ref) => {
               </div>
             </TabsContent>
 
-            {/* Other Deductions tab */}
+            {/* Other Deductions tab — per-employee name + amount, since different employees
+                can have different deduction reasons in the same batch. */}
             <TabsContent value="other" className="grid gap-3 mt-0">
-              <div className="flex flex-col gap-1.5">
-                <Label className="text-xs font-semibold text-gray-700">Deduction Name</Label>
-                <Input
-                  type="text"
-                  placeholder="e.g. Canteen, Transport"
-                  className="h-9 text-xs w-1/2"
-                  value={otherDeductionName}
-                  onChange={(e) => setOtherDeductionName(e.target.value)}
-                />
-              </div>
-
-              <div className="border border-gray-200 rounded-lg overflow-hidden max-h-[240px] overflow-y-auto">
+              <div className="border border-gray-200 rounded-lg overflow-hidden max-h-[280px] overflow-y-auto">
                 <Table className="font-hanken">
                   <TableHeader className="bg-gray-50 sticky top-0 z-10 shadow-sm">
                     <TableRow className="hover:bg-transparent border-b border-gray-200">
                       <TableHead className="text-xs font-semibold text-gray-700 h-8 py-1">Employee</TableHead>
+                      <TableHead className="text-xs font-semibold text-gray-700 h-8 py-1 w-[160px]">Deduction Name</TableHead>
                       <TableHead className="text-xs font-semibold text-gray-700 text-right h-8 py-1 w-[120px]">Deduction (₹)</TableHead>
                     </TableRow>
                   </TableHeader>
@@ -899,6 +912,15 @@ export const PayrollTab = forwardRef<PayrollTabRef>((_, ref) => {
                         <TableCell className="py-1.5 text-xs">
                           <div className="font-medium text-gray-900">{emp.name || 'Unnamed Employee'}</div>
                           <div className="text-[10px] text-gray-500">{emp.employeeDetails?.customUserId || emp.mobile || emp.id}</div>
+                        </TableCell>
+                        <TableCell className="py-1.5">
+                          <Input
+                            type="text"
+                            placeholder="e.g. Canteen, Transport"
+                            className="h-7 text-xs w-full"
+                            value={otherDeductionNames[emp.id] || ''}
+                            onChange={(e) => handleOtherDeductionNameChange(emp.id, e.target.value)}
+                          />
                         </TableCell>
                         <TableCell className="py-1.5 text-right">
                           <Input
@@ -945,7 +967,7 @@ export const PayrollTab = forwardRef<PayrollTabRef>((_, ref) => {
               <Button
                 size="sm"
                 className="h-8 bg-orange-600 hover:bg-orange-700 text-white text-xs px-4"
-                disabled={isSavingOtherDeductions || totalOtherDeductions <= 0 || !otherDeductionName.trim()}
+                disabled={isSavingOtherDeductions || totalOtherDeductions <= 0}
                 onClick={() => setPendingValueConfirm('other')}
               >
                 Grant Other Deductions
@@ -970,7 +992,7 @@ export const PayrollTab = forwardRef<PayrollTabRef>((_, ref) => {
             ? `Distribute ₹${currentAllocated.toLocaleString()} machine value across employees for ${new Date(currentYear, currentMonth - 1).toLocaleString('default', { month: 'long', year: 'numeric' })}. This will overwrite any existing allocations.`
             : pendingValueConfirm === 'market'
             ? `Grant market value deductions totalling ₹${totalDeductions.toLocaleString()} for ${new Date(currentYear, currentMonth - 1).toLocaleString('default', { month: 'long', year: 'numeric' })}.`
-            : `Grant “${otherDeductionName}” deductions totalling ₹${totalOtherDeductions.toLocaleString()} for ${new Date(currentYear, currentMonth - 1).toLocaleString('default', { month: 'long', year: 'numeric' })}.`
+            : `Grant other deductions totalling ₹${totalOtherDeductions.toLocaleString()} for ${new Date(currentYear, currentMonth - 1).toLocaleString('default', { month: 'long', year: 'numeric' })}.`
         }
         confirmLabel={
           pendingValueConfirm === 'machine' ? 'Apply & Distribute' :

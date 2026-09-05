@@ -1,9 +1,8 @@
 import { useState } from 'react';
 import '@fontsource-variable/hanken-grotesk';
-import { RefreshCw, Factory, Trash2, FlaskConical } from 'lucide-react';
+import { RefreshCw } from 'lucide-react';
 import { format, parseISO } from 'date-fns';
 import { Loader } from '@/components/shared/loader';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useMonthlyDashboard } from './dashboard-queries';
@@ -11,10 +10,6 @@ import { useAuth } from '@/features/auth/auth-context';
 import { currentMonthStr as todayMonthStr } from '@/lib/date-utils';
 import { useOpeningBalanceWastage, useOpeningBalanceFabricStock, useOpeningBalanceRawMaterials } from '@/features/admin-panel/opening-balance-queries';
 import { ProductionSummaryCard, DetailBreakdownCard, SectionSummaryCard, RawMaterialsSection, RawMaterialCard } from './card';
-
-function formatNum(n: number): string {
-  return n.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-}
 
 function deliveryColorClass(color: string): string {
   const normalizedColor = color.toLowerCase();
@@ -141,11 +136,6 @@ export function DashboardDesign2() {
   // Statically listed by color (like fabricWasteByColor below) so every card always shows
   // all colors with "--" for anything not yet recorded, instead of an empty-state message.
   const extruderByColorMap = new Map((dashboardData?.extruderProduction?.byColor || []).map(r => [r.color.name, r]));
-  const extruderWasteByColor = FABRIC_COLORS.map(color => {
-    const r = extruderByColorMap.get(color);
-    const ob = obWastageByColor.get(color) || { lums: 0, loose: 0 };
-    return { color, lums: (r?.lumsKg ?? 0) + ob.lums, yarnWaste: (r?.yarnWasteKg ?? 0) + ob.loose };
-  });
 
   const extruderByVariantMap = new Map((dashboardData?.extruderProduction?.byVariant || []).map(r => [`${r.color.name}_${r.size.name}`, r]));
   const extruderWasteByVariant = FABRIC_COLORS.map(color => {
@@ -823,7 +813,6 @@ export function DashboardDesign2() {
                     <WastageCard
                       looseWaste={looseWasteKg}
                       lums={lumsWasteKg}
-                      extruderWasteByColor={extruderWasteByColor}
                       extruderWasteByVariant={extruderWasteByVariant}
                       loomsWasteByColor={loomsWasteByColor}
                       loomsWasteByVariant={loomsWasteByVariant}
@@ -832,9 +821,10 @@ export function DashboardDesign2() {
                     />
                   </TabsContent>
 
-                <TabsContent value="sample" className="flex flex-col gap-2">
-                  {renderSampleProduction()}
-                </TabsContent>
+                  <TabsContent value="sample" className="flex flex-col gap-2">
+                    {renderSampleProduction()}
+                  </TabsContent>
+                </div>
               </Tabs>
             </div>
           </div>
@@ -877,7 +867,6 @@ function FabricStockCard({
 function WastageCard({
   looseWaste,
   lums,
-  extruderWasteByColor,
   extruderWasteByVariant,
   loomsWasteByColor,
   loomsWasteByVariant,
@@ -886,7 +875,6 @@ function WastageCard({
 }: {
   looseWaste: number;
   lums: number;
-  extruderWasteByColor: { color: string; lums: number; yarnWaste: number }[];
   extruderWasteByVariant: { color: string; sizes: { size: string; lums: number; yarnWaste: number }[] }[];
   loomsWasteByColor: { color: string; loomsWaste: number }[];
   loomsWasteByVariant: { color: string; sizes: { size: string; loomsWaste: number }[] }[];
