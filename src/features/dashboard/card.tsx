@@ -103,7 +103,7 @@ export function DetailBreakdownCard({ title, total, theme, rows, emptyMessage = 
         </CardTitle>
         <span className={`text-[14px] font-bold ${theme.labelColor}`}>Total : <span className="font-inter">{formatNum(total)}</span> kg</span>
       </CardHeader>
-      <CardContent className="px-2 flex-1 flex flex-col">
+      <CardContent className="px-2 pb-2 flex-1 flex flex-col">
         {!hasRows ? (
           <div className="flex-1 flex items-center justify-center py-4">
             <p className="text-xs text-gray-400 italic">{emptyMessage}</p>
