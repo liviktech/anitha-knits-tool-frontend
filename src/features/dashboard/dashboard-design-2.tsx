@@ -550,34 +550,52 @@ export function DashboardDesign2() {
             <div className="mt-4">
               <Tabs value={activeTab} onValueChange={(value) => setActiveTab(value as typeof activeTab)} className="gap-4 cursor-pointer">
                 <div className="border-b border-gray-400 px-3">
-                  <TabsList variant="underline" className="border-b-0">
-                    <TabsTrigger value="production">
+                  <TabsList variant="underline" className="border-b-0 gap-2">
+                    <TabsTrigger
+                      value="production"
+                      style={{
+                        backgroundColor: activeTab === 'production' ? '#004D40' : 'transparent',
+                        color: activeTab === 'production' ? 'white' : undefined
+                      }}
+                      className="!rounded-t-md px-6 py-2 transition-all duration-300 data-[state=active]:after:hidden hover:text-[#004D40]"
+                    >
                       <span className="flex items-center gap-1 text-[15px] font-extrabold">
-                        <Factory className="h-4  w-4" strokeWidth={1.75} />
                         Production Summary
                       </span>
                     </TabsTrigger>
-                    <TabsTrigger value="wastage">
+                    <TabsTrigger
+                      value="wastage"
+                      style={{
+                        backgroundColor: activeTab === 'wastage' ? '#004D40' : 'transparent',
+                        color: activeTab === 'wastage' ? 'white' : undefined
+                      }}
+                      className="!rounded-t-md px-6 py-2 transition-all duration-300 data-[state=active]:after:hidden hover:text-[#004D40]"
+                    >
                       <span className="flex items-center gap-1 text-[15px] font-extrabold">
-                        <Trash2 className="h-4 w-4" strokeWidth={1.75} />
                         Wastage Summary
                       </span>
                     </TabsTrigger>
-                    <TabsTrigger value="sample">
+                    <TabsTrigger
+                      value="sample"
+                      style={{
+                        backgroundColor: activeTab === 'sample' ? '#004D40' : 'transparent',
+                        color: activeTab === 'sample' ? 'white' : undefined
+                      }}
+                      className="!rounded-t-md px-6 py-2 transition-all duration-300 data-[state=active]:after:hidden hover:text-[#004D40]"
+                    >
                       <span className="flex items-center gap-1 text-[15px] font-extrabold">
-                        <FlaskConical className="h-4.5 w-4.5" strokeWidth={1.75} />
                         Sample Production
                       </span>
                     </TabsTrigger>
                   </TabsList>
                 </div>
 
-                <TabsContent value="production" className="flex flex-col gap-4">
-                  {renderProductionSummary()}
-                </TabsContent>
+                <div className="overflow-hidden">
+                  <TabsContent value="production" className="flex flex-col gap-4 animate-in fade-in-0 slide-in-from-right-8 duration-500 ease-out">
+                    {renderProductionSummary()}
+                  </TabsContent>
 
-                <TabsContent value="wastage" className="flex flex-col gap-2">
-                  <div className="font-hanken bg-white rounded-2xl border border-gray-400 shadow-sm p-2">
+                  <TabsContent value="wastage" className="flex flex-col gap-2 animate-in fade-in-0 slide-in-from-right-8 duration-500 ease-out">
                     <WastageCard
                       looseWaste={looseWasteKg}
                       lums={lumsWasteKg}
@@ -588,12 +606,12 @@ export function DashboardDesign2() {
                       fabricWasteByColor={fabricWasteByColor}
                       fabricWasteByVariant={fabricWasteByVariant}
                     />
-                  </div>
-                </TabsContent>
+                  </TabsContent>
 
-                <TabsContent value="sample" className="flex flex-col gap-2">
-                  {renderProductionSummary()}
-                </TabsContent>
+                  <TabsContent value="sample" className="flex flex-col gap-2 animate-in fade-in-0 slide-in-from-right-8 duration-500 ease-out">
+                    {renderProductionSummary()}
+                  </TabsContent>
+                </div>
               </Tabs>
             </div>
           </div>
@@ -652,167 +670,102 @@ function WastageCard({
   fabricWasteByColor: { color: string; fabricWaste: number; bitWaste: number }[];
   fabricWasteByVariant: { color: string; sizes: { size: string; fabricWaste: number; bitWaste: number }[] }[];
 }) {
+  const extruderTotal = lums + looseWaste;
   const loomsWasteTotal = loomsWasteByColor.reduce((sum, r) => sum + r.loomsWaste, 0);
   const fabricWasteTotal = fabricWasteByColor.reduce((sum, r) => sum + r.fabricWaste + r.bitWaste, 0);
 
   return (
-    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-2.5">
+    <div className="flex flex-col gap-4">
       {/* Extruder Wastage */}
-      <Card className="bg-[#00897B]/5 border border-[#B8DCD0] rounded-[14px] hover:shadow-md transition-all flex flex-col gap-0 self-start py-0">
-        <CardHeader className="flex flex-row items-center justify-between pb-1.5! pt-2 px-3 border-b border-[#B8DCD0]">
-          <CardTitle className="text-[17px] font-extrabold text-[#0B5566] flex items-center gap-3">
-            Extruder Wastage
-          </CardTitle>
-          <span className="text-[14px] font-bold text-[#0B5566]">Total : <span className="font-inter">{formatNum(lums + looseWaste)}</span> kg</span>
-        </CardHeader>
-        <CardContent className="px-2 pb-2 flex flex-col">
-          <div className="w-full">
-            {/* Color header row */}
-            <div className="flex items-center px-2 py-1.5 border-b border-gray-200/60 mb-1">
-              <span className="w-16 shrink-0" />
-              {extruderWasteByVariant.map((row) => (
-                <div key={row.color} className="flex-1 flex flex-col items-center">
-                  <span className={`font-bold text-[13.5px] ${deliveryColorClass(row.color)}`}>{row.color}</span>
-                  <div className="flex w-full mt-1">
-                    <span className="flex-1 text-center text-[10px] font-semibold text-gray-400 uppercase" title="Lums Waste">LM</span>
-                    <span className="flex-1 text-center text-[10px] font-semibold text-gray-400 uppercase border-l border-gray-200/60" title="Loose/Yarn Waste">LO</span>
-                  </div>
-                </div>
-              ))}
-            </div>
-            <div className="space-y-1">
-              {['150cm', '160cm', '170cm', '180cm', '190cm'].map(size => (
-                <div key={size} className="flex items-center border border-gray-300/80 rounded-md px-2 py-1.5 bg-white">
-                  <span className="w-16 shrink-0 font-semibold text-gray-600 text-[12px]">{size}</span>
-                  {extruderWasteByVariant.map(colorGroup => {
-                    const match = colorGroup.sizes.find(s => s.size === size);
-                    return (
-                      <div key={colorGroup.color} className="flex-1 flex items-center">
-                        <span className="flex-1 text-center font-inter text-gray-800 text-[12.5px]">{match?.lums ? formatNum(match.lums) : '--'}</span>
-                        <span className="flex-1 text-center font-inter text-gray-800 text-[12.5px] border-l border-gray-200/80">{match?.yarnWaste ? formatNum(match.yarnWaste) : '--'}</span>
-                      </div>
-                    );
-                  })}
-                </div>
-              ))}
-
-              {/* Total row */}
-              <div className="flex items-center rounded-md px-2 py-1.5 bg-[#E8F5F3] border border-[#B8DCD0] mt-1.5">
-                <span className="w-16 shrink-0 font-extrabold text-[#0B5566] text-[12px]">Total</span>
-                {extruderWasteByColor.map(row => (
-                  <div key={row.color} className="flex-1 flex items-center">
-                    <span className="flex-1 text-center font-inter font-bold text-[#0B5566] text-[12.5px]">{formatNum(row.lums)}</span>
-                    <span className="flex-1 text-center font-inter font-bold text-[#0B5566] text-[12.5px] border-l border-[#B8DCD0]">{formatNum(row.yarnWaste)}</span>
-                  </div>
-                ))}
-              </div>
-            </div>
-          </div>
-        </CardContent>
-      </Card>
-
+      <div className="flex flex-col">
+        <SectionSummaryCard title="Extruder Wastage" total={extruderTotal} isEmpty={extruderTotal === 0} emptyMessage="No extruder wastage recorded." totalColorClassName="text-[#0B5566]">
+          {extruderWasteByVariant
+            .filter(row => row.sizes.some(s => s.lums > 0 || s.yarnWaste > 0))
+            .map((row) => {
+              const rowTotal = row.sizes.reduce((s, v) => s + v.lums + v.yarnWaste, 0);
+              const theme = fabricStockCardTheme(row.color);
+              const sizeRows = row.sizes.flatMap(s => {
+                const rows = [];
+                if (s.lums > 0) rows.push({ label: `${s.size} (LM)`, value: s.lums });
+                if (s.yarnWaste > 0) rows.push({ label: `${s.size} (LO)`, value: s.yarnWaste });
+                return rows;
+              });
+              return (
+                <DetailBreakdownCard
+                  key={row.color}
+                  title={row.color}
+                  total={rowTotal}
+                  theme={{ cardBg: theme.bg, cardBorder: theme.border, labelColor: deliveryColorClass(row.color) }}
+                  rows={sizeRows}
+                />
+              );
+            })}
+        </SectionSummaryCard>
+        <div className="mt-2 text-[12px] font-bold text-gray-500 flex items-center gap-4 px-2 italic">
+          <span>LM - Lums Waste</span>
+          <span>LO - Loose Waste</span>
+        </div>
+      </div>
 
       {/* Looms Wastage */}
-      <Card className="bg-[#004D40]/5 border border-[#B8D8D5] rounded-[14px] hover:shadow-md transition-all flex flex-col gap-0 py-0">
-        <CardHeader className="flex flex-row items-center justify-between pb-1.5! pt-2 px-3 border-b border-[#B8D8D5]">
-          <CardTitle className="text-[17px] font-extrabold text-[#7A6A00] flex items-center gap-3">
-            Looms Wastage
-          </CardTitle>
-          <span className="text-[14px] font-bold text-[#7A6A00]">Total : <span className="font-inter">{formatNum(loomsWasteTotal)}</span> kg</span>
-        </CardHeader>
-        <CardContent className="px-2 pb-2 flex flex-col">
-          <div className="w-full overflow-hidden">
-            {/* Color header row */}
-            <div className="flex items-center px-2 py-1.5 border-b border-gray-200/60 mb-1">
-              <span className="w-16 shrink-0" />
-              {loomsWasteByVariant.map((row) => (
-                <div key={row.color} className="flex-1 flex flex-col items-center">
-                  <span className={`font-bold text-[13.5px] ${deliveryColorClass(row.color)}`}>{row.color}</span>
-                </div>
-              ))}
-            </div>
-            <div className="space-y-1">
-              {['150cm', '160cm', '170cm', '180cm', '190cm'].map(size => (
-                <div key={size} className="flex items-center border border-gray-300/80 rounded-md px-2 py-1.5 bg-white">
-                  <span className="w-16 shrink-0 font-semibold text-gray-600 text-[12px]">{size}</span>
-                  {loomsWasteByVariant.map(colorGroup => {
-                    const match = colorGroup.sizes.find(s => s.size === size);
-                    return (
-                      <span key={colorGroup.color} className="flex-1 text-center font-inter text-gray-800 text-[12.5px]">
-                        {match?.loomsWaste ? formatNum(match.loomsWaste) : '--'}
-                      </span>
-                    );
-                  })}
-                </div>
-              ))}
-
-              {/* Total row */}
-              <div className="flex items-center rounded-md px-2 py-1.5 bg-[#FFF8E0] border border-[#E8D870] mt-1.5">
-                <span className="w-16 shrink-0 font-extrabold text-[#7A6A00] text-[12px]">Total</span>
-                {loomsWasteByColor.map(row => (
-                  <span key={row.color} className="flex-1 text-center font-inter font-bold text-[#7A6A00] text-[12.5px]">
-                    {formatNum(row.loomsWaste)}
-                  </span>
-                ))}
-              </div>
-            </div>
-          </div>
-        </CardContent>
-      </Card>
-
+      <div className="flex flex-col">
+        <SectionSummaryCard title="Looms Wastage" total={loomsWasteTotal} isEmpty={loomsWasteTotal === 0} emptyMessage="No looms wastage recorded." totalColorClassName="text-[#7A6A00]">
+          {loomsWasteByVariant
+            .filter(row => row.sizes.some(s => s.loomsWaste > 0))
+            .map((row) => {
+              const rowTotal = row.sizes.reduce((s, v) => s + v.loomsWaste, 0);
+              const theme = fabricStockCardTheme(row.color);
+              const sizeRows = row.sizes.flatMap(s => {
+                const rows = [];
+                if (s.loomsWaste > 0) rows.push({ label: `${s.size} (LW)`, value: s.loomsWaste });
+                return rows;
+              });
+              return (
+                <DetailBreakdownCard
+                  key={row.color}
+                  title={row.color}
+                  total={rowTotal}
+                  theme={{ cardBg: theme.bg, cardBorder: theme.border, labelColor: deliveryColorClass(row.color) }}
+                  rows={sizeRows}
+                />
+              );
+            })}
+        </SectionSummaryCard>
+        <div className="mt-2 text-[12px] font-bold text-gray-500 flex items-center gap-4 px-2 italic">
+          <span>LW - Looms/Yarn Waste</span>
+        </div>
+      </div>
 
       {/* Fabric Checking Wastage */}
-      <Card className="bg-[#004D40]/5 border border-[#C5D8C2] rounded-[14px] hover:shadow-md transition-all flex flex-col gap-0 self-start py-0">
-        <CardHeader className="flex flex-row items-center justify-between pb-1.5! pt-2 px-3 border-b border-[#C5D8C2]">
-          <CardTitle className="text-[17px] font-extrabold text-[#2F6B2F] flex items-center gap-3">
-            {/* <div className="bg-[#2F6B2F] border text-white w-6 h-6 rounded-[4px] flex items-center justify-center text-xs font-bold shadow-sm">3</div> */}
-            Fabric Checking Wastage
-          </CardTitle>
-          <span className="text-[14px] font-bold text-[#2F6B2F]">Total : <span className="font-inter">{formatNum(fabricWasteTotal)}</span> kg</span>
-        </CardHeader>
-        <CardContent className="px-2 pb-2 flex flex-col">
-          <div className="w-full">
-            <div className="flex items-center px-2 py-1.5 border-b border-gray-200/60 mb-1">
-              <span className="w-16 shrink-0" />
-              {fabricWasteByColor.map((row) => (
-                <div key={row.color} className="flex-1 flex flex-col items-center">
-                  <span className={`font-bold text-[13.5px] ${deliveryColorClass(row.color)}`}>{row.color}</span>
-                  <div className="flex w-full mt-1">
-                    <span className="flex-1 text-center text-[10px] font-semibold text-gray-400 uppercase" title="Fabric Waste">FW</span>
-                    <span className="flex-1 text-center text-[10px] font-semibold text-gray-400 uppercase border-l border-gray-200/60" title="Bit Waste">BW</span>
-                  </div>
-                </div>
-              ))}
-            </div>
-            <div className="space-y-1">
-              {['150cm', '160cm', '170cm', '180cm', '190cm'].map(size => (
-                <div key={size} className="flex items-center border border-gray-300/80 rounded-md px-2 py-1.5 bg-white">
-                  <span className="w-16 shrink-0 font-semibold text-gray-600 text-[12px]">{size}</span>
-                  {fabricWasteByVariant.map(colorGroup => {
-                    const match = colorGroup.sizes.find(s => s.size === size);
-                    return (
-                      <div key={colorGroup.color} className="flex-1 flex items-center">
-                        <span className="flex-1 text-center font-inter text-gray-800 text-[12.5px]">{match?.fabricWaste ? formatNum(match.fabricWaste) : '--'}</span>
-                        <span className="flex-1 text-center font-inter text-gray-800 text-[12.5px] border-l border-gray-200/80">{match?.bitWaste ? formatNum(match.bitWaste) : '--'}</span>
-                      </div>
-                    );
-                  })}
-                </div>
-              ))}
-
-              <div className="flex items-center rounded-md px-2 py-1.5 bg-[#F4F8F4] border border-[#C5D8C2] mt-1.5">
-                <span className="w-16 shrink-0 font-extrabold text-[#2F6B2F] text-[12px]">Total</span>
-                {fabricWasteByColor.map(row => (
-                  <div key={row.color} className="flex-1 flex items-center">
-                    <span className="flex-1 text-center font-inter font-bold text-[#2F6B2F] text-[12.5px]">{row.fabricWaste ? formatNum(row.fabricWaste) : '--'}</span>
-                    <span className="flex-1 text-center font-inter font-bold text-[#2F6B2F] text-[12.5px] border-l border-[#C5D8C2]">{row.bitWaste ? formatNum(row.bitWaste) : '--'}</span>
-                  </div>
-                ))}
-              </div>
-            </div>
-          </div>
-        </CardContent>
-      </Card>
+      <div className="flex flex-col">
+        <SectionSummaryCard title="Fabric Checking Wastage" total={fabricWasteTotal} isEmpty={fabricWasteTotal === 0} emptyMessage="No fabric wastage recorded." totalColorClassName="text-[#2F6B2F]">
+          {fabricWasteByVariant
+            .filter(row => row.sizes.some(s => s.fabricWaste > 0 || s.bitWaste > 0))
+            .map((row) => {
+              const rowTotal = row.sizes.reduce((s, v) => s + v.fabricWaste + v.bitWaste, 0);
+              const theme = fabricStockCardTheme(row.color);
+              const sizeRows = row.sizes.flatMap(s => {
+                const rows = [];
+                if (s.fabricWaste > 0) rows.push({ label: `${s.size} (FW)`, value: s.fabricWaste });
+                if (s.bitWaste > 0) rows.push({ label: `${s.size} (BW)`, value: s.bitWaste });
+                return rows;
+              });
+              return (
+                <DetailBreakdownCard
+                  key={row.color}
+                  title={row.color}
+                  total={rowTotal}
+                  theme={{ cardBg: theme.bg, cardBorder: theme.border, labelColor: deliveryColorClass(row.color) }}
+                  rows={sizeRows}
+                />
+              );
+            })}
+        </SectionSummaryCard>
+        <div className="mt-2 text-[12px] font-bold text-gray-500 flex items-center gap-4 px-2 italic">
+          <span>FW - Fabric Waste</span>
+          <span>BW - Bit Waste</span>
+        </div>
+      </div>
     </div>
   );
 }
