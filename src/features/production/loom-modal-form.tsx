@@ -56,11 +56,12 @@ export function LoomModalForm({ productionDate, initialData, isEditMode, onCance
   const noYarnAvailable = hasSizeColorChemical && totalAvailableKg !== undefined && totalAvailableKg <= 0;
 
   const loomProductionInputKg = parseFloat(draft.input) || 0;
-  const loomsWasteInputKg = parseFloat(draft.loomsWasteKg) || 0;
   const exceedsAvailable = hasSizeColorChemical && totalAvailableKg !== undefined && loomProductionInputKg > totalAvailableKg;
 
-  // Yarn Balance = Available Yarn minus both Loom Production and Looms/Yarn Waste.
-  const yarnBalanceKg = totalAvailableKg !== undefined ? totalAvailableKg - loomProductionInputKg - loomsWasteInputKg : undefined;
+  // Yarn Balance = Available Yarn minus Loom Production only — matches the backend's own
+  // available-yarn figure (extruder yarnOutputKg minus looms yarnInputKg), which doesn't
+  // treat Looms/Yarn Waste as yarn consumption either.
+  const yarnBalanceKg = totalAvailableKg !== undefined ? totalAvailableKg - loomProductionInputKg : undefined;
 
   const updateField = (field: keyof LoomDraft, value: string) => {
     setDraft(prev => {
