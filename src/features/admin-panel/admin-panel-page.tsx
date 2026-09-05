@@ -62,7 +62,7 @@ export function AdminPanelPage() {
           </TabsList>
         </div>
 
-        <TabsContent value="production-config" className="mt-0 animate-in fade-in-0 duration-300 py-6 max-w-7xl">
+        <TabsContent value="production-config" className="mt-0 animate-in fade-in-0 duration-300 py-6 max-w-full">
           <ProductionConfigTab />
         </TabsContent>
 
