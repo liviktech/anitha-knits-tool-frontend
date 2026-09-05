@@ -169,11 +169,6 @@ export function NewEntry({ onClose, defaultDate, readOnly: propsReadOnly = false
     return Math.max(0, received - consumed).toFixed(2);
   };
 
-  const totalRawMaterial = lookups.brands.reduce((sum, b) => sum + parseFloat(getHDPEBalance(b.name) || '0'), 0).toFixed(2);
-  const totalRawMaterialBags = getHDPEBagsCount(parseFloat(totalRawMaterial));
-  const totalChemical = lookups.chemicals.reduce((sum, c) => sum + parseFloat(getChemicalBalance(c.name) || '0'), 0).toFixed(2);
-  const totalColor = lookups.colors.reduce((sum, c) => sum + parseFloat(getColorBalance(c.name) || '0'), 0).toFixed(2);
-
   return (
     <div className="flex flex-col h-full bg-[#004D40]/5">
       <div className="flex-1 p-2 md:p-2 overflow-y-auto ">
@@ -191,17 +186,36 @@ export function NewEntry({ onClose, defaultDate, readOnly: propsReadOnly = false
                 {isInventoryMinimized ? <ChevronDown className="h-4 w-4" /> : <ChevronUp className="h-4 w-4" />}
               </Button>
             </div>
-            <div className={`px-4 grid grid-cols-1 sm:grid-cols-3 sm:divide-x divide-gray-200 transition-all duration-500 ease-in-out ${isInventoryMinimized ? 'py-3 gap-2' : 'py-3 gap-3'}`}>
+            <div className={`px-4 grid grid-cols-1 sm:grid-cols-3 sm:divide-x divide-gray-200 transition-all duration-500 ease-in-out ${isInventoryMinimized ? 'py-3 gap-2 items-center' : 'py-3 gap-3'}`}>
               <div className="flex flex-col sm:pr-4">
-                <div className="flex justify-between items-center border-b border-gray-200 pb-1">
-                  <label className="flex items-center gap-2 text-[13px] font-bold uppercase tracking-wide text-gray-500">
-                    <img src="/hdpe-in.png" alt="" className="h-9 w-9 object-contain" />
-                    HDPE
-                  </label>
-                  <span className={`text-[13px] font-bold text-gray-900 transition-opacity duration-300 ${isInventoryMinimized ? 'opacity-100' : 'opacity-0'}`}>
-                    {totalRawMaterial} kg{totalRawMaterialBags !== undefined && ` (${totalRawMaterialBags} bags)`}
-                  </span>
-                </div>
+                {!isInventoryMinimized && (
+                  <div className="flex justify-between items-center border-b border-gray-200 pb-1">
+                    <label className="flex items-center gap-2 text-[13px] font-bold uppercase tracking-wide text-gray-500">
+                      <img src="/hdpe-in.png" alt="" className="h-9 w-9 object-contain" />
+                      HDPE
+                    </label>
+                  </div>
+                )}
+                {isInventoryMinimized && (
+                  <div className="flex items-center gap-3 pt-1.5">
+                    <div className="flex items-center gap-1.5 shrink-0 border-r border-gray-200 pr-3">
+                      <img src="/hdpe-in.png" alt="" className="h-7 w-7 object-contain" />
+                      <span className="text-[12px] font-extrabold uppercase tracking-wide text-gray-500">HDPE</span>
+                    </div>
+                    <div className="flex flex-wrap gap-x-4 gap-y-0.5 ml-auto justify-end">
+                      {lookups.brands.map((b) => {
+                        const kg = parseFloat(getHDPEBalance(b.name));
+                        const bags = getHDPEBagsCount(kg);
+                        return (
+                          <div key={b.id} className="flex flex-col items-end">
+                            <span className="text-[10px] text-gray-400 leading-tight">{b.name}</span>
+                            <span className="text-[12px] font-bold text-gray-900 leading-tight">{kg.toFixed(2)} kg{bags !== undefined && ` / ${bags} bags`}</span>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+                )}
                 <div className={`grid transition-[grid-template-rows] duration-500 ease-in-out ${isInventoryMinimized ? 'grid-rows-[0fr]' : 'grid-rows-[1fr]'}`}>
                   <div className="overflow-hidden">
                     <div className="flex flex-col gap-2 pr-1 pt-2">
@@ -220,20 +234,28 @@ export function NewEntry({ onClose, defaultDate, readOnly: propsReadOnly = false
                 </div>
               </div>
               <div className="flex flex-col sm:px-4 pt-3 sm:pt-0 border-t sm:border-t-0 border-gray-200">
-                <div className="flex justify-between items-center border-b border-gray-200 pb-2">
-                  <label className="flex items-center gap-2 text-[13px] font-bold uppercase tracking-wide text-gray-500">
-                    <img src="/chemical-in.png" alt="" className="h-8 w-8 object-contain" />
-                    Chemical
-                  </label>
-                  <span className={`text-[13px] font-bold text-gray-900 transition-opacity duration-300 ${isInventoryMinimized ? 'opacity-100' : 'opacity-0'}`}>
-                    {totalChemical} kg
-                  </span>
-                </div>
+                {!isInventoryMinimized && (
+                  <div className="flex justify-between items-center border-b border-gray-200 pb-2">
+                    <label className="flex items-center gap-2 text-[13px] font-bold uppercase tracking-wide text-gray-500">
+                      <img src="/chemical-in.png" alt="" className="h-8 w-8 object-contain" />
+                      Chemical
+                    </label>
+                  </div>
+                )}
                 {isInventoryMinimized && (
-                  <div className="flex flex-wrap gap-x-3 gap-y-0.5 pt-1.5 text-[11px] text-gray-500">
-                    {lookups.chemicals.map((c) => (
-                      <span key={c.id}>{c.name}: <span className="text-[13px] font-bold text-gray-900">{getChemicalBalance(c.name)} kg</span></span>
-                    ))}
+                  <div className="flex items-center gap-3">
+                    <div className="flex items-center gap-1.5 shrink-0 border-r border-gray-200 pr-3">
+                      <img src="/chemical-in.png" alt="" className="h-7 w-7 object-contain" />
+                      <span className="text-[12px] font-extrabold uppercase tracking-wide text-gray-500">Chemical</span>
+                    </div>
+                    <div className="flex flex-wrap gap-x-4 gap-y-0.5 ml-auto justify-end">
+                      {lookups.chemicals.map((c) => (
+                        <div key={c.id} className="flex flex-col items-end">
+                          <span className="text-[10px] text-gray-400 leading-tight">{c.name}</span>
+                          <span className="text-[12px] font-bold text-gray-900 leading-tight">{getChemicalBalance(c.name)} kg</span>
+                        </div>
+                      ))}
+                    </div>
                   </div>
                 )}
                 <div className={`grid transition-[grid-template-rows] duration-500 ease-in-out ${isInventoryMinimized ? 'grid-rows-[0fr]' : 'grid-rows-[1fr]'}`}>
@@ -250,20 +272,28 @@ export function NewEntry({ onClose, defaultDate, readOnly: propsReadOnly = false
                 </div>
               </div>
               <div className="flex flex-col sm:pl-4 pt-3 sm:pt-0 border-t sm:border-t-0 border-gray-200">
-                <div className="flex justify-between items-center border-b border-gray-200 pb-2">
-                  <label className="flex items-center gap-2.5 text-[13px] font-bold uppercase tracking-wide text-gray-500">
-                    <img src="/color-in.png" alt="" className="h-8 w-8 object-contain" />
-                    Color
-                  </label>
-                  <span className={`text-[13px] font-bold text-gray-900 transition-opacity duration-300 ${isInventoryMinimized ? 'opacity-100' : 'opacity-0'}`}>
-                    {totalColor} kg
-                  </span>
-                </div>
+                {!isInventoryMinimized && (
+                  <div className="flex justify-between items-center border-b border-gray-200 pb-2">
+                    <label className="flex items-center gap-2.5 text-[13px] font-bold uppercase tracking-wide text-gray-500">
+                      <img src="/color-in.png" alt="" className="h-8 w-8 object-contain" />
+                      Color
+                    </label>
+                  </div>
+                )}
                 {isInventoryMinimized && (
-                  <div className="flex flex-wrap gap-x-3 gap-y-0.5 pt-1.5 text-[11px] text-gray-500">
-                    {lookups.colors.map((c) => (
-                      <span key={c.id}>{c.name}: <span className="text-[13px] font-bold text-gray-900">{getColorBalance(c.name)} kg</span></span>
-                    ))}
+                  <div className="flex items-center gap-3 pt-1.5">
+                    <div className="flex items-center gap-1.5 shrink-0 border-r border-gray-200 pr-3">
+                      <img src="/color-in.png" alt="" className="h-7 w-7 object-contain" />
+                      <span className="text-[12px] font-extrabold uppercase tracking-wide text-gray-500">Color</span>
+                    </div>
+                    <div className="flex flex-wrap gap-x-4 gap-y-0.5 ml-auto justify-end">
+                      {lookups.colors.map((c) => (
+                        <div key={c.id} className="flex flex-col items-end">
+                          <span className="text-[10px] text-gray-400 leading-tight">{c.name}</span>
+                          <span className="text-[12px] font-bold text-gray-900 leading-tight">{getColorBalance(c.name)} kg</span>
+                        </div>
+                      ))}
+                    </div>
                   </div>
                 )}
                 <div className={`grid transition-[grid-template-rows] duration-500 ease-in-out ${isInventoryMinimized ? 'grid-rows-[0fr]' : 'grid-rows-[1fr]'}`}>

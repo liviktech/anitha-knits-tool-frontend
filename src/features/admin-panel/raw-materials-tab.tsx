@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Boxes, Droplets, Edit2, Info, Palette, Plus, Receipt, Ruler, Trash2, type LucideIcon } from 'lucide-react';
+import { Boxes, Droplets, Edit2, Palette, Plus, Receipt, Ruler, Trash2, type LucideIcon } from 'lucide-react';
 import { Loader } from '@/components/shared/loader';
 import { DeleteConfirmDialog } from '@/components/shared/delete-confirm-dialog';
 import { AddMaterialItemDialog } from './add-material-item-dialog';
@@ -186,55 +186,55 @@ export function RawMaterialsTab() {
           );
         })}
       </div> */}
-      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
-        {CATEGORY_META.map((category) => {
-          const Icon = category.icon;
-          const isSelected = category.key === selectedKey;
-          const count = lookups[category.lookupsKey].length;
+      {/* ========================================================= */}
+      {/* SPLIT LAYOUT: cards on the left, table on the right       */}
+      {/* ========================================================= */}
 
-          return (
-            <button
-              key={category.key}
-              type="button"
-              onClick={() => setSelectedKey(category.key)}
-              className={`flex h-[100px] w-full items-center justify-start rounded-lg border p-[5px] text-left transition-all ${isSelected
-                ? 'border-[#004D40] bg-[#004D40]/5 ring-1 ring-[#004D40]'
-                : 'border-gray-200 bg-white hover:border-[#004D40]/40 hover:shadow-sm'
-                }`}
-            >
-              {/* Icon - fills the card height */}
-              <div
-                className={`flex h-full w-[100px] shrink-0 items-center justify-center rounded-md border ${category.accent}`}
+      <div className="grid grid-cols-1 items-start gap-4 lg:grid-cols-2">
+
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+          {CATEGORY_META.map((category) => {
+            const Icon = category.icon;
+            const isSelected = category.key === selectedKey;
+            const count = lookups[category.lookupsKey].length;
+
+            return (
+              <button
+                key={category.key}
+                type="button"
+                onClick={() => setSelectedKey(category.key)}
+                className={`flex h-[100px] w-full items-center justify-start rounded-lg border p-[5px] text-left transition-all ${isSelected
+                  ? 'border-[#004D40] bg-[#004D40]/5 ring-1 ring-[#004D40]'
+                  : 'border-gray-200 bg-white hover:border-[#004D40]/40 hover:shadow-sm'
+                  }`}
               >
-                <Icon className="h-10 w-10" />
-              </div>
-
-              {/* Category content - pushed toward right */}
-              <div className="ml-auto flex flex-col items-end justify-center pr-3">
-                <h3
-                  className={`text-[15px] font-semibold ${isSelected ? 'text-[#004D40]' : 'text-gray-900'
-                    }`}
+                {/* Icon - fills the card height */}
+                <div
+                  className={`flex h-full w-[100px] shrink-0 items-center justify-center rounded-md border ${category.accent}`}
                 >
-                  {category.title}
-                </h3>
+                  <Icon className="h-10 w-10" />
+                </div>
 
-                <span
-                  className={`mt-1 text-[20px] font-bold ${isSelected ? 'text-[#004D40]' : 'text-gray-700'
-                    }`}
-                >
-                  {count} Items
-                </span>
-              </div>
-            </button>
-          );
-        })}
-      </div>
+                {/* Category content - pushed toward right */}
+                <div className="ml-auto flex flex-col items-end justify-center pr-3">
+                  <h3
+                    className={`text-[15px] font-semibold ${isSelected ? 'text-[#004D40]' : 'text-gray-900'
+                      }`}
+                  >
+                    {category.title}
+                  </h3>
 
-      {/* ========================================================= */}
-      {/* DETAIL VIEW                                              */}
-      {/* ========================================================= */}
-
-      <div className="grid grid-cols-1 items-start gap-4 lg:grid-cols-[45fr_55fr]">
+                  <span
+                    className={`mt-1 text-[20px] font-bold ${isSelected ? 'text-[#004D40]' : 'text-gray-700'
+                      }`}
+                  >
+                    {count} Items
+                  </span>
+                </div>
+              </button>
+            );
+          })}
+        </div>
 
         <section className="overflow-hidden rounded-xl border border-gray-400 bg-white shadow-sm">
 
@@ -245,7 +245,7 @@ export function RawMaterialsTab() {
               </div>
               <div>
                 <h2 className="text-[15px] font-bold text-gray-900">{selectedMeta.title}</h2>
-                <p className="mt-0.5 text-[11px] font-medium text-gray-400">{selectedMeta.description}</p>
+                {/* <p className="mt-0.5 text-[11px] font-medium text-gray-400">{selectedMeta.description}</p> */}
               </div>
             </div>
 
@@ -260,12 +260,12 @@ export function RawMaterialsTab() {
           </div>
 
           <div className="overflow-x-auto">
-            <table className="w-full min-w-[560px] table-fixed border-collapse">
+            <table className="w-full border-collapse">
               <thead>
                 <tr className="border-b border-emerald-300 bg-emerald-50/30">
-                  <th className="w-1/3 px-5 py-3 text-left text-sm font-semibold tracking-wide text-gray-800">Name</th>
-                  <th className="w-1/3 px-5 py-3 text-right text-sm font-semibold tracking-wide text-gray-800">Last Updated</th>
-                  <th className="w-1/3 px-5 py-3 text-right text-sm font-semibold tracking-wide text-gray-800">Actions</th>
+                  <th className="whitespace-nowrap px-5 py-3 text-left text-sm font-semibold tracking-wide text-gray-800">Name</th>
+                  <th className="whitespace-nowrap px-5 py-3 text-right text-sm font-semibold tracking-wide text-gray-800">Last Updated</th>
+                  <th className="whitespace-nowrap px-5 py-3 text-right text-sm font-semibold tracking-wide text-gray-800">Actions</th>
                 </tr>
               </thead>
 
@@ -279,9 +279,9 @@ export function RawMaterialsTab() {
                 ) : (
                   selectedItems.map((item) => (
                     <tr key={item.id} className="group border-b border-emerald-300 last:border-b-0 transition-colors hover:bg-emerald-50/30">
-                      <td className="px-5 py-1.5 text-[13px] font-medium text-gray-900">{item.name}</td>
-                      <td className="px-5 py-1.5 text-right text-[12px] text-gray-500">{formatLastUpdated(item.updatedAt)}</td>
-                      <td className="px-5 py-1.5">
+                      <td className="whitespace-nowrap px-5 py-1.5 text-[13px] font-medium text-gray-900">{item.name}</td>
+                      <td className="whitespace-nowrap px-5 py-1.5 text-right text-[12px] text-gray-500">{formatLastUpdated(item.updatedAt)}</td>
+                      <td className="whitespace-nowrap px-5 py-1.5">
                         <div className="flex justify-end gap-1">
                           <button type="button" title="Edit" onClick={() => handleOpenEdit(item)} className="rounded-md p-1.5 text-[#004D40] transition-colors hover:bg-[#004D40]/10">
                             <Edit2 className="h-4 w-4" />
@@ -303,36 +303,6 @@ export function RawMaterialsTab() {
           </div>
 
         </section>
-
-        <aside className="flex h-fit flex-col gap-4 self-start">
-
-          <div className="flex flex-col gap-3 rounded-xl border border-amber-200 bg-amber-50 p-4 shadow-sm">
-            <div className="flex items-center gap-2">
-              <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-white text-amber-600">
-                <Info className="h-4 w-4" />
-              </div>
-              <h3 className="text-[13px] font-bold text-amber-900">Operational Impact</h3>
-            </div>
-
-            <p className="text-[12px] leading-relaxed text-amber-800">
-              Raw material categories are shared master data used across production entry, inventory, and cost calculations elsewhere in the app. Add or rename items carefully.
-            </p>
-          </div>
-
-          <div className="flex flex-col gap-3 rounded-xl border border-blue-200 bg-blue-50 p-4 shadow-sm">
-            <div className="flex items-center gap-2">
-              <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-white text-blue-600">
-                <Info className="h-4 w-4" />
-              </div>
-              <h3 className="text-[13px] font-bold text-blue-900">Configurable Categories</h3>
-            </div>
-
-            <p className="text-[12px] leading-relaxed text-blue-800">
-              Colors, Sizes, Chemicals, and Brands are configurable here today. More category types may be added later.
-            </p>
-          </div>
-
-        </aside>
 
       </div>
 
