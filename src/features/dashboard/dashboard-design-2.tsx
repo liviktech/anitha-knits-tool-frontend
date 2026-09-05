@@ -891,7 +891,6 @@ function WastageCard({
       <div className="flex flex-col">
         <SectionSummaryCard title="Extruder Wastage" total={extruderTotal} isEmpty={extruderTotal === 0} emptyMessage="No extruder wastage recorded." totalColorClassName="text-[#0B5566]">
           {extruderWasteByVariant
-            .filter(row => row.sizes.some(s => s.lums > 0 || s.yarnWaste > 0))
             .map((row) => {
               const rowTotal = row.sizes.reduce((s, v) => s + v.lums + v.yarnWaste, 0);
               const theme = fabricStockCardTheme(row.color);
@@ -908,6 +907,7 @@ function WastageCard({
                   total={rowTotal}
                   theme={{ cardBg: theme.bg, cardBorder: theme.border, labelColor: deliveryColorClass(row.color) }}
                   rows={sizeRows}
+                  emptyMessage="No waste recorded yet."
                 />
               );
             })}
@@ -922,7 +922,6 @@ function WastageCard({
       <div className="flex flex-col">
         <SectionSummaryCard title="Looms Wastage" total={loomsWasteTotal} isEmpty={loomsWasteTotal === 0} emptyMessage="No looms wastage recorded." totalColorClassName="text-[#7A6A00]">
           {loomsWasteByVariant
-            .filter(row => row.sizes.some(s => s.loomsWaste > 0))
             .map((row) => {
               const rowTotal = row.sizes.reduce((s, v) => s + v.loomsWaste, 0);
               const theme = fabricStockCardTheme(row.color);
@@ -938,6 +937,7 @@ function WastageCard({
                   total={rowTotal}
                   theme={{ cardBg: theme.bg, cardBorder: theme.border, labelColor: deliveryColorClass(row.color) }}
                   rows={sizeRows}
+                  emptyMessage="No waste recorded yet."
                 />
               );
             })}
@@ -951,7 +951,6 @@ function WastageCard({
       <div className="flex flex-col">
         <SectionSummaryCard title="Fabric Checking Wastage" total={fabricWasteTotal} isEmpty={fabricWasteTotal === 0} emptyMessage="No fabric wastage recorded." totalColorClassName="text-[#2F6B2F]">
           {fabricWasteByVariant
-            .filter(row => row.sizes.some(s => s.fabricWaste > 0 || s.bitWaste > 0))
             .map((row) => {
               const rowTotal = row.sizes.reduce((s, v) => s + v.fabricWaste + v.bitWaste, 0);
               const theme = fabricStockCardTheme(row.color);
@@ -968,6 +967,7 @@ function WastageCard({
                   total={rowTotal}
                   theme={{ cardBg: theme.bg, cardBorder: theme.border, labelColor: deliveryColorClass(row.color) }}
                   rows={sizeRows}
+                  emptyMessage="No waste recorded yet."
                 />
               );
             })}
