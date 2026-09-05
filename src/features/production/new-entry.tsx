@@ -13,6 +13,7 @@ import { useExtruderProductions, useLookups } from '@/features/extruder/extruder
 
 import { useInventoryRecords } from '@/features/inventory/inventory-queries';
 import { useOpeningBalanceRawMaterials } from '@/features/admin-panel/opening-balance-queries';
+import { useLatestProductionConfig } from '@/features/admin-panel/production-config-queries';
 import { useProductionHeader } from './production-context';
 import { useAuth } from '@/features/auth/auth-context';
 import { canCreateProductionRecord } from '@/lib/production-permissions';
@@ -139,6 +140,12 @@ export function NewEntry({ onClose, defaultDate, readOnly: propsReadOnly = false
   const { data: rawMaterialsOBData } = useOpeningBalanceRawMaterials('?limit=100', !readOnly);
   const rawMaterialsOBRecords = rawMaterialsOBData?.data ?? [];
 
+  // HDPE bags are derived from the colour-consumption config's basisWeightKg
+  // (how much HDPE one bag holds) — same config used to determine chemical/colour ratios.
+  const { data: productionConfig } = useLatestProductionConfig();
+  const basisWeightKg = productionConfig?.basisWeightKg;
+  const getHDPEBagsCount = (kg: number) => (basisWeightKg ? Math.floor(kg / basisWeightKg) : undefined);
+
   // Balances shown here are stock levels, not ledgers — they never display
   // below 0.00 even if consumption momentarily outpaces recorded receipts.
   const getHDPEBalance = (name: string) => {
@@ -163,6 +170,7 @@ export function NewEntry({ onClose, defaultDate, readOnly: propsReadOnly = false
   };
 
   const totalRawMaterial = lookups.brands.reduce((sum, b) => sum + parseFloat(getHDPEBalance(b.name) || '0'), 0).toFixed(2);
+  const totalRawMaterialBags = getHDPEBagsCount(parseFloat(totalRawMaterial));
   const totalChemical = lookups.chemicals.reduce((sum, c) => sum + parseFloat(getChemicalBalance(c.name) || '0'), 0).toFixed(2);
   const totalColor = lookups.colors.reduce((sum, c) => sum + parseFloat(getColorBalance(c.name) || '0'), 0).toFixed(2);
 
@@ -191,18 +199,22 @@ export function NewEntry({ onClose, defaultDate, readOnly: propsReadOnly = false
                     HDPE
                   </label>
                   <span className={`text-[13px] font-bold text-gray-900 transition-opacity duration-300 ${isInventoryMinimized ? 'opacity-100' : 'opacity-0'}`}>
-                    {totalRawMaterial} kg
+                    {totalRawMaterial} kg{totalRawMaterialBags !== undefined && ` (${totalRawMaterialBags} bags)`}
                   </span>
                 </div>
                 <div className={`grid transition-[grid-template-rows] duration-500 ease-in-out ${isInventoryMinimized ? 'grid-rows-[0fr]' : 'grid-rows-[1fr]'}`}>
                   <div className="overflow-hidden">
                     <div className="flex flex-col gap-2 pr-1 pt-2">
-                      {lookups.brands.map((b) => (
-                        <div key={b.id} className="flex justify-between items-center rounded-lg border border-gray-100 bg-gray-50 px-3 py-2.5 text-[12.5px]">
-                          <span className="text-gray-700">{b.name}</span>
-                          <span className="font-bold text-gray-900">{getHDPEBalance(b.name)} kg</span>
-                        </div>
-                      ))}
+                      {lookups.brands.map((b) => {
+                        const kg = parseFloat(getHDPEBalance(b.name));
+                        const bags = getHDPEBagsCount(kg);
+                        return (
+                          <div key={b.id} className="flex justify-between items-center rounded-lg border border-gray-100 bg-gray-50 px-3 py-2.5 text-[12.5px]">
+                            <span className="text-gray-700">{b.name}</span>
+                            <span className="font-bold text-gray-900">{kg.toFixed(2)} kg{bags !== undefined && ` / ${bags} bags`}</span>
+                          </div>
+                        );
+                      })}
                     </div>
                   </div>
                 </div>
@@ -217,6 +229,13 @@ export function NewEntry({ onClose, defaultDate, readOnly: propsReadOnly = false
                     {totalChemical} kg
                   </span>
                 </div>
+                {isInventoryMinimized && (
+                  <div className="flex flex-wrap gap-x-3 gap-y-0.5 pt-1.5 text-[11px] text-gray-500">
+                    {lookups.chemicals.map((c) => (
+                      <span key={c.id}>{c.name}: <span className="text-[13px] font-bold text-gray-900">{getChemicalBalance(c.name)} kg</span></span>
+                    ))}
+                  </div>
+                )}
                 <div className={`grid transition-[grid-template-rows] duration-500 ease-in-out ${isInventoryMinimized ? 'grid-rows-[0fr]' : 'grid-rows-[1fr]'}`}>
                   <div className="overflow-hidden">
                     <div className="flex flex-col gap-2 pr-1 pt-2">
@@ -240,6 +259,13 @@ export function NewEntry({ onClose, defaultDate, readOnly: propsReadOnly = false
                     {totalColor} kg
                   </span>
                 </div>
+                {isInventoryMinimized && (
+                  <div className="flex flex-wrap gap-x-3 gap-y-0.5 pt-1.5 text-[11px] text-gray-500">
+                    {lookups.colors.map((c) => (
+                      <span key={c.id}>{c.name}: <span className="text-[13px] font-bold text-gray-900">{getColorBalance(c.name)} kg</span></span>
+                    ))}
+                  </div>
+                )}
                 <div className={`grid transition-[grid-template-rows] duration-500 ease-in-out ${isInventoryMinimized ? 'grid-rows-[0fr]' : 'grid-rows-[1fr]'}`}>
                   <div className="overflow-hidden">
                     <div className="flex flex-col gap-2 pr-1 pt-2">
