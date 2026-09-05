@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react';
+import { useState } from 'react';
 import '@fontsource-variable/hanken-grotesk';
 import { RefreshCw, Factory, Trash2, FlaskConical } from 'lucide-react';
 import { format, parseISO } from 'date-fns';
@@ -11,11 +11,6 @@ import { useAuth } from '@/features/auth/auth-context';
 import { currentMonthStr as todayMonthStr } from '@/lib/date-utils';
 import { useOpeningBalanceWastage, useOpeningBalanceFabricStock, useOpeningBalanceRawMaterials } from '@/features/admin-panel/opening-balance-queries';
 import { ProductionSummaryCard, DetailBreakdownCard, SectionSummaryCard, RawMaterialsSection, RawMaterialCard } from './card';
-import { useExtruderProductions } from '@/features/extruder/extruder-queries';
-import { useLoomsProductions } from '@/features/looms/loom-queries';
-import { useFabricCheckingRecords } from '@/features/fabric/fabric-queries';
-import { useLoadSentRecords, getLoadSentWeight } from '@/features/inventory/load-sent-queries';
-import { sumWastageByCode } from '@/lib/api-types';
 
 function formatNum(n: number): string {
   return n.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
@@ -334,71 +329,113 @@ export function DashboardDesign2() {
   const loadingLoadSent = isLoading;
 
   // ── Sample Production Data ──────────────────────────────────────────────
-  // date_from/date_to let the backend filter by month so we don't over-fetch.
-  const [sampleYear, sampleMonth] = currentMonthStr.split('-');
-  const sampleDateFrom = `${currentMonthStr}-01`;
-  const sampleDateTo = new Date(+sampleYear, +sampleMonth, 0).toISOString().split('T')[0]; // last day of month
-  const sampleQuery = `?limit=100&type=SAMPLE&date_from=${sampleDateFrom}&date_to=${sampleDateTo}`;
-  const { data: sampleExtruderData } = useExtruderProductions(sampleQuery);
-  const { data: sampleLoomsData } = useLoomsProductions(sampleQuery);
-  const { data: sampleFabricData } = useFabricCheckingRecords(sampleQuery);
-  const { data: sampleDeliveredData } = useLoadSentRecords(sampleQuery);
+  // Same /dashboard endpoint as the Production Summary tab, just called with type=SAMPLE
+  // (backend now filters every underlying query by production_records.type), so all the
+  // shapes below mirror the PRODUCTION versions above exactly — just without an Opening
+  // Balance term, since OB is a real-inventory starting value that doesn't apply to samples.
+  const { dashboardData: sampleDashboardData, isLoading: loadingSampleDashboard } = useMonthlyDashboard(currentMonthStr, 'SAMPLE');
 
-  const sampleSummary = useMemo(() => {
-    const extruderByColor = new Map<string, { production: number; waste: number }>();
-    const loomsByColor = new Map<string, { production: number; waste: number }>();
-    const fabricByColor = new Map<string, { production: number; waste: number }>();
-    const deliveredByColor = new Map<string, { total: number; deliveries: { label: string; value: number }[] }>();
+  const sampleExtruderByColorMap = new Map((sampleDashboardData?.extruderProduction?.byColor || []).map(r => [r.color.name, r]));
+  const sampleExtruderSummaryByColor = FABRIC_COLORS.map(color => ({
+    color,
+    production: sampleExtruderByColorMap.get(color)?.production ?? 0,
+  }));
+  const sampleExtruderGrandTotal = sampleDashboardData?.extruderProduction?.overall.production || 0;
 
-    for (const item of (sampleExtruderData?.data || [])) {
-      const color = item.color?.name ?? 'Unknown';
-      const entry = extruderByColor.get(color) ?? { production: 0, waste: 0 };
-      entry.production += item.extruder?.yarnOutputKg ?? 0;
-      entry.waste += sumWastageByCode(item.wastages, 'LUMPS') + sumWastageByCode(item.wastages, 'YARN_WASTE');
-      extruderByColor.set(color, entry);
-    }
+  const sampleLoomsByColorMap = new Map((sampleDashboardData?.loomsProduction?.byColor || []).map(r => [r.color.name, r]));
+  const sampleLoomsSummaryByColor = FABRIC_COLORS.map(color => ({
+    color,
+    production: sampleLoomsByColorMap.get(color)?.production ?? 0,
+  }));
+  const sampleLoomsGrandTotal = sampleDashboardData?.loomsProduction?.overall.production || 0;
 
-    for (const item of (sampleLoomsData?.data || [])) {
-      const color = item.color?.name ?? 'Unknown';
-      const entry = loomsByColor.get(color) ?? { production: 0, waste: 0 };
-      entry.production += item.loom?.fabricOutputKg ?? 0;
-      entry.waste += sumWastageByCode(item.wastages, 'LOOMS_WASTE');
-      loomsByColor.set(color, entry);
-    }
+  const sampleFabricByColorMap = new Map((sampleDashboardData?.fabricProduction.byColor || []).map(r => [r.color.name, r]));
+  const sampleFabricInputByColorMap = new Map<string, number>();
+  (sampleDashboardData?.fabricProduction.byVariant || []).forEach(r => {
+    sampleFabricInputByColorMap.set(r.color.name, (sampleFabricInputByColorMap.get(r.color.name) ?? 0) + r.fabricInputKg);
+  });
+  const sampleFabricSummaryByColor = FABRIC_COLORS.map(color => ({
+    color,
+    production: sampleFabricByColorMap.get(color)?.production ?? 0,
+  }));
+  const sampleFabricGrandTotal = sampleDashboardData?.fabricProduction.overall.outputKg || 0;
 
-    for (const item of (sampleFabricData?.data || [])) {
-      const color = item.color?.name ?? 'Unknown';
-      const entry = fabricByColor.get(color) ?? { production: 0, waste: 0 };
-      entry.production += item.fabricCheck?.outputKg ?? 0;
-      entry.waste += sumWastageByCode(item.wastages, 'FW') + sumWastageByCode(item.wastages, 'BW');
-      fabricByColor.set(color, entry);
-    }
+  // Yarn Balance = Extruder yarn output − yarn consumed by Looms — same formula as Production,
+  // no OB term (Yarn Balance never uses Opening Balance, for either tab).
+  const sampleExtruderByVariantMap = new Map((sampleDashboardData?.extruderProduction?.byVariant || []).map(r => [`${r.color.name}_${r.size.name}`, r]));
+  const sampleLoomsByVariantMap = new Map((sampleDashboardData?.loomsProduction?.byVariant || []).map(r => [`${r.color.name}_${r.size.name}`, r]));
+  const sampleYarnBalanceByColor = FABRIC_COLORS.map(color => {
+    const yarnProduced = sampleExtruderByColorMap.get(color)?.production ?? 0;
+    const loomsRow = sampleLoomsByColorMap.get(color);
+    const yarnConsumed = (loomsRow?.production ?? 0) + (loomsRow?.waste ?? 0);
+    return { color, balance: Math.max(0, yarnProduced - yarnConsumed) };
+  });
+  const sampleYarnBalanceByVariant = FABRIC_COLORS.map(color => {
+    const sizes = FABRIC_STOCK_SIZES.map(size => {
+      const key = `${color}_${size}`;
+      const yarnProduced = sampleExtruderByVariantMap.get(key)?.production ?? 0;
+      const loomsRow = sampleLoomsByVariantMap.get(key);
+      const yarnConsumed = (loomsRow?.production ?? 0) + (loomsRow?.waste ?? 0);
+      return { size, balance: Math.max(0, yarnProduced - yarnConsumed) };
+    });
+    return { color, sizes };
+  });
 
-    for (const item of (sampleDeliveredData?.data || [])) {
-      const color = item.color?.name ?? 'Unknown';
-      const entry = deliveredByColor.get(color) ?? { total: 0, deliveries: [] };
-      const wt = getLoadSentWeight(item);
-      entry.total += wt;
-      entry.deliveries.push({ label: item.size?.name ?? '-', value: wt });
-      deliveredByColor.set(color, entry);
-    }
+  // Kora Balance = Looms fabric output − Fabric Checking fabric input — same formula as
+  // Production minus the Opening Balance term (samples carry no OB).
+  const sampleFabricByVariantMap = new Map((sampleDashboardData?.fabricProduction.byVariant || []).map(r => [`${r.color.name}_${r.size.name}`, r]));
+  const sampleKoraBalanceByColor = FABRIC_COLORS.map(color => {
+    const loomsOutput = sampleLoomsByColorMap.get(color)?.production ?? 0;
+    const fabricInput = sampleFabricInputByColorMap.get(color) ?? 0;
+    return { color, balance: Math.max(0, loomsOutput - fabricInput) };
+  });
+  const sampleKoraBalanceByVariant = FABRIC_COLORS.map(color => {
+    const sizes = FABRIC_STOCK_SIZES.map(size => {
+      const key = `${color}_${size}`;
+      const loomsOutput = sampleLoomsByVariantMap.get(key)?.production ?? 0;
+      const fabricInput = sampleFabricByVariantMap.get(key)?.fabricInputKg ?? 0;
+      return { size, balance: Math.max(0, loomsOutput - fabricInput) };
+    });
+    return { color, sizes };
+  });
 
-    const colors = Array.from(new Set([
-      ...extruderByColor.keys(),
-      ...loomsByColor.keys(),
-      ...fabricByColor.keys(),
-      ...deliveredByColor.keys(),
-    ])).sort();
+  // Fabric Stock — same derivation as Production (backend stockBalance, all-time cumulative
+  // Fabric Checking output minus Load Sent), no OB term.
+  const sampleFabricStockByColor = (() => {
+    const byColor = new Map<string, { color: string; colorClass: string; stockBySize: Record<string, number> }>();
+    const getRow = (color: string) => {
+      const existing = byColor.get(color);
+      if (existing) return existing;
+      const row = { color, colorClass: deliveryColorClass(color), stockBySize: {} as Record<string, number> };
+      byColor.set(color, row);
+      return row;
+    };
+    FABRIC_COLORS.forEach((color) => getRow(color));
+    (sampleDashboardData?.stockBalance || []).forEach(r => {
+      const row = getRow(r.color.name);
+      row.stockBySize[r.size.name] = (row.stockBySize[r.size.name] || 0) + r.availableFabricStockKg;
+    });
+    return Array.from(byColor.values());
+  })();
+  const sampleTotalFabricStockKg = sampleFabricStockByColor.reduce(
+    (sum, row) => sum + Object.values(row.stockBySize).reduce((s, v) => s + v, 0),
+    0,
+  );
 
-    // Compute totals in one pass alongside the aggregation above
-    let extruderTotal = 0, loomsTotal = 0, fabricTotal = 0, deliveredTotal = 0;
-    extruderByColor.forEach(v => { extruderTotal += v.production; });
-    loomsByColor.forEach(v => { loomsTotal += v.production; });
-    fabricByColor.forEach(v => { fabricTotal += v.production; });
-    deliveredByColor.forEach(v => { deliveredTotal += v.total; });
-
-    return { extruderByColor, loomsByColor, fabricByColor, deliveredByColor, colors, extruderTotal, loomsTotal, fabricTotal, deliveredTotal };
-  }, [sampleExtruderData, sampleLoomsData, sampleFabricData, sampleDeliveredData]);
+  // Fabric Delivered — same shape as monthDeliveriesByColor above, sourced from the SAMPLE dashboard data.
+  const sampleDeliveriesByColor = FABRIC_COLORS.map(color => {
+    const deliveries = (sampleDashboardData?.loadSent.items || [])
+      .filter(item => item.color.name === color)
+      .map(item => ({
+        id: item.id,
+        date: item.productionDate,
+        size: item.size.name,
+        kg: item.loadSent?.fabricWeight ?? 0,
+      }))
+      .sort((a, b) => (a.date < b.date ? 1 : -1));
+    return { color, deliveries, total: deliveries.reduce((sum, d) => sum + d.kg, 0) };
+  });
+  const sampleSelectedMonthDeliveryTotal = sampleDashboardData?.loadSent.totals.fabricWeightKg || 0;
 
   // Production Summary / Fabric Stock / Fabric Delivered — shared verbatim between the
   // "Production Summary" and "Sample Production" tabs at the user's request.
@@ -498,6 +535,121 @@ export function DashboardDesign2() {
           loadingMessage="Loading delivered records..."
         >
           {monthDeliveriesByColor.map((row) => {
+            const theme = fabricStockCardTheme(row.color);
+            return (
+              <DetailBreakdownCard
+                key={row.color}
+                title={row.color}
+                total={row.total}
+                theme={{ cardBg: theme.bg, cardBorder: theme.border, labelColor: deliveryColorClass(row.color) }}
+                rows={row.deliveries.map((d) => ({ id: d.id, label: d.size, value: d.kg }))}
+                emptyMessage="No deliveries recorded yet."
+              />
+            );
+          })}
+        </SectionSummaryCard>
+      </div>
+    </>
+  );
+
+  // Sample Production tab — identical card tree/styling to renderProductionSummary above,
+  // fed entirely by type=SAMPLE data (sampleDashboardData) so sample/trial entries never mix
+  // into the real Production Details totals.
+  const renderSampleProduction = () => (
+    <>
+      {/* Production Summary (Extruder / Looms / Fabric) */}
+      <div className="font-hanken bg-white rounded-2xl border border-gray-400 shadow-sm p-2">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-2.5">
+          <ProductionSummaryCard
+            title="Extruder Production"
+            total={sampleExtruderGrandTotal}
+            rows={sampleExtruderSummaryByColor}
+            rowLabelClassName="text-[13.5px]"
+            theme={{ cardBg: 'bg-[#00897B]/5', cardBorder: 'border-[#B8DCD0]', titleColor: 'text-[#0B5566]', totalColor: 'text-[#0B5566]' }}
+          />
+
+          <ProductionSummaryCard
+            title="Looms Production"
+            total={sampleLoomsGrandTotal}
+            rows={sampleLoomsSummaryByColor}
+            rowLabelClassName="text-[13px]"
+            theme={{ cardBg: 'bg-[#004D40]/5', cardBorder: 'border-[#B8D8D5]', titleColor: 'text-[#7A6A00]', totalColor: 'text-[#7A6A00]' }}
+          />
+
+          <ProductionSummaryCard
+            title="Fabric Checking"
+            total={sampleFabricGrandTotal}
+            rows={sampleFabricSummaryByColor}
+            rowLabelClassName="text-[13px]"
+            theme={{ cardBg: 'bg-[#004D40]/5', cardBorder: 'border-[#C5D8C2]', titleColor: 'text-[#2F6B2F]', totalColor: 'text-[#2F6B2F]' }}
+          />
+        </div>
+      </div>
+
+      {/* Yarn Balance (own horizontal section, styled like Fabric Stock below) */}
+      <div className="w-full">
+        <SectionSummaryCard
+          title="Yarn Balance"
+          total={sampleYarnBalanceByColor.reduce((sum, row) => sum + row.balance, 0)}
+          totalColorClassName="text-[#0B5566]"
+        >
+          {sampleYarnBalanceByVariant.map((row) => {
+            const theme = fabricStockCardTheme(row.color);
+            const colorTotal = sampleYarnBalanceByColor.find((r) => r.color === row.color)?.balance ?? 0;
+            return (
+              <DetailBreakdownCard
+                key={row.color}
+                title={row.color}
+                total={colorTotal}
+                theme={{ cardBg: theme.bg, cardBorder: theme.border, labelColor: deliveryColorClass(row.color) }}
+                rows={row.sizes.filter((s) => s.balance > 0).map((s) => ({ label: s.size, value: s.balance }))}
+                emptyMessage="No yarn balance recorded yet."
+                layout="boxed"
+              />
+            );
+          })}
+        </SectionSummaryCard>
+      </div>
+
+      {/* Kora Balance (own horizontal section, below Yarn Balance) */}
+      <div className="w-full">
+        <SectionSummaryCard
+          title="Kora Balance"
+          total={sampleKoraBalanceByColor.reduce((sum, row) => sum + row.balance, 0)}
+          totalColorClassName="text-[#7A6A00]"
+        >
+          {sampleKoraBalanceByVariant.map((row) => {
+            const theme = fabricStockCardTheme(row.color);
+            const colorTotal = sampleKoraBalanceByColor.find((r) => r.color === row.color)?.balance ?? 0;
+            return (
+              <DetailBreakdownCard
+                key={row.color}
+                title={row.color}
+                total={colorTotal}
+                theme={{ cardBg: theme.bg, cardBorder: theme.border, labelColor: deliveryColorClass(row.color) }}
+                rows={row.sizes.filter((s) => s.balance > 0).map((s) => ({ label: s.size, value: s.balance }))}
+                emptyMessage="No kora balance recorded yet."
+                layout="boxed"
+              />
+            );
+          })}
+        </SectionSummaryCard>
+      </div>
+
+      {/* Fabric Stock (own horizontal section) */}
+      <div className="w-full">
+        <FabricStockCard rows={sampleFabricStockByColor} total={sampleTotalFabricStockKg} />
+      </div>
+
+      {/* Fabric Delivered (own horizontal section, below Fabric Stock) */}
+      <div className="w-full">
+        <SectionSummaryCard
+          title="Fabric Delivered"
+          total={sampleSelectedMonthDeliveryTotal}
+          isLoading={loadingSampleDashboard}
+          loadingMessage="Loading delivered records..."
+        >
+          {sampleDeliveriesByColor.map((row) => {
             const theme = fabricStockCardTheme(row.color);
             return (
               <DetailBreakdownCard
@@ -664,7 +816,7 @@ export function DashboardDesign2() {
                 </TabsContent>
 
                 <TabsContent value="sample" className="flex flex-col gap-2">
-                  {renderProductionSummary()}
+                  {renderSampleProduction()}
                 </TabsContent>
               </Tabs>
             </div>
