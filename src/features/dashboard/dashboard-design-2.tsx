@@ -549,23 +549,23 @@ export function DashboardDesign2() {
             {/* Dashboard Tabs: Production Summary / Wastage Summary / Sample Production */}
             <div className="mt-4">
               <Tabs value={activeTab} onValueChange={(value) => setActiveTab(value as typeof activeTab)} className="gap-4 cursor-pointer">
-                <div className="bg-white border border-gray-400 rounded-xl shadow-sm px-3">
+                <div className="border-b border-gray-400 px-3">
                   <TabsList variant="underline" className="border-b-0">
                     <TabsTrigger value="production">
-                      <span className="flex items-center gap-1">
-                        <Factory className="h-4 w-4" strokeWidth={1.75} />
+                      <span className="flex items-center gap-1 text-[15px] font-extrabold">
+                        <Factory className="h-4  w-4" strokeWidth={1.75} />
                         Production Summary
                       </span>
                     </TabsTrigger>
                     <TabsTrigger value="wastage">
-                      <span className="flex items-center gap-1">
+                      <span className="flex items-center gap-1 text-[15px] font-extrabold">
                         <Trash2 className="h-4 w-4" strokeWidth={1.75} />
                         Wastage Summary
                       </span>
                     </TabsTrigger>
                     <TabsTrigger value="sample">
-                      <span className="flex items-center gap-1">
-                        <FlaskConical className="h-4 w-4" strokeWidth={1.75} />
+                      <span className="flex items-center gap-1 text-[15px] font-extrabold">
+                        <FlaskConical className="h-4.5 w-4.5" strokeWidth={1.75} />
                         Sample Production
                       </span>
                     </TabsTrigger>
@@ -655,39 +655,18 @@ function WastageCard({
   const loomsWasteTotal = loomsWasteByColor.reduce((sum, r) => sum + r.loomsWaste, 0);
   const fabricWasteTotal = fabricWasteByColor.reduce((sum, r) => sum + r.fabricWaste + r.bitWaste, 0);
 
-  // Only show a size row once some color has recorded wastage for it — new sizes
-  // appear automatically as soon as wastage is recorded against them.
-  const extruderVisibleSizes = FABRIC_STOCK_SIZES.filter(size =>
-    extruderWasteByVariant.some(row => {
-      const match = row.sizes.find(s => s.size === size);
-      return !!match && (match.lums > 0 || match.yarnWaste > 0);
-    })
-  );
-  const loomsVisibleSizes = FABRIC_STOCK_SIZES.filter(size =>
-    loomsWasteByVariant.some(row => {
-      const match = row.sizes.find(s => s.size === size);
-      return !!match && match.loomsWaste > 0;
-    })
-  );
-  const fabricVisibleSizes = FABRIC_STOCK_SIZES.filter(size =>
-    fabricWasteByVariant.some(row => {
-      const match = row.sizes.find(s => s.size === size);
-      return !!match && (match.fabricWaste > 0 || match.bitWaste > 0);
-    })
-  );
-
   return (
     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-2.5">
       {/* Extruder Wastage */}
-      <Card className="bg-[#00897B]/5 border border-[#B8DCD0] rounded-[14px] hover:shadow-md transition-all flex flex-col gap-0 py-0">
+      <Card className="bg-[#00897B]/5 border border-[#B8DCD0] rounded-[14px] hover:shadow-md transition-all flex flex-col gap-0 self-start py-0">
         <CardHeader className="flex flex-row items-center justify-between pb-1.5! pt-2 px-3 border-b border-[#B8DCD0]">
           <CardTitle className="text-[17px] font-extrabold text-[#0B5566] flex items-center gap-3">
             Extruder Wastage
           </CardTitle>
           <span className="text-[14px] font-bold text-[#0B5566]">Total : <span className="font-inter">{formatNum(lums + looseWaste)}</span> kg</span>
         </CardHeader>
-        <CardContent className="px-2 pb-2 flex-1 flex flex-col">
-          <div className="w-full flex-1 flex flex-col">
+        <CardContent className="px-2 pb-2 flex flex-col">
+          <div className="w-full">
             {/* Color header row */}
             <div className="flex items-center px-2 py-1.5 border-b border-gray-200/60 mb-1">
               <span className="w-16 shrink-0" />
@@ -702,7 +681,7 @@ function WastageCard({
               ))}
             </div>
             <div className="space-y-1">
-              {extruderVisibleSizes.map(size => (
+              {['150cm', '160cm', '170cm', '180cm', '190cm'].map(size => (
                 <div key={size} className="flex items-center border border-gray-300/80 rounded-md px-2 py-1.5 bg-white">
                   <span className="w-16 shrink-0 font-semibold text-gray-600 text-[12px]">{size}</span>
                   {extruderWasteByVariant.map(colorGroup => {
@@ -728,11 +707,6 @@ function WastageCard({
                 ))}
               </div>
             </div>
-            <div className="flex-1 min-h-3" />
-            <div className="pt-1.5 border-t border-[#B8DCD0] flex flex-wrap gap-x-3 gap-y-0.5 text-[10px] text-gray-500">
-              <span className="text-[12px]"><span className="font-bold text-[#0B5566]">LM</span> - Lumps wastage</span>
-              <span className="text-[12px]"><span className="font-bold text-[#0B5566]">LO</span> - Looms wastage</span>
-            </div>
           </div>
         </CardContent>
       </Card>
@@ -746,22 +720,19 @@ function WastageCard({
           </CardTitle>
           <span className="text-[14px] font-bold text-[#7A6A00]">Total : <span className="font-inter">{formatNum(loomsWasteTotal)}</span> kg</span>
         </CardHeader>
-        <CardContent className="px-2 pb-2 flex-1 flex flex-col">
-          <div className="w-full flex-1 flex flex-col overflow-hidden">
+        <CardContent className="px-2 pb-2 flex flex-col">
+          <div className="w-full overflow-hidden">
             {/* Color header row */}
             <div className="flex items-center px-2 py-1.5 border-b border-gray-200/60 mb-1">
               <span className="w-16 shrink-0" />
               {loomsWasteByVariant.map((row) => (
                 <div key={row.color} className="flex-1 flex flex-col items-center">
                   <span className={`font-bold text-[13.5px] ${deliveryColorClass(row.color)}`}>{row.color}</span>
-                  <div className="flex w-full mt-1">
-                    <span className="flex-1 text-center text-[10px] font-semibold text-gray-400 uppercase" title="Yarn/Looms Waste">YW</span>
-                  </div>
                 </div>
               ))}
             </div>
             <div className="space-y-1">
-              {loomsVisibleSizes.map(size => (
+              {['150cm', '160cm', '170cm', '180cm', '190cm'].map(size => (
                 <div key={size} className="flex items-center border border-gray-300/80 rounded-md px-2 py-1.5 bg-white">
                   <span className="w-16 shrink-0 font-semibold text-gray-600 text-[12px]">{size}</span>
                   {loomsWasteByVariant.map(colorGroup => {
@@ -785,17 +756,13 @@ function WastageCard({
                 ))}
               </div>
             </div>
-            <div className="flex-1 min-h-3" />
-            <div className="pt-1.5 border-t border-[#E8D870] flex flex-wrap gap-x-3 gap-y-0.5 text-[10px] text-gray-500">
-              <span className="text-[12px]"><span className="font-bold text-[#7A6A00]">YW</span> - Yarn/Looms wastage</span>
-            </div>
           </div>
         </CardContent>
       </Card>
 
 
       {/* Fabric Checking Wastage */}
-      <Card className="bg-[#004D40]/5 border border-[#C5D8C2] rounded-[14px] hover:shadow-md transition-all flex flex-col gap-0 py-0">
+      <Card className="bg-[#004D40]/5 border border-[#C5D8C2] rounded-[14px] hover:shadow-md transition-all flex flex-col gap-0 self-start py-0">
         <CardHeader className="flex flex-row items-center justify-between pb-1.5! pt-2 px-3 border-b border-[#C5D8C2]">
           <CardTitle className="text-[17px] font-extrabold text-[#2F6B2F] flex items-center gap-3">
             {/* <div className="bg-[#2F6B2F] border text-white w-6 h-6 rounded-[4px] flex items-center justify-center text-xs font-bold shadow-sm">3</div> */}
@@ -803,8 +770,8 @@ function WastageCard({
           </CardTitle>
           <span className="text-[14px] font-bold text-[#2F6B2F]">Total : <span className="font-inter">{formatNum(fabricWasteTotal)}</span> kg</span>
         </CardHeader>
-        <CardContent className="px-2 pb-2 flex-1 flex flex-col">
-          <div className="w-full flex-1 flex flex-col">
+        <CardContent className="px-2 pb-2 flex flex-col">
+          <div className="w-full">
             <div className="flex items-center px-2 py-1.5 border-b border-gray-200/60 mb-1">
               <span className="w-16 shrink-0" />
               {fabricWasteByColor.map((row) => (
@@ -818,7 +785,7 @@ function WastageCard({
               ))}
             </div>
             <div className="space-y-1">
-              {fabricVisibleSizes.map(size => (
+              {['150cm', '160cm', '170cm', '180cm', '190cm'].map(size => (
                 <div key={size} className="flex items-center border border-gray-300/80 rounded-md px-2 py-1.5 bg-white">
                   <span className="w-16 shrink-0 font-semibold text-gray-600 text-[12px]">{size}</span>
                   {fabricWasteByVariant.map(colorGroup => {
@@ -842,11 +809,6 @@ function WastageCard({
                   </div>
                 ))}
               </div>
-            </div>
-            <div className="flex-1 min-h-3" />
-            <div className="pt-1.5 border-t border-[#C5D8C2] flex flex-wrap gap-x-3 gap-y-0.5 text-[10px] text-gray-500">
-              <span className="text-[12px]"><span className="font-bold text-[#2F6B2F]">FW</span> - Fabric wastage</span>
-              <span className="text-[12px]"><span className="font-bold text-[#2F6B2F]">BW</span> - Bit Wastage</span>
             </div>
           </div>
         </CardContent>
