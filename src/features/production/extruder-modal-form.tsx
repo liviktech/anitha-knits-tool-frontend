@@ -473,6 +473,7 @@ export function ExtruderModalForm({ productionDate, initialData, isEditMode, onC
                   size="icon"
                   className={`h-8 w-8 text-red-500 hover:bg-red-50 ${computedBrands.length <= 1 ? 'opacity-0 pointer-events-none' : ''}`}
                   onClick={() => removeBrand(brandRow.key)}
+                  title="Delete row"
                 >
                   <Trash2 className="h-3.5 w-3.5" />
                 </Button>

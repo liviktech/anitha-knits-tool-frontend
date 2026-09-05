@@ -1015,6 +1015,7 @@ export function ProductionDesign2() {
                                 className="h-6 w-6 text-[#004D40] hover:bg-[#004D40]/10"
                                 onClick={() => navigate(`/production/new-entry?date=${row.date}`)}
                                 disabled={!canEditProduction}
+                                title="Edit Production Entry"
                               >
                                 <Edit className="h-[13px] w-[13px]" />
                               </Button>
@@ -1024,6 +1025,7 @@ export function ProductionDesign2() {
                                 className="h-6 w-6 text-red-600 hover:bg-red-50"
                                 onClick={() => setDeleteTargetDate(row.date)}
                                 disabled={!canDeleteProduction}
+                                title="Delete Production Entry"
                               >
                                 <Trash2 className="h-[13px] w-[13px]" />
                               </Button>

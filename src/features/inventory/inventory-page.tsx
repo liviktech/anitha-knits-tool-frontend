@@ -375,12 +375,12 @@ function LoadSentTab({ onBack }: { onBack: () => void }) {
                   <TableCell className="text-center">
                     <div className="flex items-center justify-center gap-2">
                       {canEdit && (
-                        <Button variant="ghost" size="icon-sm" className="rounded-full bg-blue-50 text-blue-500 hover:bg-blue-100" aria-label="Edit row" onClick={() => openEdit(r)}>
+                        <Button variant="ghost" size="icon-sm" className="rounded-full bg-blue-50 text-blue-500 hover:bg-blue-100" aria-label="Edit row" onClick={() => openEdit(r)}title="Edit Inventory">
                           <Edit2 className="h-3.5 w-3.5" />
                         </Button>
                       )}
                       {canDelete && (
-                        <Button variant="ghost" size="icon-sm" className="rounded-full bg-red-50 text-red-500 hover:bg-red-100" aria-label="Delete row" onClick={() => setDeleteTarget(r)}>
+                        <Button variant="ghost" size="icon-sm" className="rounded-full bg-red-50 text-red-500 hover:bg-red-100" aria-label="Delete row" onClick={() => setDeleteTarget(r)}title="Delete Inventory">
                           <Trash2 className="h-3.5 w-3.5" />
                         </Button>
                       )}

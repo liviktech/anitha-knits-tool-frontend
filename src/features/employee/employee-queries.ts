@@ -301,6 +301,33 @@ export function useGrantMarketValueDeduction() {
   });
 }
 
+export function useGrantOtherDeduction() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async (data: {
+      employeeId: string;
+      amount: number;
+      name: string;
+      effectiveDate: string;
+    }) => {
+      const response = await fetchJson<{ data: any }>(
+        '/company/payroll/other-deduction',
+        {
+          method: 'POST',
+          body: JSON.stringify(data),
+          headers: {
+            'Content-Type': 'application/json',
+          },
+        },
+      );
+      return response.data;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: employeeKeys.lists() });
+    },
+  });
+}
+
 export type SalaryAdvanceStatus = 'ACTIVE' | 'COMPLETED';
 
 export interface SalaryAdvanceRecord {
