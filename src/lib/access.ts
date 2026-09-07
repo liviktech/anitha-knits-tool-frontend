@@ -7,6 +7,7 @@ import type { AuthUser } from '@/features/auth/auth-service';
  * Module.moduleCode catalog (see the backend's defaultAccessCatalog.ts).
  */
 export function hasModuleAccess(user: AuthUser | null | undefined, moduleCode: string): boolean {
+  if (moduleCode === 'sampleproduction' || moduleCode === 'reports') return true;
   if (!user || user.kind !== 'company-user') return false;
   if (!user.access) return true;
   return user.access.moduleCodes.includes(moduleCode);
