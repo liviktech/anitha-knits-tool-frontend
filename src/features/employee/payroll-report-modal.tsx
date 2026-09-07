@@ -1,5 +1,6 @@
 import { Dialog, DialogClose, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
+import { Table, TableBody, TableCell, TableFooter, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Download, FileDown, X } from 'lucide-react';
 
 const TEAL: [number, number, number] = [0, 77, 64]; // #004D40 — this app's primary accent
@@ -214,78 +215,78 @@ export function PayrollReportModal({
 
             {/* Data Table */}
             <div className="mb-4 overflow-x-auto rounded-lg border border-gray-200">
-              <table className="w-full text-left border-collapse">
-                <thead>
-                  <tr className="bg-[#004D40]">
-                    <th className="py-3 px-4 font-bold text-white whitespace-nowrap">Emp ID</th>
-                    <th className="py-3 px-4 font-bold text-white whitespace-nowrap">Name</th>
-                    <th className="py-3 px-4 font-bold text-white text-right whitespace-nowrap">Base Salary</th>
-                    <th className="py-3 px-4 font-bold text-white text-right whitespace-nowrap">Days Worked</th>
-                    <th className="py-3 px-4 font-bold text-white text-right whitespace-nowrap">Gross Salary</th>
-                    <th className="py-3 px-4 font-bold text-white text-right whitespace-nowrap">Advance Deducted</th>
-                    <th className="py-3 px-4 font-bold text-white text-right whitespace-nowrap">Machine Value</th>
-                    <th className="py-3 px-4 font-bold text-white text-right whitespace-nowrap">Market Value</th>
-                    <th className="py-3 px-4 font-bold text-white text-right whitespace-nowrap">Other Deduction</th>
-                    <th className="py-3 px-4 font-bold text-white text-right whitespace-nowrap">Net Payable</th>
-                  </tr>
-                </thead>
-                <tbody>
+              <Table>
+                <TableHeader>
+                  <TableRow className="bg-[#004D40] hover:bg-[#004D40]">
+                    <TableHead className="py-3 px-4 font-bold text-white whitespace-nowrap">Emp ID</TableHead>
+                    <TableHead className="py-3 px-4 font-bold text-white whitespace-nowrap !text-left">Name</TableHead>
+                    <TableHead className="py-3 px-4 font-bold text-white whitespace-nowrap !text-right">Base Salary</TableHead>
+                    <TableHead className="py-3 px-4 font-bold text-white whitespace-nowrap !text-right">Days Worked</TableHead>
+                    <TableHead className="py-3 px-4 font-bold text-white whitespace-nowrap !text-right">Gross Salary</TableHead>
+                    <TableHead className="py-3 px-4 font-bold text-white whitespace-nowrap !text-right">Advance Deducted</TableHead>
+                    <TableHead className="py-3 px-4 font-bold text-white whitespace-nowrap !text-right">Machine Value</TableHead>
+                    <TableHead className="py-3 px-4 font-bold text-white whitespace-nowrap !text-right">Market Value</TableHead>
+                    <TableHead className="py-3 px-4 font-bold text-white whitespace-nowrap !text-right">Other Deduction</TableHead>
+                    <TableHead className="py-3 px-4 font-bold text-white text-right whitespace-nowrap">Net Payable</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
                   {rows.length === 0 ? (
-                    <tr>
-                      <td colSpan={10} className="text-center py-8 text-gray-500">
+                    <TableRow>
+                      <TableCell colSpan={10} className="!text-center py-8 text-gray-500">
                         No payroll data found for this period.
-                      </td>
-                    </tr>
+                      </TableCell>
+                    </TableRow>
                   ) : (
                     rows.map((row, idx) => (
-                      <tr key={row.employeeId} className={idx % 2 === 0 ? 'bg-white' : 'bg-emerald-50/40'}>
-                        <td className="py-3 px-4 border-b border-gray-100 text-sm font-medium whitespace-nowrap text-gray-600">
+                      <TableRow key={row.employeeId} className={idx % 2 === 0 ? 'bg-white' : 'bg-emerald-50/40'}>
+                        <TableCell className="py-3 px-4 border-b border-gray-100 text-sm font-medium whitespace-nowrap text-gray-600">
                           {row.employeeId}
-                        </td>
-                        <td className="py-3 px-4 border-b border-gray-100 text-sm font-semibold whitespace-nowrap text-gray-800">
+                        </TableCell>
+                        <TableCell className="py-3 px-4 border-b border-gray-100 text-sm font-semibold whitespace-nowrap text-gray-800 !text-left">
                           {row.name}
-                        </td>
-                        <td className="py-3 px-4 border-b border-gray-100 text-sm text-right whitespace-nowrap text-gray-600">
+                        </TableCell>
+                        <TableCell className="py-3 px-4 border-b border-gray-100 text-sm whitespace-nowrap text-gray-600 !text-right">
                           {formatCurrency(row.baseSalary)}
-                        </td>
-                        <td className="py-3 px-4 border-b border-gray-100 text-sm text-right whitespace-nowrap text-gray-600">
+                        </TableCell>
+                        <TableCell className="py-3 px-4 border-b border-gray-100 text-sm whitespace-nowrap text-gray-600 !text-right">
                           {row.daysWorked}
-                        </td>
-                        <td className="py-3 px-4 border-b border-gray-100 text-sm text-right whitespace-nowrap text-gray-600">
+                        </TableCell>
+                        <TableCell className="py-3 px-4 border-b border-gray-100 text-sm whitespace-nowrap text-gray-600 !text-right">
                           {formatCurrency(row.grossSalary)}
-                        </td>
-                        <td className="py-3 px-4 border-b border-gray-100 text-sm text-right whitespace-nowrap text-amber-700">
+                        </TableCell>
+                        <TableCell className="py-3 px-4 border-b border-gray-100 text-sm whitespace-nowrap text-amber-700 !text-right">
                           - {formatCurrency(row.advanceDeduction)}
-                        </td>
-                        <td className="py-3 px-4 border-b border-gray-100 text-sm text-right whitespace-nowrap text-blue-700">
+                        </TableCell>
+                        <TableCell className="py-3 px-4 border-b border-gray-100 text-sm whitespace-nowrap text-blue-700 !text-right">
                           + {formatCurrency(row.marketValueBonus)}
-                        </td>
-                        <td className="py-3 px-4 border-b border-gray-100 text-sm text-right whitespace-nowrap text-red-700">
+                        </TableCell>
+                        <TableCell className="py-3 px-4 border-b border-gray-100 text-sm whitespace-nowrap text-red-700 !text-right">
                           - {formatCurrency(row.marketValueDeduction)}
-                        </td>
-                        <td className="py-3 px-4 border-b border-gray-100 text-sm text-right whitespace-nowrap text-orange-700">
+                        </TableCell>
+                        <TableCell className="py-3 px-4 border-b border-gray-100 text-sm whitespace-nowrap text-orange-700 !text-right">
                           - {formatCurrency(row.otherDeduction)}
-                        </td>
-                        <td className="py-3 px-4 border-b border-gray-100 text-sm font-bold text-right whitespace-nowrap text-gray-900">
+                        </TableCell>
+                        <TableCell className="py-3 px-4 border-b border-gray-100 text-sm font-bold whitespace-nowrap text-gray-900 text-right">
                           {formatCurrency(row.netSalary)}
-                        </td>
-                      </tr>
+                        </TableCell>
+                      </TableRow>
                     ))
                   )}
-                </tbody>
+                </TableBody>
                 {rows.length > 0 && (
-                  <tfoot>
-                    <tr className="border-t-2 border-[#004D40] bg-emerald-50">
-                      <td colSpan={9} className="py-4 px-4 font-bold text-[#004D40] text-right">
+                  <TableFooter>
+                    <TableRow className="border-t-2 border-[#004D40] bg-emerald-50 hover:bg-emerald-50">
+                      <TableCell colSpan={9} className="py-4 px-4 font-bold text-[#004D40] !text-right">
                         Total:
-                      </td>
-                      <td className="py-4 px-4 font-bold text-[#004D40] text-right text-lg">
+                      </TableCell>
+                      <TableCell className="py-4 px-4 font-bold text-[#004D40] text-right text-lg">
                         {formatCurrency(totalPayroll)}
-                      </td>
-                    </tr>
-                  </tfoot>
+                      </TableCell>
+                    </TableRow>
+                  </TableFooter>
                 )}
-              </table>
+              </Table>
             </div>
 
             {/* Footer */}

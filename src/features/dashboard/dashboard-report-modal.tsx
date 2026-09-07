@@ -1,5 +1,6 @@
 import { Dialog, DialogClose, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
+import { Table, TableBody, TableCell, TableFooter, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Download, FileDown, X } from 'lucide-react';
 
 const TEAL: [number, number, number] = [0, 77, 64]; // #004D40 — this app's primary accent
@@ -298,41 +299,41 @@ export function DashboardReportModal({
 
                 {/* Production by Color */}
                 <ReportSection title="Production by Color" total={`Total : ${formatNum(grandTotalProduction)} kg`}>
-                  <table className="w-full text-left border-collapse">
-                    <thead>
-                      <tr className="bg-[#004D40]">
-                        <th className="py-3 px-4 font-bold text-white whitespace-nowrap">Color</th>
-                        <th className="py-3 px-4 font-bold text-white text-right whitespace-nowrap">Extruder</th>
-                        <th className="py-3 px-4 font-bold text-white text-right whitespace-nowrap">Looms</th>
-                        <th className="py-3 px-4 font-bold text-white text-right whitespace-nowrap">Fabric Checking</th>
-                        <th className="py-3 px-4 font-bold text-white text-right whitespace-nowrap">Total</th>
-                      </tr>
-                    </thead>
-                    <tbody>
+                  <Table>
+                    <TableHeader>
+                      <TableRow className="bg-[#004D40] hover:bg-[#004D40]">
+                        <TableHead className="py-3 px-4 font-bold text-white whitespace-nowrap">Color</TableHead>
+                        <TableHead className="py-3 px-4 font-bold text-white whitespace-nowrap !text-right">Extruder</TableHead>
+                        <TableHead className="py-3 px-4 font-bold text-white whitespace-nowrap !text-right">Looms</TableHead>
+                        <TableHead className="py-3 px-4 font-bold text-white whitespace-nowrap !text-right">Fabric Checking</TableHead>
+                        <TableHead className="py-3 px-4 font-bold text-white text-right whitespace-nowrap">Total</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
                       {extruderByColor.map((row, i) => {
                         const loomsVal = loomsByColor[i]?.production ?? 0;
                         const fabricVal = fabricByColor[i]?.production ?? 0;
                         return (
-                          <tr key={row.color} className={i % 2 === 0 ? 'bg-white' : 'bg-emerald-50/40'}>
-                            <td className="py-3 px-4 border-b border-gray-100 text-sm font-semibold text-gray-800">{row.color}</td>
-                            <td className="py-3 px-4 border-b border-gray-100 text-sm text-right text-gray-600">{formatNum(row.production)}</td>
-                            <td className="py-3 px-4 border-b border-gray-100 text-sm text-right text-gray-600">{formatNum(loomsVal)}</td>
-                            <td className="py-3 px-4 border-b border-gray-100 text-sm text-right text-gray-600">{formatNum(fabricVal)}</td>
-                            <td className="py-3 px-4 border-b border-gray-100 text-sm text-right font-bold text-gray-900">{formatNum(row.production + loomsVal + fabricVal)}</td>
-                          </tr>
+                          <TableRow key={row.color} className={i % 2 === 0 ? 'bg-white' : 'bg-emerald-50/40'}>
+                            <TableCell className="py-3 px-4 border-b border-gray-100 text-sm font-semibold text-gray-800">{row.color}</TableCell>
+                            <TableCell className="py-3 px-4 border-b border-gray-100 text-sm text-gray-600 !text-right">{formatNum(row.production)}</TableCell>
+                            <TableCell className="py-3 px-4 border-b border-gray-100 text-sm text-gray-600 !text-right">{formatNum(loomsVal)}</TableCell>
+                            <TableCell className="py-3 px-4 border-b border-gray-100 text-sm text-gray-600 !text-right">{formatNum(fabricVal)}</TableCell>
+                            <TableCell className="py-3 px-4 border-b border-gray-100 text-sm font-bold text-gray-900 text-right">{formatNum(row.production + loomsVal + fabricVal)}</TableCell>
+                          </TableRow>
                         );
                       })}
-                    </tbody>
-                    <tfoot>
-                      <tr className="border-t-2 border-[#004D40] bg-emerald-50">
-                        <td className="py-3 px-4 font-bold text-[#004D40]">Total</td>
-                        <td className="py-3 px-4 font-bold text-[#004D40] text-right">{formatNum(extruderTotal)}</td>
-                        <td className="py-3 px-4 font-bold text-[#004D40] text-right">{formatNum(loomsTotal)}</td>
-                        <td className="py-3 px-4 font-bold text-[#004D40] text-right">{formatNum(fabricTotal)}</td>
-                        <td className="py-3 px-4 font-bold text-[#004D40] text-right">{formatNum(grandTotalProduction)}</td>
-                      </tr>
-                    </tfoot>
-                  </table>
+                    </TableBody>
+                    <TableFooter>
+                      <TableRow className="border-t-2 border-[#004D40] bg-emerald-50 hover:bg-emerald-50">
+                        <TableCell className="py-3 px-4 font-bold text-[#004D40]">Total</TableCell>
+                        <TableCell className="py-3 px-4 font-bold text-[#004D40] !text-right">{formatNum(extruderTotal)}</TableCell>
+                        <TableCell className="py-3 px-4 font-bold text-[#004D40] !text-right">{formatNum(loomsTotal)}</TableCell>
+                        <TableCell className="py-3 px-4 font-bold text-[#004D40] !text-right">{formatNum(fabricTotal)}</TableCell>
+                        <TableCell className="py-3 px-4 font-bold text-[#004D40] text-right">{formatNum(grandTotalProduction)}</TableCell>
+                      </TableRow>
+                    </TableFooter>
+                  </Table>
                 </ReportSection>
 
                 <ReportSection title="Yarn Balance" total={`Total : ${formatNum(yarnBalanceByColor.reduce((s, r) => s + r.balance, 0))} kg`}>
@@ -344,68 +345,68 @@ export function DashboardReportModal({
                 </ReportSection>
 
                 <ReportSection title="Fabric Stock" total={`Total : ${formatNum(totalFabricStock)} kg`}>
-                  <table className="w-full text-left border-collapse">
-                    <thead>
-                      <tr className="bg-[#004D40]">
-                        <th className="py-3 px-4 font-bold text-white whitespace-nowrap">Color</th>
-                        <th className="py-3 px-4 font-bold text-white whitespace-nowrap">Size</th>
-                        <th className="py-3 px-4 font-bold text-white text-right whitespace-nowrap">Stock (kg)</th>
-                      </tr>
-                    </thead>
-                    <tbody>
+                  <Table>
+                    <TableHeader>
+                      <TableRow className="bg-[#004D40] hover:bg-[#004D40]">
+                        <TableHead className="py-3 px-4 font-bold text-white whitespace-nowrap">Color</TableHead>
+                        <TableHead className="py-3 px-4 font-bold text-white whitespace-nowrap !text-left">Size</TableHead>
+                        <TableHead className="py-3 px-4 font-bold text-white text-right whitespace-nowrap">Stock (kg)</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
                       {fabricStockByColor.flatMap((row) =>
                         FABRIC_STOCK_SIZES.map((size) => (
-                          <tr key={`${row.color}-${size}`}>
-                            <td className="py-3 px-4 border-b border-gray-100 text-sm font-semibold text-gray-800">{row.color}</td>
-                            <td className="py-3 px-4 border-b border-gray-100 text-sm text-gray-600">{size}</td>
-                            <td className="py-3 px-4 border-b border-gray-100 text-sm text-right text-gray-900">{formatNum(row.stockBySize[size] || 0)}</td>
-                          </tr>
+                          <TableRow key={`${row.color}-${size}`}>
+                            <TableCell className="py-3 px-4 border-b border-gray-100 text-sm font-semibold text-gray-800">{row.color}</TableCell>
+                            <TableCell className="py-3 px-4 border-b border-gray-100 text-sm text-gray-600 !text-left">{size}</TableCell>
+                            <TableCell className="py-3 px-4 border-b border-gray-100 text-sm text-right text-gray-900">{formatNum(row.stockBySize[size] || 0)}</TableCell>
+                          </TableRow>
                         )),
                       )}
-                    </tbody>
-                    <tfoot>
-                      <tr className="border-t-2 border-[#004D40] bg-emerald-50">
-                        <td colSpan={2} className="py-3 px-4 font-bold text-[#004D40]">Total Fabric Stock</td>
-                        <td className="py-3 px-4 font-bold text-[#004D40] text-right">{formatNum(totalFabricStock)}</td>
-                      </tr>
-                    </tfoot>
-                  </table>
+                    </TableBody>
+                    <TableFooter>
+                      <TableRow className="border-t-2 border-[#004D40] bg-emerald-50 hover:bg-emerald-50">
+                        <TableCell colSpan={2} className="py-3 px-4 font-bold text-[#004D40]">Total Fabric Stock</TableCell>
+                        <TableCell className="py-3 px-4 font-bold text-[#004D40] text-right">{formatNum(totalFabricStock)}</TableCell>
+                      </TableRow>
+                    </TableFooter>
+                  </Table>
                 </ReportSection>
 
                 <ReportSection title="Fabric Delivered" total={`Total : ${formatNum(totalDelivered)} kg`}>
-                  <table className="w-full text-left border-collapse">
-                    <thead>
-                      <tr className="bg-[#004D40]">
-                        <th className="py-3 px-4 font-bold text-white whitespace-nowrap">Date</th>
-                        <th className="py-3 px-4 font-bold text-white whitespace-nowrap">Color</th>
-                        <th className="py-3 px-4 font-bold text-white whitespace-nowrap">Size</th>
-                        <th className="py-3 px-4 font-bold text-white text-right whitespace-nowrap">Weight (kg)</th>
-                      </tr>
-                    </thead>
-                    <tbody>
+                  <Table>
+                    <TableHeader>
+                      <TableRow className="bg-[#004D40] hover:bg-[#004D40]">
+                        <TableHead className="py-3 px-4 font-bold text-white whitespace-nowrap">Date</TableHead>
+                        <TableHead className="py-3 px-4 font-bold text-white whitespace-nowrap !text-left">Color</TableHead>
+                        <TableHead className="py-3 px-4 font-bold text-white whitespace-nowrap !text-left">Size</TableHead>
+                        <TableHead className="py-3 px-4 font-bold text-white text-right whitespace-nowrap">Weight (kg)</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
                       {deliveriesByColor.flatMap((colorRow) =>
                         colorRow.deliveries.map((d) => (
-                          <tr key={d.id}>
-                            <td className="py-3 px-4 border-b border-gray-100 text-sm text-gray-600">{new Date(d.date).toLocaleDateString('en-IN')}</td>
-                            <td className="py-3 px-4 border-b border-gray-100 text-sm font-semibold text-gray-800">{colorRow.color}</td>
-                            <td className="py-3 px-4 border-b border-gray-100 text-sm text-gray-600">{d.size}</td>
-                            <td className="py-3 px-4 border-b border-gray-100 text-sm text-right text-gray-900">{formatNum(d.kg)}</td>
-                          </tr>
+                          <TableRow key={d.id}>
+                            <TableCell className="py-3 px-4 border-b border-gray-100 text-sm text-gray-600">{new Date(d.date).toLocaleDateString('en-IN')}</TableCell>
+                            <TableCell className="py-3 px-4 border-b border-gray-100 text-sm font-semibold text-gray-800 !text-left">{colorRow.color}</TableCell>
+                            <TableCell className="py-3 px-4 border-b border-gray-100 text-sm text-gray-600 !text-left">{d.size}</TableCell>
+                            <TableCell className="py-3 px-4 border-b border-gray-100 text-sm text-right text-gray-900">{formatNum(d.kg)}</TableCell>
+                          </TableRow>
                         )),
                       )}
                       {deliveriesByColor.every((c) => c.deliveries.length === 0) && (
-                        <tr>
-                          <td colSpan={4} className="text-center py-8 text-gray-500">No deliveries recorded for this period.</td>
-                        </tr>
+                        <TableRow>
+                          <TableCell colSpan={4} className="!text-center py-8 text-gray-500">No deliveries recorded for this period.</TableCell>
+                        </TableRow>
                       )}
-                    </tbody>
-                    <tfoot>
-                      <tr className="border-t-2 border-[#004D40] bg-emerald-50">
-                        <td colSpan={3} className="py-3 px-4 font-bold text-[#004D40]">Total Fabric Delivered</td>
-                        <td className="py-3 px-4 font-bold text-[#004D40] text-right">{formatNum(totalDelivered)}</td>
-                      </tr>
-                    </tfoot>
-                  </table>
+                    </TableBody>
+                    <TableFooter>
+                      <TableRow className="border-t-2 border-[#004D40] bg-emerald-50 hover:bg-emerald-50">
+                        <TableCell colSpan={3} className="py-3 px-4 font-bold text-[#004D40]">Total Fabric Delivered</TableCell>
+                        <TableCell className="py-3 px-4 font-bold text-[#004D40] text-right">{formatNum(totalDelivered)}</TableCell>
+                      </TableRow>
+                    </TableFooter>
+                  </Table>
                 </ReportSection>
               </>
             )}
@@ -438,27 +439,27 @@ function ReportSection({ title, total, children }: { title: string; total: strin
 function BalanceTable({ rows }: { rows: DashboardReportBalanceRow[] }) {
   const total = rows.reduce((sum, r) => sum + r.balance, 0);
   return (
-    <table className="w-full text-left border-collapse">
-      <thead>
-        <tr className="bg-[#004D40]">
-          <th className="py-3 px-4 font-bold text-white whitespace-nowrap">Color</th>
-          <th className="py-3 px-4 font-bold text-white text-right whitespace-nowrap">Balance (kg)</th>
-        </tr>
-      </thead>
-      <tbody>
+    <Table>
+      <TableHeader>
+        <TableRow className="bg-[#004D40] hover:bg-[#004D40]">
+          <TableHead className="py-3 px-4 font-bold text-white whitespace-nowrap">Color</TableHead>
+          <TableHead className="py-3 px-4 font-bold text-white text-right whitespace-nowrap">Balance (kg)</TableHead>
+        </TableRow>
+      </TableHeader>
+      <TableBody>
         {rows.map((row, i) => (
-          <tr key={row.color} className={i % 2 === 0 ? 'bg-white' : 'bg-emerald-50/40'}>
-            <td className="py-3 px-4 border-b border-gray-100 text-sm font-semibold text-gray-800">{row.color}</td>
-            <td className="py-3 px-4 border-b border-gray-100 text-sm text-right text-gray-900">{formatNum(row.balance)}</td>
-          </tr>
+          <TableRow key={row.color} className={i % 2 === 0 ? 'bg-white' : 'bg-emerald-50/40'}>
+            <TableCell className="py-3 px-4 border-b border-gray-100 text-sm font-semibold text-gray-800">{row.color}</TableCell>
+            <TableCell className="py-3 px-4 border-b border-gray-100 text-sm text-right text-gray-900">{formatNum(row.balance)}</TableCell>
+          </TableRow>
         ))}
-      </tbody>
-      <tfoot>
-        <tr className="border-t-2 border-[#004D40] bg-emerald-50">
-          <td className="py-3 px-4 font-bold text-[#004D40]">Total</td>
-          <td className="py-3 px-4 font-bold text-[#004D40] text-right">{formatNum(total)}</td>
-        </tr>
-      </tfoot>
-    </table>
+      </TableBody>
+      <TableFooter>
+        <TableRow className="border-t-2 border-[#004D40] bg-emerald-50 hover:bg-emerald-50">
+          <TableCell className="py-3 px-4 font-bold text-[#004D40]">Total</TableCell>
+          <TableCell className="py-3 px-4 font-bold text-[#004D40] text-right">{formatNum(total)}</TableCell>
+        </TableRow>
+      </TableFooter>
+    </Table>
   );
 }

@@ -1,5 +1,6 @@
 import { Dialog, DialogClose, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
+import { Table, TableBody, TableCell, TableFooter, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Download, FileDown, X } from 'lucide-react';
 import { Loader } from '@/components/shared/loader';
 import { useInventoryRecords, inventoryTypeLabels, type InventoryType } from './inventory-queries';
@@ -205,63 +206,63 @@ export function InventoryReportModal({ open, onOpenChange, month }: InventoryRep
 
                 {/* Data Table */}
                 <div className="mb-4 rounded-lg overflow-hidden border border-gray-200">
-                  <table className="w-full text-left border-collapse">
-                    <thead>
-                      <tr className="bg-[#004D40]">
-                        <th className="py-3 px-4 font-bold text-white whitespace-nowrap">Date</th>
-                        <th className="py-3 px-4 font-bold text-white whitespace-nowrap">Type</th>
-                        <th className="py-3 px-4 font-bold text-white whitespace-nowrap">Name</th>
-                        <th className="py-3 px-4 font-bold text-white text-right whitespace-nowrap">Bags</th>
-                        <th className="py-3 px-4 font-bold text-white text-right whitespace-nowrap">Weight (kg)</th>
-                        <th className="py-3 px-4 font-bold text-white whitespace-nowrap">DC Number</th>
-                      </tr>
-                    </thead>
-                    <tbody>
+                  <Table>
+                    <TableHeader>
+                      <TableRow className="bg-[#004D40] hover:bg-[#004D40]">
+                        <TableHead className="py-3 px-4 font-bold text-white whitespace-nowrap">Date</TableHead>
+                        <TableHead className="py-3 px-4 font-bold text-white whitespace-nowrap !text-left">Type</TableHead>
+                        <TableHead className="py-3 px-4 font-bold text-white whitespace-nowrap !text-left">Name</TableHead>
+                        <TableHead className="py-3 px-4 font-bold text-white whitespace-nowrap !text-right">Bags</TableHead>
+                        <TableHead className="py-3 px-4 font-bold text-white whitespace-nowrap !text-right">Weight (kg)</TableHead>
+                        <TableHead className="py-3 px-4 font-bold text-white whitespace-nowrap !text-left">DC Number</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
                       {monthRecords.length === 0 ? (
-                        <tr>
-                          <td colSpan={6} className="text-center py-8 text-gray-500">
+                        <TableRow>
+                          <TableCell colSpan={6} className="!text-center py-8 text-gray-500">
                             No stock received recorded for this period.
-                          </td>
-                        </tr>
+                          </TableCell>
+                        </TableRow>
                       ) : (
                         monthRecords.map((r, idx) => (
-                          <tr key={r.id} className={idx % 2 === 0 ? 'bg-white' : 'bg-emerald-50/40'}>
-                            <td className="py-3 px-4 border-b border-gray-100 text-sm whitespace-nowrap text-gray-600">
+                          <TableRow key={r.id} className={idx % 2 === 0 ? 'bg-white' : 'bg-emerald-50/40'}>
+                            <TableCell className="py-3 px-4 border-b border-gray-100 text-sm whitespace-nowrap text-gray-600">
                               {formatDateDisplay(r.date)}
-                            </td>
-                            <td className="py-3 px-4 border-b border-gray-100 text-sm font-medium whitespace-nowrap text-gray-600">
+                            </TableCell>
+                            <TableCell className="py-3 px-4 border-b border-gray-100 text-sm font-medium whitespace-nowrap text-gray-600 !text-left">
                               {inventoryTypeLabels[r.type]}
-                            </td>
-                            <td className="py-3 px-4 border-b border-gray-100 text-sm font-semibold whitespace-nowrap text-gray-800">
+                            </TableCell>
+                            <TableCell className="py-3 px-4 border-b border-gray-100 text-sm font-semibold whitespace-nowrap text-gray-800 !text-left">
                               {r.name}
-                            </td>
-                            <td className="py-3 px-4 border-b border-gray-100 text-sm text-right whitespace-nowrap text-gray-600">
+                            </TableCell>
+                            <TableCell className="py-3 px-4 border-b border-gray-100 text-sm whitespace-nowrap text-gray-600 !text-right">
                               {r.bagCount ?? 0}
-                            </td>
-                            <td className="py-3 px-4 border-b border-gray-100 text-sm font-bold text-right whitespace-nowrap text-gray-900">
+                            </TableCell>
+                            <TableCell className="py-3 px-4 border-b border-gray-100 text-sm font-bold whitespace-nowrap text-gray-900 !text-right">
                               {r.weightKg.toFixed(2)}
-                            </td>
-                            <td className="py-3 px-4 border-b border-gray-100 text-sm whitespace-nowrap text-gray-600">
+                            </TableCell>
+                            <TableCell className="py-3 px-4 border-b border-gray-100 text-sm whitespace-nowrap text-gray-600 !text-left">
                               {r.DC_NUMBER || '-'}
-                            </td>
-                          </tr>
+                            </TableCell>
+                          </TableRow>
                         ))
                       )}
-                    </tbody>
+                    </TableBody>
                     {monthRecords.length > 0 && (
-                      <tfoot>
-                        <tr className="border-t-2 border-[#004D40] bg-emerald-50">
-                          <td colSpan={4} className="py-4 px-4 font-bold text-[#004D40] text-right">
+                      <TableFooter>
+                        <TableRow className="border-t-2 border-[#004D40] bg-emerald-50 hover:bg-emerald-50">
+                          <TableCell colSpan={4} className="py-4 px-4 font-bold text-[#004D40] !text-right">
                             Total:
-                          </td>
-                          <td className="py-4 px-4 font-bold text-[#004D40] text-right text-lg">
+                          </TableCell>
+                          <TableCell className="py-4 px-4 font-bold text-[#004D40] text-lg !text-right">
                             {grandTotal.toFixed(2)} kg
-                          </td>
-                          <td></td>
-                        </tr>
-                      </tfoot>
+                          </TableCell>
+                          <TableCell></TableCell>
+                        </TableRow>
+                      </TableFooter>
                     )}
-                  </table>
+                  </Table>
                 </div>
 
                 {/* Footer */}

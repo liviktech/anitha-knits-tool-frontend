@@ -20,6 +20,7 @@ import { useLoomsProductions, loomsKeys } from '@/features/looms/loom-queries';
 import { useFabricCheckingRecords, fabricCheckingKeys } from '@/features/fabric/fabric-queries';
 import { useLoadSentRecords, loadSentKeys } from '@/features/inventory/load-sent-queries';
 import { useDayWiseProduction, dashboardProductionKey } from './day-wise-queries';
+import { useMonthlyDashboard } from '@/features/dashboard/dashboard-queries';
 import { mapExtruderItem, mapLoomItem, mapFabricItem } from './day-entry-sections';
 import { DayWiseReportModal } from './day-wise-report-modal';
 import { useProductionHeader } from './production-context';
@@ -590,6 +591,32 @@ export function ProductionDesign2() {
   );
   const selectedMonthDeliveryTotal = selectedMonthDeliveryRows.reduce((sum, record) => sum + record.delivered, 0);
 
+  // Feeds the Production Details report modal — color/size/chemical-wise breakdowns for the
+  // selected month (extruder/looms/fabric) come from the same monthly-dashboard endpoint the
+  // Dashboard reports already use, so the report's numbers stay consistent with the dashboard.
+  const companyName = user?.kind === 'company-user' ? user.company.name : 'LK Knits';
+  const { dashboardData: monthlyDashboardData } = useMonthlyDashboard(monthStr, 'PRODUCTION');
+  const reportDeliveryByColor = useMemo(() => {
+    const map = new Map<string, { label: string; delivered: number }>();
+    (monthlyDashboardData?.loadSent.items ?? []).forEach((item) => {
+      const kg = item.loadSent?.fabricWeight ?? 0;
+      const entry = map.get(item.color.id) ?? { label: item.color.name, delivered: 0 };
+      entry.delivered += kg;
+      map.set(item.color.id, entry);
+    });
+    return Array.from(map.values());
+  }, [monthlyDashboardData]);
+  const reportDeliveryBySize = useMemo(() => {
+    const map = new Map<string, { label: string; delivered: number }>();
+    (monthlyDashboardData?.loadSent.items ?? []).forEach((item) => {
+      const kg = item.loadSent?.fabricWeight ?? 0;
+      const entry = map.get(item.size.id) ?? { label: item.size.name, delivered: 0 };
+      entry.delivered += kg;
+      map.set(item.size.id, entry);
+    });
+    return Array.from(map.values());
+  }, [monthlyDashboardData]);
+
   // Deletes every Extruder/Looms/Fabric Checking record for one date — the
   // day-wise table only has aggregated totals for each row, not record ids,
   // so this fetches the real records for that date first, then removes each.
@@ -1103,7 +1130,27 @@ export function ProductionDesign2() {
           </Card>
         </div>
       )}
-      <DayWiseReportModal open={isReportOpen} onOpenChange={setIsReportOpen} />
+      <DayWiseReportModal
+        open={isReportOpen}
+        onOpenChange={setIsReportOpen}
+        companyName={companyName}
+        monthStr={monthStr}
+        extruderByColor={monthlyDashboardData?.extruderProduction.byColor ?? []}
+        extruderBySize={monthlyDashboardData?.extruderProduction.bySize ?? []}
+        extruderByChemical={monthlyDashboardData?.extruderProduction.byChemical ?? []}
+        extruderTotal={monthlyDashboardData?.extruderProduction.overall.production ?? 0}
+        loomsByColor={monthlyDashboardData?.loomsProduction.byColor ?? []}
+        loomsBySize={monthlyDashboardData?.loomsProduction.bySize ?? []}
+        loomsByChemical={monthlyDashboardData?.loomsProduction.byChemical ?? []}
+        loomsTotal={monthlyDashboardData?.loomsProduction.overall.production ?? 0}
+        fabricByColor={monthlyDashboardData?.fabricProduction.byColor ?? []}
+        fabricBySize={monthlyDashboardData?.fabricProduction.bySize ?? []}
+        fabricByChemical={monthlyDashboardData?.fabricProduction.byChemical ?? []}
+        fabricTotal={monthlyDashboardData?.fabricProduction.overall.outputKg ?? 0}
+        deliveryByColor={reportDeliveryByColor}
+        deliveryBySize={reportDeliveryBySize}
+        deliveryTotal={monthlyDashboardData?.loadSent.totals.fabricWeightKg ?? 0}
+      />
       <DeleteConfirmDialog
         open={!!deleteTargetDate}
         onOpenChange={(open) => !open && setDeleteTargetDate(null)}

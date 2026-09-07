@@ -1,458 +1,356 @@
-import { useMemo, useState } from 'react';
-import { format, parseISO } from 'date-fns';
-import { Download, FileDown } from 'lucide-react';
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { Dialog, DialogClose, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Loader } from '@/components/shared/loader';
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableFooter,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from '@/components/ui/table';
-import { useDayWiseProduction } from './day-wise-queries';
-import { currentMonthStr } from '@/lib/date-utils';
-import { useLoadSentRecords } from '@/features/inventory/load-sent-queries';
+import { Table, TableBody, TableCell, TableFooter, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+import { Download, FileDown, X } from 'lucide-react';
+import type {
+  ExtruderProductionChemicalSummary,
+  ExtruderProductionColorSummary,
+  ExtruderProductionSizeSummary,
+  FabricProductionChemicalSummary,
+  FabricProductionColorSummary,
+  FabricProductionSizeSummary,
+  LoomsProductionChemicalSummary,
+  LoomsProductionColorSummary,
+  LoomsProductionSizeSummary,
+} from '@/features/dashboard/dashboard-queries';
+
+const TEAL: [number, number, number] = [0, 77, 64]; // #004D40 — this app's primary accent
+const TEAL_TINT: [number, number, number] = [232, 245, 240]; // light teal for footer/total rows
+
+function formatNum(n: number): string {
+  return n.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+}
+
+function getMonthName(monthStr: string) {
+  const [year, month] = monthStr.split('-').map(Number);
+  const date = new Date(year, month - 1, 1);
+  return date.toLocaleDateString('en-IN', { month: 'long', year: 'numeric' });
+}
+
+export interface DeliveryBreakdownRow {
+  label: string;
+  delivered: number;
+}
+
+interface BreakdownRow {
+  label: string;
+  values: number[];
+}
 
 interface DayWiseReportModalProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
+  companyName: string;
+  monthStr: string; // YYYY-MM
+  extruderByColor: ExtruderProductionColorSummary[];
+  extruderBySize: ExtruderProductionSizeSummary[];
+  extruderByChemical: ExtruderProductionChemicalSummary[];
+  extruderTotal: number;
+  loomsByColor: LoomsProductionColorSummary[];
+  loomsBySize: LoomsProductionSizeSummary[];
+  loomsByChemical: LoomsProductionChemicalSummary[];
+  loomsTotal: number;
+  fabricByColor: FabricProductionColorSummary[];
+  fabricBySize: FabricProductionSizeSummary[];
+  fabricByChemical: FabricProductionChemicalSummary[];
+  fabricTotal: number;
+  deliveryByColor: DeliveryBreakdownRow[];
+  deliveryBySize: DeliveryBreakdownRow[];
+  deliveryTotal: number;
 }
 
-const PRODUCTION_GROUPS = [
-  { label: 'Extruder Production', span: 4, bg: '#D6EEF7', fg: '#0B5566' },
-  { label: 'Looms Production', span: 4, bg: '#FFF6BF', fg: '#7A6A00' },
-  { label: 'Fabric Checking', span: 3, bg: '#DCEEDB', fg: '#2F6B2F' },
-  { label: 'Fabric Waste', span: 5, bg: '#EAE1F5', fg: '#5B3E8A' },
-];
+const EXTRUDER_COLUMNS = ['Production (kg)', 'Lums (kg)', 'Yarn Waste (kg)', 'Total (kg)'];
+const LOOMS_COLUMNS = ['Production (kg)', 'Waste (kg)', 'Total (kg)'];
+const FABRIC_COLUMNS = ['Output (kg)', 'FW Waste (kg)', 'BW Waste (kg)', 'Total (kg)'];
+const DELIVERY_COLUMNS = ['Delivered (kg)'];
 
-const DELIVERY_GROUPS = [
-  { label: 'Color', span: 3, bg: '#FFEBB5', fg: '#997300' },
-  { label: 'Size', span: 5, bg: '#FFEBB5', fg: '#997300' },
-  { label: 'Total', span: 1, bg: '#FFEBB5', fg: '#997300' },
-];
-
-const PROD_SUB_HEADERS = [
-  'HDPE', 'Looms Waste', 'LUMS', 'Total',
-  '180', 'DN+180', '180', 'Total',
-  'White', 'Blue', 'Total',
-  'FW White 180', 'FW Blue 180', 'White', 'Blue', 'W Total',
-];
-
-const DEL_SUB_HEADERS = [
-  'Blue', 'White', 'Green',
-  '150cm', '160cm', '170cm', '180cm', '190cm',
-  'Output'
-];
-
-
-function fmt(n: number): string {
-  return n === 0 ? '' : n.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+function extruderRows<T extends { production: number; lumsKg: number; yarnWasteKg: number; total: number }>(items: T[], labelOf: (item: T) => string): BreakdownRow[] {
+  return items.map((item) => ({ label: labelOf(item), values: [item.production, item.lumsKg, item.yarnWasteKg, item.total] }));
 }
 
-function hexToRgb(hex: string): [number, number, number] {
-  const clean = hex.replace('#', '');
-  const bigint = parseInt(clean, 16);
-  return [(bigint >> 16) & 255, (bigint >> 8) & 255, bigint & 255];
+function loomsRows<T extends { production: number; waste: number; total: number }>(items: T[], labelOf: (item: T) => string): BreakdownRow[] {
+  return items.map((item) => ({ label: labelOf(item), values: [item.production, item.waste, item.total] }));
 }
 
-// Flattened "Group - SubHeader" column labels plus a per-column group (for the PDF header's
-// fill color), built once from the same PRODUCTION_GROUPS/DELIVERY_GROUPS/*_SUB_HEADERS the
-// on-screen table and CSV export already use — so the PDF never drifts from those.
-const PDF_COLUMNS = (() => {
-  const groups = [...PRODUCTION_GROUPS, ...DELIVERY_GROUPS];
-  const subHeaders = [...PROD_SUB_HEADERS, ...DEL_SUB_HEADERS];
-  let i = 0;
-  return groups.flatMap((g) =>
-    Array.from({ length: g.span }, () => ({ label: `${g.label} - ${subHeaders[i++]}`, bg: g.bg, fg: g.fg }))
-  );
-})();
-
-function Cell({ value, isLast }: { value: string | number; isLast?: boolean }) {
-  const displayValue = typeof value === 'number' ? fmt(value) : value;
-  return (
-    <TableCell className={`${isLast ? '' : 'border-r'} border-gray-100 px-2 py-1 text-right text-[12.5px] whitespace-nowrap text-gray-900`}>
-      {displayValue}
-    </TableCell>
-  );
+function fabricRows<T extends { production: number; fwWasteKg: number; bwWasteKg: number; total: number }>(items: T[], labelOf: (item: T) => string): BreakdownRow[] {
+  return items.map((item) => ({ label: labelOf(item), values: [item.production, item.fwWasteKg, item.bwWasteKg, item.total] }));
 }
 
-export function DayWiseReportModal({ open, onOpenChange }: DayWiseReportModalProps) {
-  const [selectedMonth, setSelectedMonth] = useState(() => format(new Date(), 'yyyy-MM'));
+function deliveryRows(items: DeliveryBreakdownRow[]): BreakdownRow[] {
+  return items.map((item) => ({ label: item.label, values: [item.delivered] }));
+}
 
-  const { year, monthIndex } = useMemo(() => {
-    const [y, m] = selectedMonth.split('-').map(Number);
-    return { year: y, monthIndex: m - 1 };
-  }, [selectedMonth]);
-
-  const { rows: apiRows, totals: apiTotals, isLoading: isProdLoading } = useDayWiseProduction(selectedMonth);
-
-  const firstDay = useMemo(() => format(new Date(year, monthIndex, 1), 'yyyy-MM-dd'), [year, monthIndex]);
-  const lastDay = useMemo(() => format(new Date(year, monthIndex + 1, 0), 'yyyy-MM-dd'), [year, monthIndex]);
-  const { data: loadSentData, isLoading: isLoadSentLoading } = useLoadSentRecords(`?date_from=${firstDay}&date_to=${lastDay}&limit=100`);
-  const loadSentRecords = loadSentData?.data || [];
-
-  const rows = useMemo(() => {
-    const daysInMonth = new Date(year, monthIndex + 1, 0).getDate();
-
-    // Aggregate loadSentRecords by date
-    const deliveryByDate: Record<string, any> = {};
-    loadSentRecords.forEach((record) => {
-      // Use record.productionDate if available, else record.date
-      const d = (record as any).productionDate || record.date;
-      if (!d) return;
-
-      if (!deliveryByDate[d]) {
-        deliveryByDate[d] = {
-          colors: { Blue: 0, White: 0, Green: 0 },
-          sizes: { '150mm': 0, '160mm': 0, '170mm': 0, '180mm': 0, '190mm': 0 },
-          total: 0
-        };
-      }
-      const w = record.loadSent?.fabricWeight ?? record.fabricWeight ?? 0;
-      const c = record.color?.name || '';
-      const s = record.size?.name || '';
-
-      if (c === 'Blue') deliveryByDate[d].colors.Blue += w;
-      else if (c === 'White') deliveryByDate[d].colors.White += w;
-      else if (c === 'Green') deliveryByDate[d].colors.Green += w;
-
-      if (s === '150mm') deliveryByDate[d].sizes['150mm'] += w;
-      else if (s === '160mm') deliveryByDate[d].sizes['160mm'] += w;
-      else if (s === '170mm') deliveryByDate[d].sizes['170mm'] += w;
-      else if (s === '180mm') deliveryByDate[d].sizes['180mm'] += w;
-      else if (s === '190mm') deliveryByDate[d].sizes['190mm'] += w;
-
-      deliveryByDate[d].total += w;
+function columnTotals(rows: BreakdownRow[], columnCount: number): number[] {
+  const totals = new Array(columnCount).fill(0);
+  for (const row of rows) {
+    row.values.forEach((v, i) => {
+      totals[i] += v;
     });
+  }
+  return totals;
+}
 
-    const allRows = Array.from({ length: daysInMonth }, (_, i) => {
-      const d = new Date(year, monthIndex, i + 1);
-      const dateStr = format(d, 'yyyy-MM-dd');
-      const isHighlighted = d.getDay() === 0;
-      const apiRow = apiRows.find(r => r.date === dateStr);
-      const del = deliveryByDate[dateStr] || {
-        colors: { Blue: 0, White: 0, Green: 0 },
-        sizes: { '150mm': 0, '160mm': 0, '170mm': 0, '180mm': 0, '190mm': 0 },
-        total: 0
-      };
+export function DayWiseReportModal({
+  open,
+  onOpenChange,
+  companyName,
+  monthStr,
+  extruderByColor,
+  extruderBySize,
+  extruderByChemical,
+  extruderTotal,
+  loomsByColor,
+  loomsBySize,
+  loomsByChemical,
+  loomsTotal,
+  fabricByColor,
+  fabricBySize,
+  fabricByChemical,
+  fabricTotal,
+  deliveryByColor,
+  deliveryBySize,
+  deliveryTotal,
+}: DayWiseReportModalProps) {
+  const sections: { title: string; labelHeader: string; columns: string[]; rows: BreakdownRow[] }[] = [
+    { title: 'Extruder Production — By Color', labelHeader: 'Color', columns: EXTRUDER_COLUMNS, rows: extruderRows(extruderByColor, (i) => i.color.name) },
+    { title: 'Extruder Production — By Size', labelHeader: 'Size', columns: EXTRUDER_COLUMNS, rows: extruderRows(extruderBySize, (i) => i.size.name) },
+    { title: 'Extruder Production — By Chemical', labelHeader: 'Chemical', columns: EXTRUDER_COLUMNS, rows: extruderRows(extruderByChemical, (i) => i.chemical.name) },
+    { title: 'Looms Production — By Color', labelHeader: 'Color', columns: LOOMS_COLUMNS, rows: loomsRows(loomsByColor, (i) => i.color.name) },
+    { title: 'Looms Production — By Size', labelHeader: 'Size', columns: LOOMS_COLUMNS, rows: loomsRows(loomsBySize, (i) => i.size.name) },
+    { title: 'Looms Production — By Chemical', labelHeader: 'Chemical', columns: LOOMS_COLUMNS, rows: loomsRows(loomsByChemical, (i) => i.chemical.name) },
+    { title: 'Fabric Checking — By Color', labelHeader: 'Color', columns: FABRIC_COLUMNS, rows: fabricRows(fabricByColor, (i) => i.color.name) },
+    { title: 'Fabric Checking — By Size', labelHeader: 'Size', columns: FABRIC_COLUMNS, rows: fabricRows(fabricBySize, (i) => i.size.name) },
+    { title: 'Fabric Checking — By Chemical', labelHeader: 'Chemical', columns: FABRIC_COLUMNS, rows: fabricRows(fabricByChemical, (i) => i.chemical.name) },
+    { title: 'Delivery — By Color', labelHeader: 'Color', columns: DELIVERY_COLUMNS, rows: deliveryRows(deliveryByColor) },
+    { title: 'Delivery — By Size', labelHeader: 'Size', columns: DELIVERY_COLUMNS, rows: deliveryRows(deliveryBySize) },
+  ].filter((s) => s.rows.length > 0);
 
-      return {
-        date: dateStr,
-        isHighlighted,
-        hasData: !!apiRow || deliveryByDate[dateStr],
-        extruder: {
-          hdpe: apiRow?.extruder.input || 0,
-          loomsWaste: apiRow?.extruder.yarnWasteKg || 0,
-          lums: apiRow?.extruder.lumpsKg || 0,
-          total: apiRow?.extruder.output || 0
-        },
-        loomsProduction: { c180A: 0, dnPlus180: 0, c180B: 0, total: apiRow?.looms.output || 0 },
-        loomsWaste: { white: 0, blue: 0, total: apiRow?.looms.wastage || 0 },
-        fabricChecking: { white: 0, blue: 0, total: apiRow?.fabric.output || 0 },
-        fabricWaste: { fwWhite180: 0, fwBlue180: 0, white: 0, blue: 0, total: apiRow?.fabric.wastage || 0 },
-        delivery: {
-          blue: del.colors.Blue, white: del.colors.White, green: del.colors.Green,
-          s150: del.sizes['150mm'], s160: del.sizes['160mm'], s170: del.sizes['170mm'], s180: del.sizes['180mm'], s190: del.sizes['190mm'],
-          output: del.total
-        }
-      };
-    });
+  const hasData = sections.length > 0;
 
-    return allRows.filter(r => r.hasData);
-  }, [year, monthIndex, apiRows, loadSentRecords]);
+  const handleDownloadCSV = () => {
+    if (!hasData) return;
 
-  // Calculate delivery totals
-  const deliveryTotals = useMemo(() => {
-    const t = {
-      blue: 0, white: 0, green: 0,
-      s150: 0, s160: 0, s170: 0, s180: 0, s190: 0,
-      output: 0
+    const escapeCsvField = (value: string | number) => {
+      const str = String(value);
+      return /[",\n]/.test(str) ? `"${str.replace(/"/g, '""')}"` : str;
     };
-    rows.forEach(r => {
-      t.blue += r.delivery.blue; t.white += r.delivery.white; t.green += r.delivery.green;
-      t.s150 += r.delivery.s150; t.s160 += r.delivery.s160; t.s170 += r.delivery.s170; t.s180 += r.delivery.s180; t.s190 += r.delivery.s190;
-      t.output += r.delivery.output;
-    });
-    return t;
-  }, [rows]);
 
-  const isLoading = isProdLoading || isLoadSentLoading;
+    const csvRows: (string | number)[][] = [];
+    csvRows.push(['Production Details Report']);
+    csvRows.push(['Company', companyName]);
+    csvRows.push(['Period', getMonthName(monthStr)]);
+    csvRows.push(['Generated On', new Date().toLocaleString('en-IN')]);
+    csvRows.push([]);
 
-  const escapeCsvField = (value: string | number) => {
-    const str = String(value);
-    return /[",\n]/.test(str) ? `"${str.replace(/"/g, '""')}"` : str;
-  };
+    for (const section of sections) {
+      csvRows.push([section.title]);
+      csvRows.push([section.labelHeader, ...section.columns]);
+      section.rows.forEach((row) => csvRows.push([row.label, ...row.values]));
+      csvRows.push(['Total', ...columnTotals(section.rows, section.columns.length)]);
+      csvRows.push([]);
+    }
 
-  const handleDownloadCsv = () => {
-    const prodHeaders: string[] = [];
-    let si = 0;
-    PRODUCTION_GROUPS.forEach(g => {
-      for (let i = 0; i < g.span; i++) { prodHeaders.push(`${g.label} - ${PROD_SUB_HEADERS[si]}`); si++; }
-    });
-    const delHeaders: string[] = [];
-    si = 0;
-    DELIVERY_GROUPS.forEach(g => {
-      for (let i = 0; i < g.span; i++) { delHeaders.push(`Delivery ${g.label} - ${DEL_SUB_HEADERS[si]}`); si++; }
-    });
-    const header = ['Date', ...prodHeaders, ...delHeaders];
-
-    const dataRows = rows.map(row => {
-      const values = [
-        row.extruder.hdpe, row.extruder.loomsWaste, row.extruder.lums, row.extruder.total,
-        row.loomsProduction.c180A, row.loomsProduction.dnPlus180, row.loomsProduction.c180B, row.loomsProduction.total,
-        row.fabricChecking.white, row.fabricChecking.blue, row.fabricChecking.total,
-        row.fabricWaste.fwWhite180, row.fabricWaste.fwBlue180, row.fabricWaste.white, row.fabricWaste.blue, row.fabricWaste.total,
-        row.delivery.blue, row.delivery.white, row.delivery.green,
-        row.delivery.s150, row.delivery.s160, row.delivery.s170, row.delivery.s180, row.delivery.s190,
-        row.delivery.output
-      ];
-      return [format(parseISO(row.date), 'd-MMM-yy'), ...values.map(v => v.toFixed(2))];
-    });
-
-    const totalRow = [
-      'TOTAL',
-      ...[
-        apiTotals.extruder.input, apiTotals.extruder.yarnWasteKg || 0, apiTotals.extruder.lumpsKg || 0, apiTotals.extruder.output,
-        0, 0, 0, apiTotals.looms.output,
-        0, 0, apiTotals.fabric.output,
-        0, 0, 0, 0, apiTotals.fabric.wastage,
-        deliveryTotals.blue, deliveryTotals.white, deliveryTotals.green,
-        deliveryTotals.s150, deliveryTotals.s160, deliveryTotals.s170, deliveryTotals.s180, deliveryTotals.s190,
-        deliveryTotals.output
-      ].map(v => v.toFixed(2)),
-    ];
-
-    const csvLines = [header, ...dataRows, totalRow].map(row => row.map(escapeCsvField).join(','));
-    const csvContent = '﻿' + csvLines.join('\r\n');
-    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
-    const url = URL.createObjectURL(blob);
+    const csvContent = csvRows.map((r) => r.map(escapeCsvField).join(',')).join('\n');
+    const encodedUri = encodeURI('data:text/csv;charset=utf-8,' + csvContent);
     const link = document.createElement('a');
-    link.href = url;
-    link.download = `production-report-${selectedMonth}.csv`;
+    link.setAttribute('href', encodedUri);
+    link.setAttribute('download', `Production_Details_Report_${monthStr}.csv`);
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
-    URL.revokeObjectURL(url);
   };
 
-  const handleDownloadPdf = async () => {
-    if (rows.length === 0) return;
+  const handleDownloadPDF = async () => {
+    if (!hasData) return;
 
     const { jsPDF } = await import('jspdf');
     const { default: autoTable } = await import('jspdf-autotable');
 
-    const doc = new jsPDF({ orientation: 'landscape' });
-    const TEAL: [number, number, number] = [0, 77, 64];
+    const doc = new jsPDF();
+    let y = 18;
 
-    doc.setFontSize(16);
+    doc.setFontSize(18);
     doc.setFont('helvetica', 'bold');
     doc.setTextColor(...TEAL);
-    doc.text('ANITHA KNITS', 148, 14, { align: 'center' });
+    doc.text('ANITHA KNITS', 105, y, { align: 'center' });
+    y += 8;
 
-    doc.setFontSize(11);
+    doc.setFontSize(12);
     doc.setFont('helvetica', 'normal');
     doc.setTextColor(90, 90, 90);
-    doc.text('DAY WISE PRODUCTION & WASTAGE REPORT', 148, 21, { align: 'center' });
-    doc.text(`Period: ${format(new Date(year, monthIndex, 1), 'MMMM yyyy')}`, 148, 27, { align: 'center' });
+    doc.text('PRODUCTION DETAILS REPORT', 105, y, { align: 'center' });
+    y += 7;
+    doc.text(`Period: ${getMonthName(monthStr)}`, 105, y, { align: 'center' });
+    y += 5;
 
-    const body = rows.map((row) => {
-      const values = [
-        row.extruder.hdpe, row.extruder.loomsWaste, row.extruder.lums, row.extruder.total,
-        row.loomsProduction.c180A, row.loomsProduction.dnPlus180, row.loomsProduction.c180B, row.loomsProduction.total,
-        row.fabricChecking.white, row.fabricChecking.blue, row.fabricChecking.total,
-        row.fabricWaste.fwWhite180, row.fabricWaste.fwBlue180, row.fabricWaste.white, row.fabricWaste.blue, row.fabricWaste.total,
-        row.delivery.blue, row.delivery.white, row.delivery.green,
-        row.delivery.s150, row.delivery.s160, row.delivery.s170, row.delivery.s180, row.delivery.s190,
-        row.delivery.output
-      ];
-      return [format(parseISO(row.date), 'd-MMM-yy'), ...values.map(fmt)];
-    });
-
-    const totalRow = [
-      'TOTAL',
-      ...[
-        apiTotals.extruder.input, apiTotals.extruder.yarnWasteKg || 0, apiTotals.extruder.lumpsKg || 0, apiTotals.extruder.output,
-        0, 0, 0, apiTotals.looms.output,
-        0, 0, apiTotals.fabric.output,
-        0, 0, 0, 0, apiTotals.fabric.wastage,
-        deliveryTotals.blue, deliveryTotals.white, deliveryTotals.green,
-        deliveryTotals.s150, deliveryTotals.s160, deliveryTotals.s170, deliveryTotals.s180, deliveryTotals.s190,
-        deliveryTotals.output
-      ].map(fmt),
-    ];
-
-    autoTable(doc, {
-      startY: 32,
-      margin: { left: 8, right: 8 },
-      head: [['Date', ...PDF_COLUMNS.map((c) => c.label)]],
-      body,
-      foot: [totalRow],
-      styles: { fontSize: 5.5, cellPadding: 1.2, halign: 'right' },
-      headStyles: { fontSize: 5.5, fontStyle: 'bold', textColor: 30 },
-      footStyles: { fillColor: [240, 240, 240], textColor: 30, fontStyle: 'bold' },
-      columnStyles: { 0: { halign: 'left' } },
-      didParseCell: (data) => {
-        if (data.section === 'head' && data.column.index > 0) {
-          const col = PDF_COLUMNS[data.column.index - 1];
-          if (col) data.cell.styles.fillColor = hexToRgb(col.bg);
-        }
-      },
-    });
+    doc.setDrawColor(...TEAL);
+    doc.setLineWidth(0.6);
+    doc.line(14, y, 196, y);
+    y += 8;
 
     const pageHeight = doc.internal.pageSize.getHeight();
+
+    for (const section of sections) {
+      if (y > pageHeight - 40) {
+        doc.addPage();
+        y = 18;
+      }
+      doc.setFontSize(11);
+      doc.setFont('helvetica', 'bold');
+      doc.setTextColor(...TEAL);
+      doc.text(section.title, 14, y);
+      y += 6;
+
+      autoTable(doc, {
+        startY: y,
+        margin: { left: 14, right: 14 },
+        head: [[section.labelHeader, ...section.columns]],
+        body: section.rows.map((row) => [row.label, ...row.values.map(formatNum)]),
+        foot: [['Total', ...columnTotals(section.rows, section.columns.length).map(formatNum)]],
+        styles: { fontSize: 9, cellPadding: 3 },
+        headStyles: { fillColor: TEAL, textColor: 255, fontStyle: 'bold' },
+        footStyles: { fillColor: TEAL_TINT, textColor: TEAL, fontStyle: 'bold' },
+      });
+      y = (doc as any).lastAutoTable.finalY + 10;
+    }
+
     doc.setFontSize(8);
     doc.setTextColor(150, 150, 150);
-    doc.text(
-      `Generated on ${new Date().toLocaleDateString('en-IN')} at ${new Date().toLocaleTimeString('en-IN')}`,
-      148,
-      pageHeight - 8,
-      { align: 'center' },
-    );
+    doc.text(`Generated on ${new Date().toLocaleDateString('en-IN')} at ${new Date().toLocaleTimeString('en-IN')}`, 105, doc.internal.pageSize.getHeight() - 10, { align: 'center' });
 
-    doc.save(`production-report-${selectedMonth}.pdf`);
+    doc.save(`Production_Details_Report_${monthStr}.pdf`);
   };
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-[95vw] sm:max-w-[95vw] max-h-[90vh] overflow-hidden flex flex-col">
-        <DialogHeader className="flex-col items-start gap-3 text-left sm:flex-row sm:items-center sm:justify-between">
-          <div>
-            <DialogTitle>Day Wise Production & Wastage Report</DialogTitle>
-          </div>
-          <div className="flex items-center gap-3 mr-7">
-            {isLoading && <Loader size="sm" className="text-gray-400" />}
-            <Input
-              type="month"
-              value={selectedMonth}
-              max={currentMonthStr()}
-              onChange={e => setSelectedMonth(e.target.value)}
-              className="w-40 font-medium bg-white"
-            />
-            <Button
-              variant="outline"
-              size="sm"
-              className="h-9 gap-1.5 rounded-full border-[#004D40]/30 text-[#004D40] hover:bg-[#004D40]/10"
-              onClick={handleDownloadPdf}
-              disabled={rows.length === 0}
-            >
-              <FileDown className="h-3.5 w-3.5" /> Download PDF
-            </Button>
-            <Button
-              size="sm"
-              className="h-9 gap-1.5 rounded-full bg-[#004D40] hover:bg-[#00382e] text-white"
-              onClick={handleDownloadCsv}
-              disabled={rows.length === 0}
-            >
-              <Download className="h-3.5 w-3.5" /> Download CSV
-            </Button>
+      <DialogContent showCloseButton={false} className="max-w-4xl sm:max-w-4xl max-h-[85vh] flex flex-col p-0 border border-gray-300 overflow-hidden bg-white print:max-w-none print:h-auto print:border-none">
+        {/* Modal Header (Not printed) */}
+        {/* Close button rendered in-flow here (not DialogContent's default absolutely-positioned
+            one) so it shares the same flex row as Download CSV/PDF and always lines up with them. */}
+        <DialogHeader className="px-6 py-4 border-b border-gray-200 bg-[#A8DCAB] shrink-0 print:hidden">
+          <div className="flex items-center justify-between">
+            <DialogTitle className="text-xl font-bold text-black">
+              Production Details Report Overview
+            </DialogTitle>
+            <div className="flex items-center gap-3">
+              <Button variant="outline" size="sm" onClick={handleDownloadPDF} disabled={!hasData} className="gap-2 bg-white border-[#004D40] text-[#004D40] hover:bg-[#004D40]/10">
+                <FileDown className="w-4 h-4" /> Download PDF
+              </Button>
+              <Button size="sm" onClick={handleDownloadCSV} disabled={!hasData} className="gap-2 bg-[#004D40] hover:bg-[#00382e] text-white">
+                <Download className="w-4 h-4" /> Download CSV
+              </Button>
+              <DialogClose asChild>
+                <Button size="icon-sm" className="bg-red-700 text-white hover:bg-red-400 focus-visible:ring-red-400">
+                  <X className="w-4 h-4" />
+                  <span className="sr-only">Close</span>
+                </Button>
+              </DialogClose>
+            </div>
           </div>
         </DialogHeader>
 
-        <div className="flex-1 min-h-0 overflow-x-auto overflow-y-auto rounded-2xl border border-gray-100 shadow-sm bg-white">
-          <Table className="text-sm">
-            <TableHeader>
-              <TableRow className="hover:bg-transparent">
-                <TableHead rowSpan={3} className="h-auto border-r border-gray-100 bg-gray-50 px-3 py-1.5 text-left text-[12.5px] font-extrabold uppercase tracking-wide text-gray-500 align-middle sticky left-0 z-10">
-                  Date
-                </TableHead>
-                <TableHead colSpan={18} className="h-auto border-r border-gray-100 px-2 py-1.5 text-center text-[13.5px] font-extrabold uppercase tracking-widest bg-gray-100 text-gray-800">
-                  Production
-                </TableHead>
-                <TableHead colSpan={9} className="h-auto px-2 py-1.5 text-center text-[13.5px] font-extrabold uppercase tracking-widest bg-[#FFF4D4] text-[#8A6700]">
-                  Delivery
-                </TableHead>
-              </TableRow>
-              <TableRow className="hover:bg-transparent">
-                {PRODUCTION_GROUPS.map((g) => (
-                  <TableHead
-                    key={g.label}
-                    colSpan={g.span}
-                    className="h-auto border-r border-gray-100 px-2 py-1.5 text-center text-[11.5px] font-extrabold uppercase tracking-wide"
-                    style={{ background: g.bg, color: g.fg }}
-                  >
-                    {g.label}
-                  </TableHead>
-                ))}
-                {DELIVERY_GROUPS.map((g, i) => (
-                  <TableHead
-                    key={g.label}
-                    colSpan={g.span}
-                    className={`h-auto ${i === DELIVERY_GROUPS.length - 1 ? '' : 'border-r'} border-gray-100 px-2 py-1.5 text-center text-[11.5px] font-extrabold uppercase tracking-wide`}
-                    style={{ background: g.bg, color: g.fg }}
-                  >
-                    {g.label}
-                  </TableHead>
-                ))}
-              </TableRow>
-              <TableRow className="hover:bg-transparent">
-                {PROD_SUB_HEADERS.map((h, i) => (
-                  <TableHead key={`p-${i}`} className="h-auto border-r border-gray-100 bg-gray-50 px-2 py-1 text-right text-[10.5px] font-extrabold uppercase tracking-wide text-gray-500 whitespace-nowrap">
-                    {h}
-                  </TableHead>
-                ))}
-                {DEL_SUB_HEADERS.map((h, i) => (
-                  <TableHead key={`d-${i}`} className={`h-auto ${i === DEL_SUB_HEADERS.length - 1 ? '' : 'border-r'} border-gray-100 bg-gray-50 px-2 py-1 text-right text-[10.5px] font-extrabold uppercase tracking-wide text-gray-500 whitespace-nowrap`}>
-                    {h}
-                  </TableHead>
-                ))}
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {rows.length > 0 ? rows.map((row) => {
-                const values = [
-                  row.extruder.hdpe, row.extruder.loomsWaste, row.extruder.lums, row.extruder.total,
-                  row.loomsProduction.c180A, row.loomsProduction.dnPlus180, row.loomsProduction.c180B, row.loomsProduction.total,
-                  row.fabricChecking.white, row.fabricChecking.blue, row.fabricChecking.total,
-                  row.fabricWaste.fwWhite180, row.fabricWaste.fwBlue180, row.fabricWaste.white, row.fabricWaste.blue, row.fabricWaste.total,
-                  row.delivery.blue, row.delivery.white, row.delivery.green,
-                  row.delivery.s150, row.delivery.s160, row.delivery.s170, row.delivery.s180, row.delivery.s190,
-                  row.delivery.output
-                ];
-                return (
-                  <TableRow key={row.date} className="hover:bg-gray-50/70">
-                    <TableCell className="border-r border-gray-100 px-3 py-1 text-[12.5px] font-medium whitespace-nowrap sticky left-0 z-10 bg-white text-gray-900">
-                      {format(parseISO(row.date), 'd-MMM-yy')}
-                    </TableCell>
-                    {values.map((v, i) => (
-                      <Cell key={i} value={v} isLast={i === values.length - 1} />
-                    ))}
-                  </TableRow>
-                );
-              }) : (
-                <TableRow>
-                  <TableCell colSpan={28} className="px-3 py-6 !text-center text-gray-500">
-                    No production or delivery records found for this month.
-                  </TableCell>
-                </TableRow>
-              )}
-            </TableBody>
-            <TableFooter>
-              <TableRow className="bg-gray-50 font-bold hover:bg-gray-50">
-                <TableCell className="border-r border-gray-100 px-3 py-1.5 text-[12.5px] sticky left-0 bg-gray-50 z-10">TOTAL</TableCell>
-                {[
-                  apiTotals.extruder.input, apiTotals.extruder.yarnWasteKg || 0, apiTotals.extruder.lumpsKg || 0, apiTotals.extruder.output,
-                  0, 0, 0, apiTotals.looms.output,
-                  0, 0, apiTotals.fabric.output,
-                  0, 0, 0, 0, apiTotals.fabric.wastage,
-                  deliveryTotals.blue, deliveryTotals.white, deliveryTotals.green,
-                  deliveryTotals.s150, deliveryTotals.s160, deliveryTotals.s170, deliveryTotals.s180, deliveryTotals.s190,
-                  deliveryTotals.output
-                ].map((v, i, arr) => (
-                  <TableCell
-                    key={i}
-                    className={`${i === arr.length - 1 ? '' : 'border-r'} border-gray-100 px-2 py-1.5 text-right text-[12.5px] whitespace-nowrap text-gray-900`}
-                  >
-                    {fmt(v)}
-                  </TableCell>
-                ))}
-              </TableRow>
-            </TableFooter>
-          </Table>
+        {/* Report Content - Scrollable */}
+        <div className="flex-1 overflow-auto p-4 print:p-0 bg-gray-100 print:bg-white" id="production-details-report-printable-area">
+          <div className="bg-white p-6 shadow-sm border border-gray-200 rounded-lg print:shadow-none print:border-none print:p-0">
+            {/* Report Header */}
+            <div className="text-center mb-4 border-b-2 border-[#004D40] pb-3">
+              <h1 className="text-3xl font-extrabold text-[#004D40] uppercase tracking-wider mb-2">
+                Anitha Knits
+              </h1>
+              <h2 className="text-xl font-semibold text-gray-600 uppercase tracking-wide">
+                Production Details Report
+              </h2>
+              <p className="text-gray-500 mt-2 font-medium">
+                Period: {getMonthName(monthStr)}
+              </p>
+            </div>
+
+            {!hasData ? (
+              <div className="text-center py-20 text-gray-500">
+                No production records found for this period.
+              </div>
+            ) : (
+              <>
+                {/* KPI Cards */}
+                <div className="grid grid-cols-4 gap-3 mb-4">
+                  <div className="bg-emerald-50 border border-emerald-200 rounded-lg p-4">
+                    <p className="text-xs font-semibold text-[#004D40]/70 uppercase">Extruder Production</p>
+                    <p className="text-2xl font-bold text-[#004D40]">{formatNum(extruderTotal)} <span className="text-sm font-medium">kg</span></p>
+                  </div>
+                  <div className="bg-emerald-50 border border-emerald-200 rounded-lg p-4">
+                    <p className="text-xs font-semibold text-[#004D40]/70 uppercase">Looms Production</p>
+                    <p className="text-2xl font-bold text-[#004D40]">{formatNum(loomsTotal)} <span className="text-sm font-medium">kg</span></p>
+                  </div>
+                  <div className="bg-emerald-50 border border-emerald-200 rounded-lg p-4">
+                    <p className="text-xs font-semibold text-[#004D40]/70 uppercase">Fabric Checking</p>
+                    <p className="text-2xl font-bold text-[#004D40]">{formatNum(fabricTotal)} <span className="text-sm font-medium">kg</span></p>
+                  </div>
+                  <div className="bg-emerald-50 border border-emerald-200 rounded-lg p-4">
+                    <p className="text-xs font-semibold text-[#004D40]/70 uppercase">Delivered</p>
+                    <p className="text-2xl font-bold text-[#004D40]">{formatNum(deliveryTotal)} <span className="text-sm font-medium">kg</span></p>
+                  </div>
+                </div>
+
+                {sections.map((section) => {
+                  const totals = columnTotals(section.rows, section.columns.length);
+                  return (
+                    <div className="mb-4" key={section.title}>
+                      <div className="flex items-center justify-between mb-2">
+                        <h3 className="text-sm font-bold text-gray-800">{section.title}</h3>
+                        <span className="text-[13px] font-bold text-[#004D40]">
+                          Total : {formatNum(totals[totals.length - 1])} kg
+                        </span>
+                      </div>
+                      <div className="rounded-lg overflow-hidden border border-gray-200">
+                        <Table>
+                          <TableHeader>
+                            <TableRow className="bg-[#004D40] hover:bg-[#004D40]">
+                              <TableHead className="py-3 px-4 font-bold text-white whitespace-nowrap">{section.labelHeader}</TableHead>
+                              {section.columns.map((col, i) => (
+                                <TableHead key={col} className={`py-3 px-4 font-bold text-white whitespace-nowrap ${i === section.columns.length - 1 ? 'text-right' : '!text-right'}`}>
+                                  {col}
+                                </TableHead>
+                              ))}
+                            </TableRow>
+                          </TableHeader>
+                          <TableBody>
+                            {section.rows.map((row, ri) => (
+                              <TableRow key={row.label} className={ri % 2 === 0 ? 'bg-white' : 'bg-emerald-50/40'}>
+                                <TableCell className="py-3 px-4 border-b border-gray-100 text-sm font-semibold text-gray-800">{row.label}</TableCell>
+                                {row.values.map((v, ci) => (
+                                  <TableCell
+                                    key={ci}
+                                    className={`py-3 px-4 border-b border-gray-100 text-sm ${ci === row.values.length - 1 ? 'text-right font-bold text-gray-900' : '!text-right text-gray-600'}`}
+                                  >
+                                    {formatNum(v)}
+                                  </TableCell>
+                                ))}
+                              </TableRow>
+                            ))}
+                          </TableBody>
+                          <TableFooter>
+                            <TableRow className="border-t-2 border-[#004D40] bg-emerald-50 hover:bg-emerald-50">
+                              <TableCell className="py-3 px-4 font-bold text-[#004D40]">Total</TableCell>
+                              {totals.map((t, i) => (
+                                <TableCell key={i} className={`py-3 px-4 font-bold text-[#004D40] ${i === totals.length - 1 ? 'text-right' : '!text-right'}`}>
+                                  {formatNum(t)}
+                                </TableCell>
+                              ))}
+                            </TableRow>
+                          </TableFooter>
+                        </Table>
+                      </div>
+                    </div>
+                  );
+                })}
+              </>
+            )}
+
+            {/* Footer */}
+            <div className="text-center text-xs text-gray-400 mt-4 pt-3 border-t border-gray-200 print:mt-auto">
+              Generated on {new Date().toLocaleDateString('en-IN')} at {new Date().toLocaleTimeString('en-IN')}
+            </div>
+          </div>
         </div>
       </DialogContent>
     </Dialog>

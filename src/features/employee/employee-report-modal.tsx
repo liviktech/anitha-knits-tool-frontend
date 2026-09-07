@@ -1,5 +1,6 @@
 import { Dialog, DialogClose, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Download, FileDown, X } from 'lucide-react';
 import { Loader } from '@/components/shared/loader';
 import { useEmployees } from './employee-queries';
@@ -188,62 +189,62 @@ export function EmployeeReportModal({ open, onOpenChange }: EmployeeReportModalP
 
                 {/* Data Table */}
                 <div className="mb-4 overflow-x-auto rounded-lg border border-gray-200">
-                  <table className="w-full text-left border-collapse">
-                    <thead>
-                      <tr className="bg-[#004D40]">
-                        <th className="py-3 px-4 font-bold text-white whitespace-nowrap">ID</th>
-                        <th className="py-3 px-4 font-bold text-white whitespace-nowrap">Name</th>
-                        <th className="py-3 px-4 font-bold text-white whitespace-nowrap">Designation</th>
-                        <th className="py-3 px-4 font-bold text-white whitespace-nowrap">Mobile Number</th>
-                        <th className="py-3 px-4 font-bold text-white whitespace-nowrap">Aadhar Card</th>
-                        <th className="py-3 px-4 font-bold text-white whitespace-nowrap">Date of Joining</th>
-                        <th className="py-3 px-4 font-bold text-white whitespace-nowrap">Address</th>
-                        <th className="py-3 px-4 font-bold text-white whitespace-nowrap">Gender</th>
-                        <th className="py-3 px-4 font-bold text-white text-right whitespace-nowrap">Status</th>
-                      </tr>
-                    </thead>
-                    <tbody>
+                  <Table>
+                    <TableHeader>
+                      <TableRow className="bg-[#004D40] hover:bg-[#004D40]">
+                        <TableHead className="py-3 px-4 font-bold text-white whitespace-nowrap">ID</TableHead>
+                        <TableHead className="py-3 px-4 font-bold text-white whitespace-nowrap !text-left">Name</TableHead>
+                        <TableHead className="py-3 px-4 font-bold text-white whitespace-nowrap !text-left">Designation</TableHead>
+                        <TableHead className="py-3 px-4 font-bold text-white whitespace-nowrap !text-left">Mobile Number</TableHead>
+                        <TableHead className="py-3 px-4 font-bold text-white whitespace-nowrap !text-left">Aadhar Card</TableHead>
+                        <TableHead className="py-3 px-4 font-bold text-white whitespace-nowrap !text-left">Date of Joining</TableHead>
+                        <TableHead className="py-3 px-4 font-bold text-white whitespace-nowrap !text-left">Address</TableHead>
+                        <TableHead className="py-3 px-4 font-bold text-white whitespace-nowrap !text-left">Gender</TableHead>
+                        <TableHead className="py-3 px-4 font-bold text-white whitespace-nowrap">Status</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
                       {employees.length === 0 ? (
-                        <tr>
-                          <td colSpan={9} className="text-center py-8 text-gray-500">
+                        <TableRow>
+                          <TableCell colSpan={9} className="!text-center py-8 text-gray-500">
                             No employees recorded.
-                          </td>
-                        </tr>
+                          </TableCell>
+                        </TableRow>
                       ) : (
                         employees.map((emp, idx) => (
-                          <tr key={emp.id} className={idx % 2 === 0 ? 'bg-white' : 'bg-emerald-50/40'}>
-                            <td className="py-3 px-4 border-b border-gray-100 text-sm font-medium whitespace-nowrap text-gray-600">
+                          <TableRow key={emp.id} className={idx % 2 === 0 ? 'bg-white' : 'bg-emerald-50/40'}>
+                            <TableCell className="py-3 px-4 border-b border-gray-100 text-sm font-medium whitespace-nowrap text-gray-600">
                               {emp.employeeDetails?.customUserId || emp.id}
-                            </td>
-                            <td className="py-3 px-4 border-b border-gray-100 text-sm font-semibold whitespace-nowrap text-gray-800">
+                            </TableCell>
+                            <TableCell className="py-3 px-4 border-b border-gray-100 text-sm font-semibold whitespace-nowrap text-gray-800 !text-left">
                               {emp.name || '-'}
-                            </td>
-                            <td className="py-3 px-4 border-b border-gray-100 text-sm whitespace-nowrap text-gray-600">
+                            </TableCell>
+                            <TableCell className="py-3 px-4 border-b border-gray-100 text-sm whitespace-nowrap text-gray-600 !text-left">
                               {emp.employeeDetails?.designation || '-'}
-                            </td>
-                            <td className="py-3 px-4 border-b border-gray-100 text-sm whitespace-nowrap text-gray-600">
+                            </TableCell>
+                            <TableCell className="py-3 px-4 border-b border-gray-100 text-sm whitespace-nowrap text-gray-600 !text-left">
                               {emp.mobile}
-                            </td>
-                            <td className="py-3 px-4 border-b border-gray-100 text-sm whitespace-nowrap text-gray-600">
+                            </TableCell>
+                            <TableCell className="py-3 px-4 border-b border-gray-100 text-sm whitespace-nowrap text-gray-600 !text-left">
                               {emp.employeeDetails?.aadhaarNumber || '-'}
-                            </td>
-                            <td className="py-3 px-4 border-b border-gray-100 text-sm whitespace-nowrap text-gray-600">
+                            </TableCell>
+                            <TableCell className="py-3 px-4 border-b border-gray-100 text-sm whitespace-nowrap text-gray-600 !text-left">
                               {formatDateDisplay(emp.employeeDetails?.joiningDate || '')}
-                            </td>
-                            <td className="py-3 px-4 border-b border-gray-100 text-sm text-gray-600 max-w-[200px] truncate" title={emp.employeeDetails?.address || ''}>
+                            </TableCell>
+                            <TableCell className="py-3 px-4 border-b border-gray-100 text-sm text-gray-600 max-w-[200px] truncate !text-left" title={emp.employeeDetails?.address || ''}>
                               {emp.employeeDetails?.address || '-'}
-                            </td>
-                            <td className="py-3 px-4 border-b border-gray-100 text-sm whitespace-nowrap text-gray-600">
+                            </TableCell>
+                            <TableCell className="py-3 px-4 border-b border-gray-100 text-sm whitespace-nowrap text-gray-600 !text-left">
                               {emp.employeeDetails?.gender || '-'}
-                            </td>
-                            <td className="py-3 px-4 border-b border-gray-100 text-sm font-bold whitespace-nowrap text-gray-900 text-right">
+                            </TableCell>
+                            <TableCell className="py-3 px-4 border-b border-gray-100 text-sm font-bold whitespace-nowrap text-gray-900">
                               {emp.isActive ? 'Active' : 'Inactive'}
-                            </td>
-                          </tr>
+                            </TableCell>
+                          </TableRow>
                         ))
                       )}
-                    </tbody>
-                  </table>
+                    </TableBody>
+                  </Table>
                 </div>
 
                 {/* Footer */}

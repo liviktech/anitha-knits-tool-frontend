@@ -2,6 +2,7 @@ import { Fragment } from 'react';
 import { format, parseISO } from 'date-fns';
 import { Dialog, DialogClose, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
+import { Table, TableBody, TableCell, TableFooter, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Download, FileDown, X } from 'lucide-react';
 
 const TEAL: [number, number, number] = [0, 77, 64]; // #004D40 — this app's primary accent
@@ -246,67 +247,67 @@ export function SampleProductionReportModal({ open, onOpenChange, monthStr, rows
 
                 {/* Data Table */}
                 <div className="mb-4 overflow-x-auto rounded-lg border border-gray-200">
-                  <table className="w-full text-left border-collapse">
-                    <thead>
-                      <tr>
-                        <th rowSpan={2} className="py-2 px-3 font-bold text-gray-800 bg-white align-bottom whitespace-nowrap">Date</th>
-                        <th colSpan={3} className="py-2 px-3 font-bold text-center whitespace-nowrap" style={{ backgroundColor: STAGE_COLORS.extruder.hex, color: STAGE_COLORS.extruder.fgHex }}>Extruder</th>
-                        <th colSpan={3} className="py-2 px-3 font-bold text-center whitespace-nowrap" style={{ backgroundColor: STAGE_COLORS.looms.hex, color: STAGE_COLORS.looms.fgHex }}>Looms</th>
-                        <th colSpan={3} className="py-2 px-3 font-bold text-center whitespace-nowrap" style={{ backgroundColor: STAGE_COLORS.fabric.hex, color: STAGE_COLORS.fabric.fgHex }}>Fabric</th>
-                        <th colSpan={3} className="py-2 px-3 font-bold text-center whitespace-nowrap" style={{ backgroundColor: STAGE_COLORS.delivered.hex, color: STAGE_COLORS.delivered.fgHex }}>Delivered</th>
-                      </tr>
-                      <tr>
+                  <Table>
+                    <TableHeader>
+                      <TableRow className="hover:bg-transparent">
+                        <TableHead rowSpan={2} className="py-2 px-3 font-bold text-gray-800 bg-white align-bottom whitespace-nowrap">Date</TableHead>
+                        <TableHead colSpan={3} className="py-2 px-3 font-bold whitespace-nowrap !text-center" style={{ backgroundColor: STAGE_COLORS.extruder.hex, color: STAGE_COLORS.extruder.fgHex }}>Extruder</TableHead>
+                        <TableHead colSpan={3} className="py-2 px-3 font-bold whitespace-nowrap !text-center" style={{ backgroundColor: STAGE_COLORS.looms.hex, color: STAGE_COLORS.looms.fgHex }}>Looms</TableHead>
+                        <TableHead colSpan={3} className="py-2 px-3 font-bold whitespace-nowrap !text-center" style={{ backgroundColor: STAGE_COLORS.fabric.hex, color: STAGE_COLORS.fabric.fgHex }}>Fabric</TableHead>
+                        <TableHead colSpan={3} className="py-2 px-3 font-bold whitespace-nowrap !text-center" style={{ backgroundColor: STAGE_COLORS.delivered.hex, color: STAGE_COLORS.delivered.fgHex }}>Delivered</TableHead>
+                      </TableRow>
+                      <TableRow className="hover:bg-transparent">
                         {(['extruder', 'looms', 'fabric'] as const).map((stage) => (
                           <Fragment key={stage}>
-                            <th className="py-1.5 px-2 text-[11px] font-bold text-center whitespace-nowrap" style={{ backgroundColor: `${STAGE_COLORS[stage].hex}80`, color: STAGE_COLORS[stage].fgHex }}>Input</th>
-                            <th className="py-1.5 px-2 text-[11px] font-bold text-center whitespace-nowrap" style={{ backgroundColor: `${STAGE_COLORS[stage].hex}80`, color: STAGE_COLORS[stage].fgHex }}>Wastage</th>
-                            <th className="py-1.5 px-2 text-[11px] font-bold text-center whitespace-nowrap" style={{ backgroundColor: `${STAGE_COLORS[stage].hex}80`, color: STAGE_COLORS[stage].fgHex }}>Output</th>
+                            <TableHead className="py-1.5 px-2 text-[11px] font-bold whitespace-nowrap !text-center" style={{ backgroundColor: `${STAGE_COLORS[stage].hex}80`, color: STAGE_COLORS[stage].fgHex }}>Input</TableHead>
+                            <TableHead className="py-1.5 px-2 text-[11px] font-bold whitespace-nowrap !text-center" style={{ backgroundColor: `${STAGE_COLORS[stage].hex}80`, color: STAGE_COLORS[stage].fgHex }}>Wastage</TableHead>
+                            <TableHead className="py-1.5 px-2 text-[11px] font-bold whitespace-nowrap !text-center" style={{ backgroundColor: `${STAGE_COLORS[stage].hex}80`, color: STAGE_COLORS[stage].fgHex }}>Output</TableHead>
                           </Fragment>
                         ))}
-                        <th className="py-1.5 px-2 text-[11px] font-bold text-center whitespace-nowrap" style={{ backgroundColor: `${STAGE_COLORS.delivered.hex}80`, color: STAGE_COLORS.delivered.fgHex }}>Input</th>
-                        <th className="py-1.5 px-2 text-[11px] font-bold text-center whitespace-nowrap" style={{ backgroundColor: `${STAGE_COLORS.delivered.hex}80`, color: STAGE_COLORS.delivered.fgHex }}>Color</th>
-                        <th className="py-1.5 px-2 text-[11px] font-bold text-center whitespace-nowrap" style={{ backgroundColor: `${STAGE_COLORS.delivered.hex}80`, color: STAGE_COLORS.delivered.fgHex }}>Output</th>
-                      </tr>
-                    </thead>
-                    <tbody>
+                        <TableHead className="py-1.5 px-2 text-[11px] font-bold whitespace-nowrap !text-center" style={{ backgroundColor: `${STAGE_COLORS.delivered.hex}80`, color: STAGE_COLORS.delivered.fgHex }}>Input</TableHead>
+                        <TableHead className="py-1.5 px-2 text-[11px] font-bold whitespace-nowrap !text-center" style={{ backgroundColor: `${STAGE_COLORS.delivered.hex}80`, color: STAGE_COLORS.delivered.fgHex }}>Color</TableHead>
+                        <TableHead className="py-1.5 px-2 text-[11px] font-bold whitespace-nowrap !text-center" style={{ backgroundColor: `${STAGE_COLORS.delivered.hex}80`, color: STAGE_COLORS.delivered.fgHex }}>Output</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
                       {rows.map((row, idx) => (
-                        <tr key={row.date} className={idx % 2 === 0 ? 'bg-white' : 'bg-gray-50'}>
-                          <td className="py-2 px-3 border-b border-gray-100 text-sm font-semibold whitespace-nowrap text-gray-800">
+                        <TableRow key={row.date} className={idx % 2 === 0 ? 'bg-white' : 'bg-gray-50'}>
+                          <TableCell className="py-2 px-3 border-b border-gray-100 text-sm font-semibold whitespace-nowrap text-gray-800">
                             {format(parseISO(row.date), 'dd MMM yyyy')}
-                          </td>
-                          <td className="py-2 px-3 border-b border-gray-100 text-sm text-center text-gray-600">{formatNum(row.extruder.input)}</td>
-                          <td className="py-2 px-3 border-b border-gray-100 text-sm text-center text-gray-600">{formatNum(row.extruder.wastage)}</td>
-                          <td className="py-2 px-3 border-b border-gray-100 text-sm text-center font-semibold text-gray-800">{formatNum(row.extruder.output)}</td>
-                          <td className="py-2 px-3 border-b border-gray-100 text-sm text-center text-gray-600">{formatNum(row.looms.input)}</td>
-                          <td className="py-2 px-3 border-b border-gray-100 text-sm text-center text-gray-600">{formatNum(row.looms.wastage)}</td>
-                          <td className="py-2 px-3 border-b border-gray-100 text-sm text-center font-semibold text-gray-800">{formatNum(row.looms.output)}</td>
-                          <td className="py-2 px-3 border-b border-gray-100 text-sm text-center text-gray-600">{formatNum(row.fabric.input)}</td>
-                          <td className="py-2 px-3 border-b border-gray-100 text-sm text-center text-gray-600">{formatNum(row.fabric.wastage)}</td>
-                          <td className="py-2 px-3 border-b border-gray-100 text-sm text-center font-semibold text-gray-800">{formatNum(row.fabric.output)}</td>
-                          <td className="py-2 px-3 border-b border-gray-100 text-sm text-center text-gray-600">{formatNum(row.delivered.input)}</td>
-                          <td className="py-2 px-3 border-b border-gray-100 text-sm text-center text-gray-600">{colorLabel(row)}</td>
-                          <td className="py-2 px-3 border-b border-gray-100 text-sm text-center font-semibold text-gray-800">{formatNum(row.delivered.output)}</td>
-                        </tr>
+                          </TableCell>
+                          <TableCell className="py-2 px-3 border-b border-gray-100 text-sm text-gray-600">{formatNum(row.extruder.input)}</TableCell>
+                          <TableCell className="py-2 px-3 border-b border-gray-100 text-sm text-gray-600">{formatNum(row.extruder.wastage)}</TableCell>
+                          <TableCell className="py-2 px-3 border-b border-gray-100 text-sm font-semibold text-gray-800">{formatNum(row.extruder.output)}</TableCell>
+                          <TableCell className="py-2 px-3 border-b border-gray-100 text-sm text-gray-600">{formatNum(row.looms.input)}</TableCell>
+                          <TableCell className="py-2 px-3 border-b border-gray-100 text-sm text-gray-600">{formatNum(row.looms.wastage)}</TableCell>
+                          <TableCell className="py-2 px-3 border-b border-gray-100 text-sm font-semibold text-gray-800">{formatNum(row.looms.output)}</TableCell>
+                          <TableCell className="py-2 px-3 border-b border-gray-100 text-sm text-gray-600">{formatNum(row.fabric.input)}</TableCell>
+                          <TableCell className="py-2 px-3 border-b border-gray-100 text-sm text-gray-600">{formatNum(row.fabric.wastage)}</TableCell>
+                          <TableCell className="py-2 px-3 border-b border-gray-100 text-sm font-semibold text-gray-800">{formatNum(row.fabric.output)}</TableCell>
+                          <TableCell className="py-2 px-3 border-b border-gray-100 text-sm text-gray-600">{formatNum(row.delivered.input)}</TableCell>
+                          <TableCell className="py-2 px-3 border-b border-gray-100 text-sm text-gray-600">{colorLabel(row)}</TableCell>
+                          <TableCell className="py-2 px-3 border-b border-gray-100 text-sm font-semibold text-gray-800 !text-center">{formatNum(row.delivered.output)}</TableCell>
+                        </TableRow>
                       ))}
-                    </tbody>
-                    <tfoot>
-                      <tr className="border-t-2 border-[#004D40] bg-emerald-50 font-bold text-[#004D40]">
-                        <td className="py-3 px-3">Total</td>
-                        <td className="py-3 px-3 text-center">{formatNum(totals.extruder.input)}</td>
-                        <td className="py-3 px-3 text-center">{formatNum(totals.extruder.wastage)}</td>
-                        <td className="py-3 px-3 text-center">{formatNum(totals.extruder.output)}</td>
-                        <td className="py-3 px-3 text-center">{formatNum(totals.looms.input)}</td>
-                        <td className="py-3 px-3 text-center">{formatNum(totals.looms.wastage)}</td>
-                        <td className="py-3 px-3 text-center">{formatNum(totals.looms.output)}</td>
-                        <td className="py-3 px-3 text-center">{formatNum(totals.fabric.input)}</td>
-                        <td className="py-3 px-3 text-center">{formatNum(totals.fabric.wastage)}</td>
-                        <td className="py-3 px-3 text-center">{formatNum(totals.fabric.output)}</td>
-                        <td className="py-3 px-3 text-center">{formatNum(totals.delivered.input)}</td>
-                        <td className="py-3 px-3 text-center">-</td>
-                        <td className="py-3 px-3 text-center">{formatNum(totals.delivered.output)}</td>
-                      </tr>
-                    </tfoot>
-                  </table>
+                    </TableBody>
+                    <TableFooter>
+                      <TableRow className="border-t-2 border-[#004D40] bg-emerald-50 hover:bg-emerald-50 font-bold text-[#004D40]">
+                        <TableCell className="py-3 px-3">Total</TableCell>
+                        <TableCell className="py-3 px-3">{formatNum(totals.extruder.input)}</TableCell>
+                        <TableCell className="py-3 px-3">{formatNum(totals.extruder.wastage)}</TableCell>
+                        <TableCell className="py-3 px-3">{formatNum(totals.extruder.output)}</TableCell>
+                        <TableCell className="py-3 px-3">{formatNum(totals.looms.input)}</TableCell>
+                        <TableCell className="py-3 px-3">{formatNum(totals.looms.wastage)}</TableCell>
+                        <TableCell className="py-3 px-3">{formatNum(totals.looms.output)}</TableCell>
+                        <TableCell className="py-3 px-3">{formatNum(totals.fabric.input)}</TableCell>
+                        <TableCell className="py-3 px-3">{formatNum(totals.fabric.wastage)}</TableCell>
+                        <TableCell className="py-3 px-3">{formatNum(totals.fabric.output)}</TableCell>
+                        <TableCell className="py-3 px-3">{formatNum(totals.delivered.input)}</TableCell>
+                        <TableCell className="py-3 px-3">-</TableCell>
+                        <TableCell className="py-3 px-3 !text-center">{formatNum(totals.delivered.output)}</TableCell>
+                      </TableRow>
+                    </TableFooter>
+                  </Table>
                 </div>
               </>
             )}

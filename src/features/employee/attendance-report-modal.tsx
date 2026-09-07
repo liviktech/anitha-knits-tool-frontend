@@ -1,5 +1,6 @@
 import { Dialog, DialogClose, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Download, FileDown, X } from 'lucide-react';
 
 const TEAL: [number, number, number] = [0, 77, 64]; // #004D40 — this app's primary accent
@@ -189,50 +190,50 @@ export function AttendanceReportModal({
 
             {/* Data Table */}
             <div className="mb-4 rounded-lg overflow-hidden border border-gray-200">
-              <table className="w-full text-left border-collapse">
-                <thead>
-                  <tr className="bg-[#004D40]">
-                    <th className="py-3 px-4 font-bold text-white whitespace-nowrap">Emp ID</th>
-                    <th className="py-3 px-4 font-bold text-white whitespace-nowrap">Employee Name</th>
-                    <th className="py-3 px-4 font-bold text-white whitespace-nowrap">Role</th>
-                    <th className="py-3 px-4 font-bold text-white text-right whitespace-nowrap">Present Days</th>
-                    <th className="py-3 px-4 font-bold text-white text-right whitespace-nowrap">Absent Days</th>
-                    <th className="py-3 px-4 font-bold text-white text-right whitespace-nowrap">Half Days</th>
-                  </tr>
-                </thead>
-                <tbody>
+              <Table>
+                <TableHeader>
+                  <TableRow className="bg-[#004D40] hover:bg-[#004D40]">
+                    <TableHead className="py-3 px-4 font-bold text-white whitespace-nowrap">Emp ID</TableHead>
+                    <TableHead className="py-3 px-4 font-bold text-white whitespace-nowrap !text-left">Employee Name</TableHead>
+                    <TableHead className="py-3 px-4 font-bold text-white whitespace-nowrap !text-left">Role</TableHead>
+                    <TableHead className="py-3 px-4 font-bold text-white text-right whitespace-nowrap !text-right">Present Days</TableHead>
+                    <TableHead className="py-3 px-4 font-bold text-white text-right whitespace-nowrap !text-right">Absent Days</TableHead>
+                    <TableHead className="py-3 px-4 font-bold text-white text-right whitespace-nowrap">Half Days</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
                   {rows.length === 0 ? (
-                    <tr>
-                      <td colSpan={6} className="text-center py-8 text-gray-500">
+                    <TableRow>
+                      <TableCell colSpan={6} className="!text-center py-8 text-gray-500">
                         No attendance records found for this period.
-                      </td>
-                    </tr>
+                      </TableCell>
+                    </TableRow>
                   ) : (
                     rows.map((row, idx) => (
-                      <tr key={row.employeeId} className={idx % 2 === 0 ? 'bg-white' : 'bg-emerald-50/40'}>
-                        <td className="py-3 px-4 border-b border-gray-100 text-sm font-medium whitespace-nowrap text-gray-600">
+                      <TableRow key={row.employeeId} className={idx % 2 === 0 ? 'bg-white' : 'bg-emerald-50/40'}>
+                        <TableCell className="py-3 px-4 border-b border-gray-100 text-sm font-medium whitespace-nowrap text-gray-600">
                           {row.employeeId}
-                        </td>
-                        <td className="py-3 px-4 border-b border-gray-100 text-sm font-semibold whitespace-nowrap text-gray-800">
+                        </TableCell>
+                        <TableCell className="py-3 px-4 border-b border-gray-100 text-sm font-semibold whitespace-nowrap text-gray-800 !text-left">
                           {row.employeeName}
-                        </td>
-                        <td className="py-3 px-4 border-b border-gray-100 text-sm whitespace-nowrap text-gray-600">
+                        </TableCell>
+                        <TableCell className="py-3 px-4 border-b border-gray-100 text-sm whitespace-nowrap text-gray-600 !text-left">
                           {row.role}
-                        </td>
-                        <td className="py-3 px-4 border-b border-gray-100 text-sm text-right whitespace-nowrap text-gray-600">
+                        </TableCell>
+                        <TableCell className="py-3 px-4 border-b border-gray-100 text-sm whitespace-nowrap text-gray-600 !text-right">
                           {row.present}
-                        </td>
-                        <td className="py-3 px-4 border-b border-gray-100 text-sm text-right whitespace-nowrap text-gray-600">
+                        </TableCell>
+                        <TableCell className="py-3 px-4 border-b border-gray-100 text-sm whitespace-nowrap text-gray-600 !text-right">
                           {row.absent}
-                        </td>
-                        <td className="py-3 px-4 border-b border-gray-100 text-sm text-right whitespace-nowrap text-gray-600">
+                        </TableCell>
+                        <TableCell className="py-3 px-4 border-b border-gray-100 text-sm whitespace-nowrap text-gray-600">
                           {row.halfDay}
-                        </td>
-                      </tr>
+                        </TableCell>
+                      </TableRow>
                     ))
                   )}
-                </tbody>
-              </table>
+                </TableBody>
+              </Table>
             </div>
 
             {/* Footer */}

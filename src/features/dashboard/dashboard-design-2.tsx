@@ -11,6 +11,7 @@ import { currentMonthStr as todayMonthStr } from '@/lib/date-utils';
 import { useOpeningBalanceWastage, useOpeningBalanceFabricStock, useOpeningBalanceRawMaterials } from '@/features/admin-panel/opening-balance-queries';
 import { ProductionSummaryCard, DetailBreakdownCard, SectionSummaryCard, RawMaterialsSection, RawMaterialCard } from './card';
 import { DashboardReportModal } from './dashboard-report-modal';
+import { DashboardWastageReportModal } from './dashboard-wastage-report-modal';
 import { Button } from '@/components/ui/button';
 
 function deliveryColorClass(color: string): string {
@@ -149,6 +150,14 @@ export function DashboardDesign2() {
     });
     return { color, sizes };
   });
+
+  // Per-color totals for the Wastage Report — extruderWasteByVariant only carries a
+  // per-size breakdown now, so sum across sizes here rather than duplicating that fetch.
+  const extruderWasteSummaryByColor = extruderWasteByVariant.map((row) => ({
+    color: row.color,
+    lums: row.sizes.reduce((sum, s) => sum + s.lums, 0),
+    yarnWaste: row.sizes.reduce((sum, s) => sum + s.yarnWaste, 0),
+  }));
 
   const extruderSummaryByColor = FABRIC_COLORS.map(color => {
     const r = extruderByColorMap.get(color);
@@ -766,7 +775,7 @@ export function DashboardDesign2() {
             {/* Dashboard Tabs: Production Summary / Wastage Summary / Sample Production */}
             <div className="mt-4">
               <Tabs value={activeTab} onValueChange={(value) => setActiveTab(value as typeof activeTab)} className="gap-4 cursor-pointer">
-                <div className="border-b border-gray-400 px-3">
+                <div className="border-b border-gray-400 px-3 flex items-center justify-between gap-2">
                   <TabsList variant="underline" className="border-b-0 gap-2">
                     <TabsTrigger
                       value="production"
@@ -805,17 +814,15 @@ export function DashboardDesign2() {
                       </span>
                     </TabsTrigger>
                   </TabsList>
-                  {activeTab !== 'wastage' && (
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      className="mb-2 shrink-0 flex items-center gap-2 border-[#004D40] text-[#004D40] hover:bg-[#004D40]/10 rounded-md px-3 py-2 h-auto text-[12px] font-bold tracking-wide"
-                      onClick={() => setIsReportModalOpen(true)}
-                    >
-                      <Download className="w-3 h-3" />
-                      REPORT
-                    </Button>
-                  )}
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="shrink-0 flex items-center gap-2 border-[#004D40] text-[#004D40] hover:bg-[#004D40]/10 rounded-md px-3 py-2 h-auto text-[12px] font-bold tracking-wide"
+                    onClick={() => setIsReportModalOpen(true)}
+                  >
+                    <Download className="w-3 h-3" />
+                    REPORT
+                  </Button>
                 </div>
 
                 <div className="overflow-hidden">
@@ -845,25 +852,40 @@ export function DashboardDesign2() {
         )}
       </div>
 
-      <DashboardReportModal
-        open={isReportModalOpen}
-        onOpenChange={setIsReportModalOpen}
-        reportTitle={activeTab === 'sample' ? 'Sample Production Report' : 'Production Summary Report'}
-        companyName={companyName}
-        monthStr={currentMonthStr}
-        extruderByColor={activeTab === 'sample' ? sampleExtruderSummaryByColor : extruderSummaryByColor}
-        extruderTotal={activeTab === 'sample' ? sampleExtruderGrandTotal : extruderGrandTotal}
-        loomsByColor={activeTab === 'sample' ? sampleLoomsSummaryByColor : loomsSummaryByColor}
-        loomsTotal={activeTab === 'sample' ? sampleLoomsGrandTotal : loomsGrandTotal}
-        fabricByColor={activeTab === 'sample' ? sampleFabricSummaryByColor : fabricSummaryByColor}
-        fabricTotal={activeTab === 'sample' ? sampleFabricGrandTotal : fabricGrandTotal}
-        yarnBalanceByColor={activeTab === 'sample' ? sampleYarnBalanceByColor : yarnBalanceByColor}
-        koraBalanceByColor={activeTab === 'sample' ? sampleKoraBalanceByColor : koraBalanceByColor}
-        fabricStockByColor={activeTab === 'sample' ? sampleFabricStockByColor : fabricStockByColor}
-        totalFabricStock={activeTab === 'sample' ? sampleTotalFabricStockKg : totalFabricStockKg}
-        deliveriesByColor={activeTab === 'sample' ? sampleDeliveriesByColor : monthDeliveriesByColor}
-        totalDelivered={activeTab === 'sample' ? sampleSelectedMonthDeliveryTotal : selectedMonthDeliveryTotal}
-      />
+      {activeTab === 'wastage' ? (
+        <DashboardWastageReportModal
+          open={isReportModalOpen}
+          onOpenChange={setIsReportModalOpen}
+          companyName={companyName}
+          monthStr={currentMonthStr}
+          extruderByColor={extruderWasteSummaryByColor}
+          extruderTotal={lumsWasteKg + looseWasteKg}
+          loomsByColor={loomsWasteByColor}
+          loomsTotal={loomsWasteByColor.reduce((sum, r) => sum + r.loomsWaste, 0)}
+          fabricByColor={fabricWasteByColor}
+          fabricTotal={fabricWasteByColor.reduce((sum, r) => sum + r.fabricWaste + r.bitWaste, 0)}
+        />
+      ) : (
+        <DashboardReportModal
+          open={isReportModalOpen}
+          onOpenChange={setIsReportModalOpen}
+          reportTitle={activeTab === 'sample' ? 'Sample Production Report' : 'Production Summary Report'}
+          companyName={companyName}
+          monthStr={currentMonthStr}
+          extruderByColor={activeTab === 'sample' ? sampleExtruderSummaryByColor : extruderSummaryByColor}
+          extruderTotal={activeTab === 'sample' ? sampleExtruderGrandTotal : extruderGrandTotal}
+          loomsByColor={activeTab === 'sample' ? sampleLoomsSummaryByColor : loomsSummaryByColor}
+          loomsTotal={activeTab === 'sample' ? sampleLoomsGrandTotal : loomsGrandTotal}
+          fabricByColor={activeTab === 'sample' ? sampleFabricSummaryByColor : fabricSummaryByColor}
+          fabricTotal={activeTab === 'sample' ? sampleFabricGrandTotal : fabricGrandTotal}
+          yarnBalanceByColor={activeTab === 'sample' ? sampleYarnBalanceByColor : yarnBalanceByColor}
+          koraBalanceByColor={activeTab === 'sample' ? sampleKoraBalanceByColor : koraBalanceByColor}
+          fabricStockByColor={activeTab === 'sample' ? sampleFabricStockByColor : fabricStockByColor}
+          totalFabricStock={activeTab === 'sample' ? sampleTotalFabricStockKg : totalFabricStockKg}
+          deliveriesByColor={activeTab === 'sample' ? sampleDeliveriesByColor : monthDeliveriesByColor}
+          totalDelivered={activeTab === 'sample' ? sampleSelectedMonthDeliveryTotal : selectedMonthDeliveryTotal}
+        />
+      )}
     </div>
   );
 }
