@@ -506,3 +506,34 @@ export function useSavedPayrollRecords(month: number, year: number) {
     },
   });
 }
+
+/**
+ * Merges the employee list with saved payroll records (once generated) or the live payroll
+ * summary/market-value allocations (before generation) into one row per employee — shared by
+ * the Payroll table (search-filtered on screen) and the Payroll report (unfiltered, every
+ * employee for the month).
+ */
+export function buildPayrollRows(
+  employees: ReturnType<typeof useEmployees>['data'],
+  savedRecords: ReturnType<typeof useSavedPayrollRecords>['data'],
+  payrollSummary: ReturnType<typeof usePayrollSummary>['data'],
+  marketValueAllocations: ReturnType<typeof useMarketValueAllocations>['data'],
+) {
+  return (employees ?? []).map(emp => {
+    const saved = (savedRecords ?? []).find(s => s.employeeId === emp.id);
+    const summary = (payrollSummary ?? []).find(s => s.id === emp.id);
+    return {
+      ...emp,
+      customUserId: emp.employeeDetails?.customUserId,
+      baseSalary: saved ? Number(saved.baseSalary) : (summary?.baseSalary || emp.employeeDetails?.salary || 0),
+      daysWorked: saved ? Number(saved.daysWorked) : (summary?.daysWorked || 0),
+      grossSalary: saved ? Number(saved.grossSalary) : 0,
+      advanceDeduction: saved ? Number(saved.advanceDeduction) : (summary?.advanceDeduction || 0),
+      marketValueBonus: saved ? Number(saved.marketValueBonus) : ((marketValueAllocations ?? {})[emp.id] || 0),
+      marketValueDeduction: saved ? Number(saved.marketValueDeduction) : (summary?.marketValueDeduction || 0),
+      otherDeduction: saved ? Number(saved.otherDeduction || 0) : (summary?.otherDeduction || 0),
+      netSalary: saved ? Number(saved.netSalary) : 0,
+      status: saved?.status || 'Pending',
+    };
+  });
+}

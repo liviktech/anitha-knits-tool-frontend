@@ -3,13 +3,14 @@ import { Wallet, Banknote, Calendar } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 import { DeleteConfirmDialog } from '@/components/shared/delete-confirm-dialog';
-import { useSavedPayrollRecords, usePayrollSummary, useMarketValueAllocations, useDeletePayrollRecord } from './employee-queries';
+import { useEmployees, useSavedPayrollRecords, usePayrollSummary, useMarketValueAllocations, useDeletePayrollRecord, buildPayrollRows } from './employee-queries';
 import { PayrollTable, type PayrollRow } from './payroll-table';
 import { SalaryAdvanceTable } from './salary-advance-table';
 import { SalaryAdvanceModal } from './salary-advance-modal';
 import { PayrollValueModal } from './payroll-value-modal';
 import { GeneratePayrollModal } from './generate-payroll-modal';
 import { EditPayrollModal } from './edit-payroll-modal';
+import { PayrollReportModal } from './payroll-report-modal';
 
 export interface PayrollTabRef {
   openGenerateModal: () => void;
@@ -24,6 +25,7 @@ export const PayrollTab = forwardRef<PayrollTabRef>((_, ref) => {
   const [isAdvanceModalOpen, setIsAdvanceModalOpen] = useState(false);
   const [isValueModalOpen, setIsValueModalOpen] = useState(false);
   const [isGenerateModalOpen, setIsGenerateModalOpen] = useState(false);
+  const [isReportModalOpen, setIsReportModalOpen] = useState(false);
   const [editingPayrollRow, setEditingPayrollRow] = useState<PayrollRow | null>(null);
   const [deletePayrollTarget, setDeletePayrollTarget] = useState<PayrollRow | null>(null);
 
@@ -31,6 +33,7 @@ export const PayrollTab = forwardRef<PayrollTabRef>((_, ref) => {
 
   useImperativeHandle(ref, () => ({
     openGenerateModal: () => setIsGenerateModalOpen(true),
+    openReportModal: () => setIsReportModalOpen(true),
   }));
 
   const handleMonthYearChange = (month: number, year: number) => {
@@ -40,10 +43,15 @@ export const PayrollTab = forwardRef<PayrollTabRef>((_, ref) => {
 
   // Top stat cards — derived from the same saved/summary/allocation data the Payroll table uses;
   // TanStack Query dedupes these against the table's own fetches via the shared cache.
+  const { data: employees = [] } = useEmployees();
   const { data: savedRecords = [] } = useSavedPayrollRecords(currentMonth, currentYear);
   const { data: payrollSummary = [] } = usePayrollSummary(currentMonth, currentYear);
   const { data: marketValueAllocations = {} } = useMarketValueAllocations(currentMonth, currentYear);
   const isGenerated = savedRecords.length > 0;
+
+  // Unfiltered rows for the report (unlike the on-screen table, the report should include
+  // every employee for the month regardless of the table's own search box).
+  const filteredPayroll = buildPayrollRows(employees, savedRecords, payrollSummary, marketValueAllocations);
 
   const totalPayroll = isGenerated
     ? savedRecords.reduce((sum, p) => sum + Number(p.netSalary), 0)

@@ -5,34 +5,9 @@ import { Input } from '@/components/ui/input';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Loader } from '@/components/shared/loader';
 import { TablePaginationControls, RowsPerPageSelect } from '@/components/shared/table-pagination-controls';
-import { useEmployees, usePayrollSummary, useSavedPayrollRecords, useMarketValueAllocations } from './employee-queries';
+import { useEmployees, usePayrollSummary, useSavedPayrollRecords, useMarketValueAllocations, buildPayrollRows } from './employee-queries';
 
 export type PayrollRow = ReturnType<typeof buildPayrollRows>[number];
-
-function buildPayrollRows(
-  employees: ReturnType<typeof useEmployees>['data'],
-  savedRecords: ReturnType<typeof useSavedPayrollRecords>['data'],
-  payrollSummary: ReturnType<typeof usePayrollSummary>['data'],
-  marketValueAllocations: ReturnType<typeof useMarketValueAllocations>['data'],
-) {
-  return (employees ?? []).map(emp => {
-    const saved = (savedRecords ?? []).find(s => s.employeeId === emp.id);
-    const summary = (payrollSummary ?? []).find(s => s.id === emp.id);
-    return {
-      ...emp,
-      customUserId: emp.employeeDetails?.customUserId,
-      baseSalary: saved ? Number(saved.baseSalary) : (summary?.baseSalary || emp.employeeDetails?.salary || 0),
-      daysWorked: saved ? Number(saved.daysWorked) : (summary?.daysWorked || 0),
-      grossSalary: saved ? Number(saved.grossSalary) : 0,
-      advanceDeduction: saved ? Number(saved.advanceDeduction) : (summary?.advanceDeduction || 0),
-      marketValueBonus: saved ? Number(saved.marketValueBonus) : ((marketValueAllocations ?? {})[emp.id] || 0),
-      marketValueDeduction: saved ? Number(saved.marketValueDeduction) : (summary?.marketValueDeduction || 0),
-      otherDeduction: saved ? Number(saved.otherDeduction || 0) : (summary?.otherDeduction || 0),
-      netSalary: saved ? Number(saved.netSalary) : 0,
-      status: saved?.status || 'Pending',
-    };
-  });
-}
 
 interface PayrollTableProps {
   month: number;
