@@ -275,6 +275,61 @@ export function useGrantSalaryAdvance() {
   });
 }
 
+export function useUpdateSalaryAdvance() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async ({
+      id,
+      data,
+    }: {
+      id: string;
+      data: {
+        amount: number;
+        effectiveDate: string;
+        repaymentMethod: 'single' | 'emi';
+        totalMonths?: number;
+      };
+    }) => {
+      const response = await fetchJson<{ data: any }>(
+        `/company/payroll/advance/${id}`,
+        {
+          method: 'PATCH',
+          body: JSON.stringify(data),
+          headers: {
+            'Content-Type': 'application/json',
+          },
+        },
+      );
+      return response.data;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: employeeKeys.lists() });
+      queryClient.invalidateQueries({ queryKey: [...employeeKeys.lists(), 'salary-advances'] });
+    },
+  });
+}
+
+/** Removes one salary advance entirely — backs the Salary Advance tab's Actions > Delete. */
+export function useDeleteSalaryAdvance() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async (id: string) => {
+      const response = await apiFetch(`/company/payroll/advance/${id}`, {
+        method: 'DELETE',
+      });
+      if (!response.ok) {
+        const err = await response.json().catch(() => ({}));
+        throw new Error(err.error?.message || 'Failed to delete salary advance');
+      }
+      return true;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: employeeKeys.lists() });
+      queryClient.invalidateQueries({ queryKey: [...employeeKeys.lists(), 'salary-advances'] });
+    },
+  });
+}
+
 export function useGrantMarketValueDeduction() {
   const queryClient = useQueryClient();
   return useMutation({

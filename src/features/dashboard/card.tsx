@@ -22,6 +22,8 @@ export interface ProductionSummaryCardTheme {
 export interface ProductionSummaryCardRow {
   color: string;
   production: number;
+  /** Optional sub-label under the color name — e.g. the chemical(s) used for that color. */
+  detail?: string;
 }
 
 export interface ProductionSummaryCardProps {
@@ -30,28 +32,40 @@ export interface ProductionSummaryCardProps {
   rows: ProductionSummaryCardRow[];
   theme: ProductionSummaryCardTheme;
   rowLabelClassName?: string;
+  /** Shown when every row has no production recorded (so there's nothing to list). */
+  emptyMessage?: string;
 }
 
-export function ProductionSummaryCard({ title, total, rows, theme, rowLabelClassName = 'text-[13.5px]' }: ProductionSummaryCardProps) {
+export function ProductionSummaryCard({ title, total, rows, theme, rowLabelClassName = 'text-[13.5px]', emptyMessage = 'No production recorded yet.' }: ProductionSummaryCardProps) {
+  // Only colors with actual production are shown — an empty "--" row for every
+  // untouched color just adds noise once a card has any real data to show.
+  const recordedRows = rows.filter((row) => row.production > 0);
   return (
-    <Card className={`${theme.cardBg} border ${theme.cardBorder} rounded-[14px] hover:shadow-md transition-all flex flex-col gap-0 self-start py-0`}>
+    <Card className={`${theme.cardBg} border ${theme.cardBorder} rounded-[14px] hover:shadow-md transition-all flex flex-col gap-0 py-0 h-full`}>
       <CardHeader className="flex flex-row items-center justify-between pb-1! pt-3 px-4">
         <CardTitle className={`text-[17px] font-extrabold ${theme.titleColor} flex items-center gap-3`}>
           {title}
         </CardTitle>
         <span className={`text-[14px] font-bold ${theme.totalColor}`}>Total : <span className="font-inter">{formatNum(total)}</span> kg</span>
       </CardHeader>
-      <CardContent className="px-2 pb-2 pt-0 flex flex-col">
-        <div className="w-full">
-          <div className="space-y-2">
-            {rows.map((row) => (
-              <div key={row.color} className="flex items-center justify-between border border-gray-400 rounded-md px-3 py-2 bg-white">
-                <span className={`font-semibold ${rowLabelClassName} ${deliveryColorClass(row.color)}`}>{row.color}</span>
-                <span className="font-bold font-inter text-gray-900">{row.production > 0 ? `${formatNum(row.production)} kg` : '--'}</span>
-              </div>
-            ))}
+      <CardContent className="px-2 pb-2 pt-0 flex-1 flex flex-col">
+        {recordedRows.length === 0 ? (
+          <div className="flex-1 flex items-center justify-center py-4">
+            <p className="text-xs text-gray-400 italic">{emptyMessage}</p>
           </div>
-        </div>
+        ) : (
+          <div className="w-full">
+            <div className="space-y-2">
+              {recordedRows.map((row) => (
+                <div key={row.color} className="flex items-center justify-between border border-gray-400 rounded-md px-3 py-2 bg-white relative">
+                  <span className={`font-semibold ${rowLabelClassName} ${deliveryColorClass(row.color)} shrink-0`}>{row.color}</span>
+                  {row.detail && <span className="absolute left-1/2 -translate-x-1/2 text-[11px] font-medium text-gray-500 truncate max-w-[40%] text-center">{row.detail}</span>}
+                  <span className="font-bold font-inter text-gray-900 shrink-0">{formatNum(row.production)} kg</span>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
       </CardContent>
     </Card>
   );
@@ -74,6 +88,8 @@ export interface DetailBreakdownCardRow {
   value: number;
   /** Unique key for the row, for cases where multiple rows can share the same label (e.g. per-delivery rows). Defaults to `label`. */
   id?: string;
+  /** Optional sub-label shown to the right of `label` on the same line — e.g. the chemical(s) used for that row's color. */
+  detail?: string;
 }
 
 export interface DetailBreakdownCardProps {
@@ -111,18 +127,20 @@ export function DetailBreakdownCard({ title, total, theme, rows, emptyMessage = 
         ) : layout === 'boxed' ? (
           <div className="space-y-2">
             {rows.map((row) => (
-              <div key={row.id ?? row.label} className="flex items-center justify-between border border-gray-400 rounded-md px-3 py-2 bg-white">
-                <span className="font-semibold text-[13px] text-gray-600">{row.label}</span>
-                <span className="font-bold font-inter text-gray-900">{renderValue(row.value)}</span>
+              <div key={row.id ?? row.label} className="flex items-center justify-between border border-gray-400 rounded-md px-3 py-2 bg-white relative">
+                <span className="font-semibold text-[13px] text-gray-600 shrink-0">{row.label}</span>
+                {row.detail && <span className="absolute left-1/2 -translate-x-1/2 text-[11px] font-medium text-gray-400 truncate max-w-[40%] text-center">{row.detail}</span>}
+                <span className="font-bold font-inter text-gray-900 shrink-0">{renderValue(row.value)}</span>
               </div>
             ))}
           </div>
         ) : (
           <div className="w-full border border-gray-300 rounded-lg bg-white divide-y divide-gray-200 overflow-hidden">
             {rows.map((row) => (
-              <div key={row.id ?? row.label} className="flex items-center justify-between px-3 py-2 text-[13px]">
-                <span className="font-semibold text-gray-600">{row.label}</span>
-                <span className="font-bold font-inter text-gray-900">{renderValue(row.value)}</span>
+              <div key={row.id ?? row.label} className="flex items-center justify-between px-3 py-2 text-[13px] relative">
+                <span className="font-semibold text-gray-600 shrink-0">{row.label}</span>
+                {row.detail && <span className="absolute left-1/2 -translate-x-1/2 text-[11px] font-medium text-gray-400 truncate max-w-[40%] text-center">{row.detail}</span>}
+                <span className="font-bold font-inter text-gray-900 shrink-0">{renderValue(row.value)}</span>
               </div>
             ))}
           </div>

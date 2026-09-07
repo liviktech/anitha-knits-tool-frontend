@@ -353,16 +353,16 @@ export function SampleProductionPage() {
                 <TableRow className="hover:bg-transparent border-b border-gray-300">
                   <TableHead rowSpan={2} className="!text-center font-bold text-gray-800 align-middle border-r border-gray-300 w-[95px] min-w-[95px] px-1.5 bg-white text-xs uppercase tracking-wider">Date</TableHead>
                   <TableHead colSpan={3} className="text-[#0B5566] font-bold bg-[#D6EEF7] border-r border-gray-300 py-2 text-xs uppercase tracking-wider">
-                    <span className="flex items-center justify-center gap-2 text-[13px] font-extrabold">EXTRUDER</span>
+                    <span className="flex items-center justify-center gap-2 text-[13px] font-extrabold">EXTRUDER PRODUCTION</span>
                   </TableHead>
                   <TableHead colSpan={3} className="text-[#7A6A00] font-bold bg-[#FFF6BF] border-r border-gray-300 py-2 text-xs uppercase tracking-wider">
-                    <span className="flex items-center justify-center gap-2 text-[13px] font-extrabold">LOOMS</span>
+                    <span className="flex items-center justify-center gap-2 text-[13px] font-extrabold">LOOMS PRODUCTION</span>
                   </TableHead>
                   <TableHead colSpan={3} className="text-[#2F6B2F] font-bold bg-[#DCEEDB] border-r border-gray-300 py-2 text-xs uppercase tracking-wider">
-                    <span className="flex items-center justify-center gap-2 text-[13px] font-extrabold">FABRIC</span>
+                    <span className="flex items-center justify-center gap-2 text-[13px] font-extrabold">FABRIC PRODUCTION</span>
                   </TableHead>
                   <TableHead colSpan={3} className="text-[#61401E] font-bold bg-[#f2caa0] border-r border-gray-300 py-2 text-xs uppercase tracking-wider">
-                    <span className="flex items-center justify-center gap-2 text-[13px] font-extrabold">DELIVERED</span>
+                    <span className="flex items-center justify-center gap-2 text-[13px] font-extrabold">FABRIC DELIVERED</span>
                   </TableHead>
                   <TableHead rowSpan={2} className="!text-center font-extrabold text-gray-800 align-middle border-gray-300 w-[130px] min-w-[130px] px-1 bg-white text-xs uppercase tracking-wider">Actions</TableHead>
                 </TableRow>

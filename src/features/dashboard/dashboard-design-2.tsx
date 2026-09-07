@@ -9,6 +9,7 @@ import { useMonthlyDashboard } from './dashboard-queries';
 import { useAuth } from '@/features/auth/auth-context';
 import { currentMonthStr as todayMonthStr } from '@/lib/date-utils';
 import { useOpeningBalanceWastage, useOpeningBalanceFabricStock, useOpeningBalanceRawMaterials } from '@/features/admin-panel/opening-balance-queries';
+import { useExtruderProductions } from '@/features/extruder/extruder-queries';
 import { ProductionSummaryCard, DetailBreakdownCard, SectionSummaryCard, RawMaterialsSection, RawMaterialCard } from './card';
 import { DashboardReportModal } from './dashboard-report-modal';
 import { DashboardWastageReportModal } from './dashboard-wastage-report-modal';
@@ -51,6 +52,25 @@ export function DashboardDesign2() {
   };
 
   const { dashboardData, isLoading: loadingDashboard } = useMonthlyDashboard(currentMonthStr);
+
+  // Chemical used per color, for the Extruder Production card's middle column —
+  // the monthly dashboard aggregation has no per-color chemical field, so this
+  // is derived from the raw extruder production records instead.
+  const { data: extruderProductionsRes } = useExtruderProductions('?limit=100');
+  const monthExtruderRecords = (extruderProductionsRes?.data ?? []).filter(r => r.productionDate?.startsWith(currentMonthStr));
+  const chemicalNamesByColor = new Map<string, Set<string>>();
+  monthExtruderRecords.forEach(r => {
+    const colorName = r.color?.name;
+    const chemicalName = r.extruder?.chemical?.name;
+    if (!colorName || !chemicalName) return;
+    const normalized = colorName.charAt(0).toUpperCase() + colorName.slice(1).toLowerCase();
+    if (!chemicalNamesByColor.has(normalized)) chemicalNamesByColor.set(normalized, new Set());
+    chemicalNamesByColor.get(normalized)!.add(chemicalName);
+  });
+  const chemicalDetailForColor = (color: string): string | undefined => {
+    const names = chemicalNamesByColor.get(color);
+    return names && names.size > 0 ? Array.from(names).join(', ') : undefined;
+  };
 
   const { data: obRawMaterialsRes } = useOpeningBalanceRawMaterials('?limit=100');
   const obRawMaterials = obRawMaterialsRes?.data || [];
@@ -161,7 +181,11 @@ export function DashboardDesign2() {
 
   const extruderSummaryByColor = FABRIC_COLORS.map(color => {
     const r = extruderByColorMap.get(color);
-    return { color, production: r?.production ?? 0 };
+    return {
+      color,
+      production: r?.production ?? 0,
+      detail: chemicalDetailForColor(color),
+    };
   });
   const extruderGrandTotal = dashboardData?.extruderProduction?.overall.production || 0;
 
@@ -488,7 +512,7 @@ export function DashboardDesign2() {
                 title={row.color}
                 total={colorTotal}
                 theme={{ cardBg: theme.bg, cardBorder: theme.border, labelColor: deliveryColorClass(row.color) }}
-                rows={row.sizes.filter((s) => s.balance > 0).map((s) => ({ label: s.size, value: s.balance }))}
+                rows={row.sizes.filter((s) => s.balance > 0).map((s) => ({ label: s.size, value: s.balance, detail: chemicalDetailForColor(row.color) }))}
                 emptyMessage="No yarn balance recorded yet."
                 layout="boxed"
               />
@@ -513,7 +537,7 @@ export function DashboardDesign2() {
                 title={row.color}
                 total={colorTotal}
                 theme={{ cardBg: theme.bg, cardBorder: theme.border, labelColor: deliveryColorClass(row.color) }}
-                rows={row.sizes.filter((s) => s.balance > 0).map((s) => ({ label: s.size, value: s.balance }))}
+                rows={row.sizes.filter((s) => s.balance > 0).map((s) => ({ label: s.size, value: s.balance, detail: chemicalDetailForColor(row.color) }))}
                 emptyMessage="No kora balance recorded yet."
                 layout="boxed"
               />
@@ -524,7 +548,10 @@ export function DashboardDesign2() {
 
       {/* Fabric Stock (own horizontal section) */}
       <div className="w-full">
-        <FabricStockCard rows={fabricStockByColor} total={totalFabricStockKg} />
+        <FabricStockCard
+          rows={fabricStockByColor.map((row) => ({ ...row, detail: chemicalDetailForColor(row.color) }))}
+          total={totalFabricStockKg}
+        />
       </div>
 
 
@@ -544,7 +571,7 @@ export function DashboardDesign2() {
                 title={row.color}
                 total={row.total}
                 theme={{ cardBg: theme.bg, cardBorder: theme.border, labelColor: deliveryColorClass(row.color) }}
-                rows={row.deliveries.map((d) => ({ id: d.id, label: d.size, value: d.kg }))}
+                rows={row.deliveries.map((d) => ({ id: d.id, label: d.size, value: d.kg, detail: chemicalDetailForColor(row.color) }))}
                 emptyMessage="No deliveries recorded yet."
               />
             );
@@ -894,7 +921,7 @@ function FabricStockCard({
   rows,
   total,
 }: {
-  rows: { color: string; colorClass: string; stockBySize: Record<string, number> }[];
+  rows: { color: string; colorClass: string; stockBySize: Record<string, number>; detail?: string }[];
   total: number;
 }) {
   return (
@@ -904,7 +931,7 @@ function FabricStockCard({
         const theme = fabricStockCardTheme(row.color);
         const sizeRows = FABRIC_STOCK_SIZES
           .filter((size) => row.stockBySize[size] !== undefined)
-          .map((size) => ({ label: size, value: row.stockBySize[size] }));
+          .map((size) => ({ label: size, value: row.stockBySize[size], detail: row.detail }));
         return (
           <DetailBreakdownCard
             key={row.color}
@@ -968,10 +995,6 @@ function WastageCard({
               );
             })}
         </SectionSummaryCard>
-        <div className="mt-2 text-[12px] font-bold text-gray-500 flex items-center gap-4 px-2 italic">
-          <span>LM - Lums Waste</span>
-          <span>LO - Loose Waste</span>
-        </div>
       </div>
 
       {/* Looms Wastage */}
@@ -998,9 +1021,6 @@ function WastageCard({
               );
             })}
         </SectionSummaryCard>
-        <div className="mt-2 text-[12px] font-bold text-gray-500 flex items-center gap-4 px-2 italic">
-          <span>LW - Looms/Yarn Waste</span>
-        </div>
       </div>
 
       {/* Fabric Checking Wastage */}
@@ -1028,10 +1048,6 @@ function WastageCard({
               );
             })}
         </SectionSummaryCard>
-        <div className="mt-2 text-[12px] font-bold text-gray-500 flex items-center gap-4 px-2 italic">
-          <span>FW - Fabric Waste</span>
-          <span>BW - Bit Waste</span>
-        </div>
       </div>
     </div>
   );
