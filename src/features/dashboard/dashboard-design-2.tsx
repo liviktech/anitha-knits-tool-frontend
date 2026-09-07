@@ -10,6 +10,7 @@ import { useMonthlyDashboard } from './dashboard-queries';
 import { useAuth } from '@/features/auth/auth-context';
 import { currentMonthStr as todayMonthStr } from '@/lib/date-utils';
 import { useOpeningBalanceWastage, useOpeningBalanceFabricStock, useOpeningBalanceRawMaterials } from '@/features/admin-panel/opening-balance-queries';
+import { useExtruderProductions } from '@/features/extruder/extruder-queries';
 import { ProductionSummaryCard, DetailBreakdownCard, SectionSummaryCard, RawMaterialsSection, RawMaterialCard } from './card';
 
 function formatNum(n: number): string {
@@ -52,6 +53,21 @@ export function DashboardDesign2() {
   };
 
   const { dashboardData, isLoading: loadingDashboard } = useMonthlyDashboard(currentMonthStr);
+
+  // Chemical used per color, for the Extruder Production card's middle column —
+  // the monthly dashboard aggregation has no per-color chemical field, so this
+  // is derived from the raw extruder production records instead.
+  const { data: extruderProductionsRes } = useExtruderProductions('?limit=100');
+  const monthExtruderRecords = (extruderProductionsRes?.data ?? []).filter(r => r.productionDate?.startsWith(currentMonthStr));
+  const chemicalNamesByColor = new Map<string, Set<string>>();
+  monthExtruderRecords.forEach(r => {
+    const colorName = r.color?.name;
+    const chemicalName = r.extruder?.chemical?.name;
+    if (!colorName || !chemicalName) return;
+    const normalized = colorName.charAt(0).toUpperCase() + colorName.slice(1).toLowerCase();
+    if (!chemicalNamesByColor.has(normalized)) chemicalNamesByColor.set(normalized, new Set());
+    chemicalNamesByColor.get(normalized)!.add(chemicalName);
+  });
 
   const { data: obRawMaterialsRes } = useOpeningBalanceRawMaterials('?limit=100');
   const obRawMaterials = obRawMaterialsRes?.data || [];
@@ -159,7 +175,12 @@ export function DashboardDesign2() {
 
   const extruderSummaryByColor = FABRIC_COLORS.map(color => {
     const r = extruderByColorMap.get(color);
-    return { color, production: r?.production ?? 0 };
+    const chemicalNames = chemicalNamesByColor.get(color);
+    return {
+      color,
+      production: r?.production ?? 0,
+      middleValue: chemicalNames && chemicalNames.size > 0 ? Array.from(chemicalNames).join(', ') : '--',
+    };
   });
   const extruderGrandTotal = dashboardData?.extruderProduction?.overall.production || 0;
 
@@ -701,10 +722,6 @@ function WastageCard({
               );
             })}
         </SectionSummaryCard>
-        <div className="mt-2 text-[12px] font-bold text-gray-500 flex items-center gap-4 px-2 italic">
-          <span>LM - Lums Waste</span>
-          <span>LO - Loose Waste</span>
-        </div>
       </div>
 
       {/* Looms Wastage */}
@@ -731,9 +748,6 @@ function WastageCard({
               );
             })}
         </SectionSummaryCard>
-        <div className="mt-2 text-[12px] font-bold text-gray-500 flex items-center gap-4 px-2 italic">
-          <span>LW - Looms/Yarn Waste</span>
-        </div>
       </div>
 
       {/* Fabric Checking Wastage */}
@@ -761,10 +775,6 @@ function WastageCard({
               );
             })}
         </SectionSummaryCard>
-        <div className="mt-2 text-[12px] font-bold text-gray-500 flex items-center gap-4 px-2 italic">
-          <span>FW - Fabric Waste</span>
-          <span>BW - Bit Waste</span>
-        </div>
       </div>
     </div>
   );
