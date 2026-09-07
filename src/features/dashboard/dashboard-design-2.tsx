@@ -63,6 +63,10 @@ export function DashboardDesign2() {
     if (!chemicalNamesByColor.has(normalized)) chemicalNamesByColor.set(normalized, new Set());
     chemicalNamesByColor.get(normalized)!.add(chemicalName);
   });
+  const chemicalDetailForColor = (color: string): string | undefined => {
+    const names = chemicalNamesByColor.get(color);
+    return names && names.size > 0 ? Array.from(names).join(', ') : undefined;
+  };
 
   const { data: obRawMaterialsRes } = useOpeningBalanceRawMaterials('?limit=100');
   const obRawMaterials = obRawMaterialsRes?.data || [];
@@ -165,11 +169,10 @@ export function DashboardDesign2() {
 
   const extruderSummaryByColor = FABRIC_COLORS.map(color => {
     const r = extruderByColorMap.get(color);
-    const chemicalNames = chemicalNamesByColor.get(color);
     return {
       color,
       production: r?.production ?? 0,
-      middleValue: chemicalNames && chemicalNames.size > 0 ? Array.from(chemicalNames).join(', ') : '--',
+      detail: chemicalDetailForColor(color),
     };
   });
   const extruderGrandTotal = dashboardData?.extruderProduction?.overall.production || 0;
@@ -497,7 +500,7 @@ export function DashboardDesign2() {
                 title={row.color}
                 total={colorTotal}
                 theme={{ cardBg: theme.bg, cardBorder: theme.border, labelColor: deliveryColorClass(row.color) }}
-                rows={row.sizes.filter((s) => s.balance > 0).map((s) => ({ label: s.size, value: s.balance }))}
+                rows={row.sizes.filter((s) => s.balance > 0).map((s) => ({ label: s.size, value: s.balance, detail: chemicalDetailForColor(row.color) }))}
                 emptyMessage="No yarn balance recorded yet."
                 layout="boxed"
               />
@@ -522,7 +525,7 @@ export function DashboardDesign2() {
                 title={row.color}
                 total={colorTotal}
                 theme={{ cardBg: theme.bg, cardBorder: theme.border, labelColor: deliveryColorClass(row.color) }}
-                rows={row.sizes.filter((s) => s.balance > 0).map((s) => ({ label: s.size, value: s.balance }))}
+                rows={row.sizes.filter((s) => s.balance > 0).map((s) => ({ label: s.size, value: s.balance, detail: chemicalDetailForColor(row.color) }))}
                 emptyMessage="No kora balance recorded yet."
                 layout="boxed"
               />
@@ -533,7 +536,10 @@ export function DashboardDesign2() {
 
       {/* Fabric Stock (own horizontal section) */}
       <div className="w-full">
-        <FabricStockCard rows={fabricStockByColor} total={totalFabricStockKg} />
+        <FabricStockCard
+          rows={fabricStockByColor.map((row) => ({ ...row, detail: chemicalDetailForColor(row.color) }))}
+          total={totalFabricStockKg}
+        />
       </div>
 
 
@@ -553,7 +559,7 @@ export function DashboardDesign2() {
                 title={row.color}
                 total={row.total}
                 theme={{ cardBg: theme.bg, cardBorder: theme.border, labelColor: deliveryColorClass(row.color) }}
-                rows={row.deliveries.map((d) => ({ id: d.id, label: d.size, value: d.kg }))}
+                rows={row.deliveries.map((d) => ({ id: d.id, label: d.size, value: d.kg, detail: chemicalDetailForColor(row.color) }))}
                 emptyMessage="No deliveries recorded yet."
               />
             );
@@ -859,7 +865,7 @@ function FabricStockCard({
   rows,
   total,
 }: {
-  rows: { color: string; colorClass: string; stockBySize: Record<string, number> }[];
+  rows: { color: string; colorClass: string; stockBySize: Record<string, number>; detail?: string }[];
   total: number;
 }) {
   return (
@@ -869,7 +875,7 @@ function FabricStockCard({
         const theme = fabricStockCardTheme(row.color);
         const sizeRows = FABRIC_STOCK_SIZES
           .filter((size) => row.stockBySize[size] !== undefined)
-          .map((size) => ({ label: size, value: row.stockBySize[size] }));
+          .map((size) => ({ label: size, value: row.stockBySize[size], detail: row.detail }));
         return (
           <DetailBreakdownCard
             key={row.color}
