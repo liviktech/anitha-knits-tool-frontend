@@ -28,11 +28,13 @@ export function LoadSentFormDialog({ onClose, record }: LoadSentFormDialogProps)
   const { data: lookupsData } = useLookups();
   const colors = lookupsData?.colors ?? [];
   const sizes = lookupsData?.sizes ?? [];
+  const chemicals = lookupsData?.chemicals ?? [];
   const isEdit = !!record;
 
   const [date, setDate] = useState(record ? formatDate(record.date ?? record.productionDate) : todayIso());
   const [color, setColor] = useState(record?.color?.name ?? '');
   const [size, setSize] = useState(record?.size?.name ?? '');
+  const [chemical, setChemical] = useState(record?.chemical?.name ?? '');
   const [weightKg, setWeightKg] = useState(record ? String(getLoadSentWeight(record)) : '');
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -40,8 +42,9 @@ export function LoadSentFormDialog({ onClose, record }: LoadSentFormDialogProps)
   const handleSubmit = async () => {
     const colorId = findIdByName(colors, color);
     const sizeId = findIdByName(sizes, size);
-    if (!colorId || !sizeId || !weightKg) {
-      setError('Please fill in Color, Size, and Weight.');
+    const chemicalId = findIdByName(chemicals, chemical);
+    if (!colorId || !sizeId || !chemicalId || !weightKg) {
+      setError('Please fill in Color, Size, Chemical, and Weight.');
       return;
     }
     setSaving(true);
@@ -51,6 +54,7 @@ export function LoadSentFormDialog({ onClose, record }: LoadSentFormDialogProps)
         date,
         colorId,
         sizeId,
+        chemicalId,
         fabricWeight: parseFloat(weightKg) || 0,
       };
       const response = await apiFetch(isEdit ? `/load-sent/${record.id}` : '/load-sent', {
@@ -102,6 +106,17 @@ export function LoadSentFormDialog({ onClose, record }: LoadSentFormDialogProps)
                 </SelectContent>
               </Select>
             </div>
+            <div className="flex-1 flex flex-col gap-1.5">
+              <Label htmlFor="ls-chemical" className="text-gray-600 text-xs font-semibold uppercase tracking-wider">Chemical</Label>
+              <Select value={chemical || undefined} onValueChange={setChemical}>
+                <SelectTrigger id="ls-chemical" className="w-full"><SelectValue placeholder="Select chemical" /></SelectTrigger>
+                <SelectContent>
+                  {chemicals.map((c) => <SelectItem key={c.id} value={c.name}>{c.name}</SelectItem>)}
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+          <div className="flex gap-4">
             <div className="flex-1 flex flex-col gap-1.5">
               <Label htmlFor="ls-weight" className="text-gray-600 text-xs font-semibold uppercase tracking-wider">Weight (kg)</Label>
               <Input id="ls-weight" type="number" value={weightKg} onChange={(e) => setWeightKg(e.target.value)} />

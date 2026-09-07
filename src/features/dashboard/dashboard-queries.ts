@@ -120,12 +120,14 @@ export interface LoadSentItem {
   productionDate: string;
   color: { id: string; name: string };
   size: { id: string; name: string };
+  chemical: { id: string; name: string } | null;
   loadSent: { fabricWeight: number; fwWeight: number; bwWeight: number } | null;
 }
 
 export interface StockBalance {
   color: { id: string; name: string };
   size: { id: string; name: string };
+  chemical: { id: string; name: string } | null;
   availableFabricStockKg: number;
   availableFwStockKg: number;
   availableBwStockKg: number;

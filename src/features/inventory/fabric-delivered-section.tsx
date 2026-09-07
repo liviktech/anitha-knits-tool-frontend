@@ -19,17 +19,19 @@ export interface FabricDeliveredDraft {
   id?: string; // If editing an existing (already-persisted) entry
   size: string;
   color: string;
+  chemical: string;
   delivered: string;
   vehicleNo: string;
   driverName: string;
 }
 
-export const emptyFabricDeliveredDraft: FabricDeliveredDraft = { size: '', color: '', delivered: '', vehicleNo: '', driverName: '' };
+export const emptyFabricDeliveredDraft: FabricDeliveredDraft = { size: '', color: '', chemical: '', delivered: '', vehicleNo: '', driverName: '' };
 
 interface FabricDeliveredRow {
   id: string;
   size: string;
   color: string;
+  chemical: string;
   delivered: number;
   vehicleNo: string;
   driverName: string;
@@ -50,6 +52,7 @@ function mapLoadSentRecord(record: LoadSentProductionRecord): FabricDeliveredRow
     id: record.id,
     size: record.size?.name ?? '',
     color: record.color?.name ?? '',
+    chemical: record.chemical?.name ?? '',
     delivered: record.loadSent?.fabricWeight ?? record.fabricWeight ?? 0,
     vehicleNo: record.loadSent?.vehicleNo ?? '',
     driverName: record.loadSent?.driverName ?? '',
@@ -102,15 +105,17 @@ export const FabricDeliveredSection = forwardRef<SectionRef, FabricDeliveredSect
       for (const row of newRows) {
         const colorId = findIdByName(lookups.colors, row.color);
         const sizeId = findIdByName(lookups.sizes, row.size);
-        if (!colorId || !sizeId) {
+        const chemicalId = findIdByName(lookups.chemicals, row.chemical);
+        if (!colorId || !sizeId || !chemicalId) {
           failed.push(row);
-          errorMessage = 'Could not resolve color/size for one or more entries.';
+          errorMessage = 'Could not resolve color/size/chemical for one or more entries.';
           continue;
         }
         const payload: LoadSentCreatePayload = {
           date: productionDate ?? '',
           colorId,
           sizeId,
+          chemicalId,
           fabricWeight: parseFloat(row.delivered) || 0,
           type: entryType,
           vehicleNo: row.vehicleNo || undefined,
@@ -218,6 +223,7 @@ export const FabricDeliveredSection = forwardRef<SectionRef, FabricDeliveredSect
             <TableRow className="hover:!bg-transparent border-b-0">
               <TableHead className={`text-sm !text-center font-semibold tracking-wide  ${theme.headerText}`}>Size</TableHead>
               <TableHead className={`w-37.5 min-w-37.5 text-center text-sm font-semibold tracking-wide border border-gray-300 ${theme.headerText}`}>Color</TableHead>
+              <TableHead className={`text-center text-sm font-semibold tracking-wide border border-gray-300 ${theme.headerText}`}>Chemical</TableHead>
               <TableHead className={`text-center text-sm font-semibold tracking-wide border border-gray-300 ${theme.headerText}`}>Fabric Delivered</TableHead>
               <TableHead className={`text-center text-sm font-semibold tracking-wide border border-gray-300 ${theme.headerText}`}>Vehicle No</TableHead>
               <TableHead className={`text-center text-sm font-semibold tracking-wide border border-gray-300 ${theme.headerText}`}>Driver Name</TableHead>
@@ -227,7 +233,7 @@ export const FabricDeliveredSection = forwardRef<SectionRef, FabricDeliveredSect
           <TableBody>
             {isLoading ? (
               <TableRow>
-                <TableCell colSpan={readOnly ? 5 : 6} className="h-20 text-center">
+                <TableCell colSpan={readOnly ? 6 : 7} className="h-20 text-center">
                   <div className="flex items-center justify-center gap-2 text-gray-500">
                     <Loader size="sm" /> Loading entries...
                   </div>
@@ -235,7 +241,7 @@ export const FabricDeliveredSection = forwardRef<SectionRef, FabricDeliveredSect
               </TableRow>
             ) : isError ? (
               <TableRow>
-                <TableCell colSpan={readOnly ? 5 : 6} className="h-20 !text-center">
+                <TableCell colSpan={readOnly ? 6 : 7} className="h-20 !text-center">
                   <div className="flex flex-col items-center justify-center gap-2 text-gray-500">
                     <span>Unable to load fabric delivered entries. Please try again.</span>
                     <Button variant="outline" size="sm" className="h-7 text-xs" onClick={() => refetch()}>
@@ -250,6 +256,7 @@ export const FabricDeliveredSection = forwardRef<SectionRef, FabricDeliveredSect
                   <TableRow key={row.key} className="bg-orange-50/50">
                     <TableCell className="!text-center"><span className="font-medium text-gray-700">{row.size || '-'}</span></TableCell>
                     <TableCell className="text-center"><span className="font-medium text-gray-700">{row.color || '-'}</span></TableCell>
+                    <TableCell className="text-center"><span className="font-medium text-gray-700">{row.chemical || '-'}</span></TableCell>
                     <TableCell className="text-center">{parseFloat(row.delivered) > 0 ? parseFloat(row.delivered).toFixed(2) : '-'}</TableCell>
                     <TableCell className="text-center">{row.vehicleNo || '-'}</TableCell>
                     <TableCell className="text-center">{row.driverName || '-'}</TableCell>
@@ -269,6 +276,7 @@ export const FabricDeliveredSection = forwardRef<SectionRef, FabricDeliveredSect
                   <TableRow key={row.id}>
                     <TableCell className="!text-center border border-gray-300">{row.size}</TableCell>
                     <TableCell className="w-37.5 min-w-37.5 text-center border border-gray-300">{row.color}</TableCell>
+                    <TableCell className="text-center border border-gray-300">{row.chemical || '-'}</TableCell>
                     <TableCell className="text-center border border-gray-300">{row.delivered.toFixed(2)}</TableCell>
                     <TableCell className="text-center border border-gray-300">{row.vehicleNo || '-'}</TableCell>
                     <TableCell className="text-center border border-gray-300">{row.driverName || '-'}</TableCell>
@@ -279,6 +287,7 @@ export const FabricDeliveredSection = forwardRef<SectionRef, FabricDeliveredSect
                             id: row.id,
                             size: row.size,
                             color: row.color,
+                            chemical: row.chemical,
                             delivered: String(row.delivered),
                             vehicleNo: row.vehicleNo,
                             driverName: row.driverName,
@@ -300,7 +309,7 @@ export const FabricDeliveredSection = forwardRef<SectionRef, FabricDeliveredSect
                 ))}
                 {rows.length === 0 && newRows.length === 0 && (
                   <TableRow>
-                    <TableCell colSpan={readOnly ? 5 : 6} className="h-20 !text-center text-gray-500">No entries yet.</TableCell>
+                    <TableCell colSpan={readOnly ? 6 : 7} className="h-20 !text-center text-gray-500">No entries yet.</TableCell>
                   </TableRow>
                 )}
               </>

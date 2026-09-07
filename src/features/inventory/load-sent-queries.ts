@@ -9,6 +9,7 @@ export interface LoadSentRecord {
   productionDate?: string;
   color: MasterDataRef;
   size: MasterDataRef;
+  chemical?: MasterDataRef | null;
   fabricWeight?: number;
   fwWeight?: number;
   bwWeight?: number;
@@ -34,6 +35,7 @@ export interface LoadSentCreatePayload {
   date: string; // e.g. "2026-08-20"
   colorId: string;
   sizeId: string;
+  chemicalId: string;
   fabricWeight: number;
   fwWeight?: number;
   bwWeight?: number;
