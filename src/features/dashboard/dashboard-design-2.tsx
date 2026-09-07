@@ -10,7 +10,7 @@ import { useAuth } from '@/features/auth/auth-context';
 import { currentMonthStr as todayMonthStr } from '@/lib/date-utils';
 import { useOpeningBalanceWastage, useOpeningBalanceFabricStock, useOpeningBalanceRawMaterials } from '@/features/admin-panel/opening-balance-queries';
 import { useExtruderProductions } from '@/features/extruder/extruder-queries';
-import { ProductionSummaryCard, DetailBreakdownCard, SectionSummaryCard, RawMaterialsSection, RawMaterialCard } from './card';
+import { ProductionSummaryCard, DetailBreakdownCard, WasteVariantCard, SectionSummaryCard, RawMaterialsSection, RawMaterialCard } from './card';
 import { DashboardReportModal } from './dashboard-report-modal';
 import { DashboardWastageReportModal } from './dashboard-wastage-report-modal';
 import { Button } from '@/components/ui/button';
@@ -977,19 +977,14 @@ function WastageCard({
             .map((row) => {
               const rowTotal = row.sizes.reduce((s, v) => s + v.lums + v.yarnWaste, 0);
               const theme = fabricStockCardTheme(row.color);
-              const sizeRows = row.sizes.flatMap(s => {
-                const rows = [];
-                if (s.lums > 0) rows.push({ label: `${s.size} (LM)`, value: s.lums });
-                if (s.yarnWaste > 0) rows.push({ label: `${s.size} (LO)`, value: s.yarnWaste });
-                return rows;
-              });
               return (
-                <DetailBreakdownCard
+                <WasteVariantCard
                   key={row.color}
                   title={row.color}
                   total={rowTotal}
                   theme={{ cardBg: theme.bg, cardBorder: theme.border, labelColor: deliveryColorClass(row.color) }}
-                  rows={sizeRows}
+                  columns={[{ key: 'lm', label: 'Lumps waste' }, { key: 'lo', label: 'Looms waste' }]}
+                  rows={row.sizes.map((s) => ({ size: s.size, values: { lm: s.lums, lo: s.yarnWaste } }))}
                   emptyMessage="No waste recorded yet."
                 />
               );
@@ -1004,18 +999,14 @@ function WastageCard({
             .map((row) => {
               const rowTotal = row.sizes.reduce((s, v) => s + v.loomsWaste, 0);
               const theme = fabricStockCardTheme(row.color);
-              const sizeRows = row.sizes.flatMap(s => {
-                const rows = [];
-                if (s.loomsWaste > 0) rows.push({ label: `${s.size} (LW)`, value: s.loomsWaste });
-                return rows;
-              });
               return (
-                <DetailBreakdownCard
+                <WasteVariantCard
                   key={row.color}
                   title={row.color}
                   total={rowTotal}
                   theme={{ cardBg: theme.bg, cardBorder: theme.border, labelColor: deliveryColorClass(row.color) }}
-                  rows={sizeRows}
+                  columns={[{ key: 'lw', label: 'Looms/yarn waste' }]}
+                  rows={row.sizes.map((s) => ({ size: s.size, values: { lw: s.loomsWaste } }))}
                   emptyMessage="No waste recorded yet."
                 />
               );
@@ -1030,19 +1021,14 @@ function WastageCard({
             .map((row) => {
               const rowTotal = row.sizes.reduce((s, v) => s + v.fabricWaste + v.bitWaste, 0);
               const theme = fabricStockCardTheme(row.color);
-              const sizeRows = row.sizes.flatMap(s => {
-                const rows = [];
-                if (s.fabricWaste > 0) rows.push({ label: `${s.size} (FW)`, value: s.fabricWaste });
-                if (s.bitWaste > 0) rows.push({ label: `${s.size} (BW)`, value: s.bitWaste });
-                return rows;
-              });
               return (
-                <DetailBreakdownCard
+                <WasteVariantCard
                   key={row.color}
                   title={row.color}
                   total={rowTotal}
                   theme={{ cardBg: theme.bg, cardBorder: theme.border, labelColor: deliveryColorClass(row.color) }}
-                  rows={sizeRows}
+                  columns={[{ key: 'fw', label: 'Fabric waste' }, { key: 'bw', label: 'Bit waste' }]}
+                  rows={row.sizes.map((s) => ({ size: s.size, values: { fw: s.fabricWaste, bw: s.bitWaste } }))}
                   emptyMessage="No waste recorded yet."
                 />
               );

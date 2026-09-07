@@ -151,6 +151,88 @@ export function DetailBreakdownCard({ title, total, theme, rows, emptyMessage = 
 }
 
 /**
+ * Per-color wastage breakdown — like DetailBreakdownCard, but each row is a size
+ * with one or more waste-type columns (e.g. Lums/Loose, or Fabric/Bit) shown side
+ * by side, plus a Total column (that row's waste types summed). The color name,
+ * the waste-type column labels, and the card's grand total all share one header
+ * line, with the per-row totals aligned underneath that header total.
+ */
+export interface WasteVariantCardColumn {
+  key: string;
+  label: string;
+}
+
+export interface WasteVariantCardRow {
+  size: string;
+  /** Waste amount per column key; a missing/zero entry renders as "--" for that column. */
+  values: Record<string, number>;
+}
+
+export interface WasteVariantCardProps {
+  title: string;
+  total: number;
+  theme: DetailBreakdownCardTheme;
+  columns: WasteVariantCardColumn[];
+  rows: WasteVariantCardRow[];
+  emptyMessage?: string;
+}
+
+export function WasteVariantCard({ title, total, theme, columns, rows, emptyMessage = 'No waste recorded yet.' }: WasteVariantCardProps) {
+  const recordedRows = rows.filter((row) => columns.some((col) => (row.values[col.key] ?? 0) > 0));
+  return (
+    <Card className={`${theme.cardBg} border ${theme.cardBorder} rounded-[14px] hover:shadow-md transition-all flex flex-col gap-0 h-full py-0`}>
+      <CardHeader className="flex flex-col pb-2 pt-2 px-3 gap-2">
+        <div className="w-full flex flex-row items-center justify-between">
+          <CardTitle className={`min-w-0 text-[17px] font-bold flex items-center gap-2 ${theme.labelColor}`}>
+            {title}
+          </CardTitle>
+          <span className={`shrink-0 text-center text-[14px] font-bold whitespace-nowrap ${theme.labelColor}`}>Total : <span className="font-inter">{formatNum(total)}</span> kg</span>
+        </div>
+        {recordedRows.length > 0 && (
+          <div className="w-full flex flex-row items-end gap-1 relative h-4">
+            <div className="absolute left-1/2 -translate-x-1/2 bottom-0 flex gap-1">
+              {columns.map((col) => (
+                <span key={col.key} className="w-24 shrink-0 text-center text-[10px] font-bold text-gray-400 uppercase tracking-wide whitespace-nowrap">{col.label}</span>
+              ))}
+            </div>
+          </div>
+        )}
+      </CardHeader>
+      <CardContent className="px-2 pb-2 flex-1 flex flex-col">
+        {recordedRows.length === 0 ? (
+          <div className="flex-1 flex items-center justify-center py-4">
+            <p className="text-xs text-gray-400 italic">{emptyMessage}</p>
+          </div>
+        ) : (
+          <div className="space-y-2">
+            {recordedRows.map((row) => {
+              const rowTotal = columns.reduce((sum, col) => sum + (row.values[col.key] ?? 0), 0);
+              return (
+                <div key={row.size} className="flex items-center gap-1 border border-gray-400 rounded-md px-3 py-2 bg-white relative">
+                  <span className="w-20 min-w-0 font-semibold text-[13px] text-gray-600">{row.size}</span>
+                  <div className="absolute left-1/2 -translate-x-1/2 flex gap-1 items-center">
+                    {columns.map((col) => {
+                      const value = row.values[col.key] ?? 0;
+                      return (
+                        <span key={col.key} className="w-24 shrink-0 text-center font-bold font-inter text-gray-900">
+                          {value > 0 ? formatNum(value) : '--'}
+                        </span>
+                      );
+                    })}
+                  </div>
+                  <div className="flex-1" />
+                  <span className="shrink-0 text-right font-bold font-inter text-gray-900 whitespace-nowrap">{formatNum(rowTotal)} kg</span>
+                </div>
+              );
+            })}
+          </div>
+        )}
+      </CardContent>
+    </Card>
+  );
+}
+
+/**
  * Outer section wrapper — the "Fabric Stock" card shell: a titled white card
  * with a grand total in the header, wrapping a responsive grid of
  * DetailBreakdownCards (one per group, e.g. per color).
