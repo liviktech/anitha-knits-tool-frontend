@@ -399,6 +399,7 @@ export function useUpdatePayrollRecord() {
         advanceDeduction: number;
         marketValueBonus: number;
         marketValueDeduction: number;
+        otherDeduction: number;
       };
     }) => {
       const response = await fetchJson<{ data: any }>(

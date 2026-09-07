@@ -123,18 +123,19 @@ export interface DashboardResponse {
 
 export const monthlyDashboardKey = ['dashboard', 'monthly'] as const;
 
-export function useMonthlyDashboard(monthStr?: string) {
-  const queryKey = monthStr ? [...monthlyDashboardKey, monthStr] : monthlyDashboardKey;
+export function useMonthlyDashboard(monthStr?: string, type: 'PRODUCTION' | 'SAMPLE' = 'PRODUCTION') {
+  const queryKey = [...monthlyDashboardKey, monthStr ?? 'current', type] as const;
 
   const { data, isLoading } = useQuery({
     queryKey,
     queryFn: () => {
-      let url = '/dashboard';
+      const params = new URLSearchParams({ type });
       if (monthStr) {
         const [year, month] = monthStr.split('-');
-        url += `?year=${year}&month=${month}`;
+        params.set('year', year);
+        params.set('month', month);
       }
-      return fetchJson<DashboardResponse>(url);
+      return fetchJson<DashboardResponse>(`/dashboard?${params.toString()}`);
     },
   });
 

@@ -73,6 +73,12 @@ export function NewEntry({ onClose, defaultDate, readOnly: propsReadOnly = false
     (allExtruderData?.data ?? []).map(r => r.productionDate?.split('T')[0]).filter(Boolean) as string[]
   );
 
+  // Inventory balances below are a single physical pool shared by both Production and Sample
+  // entries, so consumption must be pulled across both types (no `type` filter) — unlike
+  // allExtruderData above, which stays scoped to entryType for the "already has an entry"
+  // calendar-disabling check.
+  const { data: allExtruderDataForBalances } = useExtruderProductions('?limit=100', !readOnly);
+
   useEffect(() => {
     setHeaderTitle(isCreateMode ? 'Add New Daily Production Details' : 'Edit Daily Production Details');
     setShowBackButton(true);
@@ -135,7 +141,7 @@ export function NewEntry({ onClose, defaultDate, readOnly: propsReadOnly = false
   // Data for calculating live stock balances in create mode
   const { data: allInvData } = useInventoryRecords('?limit=100', !readOnly);
   const inventoryRecords = allInvData?.data ?? [];
-  const extruderRecords = allExtruderData?.data ?? [];
+  const extruderRecords = allExtruderDataForBalances?.data ?? [];
 
   const { data: rawMaterialsOBData } = useOpeningBalanceRawMaterials('?limit=100', !readOnly);
   const rawMaterialsOBRecords = rawMaterialsOBData?.data ?? [];
