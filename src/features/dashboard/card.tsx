@@ -24,6 +24,8 @@ export interface ProductionSummaryCardRow {
   production: number;
   /** Optional sub-label under the color name — e.g. the chemical(s) used for that color. */
   detail?: string;
+  /** Optional breakdown of production (e.g. by chemical) to display under the color row. */
+  subItems?: { label: string; value: number }[];
 }
 
 export interface ProductionSummaryCardProps {
@@ -57,10 +59,22 @@ export function ProductionSummaryCard({ title, total, rows, theme, rowLabelClass
           <div className="w-full">
             <div className="space-y-2">
               {recordedRows.map((row) => (
-                <div key={row.color} className="flex items-center justify-between border border-gray-400 rounded-md px-3 py-2 bg-white relative">
-                  <span className={`font-semibold ${rowLabelClassName} ${deliveryColorClass(row.color)} shrink-0`}>{row.color}</span>
-                  {row.detail && <span className="absolute left-1/2 -translate-x-1/2 text-[11px] font-medium text-gray-500 truncate max-w-[40%] text-center">{row.detail}</span>}
-                  <span className="font-bold font-inter text-gray-900 shrink-0">{formatNum(row.production)} kg</span>
+                <div key={row.color} className="flex flex-col border border-gray-400 rounded-md px-3 py-2 bg-white">
+                  <div className="flex items-center justify-between relative">
+                    <span className={`font-semibold ${rowLabelClassName} ${deliveryColorClass(row.color)} shrink-0`}>{row.color}</span>
+                    {row.detail && <span className="absolute left-1/2 -translate-x-1/2 text-[11px] font-medium text-gray-500 truncate max-w-[40%] text-center">{row.detail}</span>}
+                    <span className="font-bold font-inter text-gray-900 shrink-0">{formatNum(row.production)} kg</span>
+                  </div>
+                  {row.subItems && row.subItems.length > 0 && (
+                    <div className="flex items-center justify-between mt-1.5 pt-1.5 border-t border-gray-100">
+                      {row.subItems.map((sub, idx) => (
+                        <div key={sub.label} className={`flex flex-col ${idx === 0 ? 'items-start' : idx === row.subItems!.length - 1 ? 'items-end' : 'items-center'}`}>
+                          <span className="text-[9px] font-bold text-gray-400 uppercase tracking-wide">{sub.label}</span>
+                          <span className="text-[11px] font-bold font-inter text-gray-700">{formatNum(sub.value)}</span>
+                        </div>
+                      ))}
+                    </div>
+                  )}
                 </div>
               ))}
             </div>
@@ -92,6 +106,13 @@ export interface DetailBreakdownCardRow {
   detail?: string;
 }
 
+/** One chemical's row in the chemical-x-size table (see `DetailBreakdownCardProps.table`). */
+export interface DetailBreakdownTableRow {
+  label: string;
+  /** Value per column (size); a missing/zero entry renders as "-" for that column. */
+  values: Record<string, number>;
+}
+
 export interface DetailBreakdownCardProps {
   title: string;
   total: number;
@@ -106,10 +127,20 @@ export interface DetailBreakdownCardProps {
    * Production summary cards' row style), stacked with a gap instead of dividers.
    */
   layout?: 'list' | 'boxed';
+  /**
+   * When set, renders a chemical(rows) x size(columns) table instead of the normal `rows` list —
+   * used by Yarn Balance / Kora Balance / Fabric Stock / Fabric Delivered so a color that used
+   * more than one chemical this month shows each chemical's own figures, not just a blended total.
+   * The card's own header (title/total) is unchanged either way.
+   */
+  table?: {
+    columns: string[];
+    rows: DetailBreakdownTableRow[];
+  };
 }
 
-export function DetailBreakdownCard({ title, total, theme, rows, emptyMessage = 'No records yet.', zeroDisplay, layout = 'list' }: DetailBreakdownCardProps) {
-  const hasRows = rows.length > 0;
+export function DetailBreakdownCard({ title, total, theme, rows, emptyMessage = 'No records yet.', zeroDisplay, layout = 'list', table }: DetailBreakdownCardProps) {
+  const hasRows = table ? table.rows.length > 0 : rows.length > 0;
   const renderValue = (value: number) => (value > 0 || !zeroDisplay ? `${formatNum(value)} kg` : zeroDisplay);
   return (
     <Card className={`${theme.cardBg} border ${theme.cardBorder} rounded-[14px] hover:shadow-md transition-all flex flex-col gap-0 h-full py-0`}>
@@ -124,23 +155,55 @@ export function DetailBreakdownCard({ title, total, theme, rows, emptyMessage = 
           <div className="flex-1 flex items-center justify-center py-4">
             <p className="text-xs text-gray-400 italic">{emptyMessage}</p>
           </div>
+        ) : table ? (
+          <div className="flex flex-col gap-1.5">
+            <div className="flex flex-row items-center px-1">
+              <div className="w-[72px] shrink-0" />
+              <div className="flex-1 flex flex-row items-center justify-between gap-1 min-w-max">
+                {table.columns.map((col) => (
+                  <span key={col} className="text-[11px] text-gray-500 font-bold uppercase w-16 text-center tracking-wide">{col}</span>
+                ))}
+              </div>
+            </div>
+            <div className="flex flex-col gap-1.5">
+              {table.rows.map((row) => (
+                <div key={row.label} className="flex flex-row items-center border border-gray-200 rounded p-1.5 bg-[#f8fafc]">
+                  <span className="w-[72px] shrink-0 text-[12px] font-bold text-gray-600 uppercase tracking-wide">{row.label}</span>
+                  <div className="flex-1 flex flex-row items-center justify-between gap-1 min-w-max">
+                    {table.columns.map((col) => {
+                      const value = row.values[col] ?? 0;
+                      return (
+                        <span key={col} className="text-[12px] font-inter font-bold text-gray-800 w-16 text-center">
+                          {value > 0 ? formatNum(value) : '-'}
+                        </span>
+                      );
+                    })}
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
         ) : layout === 'boxed' ? (
           <div className="space-y-2">
             {rows.map((row) => (
-              <div key={row.id ?? row.label} className="flex items-center justify-between border border-gray-400 rounded-md px-3 py-2 bg-white relative">
-                <span className="font-semibold text-[13px] text-gray-600 shrink-0">{row.label}</span>
-                {row.detail && <span className="absolute left-1/2 -translate-x-1/2 text-[11px] font-medium text-gray-400 truncate max-w-[40%] text-center">{row.detail}</span>}
-                <span className="font-bold font-inter text-gray-900 shrink-0">{renderValue(row.value)}</span>
+              <div key={row.id ?? row.label} className="flex items-center justify-between border border-gray-400 rounded-md px-3 py-2 bg-white">
+                <span className="flex items-baseline gap-1.5 min-w-0">
+                  <span className="font-semibold text-[13px] text-gray-600 shrink-0">{row.label}</span>
+                  {row.detail && <span className="text-[11px] font-medium text-gray-400 truncate">{row.detail}</span>}
+                </span>
+                <span className="font-bold font-inter text-gray-900 shrink-0 pl-2">{renderValue(row.value)}</span>
               </div>
             ))}
           </div>
         ) : (
           <div className="w-full border border-gray-300 rounded-lg bg-white divide-y divide-gray-200 overflow-hidden">
             {rows.map((row) => (
-              <div key={row.id ?? row.label} className="flex items-center justify-between px-3 py-2 text-[13px] relative">
-                <span className="font-semibold text-gray-600 shrink-0">{row.label}</span>
-                {row.detail && <span className="absolute left-1/2 -translate-x-1/2 text-[11px] font-medium text-gray-400 truncate max-w-[40%] text-center">{row.detail}</span>}
-                <span className="font-bold font-inter text-gray-900 shrink-0">{renderValue(row.value)}</span>
+              <div key={row.id ?? row.label} className="flex items-center justify-between px-3 py-2 text-[13px]">
+                <span className="flex items-baseline gap-1.5 min-w-0">
+                  <span className="font-semibold text-gray-600 shrink-0">{row.label}</span>
+                  {row.detail && <span className="text-[11px] font-medium text-gray-400 truncate">{row.detail}</span>}
+                </span>
+                <span className="font-bold font-inter text-gray-900 shrink-0 pl-2">{renderValue(row.value)}</span>
               </div>
             ))}
           </div>
@@ -382,8 +445,100 @@ export function RawMaterialCard({
               </div>
             ))}
           </div>
-        ) : <span className="text-xs text-gray-400 italic">{emptyMessage}</span>}
+        ) : (
+          emptyMessage && <p className="text-sm italic text-gray-400 mt-2 text-center">{emptyMessage}</p>
+        )}
       </div>
     </div>
+  );
+}
+
+export interface ExtruderSummaryCardRow {
+  color: string;
+  production: number;
+  uniqueSizeCount: number;
+  chemicals: {
+    chemical: string;
+    production: number;
+    sizes: { size: string; production: number }[];
+  }[];
+}
+
+export interface ExtruderSummaryCardProps {
+  title: string;
+  total: number;
+  rows: ExtruderSummaryCardRow[];
+  theme: ProductionSummaryCardTheme;
+  rowLabelClassName?: string;
+}
+
+export function ExtruderSummaryCard({ title, total, rows, theme, rowLabelClassName = 'text-[13.5px]' }: ExtruderSummaryCardProps) {
+  return (
+    <Card className={`${theme.cardBg} border ${theme.cardBorder} rounded-[14px] hover:shadow-md transition-all flex flex-col gap-0 h-full py-0`}>
+      <CardHeader className="flex flex-row items-center justify-between pb-2 pt-2 px-3">
+        <CardTitle className={`text-[15px] font-bold ${theme.titleColor}`}>{title}</CardTitle>
+        <span className={`text-[12px] font-bold whitespace-nowrap ${theme.totalColor}`}>
+          Total : <span className="font-inter">{formatNum(total)}</span> kg
+        </span>
+      </CardHeader>
+      <CardContent className="px-2 pb-2 flex-1 flex flex-col">
+        {rows.filter(row => row.production > 0 || row.chemicals.length > 0).length === 0 ? (
+          <div className="flex-1 flex items-center justify-center py-4">
+            <p className="text-xs text-gray-400 italic">No production recorded yet.</p>
+          </div>
+        ) : (
+          <div className="w-full">
+            <div className="space-y-2">
+              {rows.filter(row => row.production > 0 || row.chemicals.length > 0).map((row) => {
+                const allSizes = Array.from(new Set(row.chemicals.flatMap(c => c.sizes.map(s => s.size)))).sort((a, b) => a.localeCompare(b));
+                return (
+                  <div key={row.color} className="flex flex-col border border-gray-400 rounded-md p-2 bg-white gap-2">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-2">
+                        <span className={`font-semibold ${rowLabelClassName} ${deliveryColorClass(row.color)} shrink-0`}>{row.color}</span>
+
+                      </div>
+                      <span className="font-bold font-inter text-[12px] text-gray-900 shrink-0">{formatNum(row.production)} kg</span>
+                    </div>
+
+                    {row.chemicals.length > 0 && (
+                      <div className="flex flex-col gap-1.5 border-t border-gray-100 pt-1.5 overflow-x-auto">
+                        {allSizes.length > 0 && (
+                          <div className="flex flex-row items-center px-1">
+                            <div className="w-[72px] shrink-0"></div>
+                            <div className="flex-1 flex flex-row items-center justify-between gap-1 min-w-max">
+                              {allSizes.map(size => (
+                                <span key={size} className="text-[11px] text-gray-500 font-bold uppercase w-16 text-center tracking-wide">{size}</span>
+                              ))}
+                            </div>
+                          </div>
+                        )}
+                        <div className="flex flex-col gap-1.5">
+                          {row.chemicals.map(chem => (
+                            <div key={chem.chemical} className="flex flex-row items-center border border-gray-200 rounded p-1.5 bg-[#f8fafc]">
+                              <span className="w-[72px] shrink-0 text-[12px] font-bold text-gray-600 uppercase tracking-wide">{chem.chemical}</span>
+                              <div className="flex-1 flex flex-row items-center justify-between gap-1 min-w-max">
+                                {allSizes.map(size => {
+                                  const s = chem.sizes.find(x => x.size === size);
+                                  return (
+                                    <span key={size} className="text-[12px] font-inter font-bold text-gray-800 w-16 text-center">
+                                      {s ? formatNum(s.production) : '-'}
+                                    </span>
+                                  );
+                                })}
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        )}
+      </CardContent>
+    </Card>
   );
 }
