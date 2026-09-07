@@ -828,11 +828,11 @@ export function ProductionDesign2() {
                 <CardContent className="px-3 pt-0 flex-1 flex flex-col justify-between">
                   <div className="flex border border-gray-100 rounded-lg mb-4 bg-white overflow-hidden">
                     <div className="flex-1 border-r border-gray-100 px-2 sm:px-3 py-3 flex flex-col justify-center">
-                      <p className="text-[10.5px] font-extrabold uppercase tracking-wide text-gray-600 mb-1.5 whitespace-nowrap">TOTAL PRODUCTION (KG)</p>
-                      <p className="text-[18px] font-bold text-[#004D40] leading-none font-inter text-center">{formatNum(extruderSummary.output)}</p>
+                      <p className="text-[10.5px] font-extrabold uppercase tracking-wide text-gray-600 mb-1.5 whitespace-nowrap text-center">TOTAL PRODUCTION (KG)</p>
+                      <p className="text-[18px] font-bold text-[#004D40] leading-none font-inter !text-center">{formatNum(extruderSummary.output)}</p>
                     </div>
                     <div className="flex-1 border-r border-gray-100 px-2 sm:px-3 py-3 flex flex-col justify-center">
-                      <p className="text-[10.5px] font-extrabold uppercase tracking-wide text-gray-600 mb-1.5 whitespace-nowrap">TOTAL WASTAGE (KG)</p>
+                      <p className="text-[10.5px] font-extrabold uppercase tracking-wide text-gray-600 mb-1.5 whitespace-nowrap text-center">TOTAL WASTAGE (KG)</p>
                       <p className="text-[17px] font-bold text-[#004D40] leading-none font-inter text-center">{formatNum(extruderSummary.wastage)}</p>
                     </div>
                     <div className="flex-1 px-2 sm:px-3 py-3 flex flex-col justify-center">
@@ -858,11 +858,11 @@ export function ProductionDesign2() {
                 <CardContent className="px-3 pt-0 flex-1 flex flex-col justify-between">
                   <div className="flex border border-gray-100 rounded-lg mb-4 bg-white overflow-hidden">
                     <div className="flex-1 border-r border-gray-100 px-2 sm:px-3 py-3 flex flex-col justify-center">
-                      <p className="text-[10.5px] font-extrabold uppercase tracking-wide text-gray-600 mb-1.5 whitespace-nowrap">TOTAL PRODUCTION (KG)</p>
+                      <p className="text-[10.5px] font-extrabold uppercase tracking-wide text-gray-600 mb-1.5 whitespace-nowrap text-center">TOTAL PRODUCTION (KG)</p>
                       <p className="text-[18px] font-bold text-[#004D40] leading-none font-inter text-center">{loomsSummary.output.toFixed(2)}</p>
                     </div>
                     <div className="flex-1 border-r border-gray-100 px-2 sm:px-3 py-3 flex flex-col justify-center">
-                      <p className="text-[10.5px] font-extrabold uppercase tracking-wide text-gray-600 mb-1.5 whitespace-nowrap">TOTAL WASTAGE (KG)</p>
+                      <p className="text-[10.5px] font-extrabold uppercase tracking-wide text-gray-600 mb-1.5 whitespace-nowrap text-center">TOTAL WASTAGE (KG)</p>
                       <p className="text-[17px] font-bold text-[#004D40] leading-none font-inter text-center">{loomsSummary.wastage.toFixed(2)}</p>
                     </div>
                     <div className="flex-1 px-2 sm:px-3 py-3 flex flex-col justify-center">
@@ -888,11 +888,11 @@ export function ProductionDesign2() {
                 <CardContent className="px-3 pt-0 flex-1 flex flex-col justify-between">
                   <div className="flex border border-gray-100 rounded-lg mb-4 bg-white overflow-hidden">
                     <div className="flex-1 border-r border-gray-100 px-2 sm:px-3 py-3 flex flex-col justify-center">
-                      <p className="text-[10.5px] font-extrabold uppercase tracking-wide text-gray-600 mb-1.5 whitespace-nowrap">TOTAL PRODUCTION (KG)</p>
+                      <p className="text-[10.5px] font-extrabold uppercase tracking-wide text-gray-600 mb-1.5 whitespace-nowrap text-center">TOTAL PRODUCTION (KG)</p>
                       <p className="text-[18px] font-bold text-[#004D40] leading-none font-inter text-center">{fabricSummary.checked.toFixed(2)}</p>
                     </div>
                     <div className="flex-1 border-r border-gray-100 px-2 sm:px-3 py-3 flex flex-col justify-center">
-                      <p className="text-[10.5px] font-extrabold uppercase tracking-wide text-gray-600 mb-1.5 whitespace-nowrap">TOTAL WASTAGE (KG)</p>
+                      <p className="text-[10.5px] font-extrabold uppercase tracking-wide text-gray-600 mb-1.5 whitespace-nowrap text-center">TOTAL WASTAGE (KG)</p>
                       <p className="text-[17px] font-bold text-[#004D40] leading-none font-inter text-center">{fabricSummary.wastage.toFixed(2)}</p>
                     </div>
                     <div className="flex-1 px-2 sm:px-3 py-3 flex flex-col justify-center">

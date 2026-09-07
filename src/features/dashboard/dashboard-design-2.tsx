@@ -10,7 +10,9 @@ import { useAuth } from '@/features/auth/auth-context';
 import { currentMonthStr as todayMonthStr } from '@/lib/date-utils';
 import { useOpeningBalanceWastage, useOpeningBalanceFabricStock, useOpeningBalanceRawMaterials } from '@/features/admin-panel/opening-balance-queries';
 import { useExtruderProductions } from '@/features/extruder/extruder-queries';
-import { ProductionSummaryCard, DetailBreakdownCard, SectionSummaryCard, RawMaterialsSection, RawMaterialCard } from './card';
+import { useLoomsProductions } from '@/features/looms/loom-queries';
+import { useFabricCheckingRecords } from '@/features/fabric/fabric-queries';
+import { DetailBreakdownCard, WasteVariantCard, SectionSummaryCard, RawMaterialsSection, RawMaterialCard, ExtruderSummaryCard } from './card';
 import { DashboardReportModal } from './dashboard-report-modal';
 import { DashboardWastageReportModal } from './dashboard-wastage-report-modal';
 import { Button } from '@/components/ui/button';
@@ -29,6 +31,19 @@ function fabricStockCardTheme(color: string): { bg: string; border: string; swat
   if (normalizedColor === 'blue') return { bg: 'bg-[#0088CC]/5', border: 'border-[#B8DCEF]', swatch: 'bg-[#0088CC]' };
   if (normalizedColor === 'green') return { bg: 'bg-[#5BA300]/5', border: 'border-[#D2E6B8]', swatch: 'bg-[#5BA300]' };
   return { bg: 'bg-gray-100/60', border: 'border-gray-300', swatch: 'bg-gray-500' };
+}
+
+// Converts one buildExtruderSummaryRows() color row into DetailBreakdownCard's `table` shape
+// (chemical rows x size columns) — used by Yarn Balance / Kora Balance / Fabric Stock /
+// Fabric Delivered so a color that used more than one chemical shows each one separately,
+// instead of a single blended-by-size total.
+function toChemicalTable(colorRow: { chemicals: { chemical: string; sizes: { size: string; production: number }[] }[] }) {
+  const columns = Array.from(new Set(colorRow.chemicals.flatMap((c) => c.sizes.map((s) => s.size)))).sort((a, b) => a.localeCompare(b));
+  const rows = colorRow.chemicals.map((c) => ({
+    label: c.chemical,
+    values: Object.fromEntries(c.sizes.map((s) => [s.size, s.production])),
+  }));
+  return { columns, rows };
 }
 
 const FABRIC_STOCK_SIZES = ['150cm', '160cm', '170cm', '180cm', '190cm'] as const;
@@ -55,21 +70,60 @@ export function DashboardDesign2() {
 
   // Chemical used per color, for the Extruder Production card's middle column —
   // the monthly dashboard aggregation has no per-color chemical field, so this
-  // is derived from the raw extruder production records instead.
-  const { data: extruderProductionsRes } = useExtruderProductions('?limit=100');
-  const monthExtruderRecords = (extruderProductionsRes?.data ?? []).filter(r => r.productionDate?.startsWith(currentMonthStr));
-  const chemicalNamesByColor = new Map<string, Set<string>>();
-  monthExtruderRecords.forEach(r => {
-    const colorName = r.color?.name;
-    const chemicalName = r.extruder?.chemical?.name;
-    if (!colorName || !chemicalName) return;
-    const normalized = colorName.charAt(0).toUpperCase() + colorName.slice(1).toLowerCase();
-    if (!chemicalNamesByColor.has(normalized)) chemicalNamesByColor.set(normalized, new Set());
-    chemicalNamesByColor.get(normalized)!.add(chemicalName);
-  });
-  const chemicalDetailForColor = (color: string): string | undefined => {
-    const names = chemicalNamesByColor.get(color);
-    return names && names.size > 0 ? Array.from(names).join(', ') : undefined;
+  // is derived from the raw extruder production records instead. Fetched once per
+  // type (PRODUCTION vs SAMPLE) so the two tabs' chemical breakdowns never mix.
+  const { data: extruderProductionsRes } = useExtruderProductions('?limit=100&type=PRODUCTION');
+  const { data: sampleExtruderProductionsRes } = useExtruderProductions('?limit=100&type=SAMPLE');
+  const { data: loomsProductionsRes } = useLoomsProductions('?limit=100&type=PRODUCTION');
+  const { data: sampleLoomsProductionsRes } = useLoomsProductions('?limit=100&type=SAMPLE');
+  const { data: fabricCheckingRes } = useFabricCheckingRecords('?limit=100&type=PRODUCTION');
+  const { data: sampleFabricCheckingRes } = useFabricCheckingRecords('?limit=100&type=SAMPLE');
+
+  
+
+
+  const buildSummaryRows = (records: any[], byColorSummary: any[], stage: 'extruder' | 'looms' | 'fabric') => {
+    return FABRIC_COLORS.map(color => {
+      const stageRecords = records.filter((r: any) => r.color?.name?.toLowerCase() === color.toLowerCase() && r.productionDate?.startsWith(currentMonthStr));
+      
+      const uniqueSizes = new Set<string>();
+      const chemMap = new Map<string, { total: number, sizes: Map<string, number> }>();
+      
+      stageRecords.forEach((r: any) => {
+         const chemical = r.chemical?.name || r.extruder?.chemical?.name || 'Unknown';
+         const size = r.size?.name;
+         
+         let output = 0;
+         if (stage === 'extruder') output = r.extruder?.yarnOutputKg ?? 0;
+         if (stage === 'looms') output = r.loom?.fabricOutputKg ?? 0;
+         if (stage === 'fabric') output = r.fabricCheck?.outputKg ?? 0;
+
+         if (!size) return;
+         
+         uniqueSizes.add(size);
+         
+         if (!chemMap.has(chemical)) chemMap.set(chemical, { total: 0, sizes: new Map() });
+         const entry = chemMap.get(chemical)!;
+         entry.total += output;
+         entry.sizes.set(size, (entry.sizes.get(size) ?? 0) + output);
+      });
+
+      const chemicals = Array.from(chemMap.entries()).map(([chemical, entry]) => ({
+        chemical,
+        production: entry.total,
+        sizes: Array.from(entry.sizes.entries()).map(([size, production]) => ({ size, production })).sort((a,b) => a.size.localeCompare(b.size))
+      })).sort((a,b) => a.chemical.localeCompare(b.chemical));
+
+      const summaryRecord = byColorSummary.find((s: any) => s.color.name === color);
+      const backendTotal = summaryRecord?.production ?? 0;
+
+      return {
+        color,
+        production: backendTotal,
+        uniqueSizeCount: uniqueSizes.size,
+        chemicals
+      };
+    });
   };
 
   const { data: obRawMaterialsRes } = useOpeningBalanceRawMaterials('?limit=100');
@@ -131,6 +185,121 @@ export function DashboardDesign2() {
 
   const { data: obFabricStockRes } = useOpeningBalanceFabricStock('?limit=100');
   const obFabricStock = obFabricStockRes?.data || [];
+const buildExtruderSummaryRows = (dataMap: Map<string, any>) => {
+    return FABRIC_COLORS.map(color => {
+      let colorTotal = 0;
+      const chemMap = new Map<string, { total: number, sizes: Map<string, number> }>();
+      const uniqueSizes = new Set<string>();
+
+      dataMap.forEach((entry, key) => {
+        const parts = key.split('_');
+        if (parts[0] !== color && parts[0] !== color.charAt(0).toUpperCase() + color.slice(1).toLowerCase()) return;
+        const size = parts[1];
+        const chemical = parts[2] && parts[2] !== 'null' ? parts[2] : 'Unknown';
+        
+        const output = entry.balance ?? entry.availableFabricStockKg ?? entry.kg ?? 0;
+        if (output <= 0) return;
+
+        colorTotal += output;
+        uniqueSizes.add(size);
+
+        if (!chemMap.has(chemical)) chemMap.set(chemical, { total: 0, sizes: new Map() });
+        const chemEntry = chemMap.get(chemical)!;
+        chemEntry.total += output;
+        chemEntry.sizes.set(size, (chemEntry.sizes.get(size) ?? 0) + output);
+      });
+
+      const chemicals = Array.from(chemMap.entries()).map(([chem, entry]) => ({
+        chemical: chem,
+        production: entry.total,
+        sizes: Array.from(entry.sizes.entries()).map(([s, p]) => ({ size: s, production: p })).sort((a,b) => a.size.localeCompare(b.size))
+      })).sort((a,b) => a.chemical.localeCompare(b.chemical));
+
+      return {
+        color,
+        production: colorTotal,
+        uniqueSizeCount: uniqueSizes.size,
+        chemicals
+      };
+    });
+  };
+
+  // Build Balance Rows Map
+  const yarnBalanceMap = new Map<string, any>();
+  const koraBalanceMap = new Map<string, any>();
+  const fabricStockMap = new Map<string, any>();
+  const fabricDeliveredMap = new Map<string, any>();
+
+  // Process Yarn Balance
+  extruderProductionsRes?.data?.forEach((r: any) => {
+    const c = r.color?.name?.charAt(0).toUpperCase() + r.color?.name?.slice(1).toLowerCase();
+    const s = r.size?.name;
+    const ch = r.chemical?.name || r.extruder?.chemical?.name || 'Unknown';
+    if (!c || !s) return;
+    const key = `${c}_${s}_${ch}`;
+    yarnBalanceMap.set(key, { balance: (yarnBalanceMap.get(key)?.balance || 0) + (r.extruder?.yarnOutputKg || 0) });
+  });
+  loomsProductionsRes?.data?.forEach((r: any) => {
+    const c = r.color?.name?.charAt(0).toUpperCase() + r.color?.name?.slice(1).toLowerCase();
+    const s = r.size?.name;
+    const ch = r.loom?.chemical?.name || 'Unknown';
+    if (!c || !s) return;
+    const key = `${c}_${s}_${ch}`;
+    yarnBalanceMap.set(key, { balance: (yarnBalanceMap.get(key)?.balance || 0) - ((r.loom?.fabricOutputKg || 0) + (r.wastage?.totalWasteKg || 0)) });
+  });
+
+  // Process Kora Balance
+  obFabricStock.forEach((r: any) => {
+    const c = r.color?.name?.charAt(0).toUpperCase() + r.color?.name?.slice(1).toLowerCase();
+    const s = r.size?.name;
+    const ch = r.chemical?.name || 'Unknown';
+    if (!c || !s) return;
+    const key = `${c}_${s}_${ch}`;
+    koraBalanceMap.set(key, { balance: (koraBalanceMap.get(key)?.balance || 0) + (r.koraBalanceKg || 0) });
+  });
+  loomsProductionsRes?.data?.forEach((r: any) => {
+    const c = r.color?.name?.charAt(0).toUpperCase() + r.color?.name?.slice(1).toLowerCase();
+    const s = r.size?.name;
+    const ch = r.loom?.chemical?.name || 'Unknown';
+    if (!c || !s) return;
+    const key = `${c}_${s}_${ch}`;
+    koraBalanceMap.set(key, { balance: (koraBalanceMap.get(key)?.balance || 0) + (r.loom?.fabricOutputKg || 0) });
+  });
+  fabricCheckingRes?.data?.forEach((r: any) => {
+    const c = r.color?.name?.charAt(0).toUpperCase() + r.color?.name?.slice(1).toLowerCase();
+    const s = r.size?.name;
+    const ch = r.chemical?.name || 'Unknown';
+    if (!c || !s) return;
+    const key = `${c}_${s}_${ch}`;
+    koraBalanceMap.set(key, { balance: (koraBalanceMap.get(key)?.balance || 0) - (r.fabricCheck?.outputKg || 0) });
+  });
+
+  // Process Fabric Stock
+  (dashboardData?.stockBalance || []).forEach((r: any) => {
+    const c = r.color?.name?.charAt(0).toUpperCase() + r.color?.name?.slice(1).toLowerCase();
+    const s = r.size?.name;
+    const ch = r.chemical?.name || 'Unknown';
+    if (!c || !s) return;
+    const key = `${c}_${s}_${ch}`;
+    fabricStockMap.set(key, { availableFabricStockKg: (fabricStockMap.get(key)?.availableFabricStockKg || 0) + (r.availableFabricStockKg || 0) });
+  });
+
+  // Process Fabric Delivered
+  (dashboardData?.loadSent?.items || []).forEach((r: any) => {
+    const c = r.color?.name?.charAt(0).toUpperCase() + r.color?.name?.slice(1).toLowerCase();
+    const s = r.size?.name;
+    const ch = r.chemical?.name || 'Unknown';
+    if (!c || !s) return;
+    const key = `${c}_${s}_${ch}`;
+    fabricDeliveredMap.set(key, { kg: (fabricDeliveredMap.get(key)?.kg || 0) + (r.loadSent?.fabricWeight || 0) });
+  });
+
+  const yarnBalanceColorRows = buildExtruderSummaryRows(yarnBalanceMap);
+  const koraBalanceColorRows = buildExtruderSummaryRows(koraBalanceMap);
+  const fabricStockColorRows = buildExtruderSummaryRows(fabricStockMap);
+  const fabricDeliveredColorRows = buildExtruderSummaryRows(fabricDeliveredMap);
+
+
 
   const obWastageByColor = new Map<string, { lums: number, loose: number, looms: number, fw: number, bw: number }>();
 
@@ -179,14 +348,7 @@ export function DashboardDesign2() {
     yarnWaste: row.sizes.reduce((sum, s) => sum + s.yarnWaste, 0),
   }));
 
-  const extruderSummaryByColor = FABRIC_COLORS.map(color => {
-    const r = extruderByColorMap.get(color);
-    return {
-      color,
-      production: r?.production ?? 0,
-      detail: chemicalDetailForColor(color),
-    };
-  });
+  const extruderColorRows = buildSummaryRows(extruderProductionsRes?.data ?? [], dashboardData?.extruderProduction?.byColor || [], 'extruder');
   const extruderGrandTotal = dashboardData?.extruderProduction?.overall.production || 0;
 
   const loomsByColorMap = new Map((dashboardData?.loomsProduction?.byColor || []).map(r => [r.color.name, r]));
@@ -206,10 +368,7 @@ export function DashboardDesign2() {
     return { color, sizes };
   });
 
-  const loomsSummaryByColor = FABRIC_COLORS.map(color => {
-    const r = loomsByColorMap.get(color);
-    return { color, production: r?.production ?? 0 };
-  });
+  const loomsColorRows = buildSummaryRows(loomsProductionsRes?.data ?? [], dashboardData?.loomsProduction?.byColor || [], 'looms');
   const loomsGrandTotal = dashboardData?.loomsProduction?.overall.production || 0;
 
   const fabricByColorMap = new Map((dashboardData?.fabricProduction.byColor || []).map(r => [r.color.name, r]));
@@ -235,15 +394,7 @@ export function DashboardDesign2() {
     return { color, sizes };
   });
 
-  const fabricSummaryByColor = FABRIC_COLORS.map(color => {
-    const r = fabricByColorMap.get(color);
-    return {
-      color,
-      production: r?.production ?? 0,
-      waste: (r?.fwWasteKg ?? 0) + (r?.bwWasteKg ?? 0),
-      total: r?.total ?? 0,
-    };
-  });
+  const fabricColorRows = buildSummaryRows(fabricCheckingRes?.data ?? [], dashboardData?.fabricProduction?.byColor || [], 'fabric');
   const fabricGrandTotal = dashboardData?.fabricProduction.overall.outputKg || 0;
 
   // Fabric Stock — no persisted "current stock" field exists anywhere in the API
@@ -362,28 +513,18 @@ export function DashboardDesign2() {
   const { dashboardData: sampleDashboardData, isLoading: loadingSampleDashboard } = useMonthlyDashboard(currentMonthStr, 'SAMPLE');
 
   const sampleExtruderByColorMap = new Map((sampleDashboardData?.extruderProduction?.byColor || []).map(r => [r.color.name, r]));
-  const sampleExtruderSummaryByColor = FABRIC_COLORS.map(color => ({
-    color,
-    production: sampleExtruderByColorMap.get(color)?.production ?? 0,
-  }));
+  const sampleExtruderColorRows = buildSummaryRows(sampleExtruderProductionsRes?.data ?? [], sampleDashboardData?.extruderProduction?.byColor || [], 'extruder');
   const sampleExtruderGrandTotal = sampleDashboardData?.extruderProduction?.overall.production || 0;
 
   const sampleLoomsByColorMap = new Map((sampleDashboardData?.loomsProduction?.byColor || []).map(r => [r.color.name, r]));
-  const sampleLoomsSummaryByColor = FABRIC_COLORS.map(color => ({
-    color,
-    production: sampleLoomsByColorMap.get(color)?.production ?? 0,
-  }));
+  const sampleLoomsColorRows = buildSummaryRows(sampleLoomsProductionsRes?.data ?? [], sampleDashboardData?.loomsProduction?.byColor || [], 'looms');
   const sampleLoomsGrandTotal = sampleDashboardData?.loomsProduction?.overall.production || 0;
 
-  const sampleFabricByColorMap = new Map((sampleDashboardData?.fabricProduction.byColor || []).map(r => [r.color.name, r]));
   const sampleFabricInputByColorMap = new Map<string, number>();
   (sampleDashboardData?.fabricProduction.byVariant || []).forEach(r => {
     sampleFabricInputByColorMap.set(r.color.name, (sampleFabricInputByColorMap.get(r.color.name) ?? 0) + r.fabricInputKg);
   });
-  const sampleFabricSummaryByColor = FABRIC_COLORS.map(color => ({
-    color,
-    production: sampleFabricByColorMap.get(color)?.production ?? 0,
-  }));
+  const sampleFabricColorRows = buildSummaryRows(sampleFabricCheckingRes?.data ?? [], sampleDashboardData?.fabricProduction?.byColor || [], 'fabric');
   const sampleFabricGrandTotal = sampleDashboardData?.fabricProduction.overall.outputKg || 0;
 
   // Yarn Balance = Extruder yarn output − yarn consumed by Looms — same formula as Production,
@@ -463,34 +604,98 @@ export function DashboardDesign2() {
   });
   const sampleSelectedMonthDeliveryTotal = sampleDashboardData?.loadSent.totals.fabricWeightKg || 0;
 
+  // Chemical(rows) x size(columns) breakdown for the Sample Production tab's Yarn Balance /
+  // Kora Balance / Fabric Stock / Fabric Delivered — same shape and same map-building approach
+  // as the Production Summary tab's yarnBalanceMap/koraBalanceMap/fabricStockMap/fabricDeliveredMap
+  // above, just sourced from type=SAMPLE records and with no Opening Balance term (samples carry
+  // no OB, same as the plain balance figures elsewhere in this tab).
+  const sampleYarnBalanceMap = new Map<string, any>();
+  const sampleKoraBalanceMap = new Map<string, any>();
+  const sampleFabricStockMap = new Map<string, any>();
+  const sampleFabricDeliveredMap = new Map<string, any>();
+
+  sampleExtruderProductionsRes?.data?.forEach((r: any) => {
+    const c = r.color?.name?.charAt(0).toUpperCase() + r.color?.name?.slice(1).toLowerCase();
+    const s = r.size?.name;
+    const ch = r.chemical?.name || r.extruder?.chemical?.name || 'Unknown';
+    if (!c || !s) return;
+    const key = `${c}_${s}_${ch}`;
+    sampleYarnBalanceMap.set(key, { balance: (sampleYarnBalanceMap.get(key)?.balance || 0) + (r.extruder?.yarnOutputKg || 0) });
+  });
+  sampleLoomsProductionsRes?.data?.forEach((r: any) => {
+    const c = r.color?.name?.charAt(0).toUpperCase() + r.color?.name?.slice(1).toLowerCase();
+    const s = r.size?.name;
+    const ch = r.loom?.chemical?.name || 'Unknown';
+    if (!c || !s) return;
+    const key = `${c}_${s}_${ch}`;
+    sampleYarnBalanceMap.set(key, { balance: (sampleYarnBalanceMap.get(key)?.balance || 0) - ((r.loom?.fabricOutputKg || 0) + (r.wastage?.totalWasteKg || 0)) });
+  });
+
+  sampleLoomsProductionsRes?.data?.forEach((r: any) => {
+    const c = r.color?.name?.charAt(0).toUpperCase() + r.color?.name?.slice(1).toLowerCase();
+    const s = r.size?.name;
+    const ch = r.loom?.chemical?.name || 'Unknown';
+    if (!c || !s) return;
+    const key = `${c}_${s}_${ch}`;
+    sampleKoraBalanceMap.set(key, { balance: (sampleKoraBalanceMap.get(key)?.balance || 0) + (r.loom?.fabricOutputKg || 0) });
+  });
+  sampleFabricCheckingRes?.data?.forEach((r: any) => {
+    const c = r.color?.name?.charAt(0).toUpperCase() + r.color?.name?.slice(1).toLowerCase();
+    const s = r.size?.name;
+    const ch = r.chemical?.name || 'Unknown';
+    if (!c || !s) return;
+    const key = `${c}_${s}_${ch}`;
+    sampleKoraBalanceMap.set(key, { balance: (sampleKoraBalanceMap.get(key)?.balance || 0) - (r.fabricCheck?.outputKg || 0) });
+  });
+
+  (sampleDashboardData?.stockBalance || []).forEach((r: any) => {
+    const c = r.color?.name?.charAt(0).toUpperCase() + r.color?.name?.slice(1).toLowerCase();
+    const s = r.size?.name;
+    const ch = r.chemical?.name || 'Unknown';
+    if (!c || !s) return;
+    const key = `${c}_${s}_${ch}`;
+    sampleFabricStockMap.set(key, { availableFabricStockKg: (sampleFabricStockMap.get(key)?.availableFabricStockKg || 0) + (r.availableFabricStockKg || 0) });
+  });
+
+  (sampleDashboardData?.loadSent?.items || []).forEach((r: any) => {
+    const c = r.color?.name?.charAt(0).toUpperCase() + r.color?.name?.slice(1).toLowerCase();
+    const s = r.size?.name;
+    const ch = r.chemical?.name || 'Unknown';
+    if (!c || !s) return;
+    const key = `${c}_${s}_${ch}`;
+    sampleFabricDeliveredMap.set(key, { kg: (sampleFabricDeliveredMap.get(key)?.kg || 0) + (r.loadSent?.fabricWeight || 0) });
+  });
+
+  const sampleYarnBalanceColorRows = buildExtruderSummaryRows(sampleYarnBalanceMap);
+  const sampleKoraBalanceColorRows = buildExtruderSummaryRows(sampleKoraBalanceMap);
+  const sampleFabricStockColorRows = buildExtruderSummaryRows(sampleFabricStockMap);
+  const sampleFabricDeliveredColorRows = buildExtruderSummaryRows(sampleFabricDeliveredMap);
+
   // Production Summary / Fabric Stock / Fabric Delivered — shared verbatim between the
   // "Production Summary" and "Sample Production" tabs at the user's request.
   const renderProductionSummary = () => (
     <>
       {/* Production Summary (Extruder / Looms / Fabric) */}
-      <div className="font-hanken bg-white rounded-2xl border border-gray-400 shadow-sm p-2">
+      <div className="font-hanken w-full bg-white rounded-2xl border border-gray-400 shadow-sm p-2">
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-2.5">
-          <ProductionSummaryCard
+          <ExtruderSummaryCard
             title="Extruder Production"
             total={extruderGrandTotal}
-            rows={extruderSummaryByColor}
-            rowLabelClassName="text-[13.5px]"
+            rows={extruderColorRows}
             theme={{ cardBg: 'bg-[#00897B]/5', cardBorder: 'border-[#B8DCD0]', titleColor: 'text-[#0B5566]', totalColor: 'text-[#0B5566]' }}
           />
 
-          <ProductionSummaryCard
+          <ExtruderSummaryCard
             title="Looms Production"
             total={loomsGrandTotal}
-            rows={loomsSummaryByColor}
-            rowLabelClassName="text-[13px]"
+            rows={loomsColorRows}
             theme={{ cardBg: 'bg-[#004D40]/5', cardBorder: 'border-[#B8D8D5]', titleColor: 'text-[#7A6A00]', totalColor: 'text-[#7A6A00]' }}
           />
 
-          <ProductionSummaryCard
+          <ExtruderSummaryCard
             title="Fabric Checking"
             total={fabricGrandTotal}
-            rows={fabricSummaryByColor}
-            rowLabelClassName="text-[13px]"
+            rows={fabricColorRows}
             theme={{ cardBg: 'bg-[#004D40]/5', cardBorder: 'border-[#C5D8C2]', titleColor: 'text-[#2F6B2F]', totalColor: 'text-[#2F6B2F]' }}
           />
         </div>
@@ -506,15 +711,16 @@ export function DashboardDesign2() {
           {yarnBalanceByVariant.map((row) => {
             const theme = fabricStockCardTheme(row.color);
             const colorTotal = yarnBalanceByColor.find((r) => r.color === row.color)?.balance ?? 0;
+            const colorRow = yarnBalanceColorRows.find((r) => r.color === row.color);
             return (
               <DetailBreakdownCard
                 key={row.color}
                 title={row.color}
                 total={colorTotal}
                 theme={{ cardBg: theme.bg, cardBorder: theme.border, labelColor: deliveryColorClass(row.color) }}
-                rows={row.sizes.filter((s) => s.balance > 0).map((s) => ({ label: s.size, value: s.balance, detail: chemicalDetailForColor(row.color) }))}
+                rows={[]}
+                table={colorRow ? toChemicalTable(colorRow) : { columns: [], rows: [] }}
                 emptyMessage="No yarn balance recorded yet."
-                layout="boxed"
               />
             );
           })}
@@ -531,15 +737,16 @@ export function DashboardDesign2() {
           {koraBalanceByVariant.map((row) => {
             const theme = fabricStockCardTheme(row.color);
             const colorTotal = koraBalanceByColor.find((r) => r.color === row.color)?.balance ?? 0;
+            const colorRow = koraBalanceColorRows.find((r) => r.color === row.color);
             return (
               <DetailBreakdownCard
                 key={row.color}
                 title={row.color}
                 total={colorTotal}
                 theme={{ cardBg: theme.bg, cardBorder: theme.border, labelColor: deliveryColorClass(row.color) }}
-                rows={row.sizes.filter((s) => s.balance > 0).map((s) => ({ label: s.size, value: s.balance, detail: chemicalDetailForColor(row.color) }))}
+                rows={[]}
+                table={colorRow ? toChemicalTable(colorRow) : { columns: [], rows: [] }}
                 emptyMessage="No kora balance recorded yet."
-                layout="boxed"
               />
             );
           })}
@@ -549,7 +756,7 @@ export function DashboardDesign2() {
       {/* Fabric Stock (own horizontal section) */}
       <div className="w-full">
         <FabricStockCard
-          rows={fabricStockByColor.map((row) => ({ ...row, detail: chemicalDetailForColor(row.color) }))}
+          rows={fabricStockColorRows}
           total={totalFabricStockKg}
         />
       </div>
@@ -565,13 +772,15 @@ export function DashboardDesign2() {
         >
           {monthDeliveriesByColor.map((row) => {
             const theme = fabricStockCardTheme(row.color);
+            const colorRow = fabricDeliveredColorRows.find((r) => r.color === row.color);
             return (
               <DetailBreakdownCard
                 key={row.color}
                 title={row.color}
                 total={row.total}
                 theme={{ cardBg: theme.bg, cardBorder: theme.border, labelColor: deliveryColorClass(row.color) }}
-                rows={row.deliveries.map((d) => ({ id: d.id, label: d.size, value: d.kg, detail: chemicalDetailForColor(row.color) }))}
+                rows={[]}
+                table={colorRow ? toChemicalTable(colorRow) : { columns: [], rows: [] }}
                 emptyMessage="No deliveries recorded yet."
               />
             );
@@ -589,27 +798,24 @@ export function DashboardDesign2() {
       {/* Production Summary (Extruder / Looms / Fabric) */}
       <div className="font-hanken bg-white rounded-2xl border border-gray-400 shadow-sm p-2">
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-2.5">
-          <ProductionSummaryCard
+          <ExtruderSummaryCard
             title="Extruder Production"
             total={sampleExtruderGrandTotal}
-            rows={sampleExtruderSummaryByColor}
-            rowLabelClassName="text-[13.5px]"
+            rows={sampleExtruderColorRows}
             theme={{ cardBg: 'bg-[#00897B]/5', cardBorder: 'border-[#B8DCD0]', titleColor: 'text-[#0B5566]', totalColor: 'text-[#0B5566]' }}
           />
 
-          <ProductionSummaryCard
+          <ExtruderSummaryCard
             title="Looms Production"
             total={sampleLoomsGrandTotal}
-            rows={sampleLoomsSummaryByColor}
-            rowLabelClassName="text-[13px]"
+            rows={sampleLoomsColorRows}
             theme={{ cardBg: 'bg-[#004D40]/5', cardBorder: 'border-[#B8D8D5]', titleColor: 'text-[#7A6A00]', totalColor: 'text-[#7A6A00]' }}
           />
 
-          <ProductionSummaryCard
+          <ExtruderSummaryCard
             title="Fabric Checking"
             total={sampleFabricGrandTotal}
-            rows={sampleFabricSummaryByColor}
-            rowLabelClassName="text-[13px]"
+            rows={sampleFabricColorRows}
             theme={{ cardBg: 'bg-[#004D40]/5', cardBorder: 'border-[#C5D8C2]', titleColor: 'text-[#2F6B2F]', totalColor: 'text-[#2F6B2F]' }}
           />
         </div>
@@ -625,15 +831,16 @@ export function DashboardDesign2() {
           {sampleYarnBalanceByVariant.map((row) => {
             const theme = fabricStockCardTheme(row.color);
             const colorTotal = sampleYarnBalanceByColor.find((r) => r.color === row.color)?.balance ?? 0;
+            const colorRow = sampleYarnBalanceColorRows.find((r) => r.color === row.color);
             return (
               <DetailBreakdownCard
                 key={row.color}
                 title={row.color}
                 total={colorTotal}
                 theme={{ cardBg: theme.bg, cardBorder: theme.border, labelColor: deliveryColorClass(row.color) }}
-                rows={row.sizes.filter((s) => s.balance > 0).map((s) => ({ label: s.size, value: s.balance }))}
+                rows={[]}
+                table={colorRow ? toChemicalTable(colorRow) : { columns: [], rows: [] }}
                 emptyMessage="No yarn balance recorded yet."
-                layout="boxed"
               />
             );
           })}
@@ -650,15 +857,16 @@ export function DashboardDesign2() {
           {sampleKoraBalanceByVariant.map((row) => {
             const theme = fabricStockCardTheme(row.color);
             const colorTotal = sampleKoraBalanceByColor.find((r) => r.color === row.color)?.balance ?? 0;
+            const colorRow = sampleKoraBalanceColorRows.find((r) => r.color === row.color);
             return (
               <DetailBreakdownCard
                 key={row.color}
                 title={row.color}
                 total={colorTotal}
                 theme={{ cardBg: theme.bg, cardBorder: theme.border, labelColor: deliveryColorClass(row.color) }}
-                rows={row.sizes.filter((s) => s.balance > 0).map((s) => ({ label: s.size, value: s.balance }))}
+                rows={[]}
+                table={colorRow ? toChemicalTable(colorRow) : { columns: [], rows: [] }}
                 emptyMessage="No kora balance recorded yet."
-                layout="boxed"
               />
             );
           })}
@@ -667,7 +875,7 @@ export function DashboardDesign2() {
 
       {/* Fabric Stock (own horizontal section) */}
       <div className="w-full">
-        <FabricStockCard rows={sampleFabricStockByColor} total={sampleTotalFabricStockKg} />
+        <FabricStockCard rows={sampleFabricStockColorRows} total={sampleTotalFabricStockKg} />
       </div>
 
       {/* Fabric Delivered (own horizontal section, below Fabric Stock) */}
@@ -680,13 +888,15 @@ export function DashboardDesign2() {
         >
           {sampleDeliveriesByColor.map((row) => {
             const theme = fabricStockCardTheme(row.color);
+            const colorRow = sampleFabricDeliveredColorRows.find((r) => r.color === row.color);
             return (
               <DetailBreakdownCard
                 key={row.color}
                 title={row.color}
                 total={row.total}
                 theme={{ cardBg: theme.bg, cardBorder: theme.border, labelColor: deliveryColorClass(row.color) }}
-                rows={row.deliveries.map((d) => ({ id: d.id, label: d.size, value: d.kg }))}
+                rows={[]}
+                table={colorRow ? toChemicalTable(colorRow) : { columns: [], rows: [] }}
                 emptyMessage="No deliveries recorded yet."
               />
             );
@@ -899,11 +1109,11 @@ export function DashboardDesign2() {
           reportTitle={activeTab === 'sample' ? 'Sample Production Report' : 'Production Summary Report'}
           companyName={companyName}
           monthStr={currentMonthStr}
-          extruderByColor={activeTab === 'sample' ? sampleExtruderSummaryByColor : extruderSummaryByColor}
+          extruderByColor={activeTab === 'sample' ? sampleExtruderColorRows : extruderColorRows}
           extruderTotal={activeTab === 'sample' ? sampleExtruderGrandTotal : extruderGrandTotal}
-          loomsByColor={activeTab === 'sample' ? sampleLoomsSummaryByColor : loomsSummaryByColor}
+          loomsByColor={activeTab === 'sample' ? sampleLoomsColorRows : loomsColorRows}
           loomsTotal={activeTab === 'sample' ? sampleLoomsGrandTotal : loomsGrandTotal}
-          fabricByColor={activeTab === 'sample' ? sampleFabricSummaryByColor : fabricSummaryByColor}
+          fabricByColor={activeTab === 'sample' ? sampleFabricColorRows : fabricColorRows}
           fabricTotal={activeTab === 'sample' ? sampleFabricGrandTotal : fabricGrandTotal}
           yarnBalanceByColor={activeTab === 'sample' ? sampleYarnBalanceByColor : yarnBalanceByColor}
           koraBalanceByColor={activeTab === 'sample' ? sampleKoraBalanceByColor : koraBalanceByColor}
@@ -921,24 +1131,21 @@ function FabricStockCard({
   rows,
   total,
 }: {
-  rows: { color: string; colorClass: string; stockBySize: Record<string, number>; detail?: string }[];
+  rows: { color: string; production: number; chemicals: { chemical: string; sizes: { size: string; production: number }[] }[] }[];
   total: number;
 }) {
   return (
     <SectionSummaryCard title="Fabric Stock" total={total} isEmpty={rows.length === 0} emptyMessage="No fabric stock records yet.">
       {rows.map((row) => {
-        const rowTotal = Object.values(row.stockBySize).reduce((s, v) => s + v, 0);
         const theme = fabricStockCardTheme(row.color);
-        const sizeRows = FABRIC_STOCK_SIZES
-          .filter((size) => row.stockBySize[size] !== undefined)
-          .map((size) => ({ label: size, value: row.stockBySize[size], detail: row.detail }));
         return (
           <DetailBreakdownCard
             key={row.color}
             title={row.color}
-            total={rowTotal}
-            theme={{ cardBg: theme.bg, cardBorder: theme.border, labelColor: row.colorClass }}
-            rows={sizeRows}
+            total={row.production}
+            theme={{ cardBg: theme.bg, cardBorder: theme.border, labelColor: deliveryColorClass(row.color) }}
+            rows={[]}
+            table={toChemicalTable(row)}
             emptyMessage="No stock recorded yet."
           />
         );
@@ -977,19 +1184,14 @@ function WastageCard({
             .map((row) => {
               const rowTotal = row.sizes.reduce((s, v) => s + v.lums + v.yarnWaste, 0);
               const theme = fabricStockCardTheme(row.color);
-              const sizeRows = row.sizes.flatMap(s => {
-                const rows = [];
-                if (s.lums > 0) rows.push({ label: `${s.size} (LM)`, value: s.lums });
-                if (s.yarnWaste > 0) rows.push({ label: `${s.size} (LO)`, value: s.yarnWaste });
-                return rows;
-              });
               return (
-                <DetailBreakdownCard
+                <WasteVariantCard
                   key={row.color}
                   title={row.color}
                   total={rowTotal}
                   theme={{ cardBg: theme.bg, cardBorder: theme.border, labelColor: deliveryColorClass(row.color) }}
-                  rows={sizeRows}
+                  columns={[{ key: 'lm', label: 'Lumps waste' }, { key: 'lo', label: 'Looms waste' }]}
+                  rows={row.sizes.map((s) => ({ size: s.size, values: { lm: s.lums, lo: s.yarnWaste } }))}
                   emptyMessage="No waste recorded yet."
                 />
               );
@@ -1004,18 +1206,14 @@ function WastageCard({
             .map((row) => {
               const rowTotal = row.sizes.reduce((s, v) => s + v.loomsWaste, 0);
               const theme = fabricStockCardTheme(row.color);
-              const sizeRows = row.sizes.flatMap(s => {
-                const rows = [];
-                if (s.loomsWaste > 0) rows.push({ label: `${s.size} (LW)`, value: s.loomsWaste });
-                return rows;
-              });
               return (
-                <DetailBreakdownCard
+                <WasteVariantCard
                   key={row.color}
                   title={row.color}
                   total={rowTotal}
                   theme={{ cardBg: theme.bg, cardBorder: theme.border, labelColor: deliveryColorClass(row.color) }}
-                  rows={sizeRows}
+                  columns={[{ key: 'lw', label: 'Looms/yarn waste' }]}
+                  rows={row.sizes.map((s) => ({ size: s.size, values: { lw: s.loomsWaste } }))}
                   emptyMessage="No waste recorded yet."
                 />
               );
@@ -1030,19 +1228,14 @@ function WastageCard({
             .map((row) => {
               const rowTotal = row.sizes.reduce((s, v) => s + v.fabricWaste + v.bitWaste, 0);
               const theme = fabricStockCardTheme(row.color);
-              const sizeRows = row.sizes.flatMap(s => {
-                const rows = [];
-                if (s.fabricWaste > 0) rows.push({ label: `${s.size} (FW)`, value: s.fabricWaste });
-                if (s.bitWaste > 0) rows.push({ label: `${s.size} (BW)`, value: s.bitWaste });
-                return rows;
-              });
               return (
-                <DetailBreakdownCard
+                <WasteVariantCard
                   key={row.color}
                   title={row.color}
                   total={rowTotal}
                   theme={{ cardBg: theme.bg, cardBorder: theme.border, labelColor: deliveryColorClass(row.color) }}
-                  rows={sizeRows}
+                  columns={[{ key: 'fw', label: 'Fabric waste' }, { key: 'bw', label: 'Bit waste' }]}
+                  rows={row.sizes.map((s) => ({ size: s.size, values: { fw: s.fabricWaste, bw: s.bitWaste } }))}
                   emptyMessage="No waste recorded yet."
                 />
               );

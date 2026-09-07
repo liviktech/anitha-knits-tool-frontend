@@ -131,16 +131,16 @@ function statCard(opts: {
         <CardContent className="px-3 pb-4 pt-0 flex-1 flex flex-col justify-between">
           <div className="flex border border-gray-100 rounded-lg bg-white overflow-hidden">
             <div className="flex-1 border-r border-gray-100 px-2 sm:px-3 py-3 flex flex-col justify-center">
-              <p className="text-[10.5px] font-extrabold uppercase tracking-wide text-gray-600 mb-1.5 whitespace-nowrap">TOTAL PRODUCTION (KG)</p>
-              <p className="text-[18px] font-bold text-[#004D40] leading-none font-inter">{formatNum(totals.output)}</p>
+              <p className="text-[10.5px] font-extrabold uppercase tracking-wide text-gray-600 mb-1.5 whitespace-nowrap text-center">TOTAL PRODUCTION (KG)</p>
+              <p className="text-[18px] font-bold text-[#004D40] leading-none font-inter text-center">{formatNum(totals.output)}</p>
             </div>
             <div className="flex-1 border-r border-gray-100 px-2 sm:px-3 py-3 flex flex-col justify-center">
-              <p className="text-[10.5px] font-extrabold uppercase tracking-wide text-gray-600 mb-1.5 whitespace-nowrap">TOTAL WASTAGE (KG)</p>
-              <p className="text-[17px] font-bold text-[#004D40] leading-none font-inter">{formatNum(totals.wastage)}</p>
+              <p className="text-[10.5px] font-extrabold uppercase tracking-wide text-gray-600 mb-1.5 whitespace-nowrap text-center">TOTAL WASTAGE (KG)</p>
+              <p className="text-[17px] font-bold text-[#004D40] leading-none font-inter text-center">{formatNum(totals.wastage)}</p>
             </div>
             <div className="flex-1 px-2 sm:px-3 py-3 flex flex-col justify-center">
-              <p className="text-[10.5px] font-extrabold uppercase tracking-wide text-gray-600 mb-1.5 whitespace-nowrap">WASTAGE %</p>
-              <p className="text-[17px] font-bold text-[#D32F2F] leading-none font-inter">{wastePct.toFixed(2)}%</p>
+              <p className="text-[10.5px] font-extrabold uppercase tracking-wide text-gray-600 mb-1.5 whitespace-nowrap text-center">WASTAGE %</p>
+              <p className="text-[17px] font-bold text-[#D32F2F] leading-none font-inter text-center">{wastePct.toFixed(2)}%</p>
             </div>
           </div>
         </CardContent>
