@@ -351,6 +351,13 @@ const buildExtruderSummaryRows = (dataMap: Map<string, any>) => {
   const extruderColorRows = buildSummaryRows(extruderProductionsRes?.data ?? [], dashboardData?.extruderProduction?.byColor || [], 'extruder');
   const extruderGrandTotal = dashboardData?.extruderProduction?.overall.production || 0;
 
+  // Size-wise / chemical-wise breakdowns for the Production Summary & Wastage Summary
+  // reports — same bySize/byChemical fields the Production Details report already uses.
+  const extruderBySizeRows = (dashboardData?.extruderProduction?.bySize || []).map(r => ({ label: r.size.name, production: r.production }));
+  const extruderByChemicalRows = (dashboardData?.extruderProduction?.byChemical || []).map(r => ({ label: r.chemical.name, production: r.production }));
+  const extruderWasteBySize = (dashboardData?.extruderProduction?.bySize || []).map(r => ({ label: r.size.name, lums: r.lumsKg, yarnWaste: r.yarnWasteKg }));
+  const extruderWasteByChemical = (dashboardData?.extruderProduction?.byChemical || []).map(r => ({ label: r.chemical.name, lums: r.lumsKg, yarnWaste: r.yarnWasteKg }));
+
   const loomsByColorMap = new Map((dashboardData?.loomsProduction?.byColor || []).map(r => [r.color.name, r]));
   const loomsWasteByColor = FABRIC_COLORS.map(color => {
     const r = loomsByColorMap.get(color);
@@ -370,6 +377,11 @@ const buildExtruderSummaryRows = (dataMap: Map<string, any>) => {
 
   const loomsColorRows = buildSummaryRows(loomsProductionsRes?.data ?? [], dashboardData?.loomsProduction?.byColor || [], 'looms');
   const loomsGrandTotal = dashboardData?.loomsProduction?.overall.production || 0;
+
+  const loomsBySizeRows = (dashboardData?.loomsProduction?.bySize || []).map(r => ({ label: r.size.name, production: r.production }));
+  const loomsByChemicalRows = (dashboardData?.loomsProduction?.byChemical || []).map(r => ({ label: r.chemical.name, production: r.production }));
+  const loomsWasteBySize = (dashboardData?.loomsProduction?.bySize || []).map(r => ({ label: r.size.name, loomsWaste: r.waste }));
+  const loomsWasteByChemical = (dashboardData?.loomsProduction?.byChemical || []).map(r => ({ label: r.chemical.name, loomsWaste: r.waste }));
 
   const fabricByColorMap = new Map((dashboardData?.fabricProduction.byColor || []).map(r => [r.color.name, r]));
   // FabricProductionColorSummary (byColor) has no fabricInputKg of its own — only byVariant
@@ -396,6 +408,11 @@ const buildExtruderSummaryRows = (dataMap: Map<string, any>) => {
 
   const fabricColorRows = buildSummaryRows(fabricCheckingRes?.data ?? [], dashboardData?.fabricProduction?.byColor || [], 'fabric');
   const fabricGrandTotal = dashboardData?.fabricProduction.overall.outputKg || 0;
+
+  const fabricBySizeRows = (dashboardData?.fabricProduction?.bySize || []).map(r => ({ label: r.size.name, production: r.production }));
+  const fabricByChemicalRows = (dashboardData?.fabricProduction?.byChemical || []).map(r => ({ label: r.chemical.name, production: r.production }));
+  const fabricWasteBySize = (dashboardData?.fabricProduction?.bySize || []).map(r => ({ label: r.size.name, fabricWaste: r.fwWasteKg, bitWaste: r.bwWasteKg }));
+  const fabricWasteByChemical = (dashboardData?.fabricProduction?.byChemical || []).map(r => ({ label: r.chemical.name, fabricWaste: r.fwWasteKg, bitWaste: r.bwWasteKg }));
 
   // Fabric Stock — no persisted "current stock" field exists anywhere in the API
   // (unlike HDPE/Chemical/Color inventory). Derived as everything Fabric Checking
@@ -515,10 +532,14 @@ const buildExtruderSummaryRows = (dataMap: Map<string, any>) => {
   const sampleExtruderByColorMap = new Map((sampleDashboardData?.extruderProduction?.byColor || []).map(r => [r.color.name, r]));
   const sampleExtruderColorRows = buildSummaryRows(sampleExtruderProductionsRes?.data ?? [], sampleDashboardData?.extruderProduction?.byColor || [], 'extruder');
   const sampleExtruderGrandTotal = sampleDashboardData?.extruderProduction?.overall.production || 0;
+  const sampleExtruderBySizeRows = (sampleDashboardData?.extruderProduction?.bySize || []).map(r => ({ label: r.size.name, production: r.production }));
+  const sampleExtruderByChemicalRows = (sampleDashboardData?.extruderProduction?.byChemical || []).map(r => ({ label: r.chemical.name, production: r.production }));
 
   const sampleLoomsByColorMap = new Map((sampleDashboardData?.loomsProduction?.byColor || []).map(r => [r.color.name, r]));
   const sampleLoomsColorRows = buildSummaryRows(sampleLoomsProductionsRes?.data ?? [], sampleDashboardData?.loomsProduction?.byColor || [], 'looms');
   const sampleLoomsGrandTotal = sampleDashboardData?.loomsProduction?.overall.production || 0;
+  const sampleLoomsBySizeRows = (sampleDashboardData?.loomsProduction?.bySize || []).map(r => ({ label: r.size.name, production: r.production }));
+  const sampleLoomsByChemicalRows = (sampleDashboardData?.loomsProduction?.byChemical || []).map(r => ({ label: r.chemical.name, production: r.production }));
 
   const sampleFabricInputByColorMap = new Map<string, number>();
   (sampleDashboardData?.fabricProduction.byVariant || []).forEach(r => {
@@ -526,6 +547,8 @@ const buildExtruderSummaryRows = (dataMap: Map<string, any>) => {
   });
   const sampleFabricColorRows = buildSummaryRows(sampleFabricCheckingRes?.data ?? [], sampleDashboardData?.fabricProduction?.byColor || [], 'fabric');
   const sampleFabricGrandTotal = sampleDashboardData?.fabricProduction.overall.outputKg || 0;
+  const sampleFabricBySizeRows = (sampleDashboardData?.fabricProduction?.bySize || []).map(r => ({ label: r.size.name, production: r.production }));
+  const sampleFabricByChemicalRows = (sampleDashboardData?.fabricProduction?.byChemical || []).map(r => ({ label: r.chemical.name, production: r.production }));
 
   // Yarn Balance = Extruder yarn output − yarn consumed by Looms — same formula as Production,
   // no OB term (Yarn Balance never uses Opening Balance, for either tab).
@@ -1101,6 +1124,12 @@ const buildExtruderSummaryRows = (dataMap: Map<string, any>) => {
           loomsTotal={loomsWasteByColor.reduce((sum, r) => sum + r.loomsWaste, 0)}
           fabricByColor={fabricWasteByColor}
           fabricTotal={fabricWasteByColor.reduce((sum, r) => sum + r.fabricWaste + r.bitWaste, 0)}
+          extruderBySize={extruderWasteBySize}
+          extruderByChemical={extruderWasteByChemical}
+          loomsBySize={loomsWasteBySize}
+          loomsByChemical={loomsWasteByChemical}
+          fabricBySize={fabricWasteBySize}
+          fabricByChemical={fabricWasteByChemical}
         />
       ) : (
         <DashboardReportModal
@@ -1115,6 +1144,12 @@ const buildExtruderSummaryRows = (dataMap: Map<string, any>) => {
           loomsTotal={activeTab === 'sample' ? sampleLoomsGrandTotal : loomsGrandTotal}
           fabricByColor={activeTab === 'sample' ? sampleFabricColorRows : fabricColorRows}
           fabricTotal={activeTab === 'sample' ? sampleFabricGrandTotal : fabricGrandTotal}
+          extruderBySize={activeTab === 'sample' ? sampleExtruderBySizeRows : extruderBySizeRows}
+          loomsBySize={activeTab === 'sample' ? sampleLoomsBySizeRows : loomsBySizeRows}
+          fabricBySize={activeTab === 'sample' ? sampleFabricBySizeRows : fabricBySizeRows}
+          extruderByChemical={activeTab === 'sample' ? sampleExtruderByChemicalRows : extruderByChemicalRows}
+          loomsByChemical={activeTab === 'sample' ? sampleLoomsByChemicalRows : loomsByChemicalRows}
+          fabricByChemical={activeTab === 'sample' ? sampleFabricByChemicalRows : fabricByChemicalRows}
           yarnBalanceByColor={activeTab === 'sample' ? sampleYarnBalanceByColor : yarnBalanceByColor}
           koraBalanceByColor={activeTab === 'sample' ? sampleKoraBalanceByColor : koraBalanceByColor}
           fabricStockByColor={activeTab === 'sample' ? sampleFabricStockByColor : fabricStockByColor}

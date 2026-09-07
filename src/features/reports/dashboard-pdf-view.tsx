@@ -1,5 +1,4 @@
 import { useEffect, useState } from 'react';
-import { useAuth } from '@/features/auth/auth-context';
 import { Loader } from '@/components/shared/loader';
 import { Input } from '@/components/ui/input';
 import { useDashboardReportData } from './dashboard-pdf-data';
@@ -20,14 +19,39 @@ function getMonthName(monthStr: string) {
   return date.toLocaleDateString('en-IN', { month: 'long', year: 'numeric' });
 }
 
+// Merges per-stage size/chemical rows into one combined table by label (a size or a chemical
+// name) — mirrors "Production by Color", just keyed by size/chemical instead of color. Unlike
+// colors (a fixed 3-item list every stage shares), sizes/chemicals vary per stage, so this
+// merges by label rather than assuming the three arrays line up index-for-index. Each stage's
+// rows carry different extra fields (lums/yarnWaste vs waste vs fwWaste/bwWaste) — callers map
+// down to {label, production} first since that's all the merge needs.
+function mergeProductionByLabel(
+  extruder: { label: string; production: number }[],
+  looms: { label: string; production: number }[],
+  fabric: { label: string; production: number }[],
+): { label: string; extruder: number; looms: number; fabric: number; total: number }[] {
+  const labels = new Set<string>();
+  extruder.forEach((r) => labels.add(r.label));
+  looms.forEach((r) => labels.add(r.label));
+  fabric.forEach((r) => labels.add(r.label));
+  const exMap = new Map(extruder.map((r) => [r.label, r.production]));
+  const loMap = new Map(looms.map((r) => [r.label, r.production]));
+  const faMap = new Map(fabric.map((r) => [r.label, r.production]));
+  return Array.from(labels)
+    .sort((a, b) => a.localeCompare(b))
+    .map((label) => {
+      const e = exMap.get(label) ?? 0;
+      const l = loMap.get(label) ?? 0;
+      const f = faMap.get(label) ?? 0;
+      return { label, extruder: e, looms: l, fabric: f, total: e + l + f };
+    });
+}
+
 interface DashboardPdfViewProps {
   tab: string; // 'production_summary' | 'wastage_summary' | 'sample_production'
 }
 
 export function DashboardPdfView({ tab }: DashboardPdfViewProps) {
-  const { user } = useAuth();
-  const companyName = user?.kind === 'company-user' ? user.company.name : 'LK Knits';
-  
   const [monthStr, setMonthStr] = useState(() => {
     const d = new Date();
     return `${d.getFullYear()}-${(d.getMonth() + 1).toString().padStart(2, '0')}`;
@@ -114,6 +138,44 @@ export function DashboardPdfView({ tab }: DashboardPdfViewProps) {
           [['Total', formatNum(data.extruderTotal), formatNum(data.loomsTotal), formatNum(data.fabricTotal), formatNum(grandTotalProduction)]],
         );
 
+        const bySizeRows = mergeProductionByLabel(
+          data.extruderBySize.map((r) => ({ label: r.size, production: r.production })),
+          data.loomsBySize.map((r) => ({ label: r.size, production: r.production })),
+          data.fabricBySize.map((r) => ({ label: r.size, production: r.production })),
+        );
+        if (bySizeRows.length > 0) {
+          section(
+            'Production by Size',
+            ['Size', 'Extruder', 'Looms', 'Fabric Checking', 'Total'],
+            bySizeRows.map((r) => [r.label, formatNum(r.extruder), formatNum(r.looms), formatNum(r.fabric), formatNum(r.total)]),
+            [['Total',
+              formatNum(bySizeRows.reduce((s, r) => s + r.extruder, 0)),
+              formatNum(bySizeRows.reduce((s, r) => s + r.looms, 0)),
+              formatNum(bySizeRows.reduce((s, r) => s + r.fabric, 0)),
+              formatNum(bySizeRows.reduce((s, r) => s + r.total, 0)),
+            ]],
+          );
+        }
+
+        const byChemicalRows = mergeProductionByLabel(
+          data.extruderByChemical.map((r) => ({ label: r.chemical, production: r.production })),
+          data.loomsByChemical.map((r) => ({ label: r.chemical, production: r.production })),
+          data.fabricByChemical.map((r) => ({ label: r.chemical, production: r.production })),
+        );
+        if (byChemicalRows.length > 0) {
+          section(
+            'Production by Chemical',
+            ['Chemical', 'Extruder', 'Looms', 'Fabric Checking', 'Total'],
+            byChemicalRows.map((r) => [r.label, formatNum(r.extruder), formatNum(r.looms), formatNum(r.fabric), formatNum(r.total)]),
+            [['Total',
+              formatNum(byChemicalRows.reduce((s, r) => s + r.extruder, 0)),
+              formatNum(byChemicalRows.reduce((s, r) => s + r.looms, 0)),
+              formatNum(byChemicalRows.reduce((s, r) => s + r.fabric, 0)),
+              formatNum(byChemicalRows.reduce((s, r) => s + r.total, 0)),
+            ]],
+          );
+        }
+
         section('Yarn Balance', ['Color', 'Balance (kg)'], data.yarnBalanceByColor.map((row) => [row.color, formatNum(row.balance)]));
         section('Kora Balance', ['Color', 'Balance (kg)'], data.koraBalanceByColor.map((row) => [row.color, formatNum(row.balance)]));
 
@@ -148,6 +210,23 @@ export function DashboardPdfView({ tab }: DashboardPdfViewProps) {
           [['Total', '', '', formatNum(extTotal)]],
         );
 
+        if (data.extruderBySize.length > 0) {
+          section(
+            'Extruder Wastage — By Size',
+            ['Size', 'Lums (LM)', 'Loose/Yarn (LO)', 'Total'],
+            data.extruderBySize.map((r) => [r.size, formatNum(r.lums), formatNum(r.yarnWaste), formatNum(r.lums + r.yarnWaste)]),
+            [['Total', '', '', formatNum(data.extruderBySize.reduce((s, r) => s + r.lums + r.yarnWaste, 0))]],
+          );
+        }
+        if (data.extruderByChemical.length > 0) {
+          section(
+            'Extruder Wastage — By Chemical',
+            ['Chemical', 'Lums (LM)', 'Loose/Yarn (LO)', 'Total'],
+            data.extruderByChemical.map((r) => [r.chemical, formatNum(r.lums), formatNum(r.yarnWaste), formatNum(r.lums + r.yarnWaste)]),
+            [['Total', '', '', formatNum(data.extruderByChemical.reduce((s, r) => s + r.lums + r.yarnWaste, 0))]],
+          );
+        }
+
         const loomsWastageBody: (string | number)[][] = [];
         data.loomsWasteByVariant.forEach(row => {
           const lw = row.sizes.reduce((s, x) => s + x.loomsWaste, 0);
@@ -160,6 +239,23 @@ export function DashboardPdfView({ tab }: DashboardPdfViewProps) {
           loomsWastageBody,
           [['Total', formatNum(loomsTotal)]],
         );
+
+        if (data.loomsBySize.length > 0) {
+          section(
+            'Looms Wastage — By Size',
+            ['Size', 'Looms/Yarn Waste (LW)'],
+            data.loomsBySize.map((r) => [r.size, formatNum(r.waste)]),
+            [['Total', formatNum(data.loomsBySize.reduce((s, r) => s + r.waste, 0))]],
+          );
+        }
+        if (data.loomsByChemical.length > 0) {
+          section(
+            'Looms Wastage — By Chemical',
+            ['Chemical', 'Looms/Yarn Waste (LW)'],
+            data.loomsByChemical.map((r) => [r.chemical, formatNum(r.waste)]),
+            [['Total', formatNum(data.loomsByChemical.reduce((s, r) => s + r.waste, 0))]],
+          );
+        }
 
         const fabricWastageBody: (string | number)[][] = [];
         data.fabricWasteByVariant.forEach(row => {
@@ -174,6 +270,23 @@ export function DashboardPdfView({ tab }: DashboardPdfViewProps) {
           fabricWastageBody,
           [['Total', '', '', formatNum(fabricTotal)]],
         );
+
+        if (data.fabricBySize.length > 0) {
+          section(
+            'Fabric Checking Wastage — By Size',
+            ['Size', 'Fabric Waste (FW)', 'Bit Waste (BW)', 'Total'],
+            data.fabricBySize.map((r) => [r.size, formatNum(r.fwWaste), formatNum(r.bwWaste), formatNum(r.fwWaste + r.bwWaste)]),
+            [['Total', '', '', formatNum(data.fabricBySize.reduce((s, r) => s + r.fwWaste + r.bwWaste, 0))]],
+          );
+        }
+        if (data.fabricByChemical.length > 0) {
+          section(
+            'Fabric Checking Wastage — By Chemical',
+            ['Chemical', 'Fabric Waste (FW)', 'Bit Waste (BW)', 'Total'],
+            data.fabricByChemical.map((r) => [r.chemical, formatNum(r.fwWaste), formatNum(r.bwWaste), formatNum(r.fwWaste + r.bwWaste)]),
+            [['Total', '', '', formatNum(data.fabricByChemical.reduce((s, r) => s + r.fwWaste + r.bwWaste, 0))]],
+          );
+        }
       }
 
       const pageHeight = doc.internal.pageSize.getHeight();

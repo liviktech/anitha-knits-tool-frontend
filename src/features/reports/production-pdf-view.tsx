@@ -1,5 +1,4 @@
 import { useEffect, useState } from 'react';
-import { useAuth } from '@/features/auth/auth-context';
 import { Loader } from '@/components/shared/loader';
 import { Input } from '@/components/ui/input';
 import { Download } from 'lucide-react';
@@ -61,8 +60,6 @@ interface ProductionPdfViewProps {
 }
 
 export function ProductionPdfView({ tab }: ProductionPdfViewProps) {
-  const { user } = useAuth();
-  const companyName = user?.kind === 'company-user' ? user.company.name : 'LK Knits';
   const isSample = tab === 'sample_production_report';
 
   const [monthStr, setMonthStr] = useState(() => {

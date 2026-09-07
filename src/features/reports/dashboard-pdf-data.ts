@@ -1,13 +1,12 @@
 import { useMemo } from 'react';
 import { useMonthlyDashboard } from '@/features/dashboard/dashboard-queries';
 import { useOpeningBalanceWastage, useOpeningBalanceFabricStock } from '@/features/admin-panel/opening-balance-queries';
-import { useExtruderProductions } from '@/features/extruder/extruder-queries';
 
 const FABRIC_STOCK_SIZES = ['150cm', '160cm', '170cm', '180cm', '190cm'] as const;
 const FABRIC_COLORS = ['Blue', 'Green', 'White'] as const;
 
 export function useDashboardReportData(monthStr: string, isSample: boolean = false) {
-  const { dashboardData, isLoading: loadingDashboard } = useMonthlyDashboard(monthStr, isSample ? 'SAMPLE' : undefined);
+  const { dashboardData } = useMonthlyDashboard(monthStr, isSample ? 'SAMPLE' : undefined);
   const { data: obWastageRes } = useOpeningBalanceWastage('?limit=100');
   const obWastage = obWastageRes?.data || [];
 
@@ -173,6 +172,28 @@ export function useDashboardReportData(monthStr: string, isSample: boolean = fal
       return { color, sizes };
     });
 
+    // Size-wise and chemical-wise breakdowns — same backend fields (bySize/byChemical) the
+    // Production Details/Sample Production reports already use, so every dashboard report
+    // covers color, size, AND chemical, not just color.
+    const extruderBySize = (dashboardData.extruderProduction?.bySize || []).map(r => ({
+      size: r.size.name, production: r.production, lums: r.lumsKg, yarnWaste: r.yarnWasteKg,
+    }));
+    const extruderByChemical = (dashboardData.extruderProduction?.byChemical || []).map(r => ({
+      chemical: r.chemical.name, production: r.production, lums: r.lumsKg, yarnWaste: r.yarnWasteKg,
+    }));
+    const loomsBySize = (dashboardData.loomsProduction?.bySize || []).map(r => ({
+      size: r.size.name, production: r.production, waste: r.waste,
+    }));
+    const loomsByChemical = (dashboardData.loomsProduction?.byChemical || []).map(r => ({
+      chemical: r.chemical.name, production: r.production, waste: r.waste,
+    }));
+    const fabricBySize = (dashboardData.fabricProduction?.bySize || []).map(r => ({
+      size: r.size.name, production: r.production, fwWaste: r.fwWasteKg, bwWaste: r.bwWasteKg,
+    }));
+    const fabricByChemical = (dashboardData.fabricProduction?.byChemical || []).map(r => ({
+      chemical: r.chemical.name, production: r.production, fwWaste: r.fwWasteKg, bwWaste: r.bwWasteKg,
+    }));
+
     return {
       extruderByColor,
       extruderTotal,
@@ -192,6 +213,13 @@ export function useDashboardReportData(monthStr: string, isSample: boolean = fal
       fabricWasteByVariant,
       looseWasteKg,
       lumsWasteKg,
+      // Size-wise / chemical-wise (production + wastage share the same summary rows)
+      extruderBySize,
+      extruderByChemical,
+      loomsBySize,
+      loomsByChemical,
+      fabricBySize,
+      fabricByChemical,
     };
   }, [dashboardData, obFabricStock, obWastage, isSample]);
 }

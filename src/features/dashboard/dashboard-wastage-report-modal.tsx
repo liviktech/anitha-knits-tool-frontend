@@ -33,6 +33,23 @@ export interface WastageFabricRow {
   bitWaste: number;
 }
 
+export interface WastageExtruderLabelRow {
+  label: string; // a size (e.g. "150cm") or a chemical name
+  lums: number;
+  yarnWaste: number;
+}
+
+export interface WastageLoomsLabelRow {
+  label: string;
+  loomsWaste: number;
+}
+
+export interface WastageFabricLabelRow {
+  label: string;
+  fabricWaste: number;
+  bitWaste: number;
+}
+
 interface DashboardWastageReportModalProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
@@ -44,6 +61,12 @@ interface DashboardWastageReportModalProps {
   loomsTotal: number;
   fabricByColor: WastageFabricRow[];
   fabricTotal: number;
+  extruderBySize: WastageExtruderLabelRow[];
+  extruderByChemical: WastageExtruderLabelRow[];
+  loomsBySize: WastageLoomsLabelRow[];
+  loomsByChemical: WastageLoomsLabelRow[];
+  fabricBySize: WastageFabricLabelRow[];
+  fabricByChemical: WastageFabricLabelRow[];
 }
 
 export function DashboardWastageReportModal({
@@ -57,6 +80,12 @@ export function DashboardWastageReportModal({
   loomsTotal,
   fabricByColor,
   fabricTotal,
+  extruderBySize,
+  extruderByChemical,
+  loomsBySize,
+  loomsByChemical,
+  fabricBySize,
+  fabricByChemical,
 }: DashboardWastageReportModalProps) {
   const hasData = extruderTotal > 0 || loomsTotal > 0 || fabricTotal > 0;
   const grandTotal = extruderTotal + loomsTotal + fabricTotal;
@@ -77,16 +106,64 @@ export function DashboardWastageReportModal({
     rows.push(['Total', '', '', extruderTotal]);
     rows.push([]);
 
+    if (extruderBySize.length > 0) {
+      rows.push(['Extruder Wastage — By Size']);
+      rows.push(['Size', 'Lums (LM)', 'Loose/Yarn (LO)', 'Total']);
+      extruderBySize.forEach((row) => rows.push([row.label, row.lums, row.yarnWaste, row.lums + row.yarnWaste]));
+      rows.push(['Total', '', '', extruderBySize.reduce((s, r) => s + r.lums + r.yarnWaste, 0)]);
+      rows.push([]);
+    }
+
+    if (extruderByChemical.length > 0) {
+      rows.push(['Extruder Wastage — By Chemical']);
+      rows.push(['Chemical', 'Lums (LM)', 'Loose/Yarn (LO)', 'Total']);
+      extruderByChemical.forEach((row) => rows.push([row.label, row.lums, row.yarnWaste, row.lums + row.yarnWaste]));
+      rows.push(['Total', '', '', extruderByChemical.reduce((s, r) => s + r.lums + r.yarnWaste, 0)]);
+      rows.push([]);
+    }
+
     rows.push(['Looms Wastage']);
     rows.push(['Color', 'Looms/Yarn Waste (LW)']);
     loomsByColor.forEach((row) => rows.push([row.color, row.loomsWaste]));
     rows.push(['Total', loomsTotal]);
     rows.push([]);
 
+    if (loomsBySize.length > 0) {
+      rows.push(['Looms Wastage — By Size']);
+      rows.push(['Size', 'Looms/Yarn Waste (LW)']);
+      loomsBySize.forEach((row) => rows.push([row.label, row.loomsWaste]));
+      rows.push(['Total', loomsBySize.reduce((s, r) => s + r.loomsWaste, 0)]);
+      rows.push([]);
+    }
+
+    if (loomsByChemical.length > 0) {
+      rows.push(['Looms Wastage — By Chemical']);
+      rows.push(['Chemical', 'Looms/Yarn Waste (LW)']);
+      loomsByChemical.forEach((row) => rows.push([row.label, row.loomsWaste]));
+      rows.push(['Total', loomsByChemical.reduce((s, r) => s + r.loomsWaste, 0)]);
+      rows.push([]);
+    }
+
     rows.push(['Fabric Checking Wastage']);
     rows.push(['Color', 'Fabric Waste (FW)', 'Bit Waste (BW)', 'Total']);
     fabricByColor.forEach((row) => rows.push([row.color, row.fabricWaste, row.bitWaste, row.fabricWaste + row.bitWaste]));
     rows.push(['Total', '', '', fabricTotal]);
+    rows.push([]);
+
+    if (fabricBySize.length > 0) {
+      rows.push(['Fabric Checking Wastage — By Size']);
+      rows.push(['Size', 'Fabric Waste (FW)', 'Bit Waste (BW)', 'Total']);
+      fabricBySize.forEach((row) => rows.push([row.label, row.fabricWaste, row.bitWaste, row.fabricWaste + row.bitWaste]));
+      rows.push(['Total', '', '', fabricBySize.reduce((s, r) => s + r.fabricWaste + r.bitWaste, 0)]);
+      rows.push([]);
+    }
+
+    if (fabricByChemical.length > 0) {
+      rows.push(['Fabric Checking Wastage — By Chemical']);
+      rows.push(['Chemical', 'Fabric Waste (FW)', 'Bit Waste (BW)', 'Total']);
+      fabricByChemical.forEach((row) => rows.push([row.label, row.fabricWaste, row.bitWaste, row.fabricWaste + row.bitWaste]));
+      rows.push(['Total', '', '', fabricByChemical.reduce((s, r) => s + r.fabricWaste + r.bitWaste, 0)]);
+    }
 
     const escapeCsvField = (value: string | number) => {
       const str = String(value);
@@ -156,6 +233,24 @@ export function DashboardWastageReportModal({
       [['Total', '', '', formatNum(extruderTotal)]],
     );
 
+    if (extruderBySize.length > 0) {
+      section(
+        'Extruder Wastage — By Size',
+        ['Size', 'Lums (LM)', 'Loose/Yarn (LO)', 'Total'],
+        extruderBySize.map((row) => [row.label, formatNum(row.lums), formatNum(row.yarnWaste), formatNum(row.lums + row.yarnWaste)]),
+        [['Total', '', '', formatNum(extruderBySize.reduce((s, r) => s + r.lums + r.yarnWaste, 0))]],
+      );
+    }
+
+    if (extruderByChemical.length > 0) {
+      section(
+        'Extruder Wastage — By Chemical',
+        ['Chemical', 'Lums (LM)', 'Loose/Yarn (LO)', 'Total'],
+        extruderByChemical.map((row) => [row.label, formatNum(row.lums), formatNum(row.yarnWaste), formatNum(row.lums + row.yarnWaste)]),
+        [['Total', '', '', formatNum(extruderByChemical.reduce((s, r) => s + r.lums + r.yarnWaste, 0))]],
+      );
+    }
+
     section(
       'Looms Wastage',
       ['Color', 'Looms/Yarn Waste (LW)'],
@@ -163,12 +258,48 @@ export function DashboardWastageReportModal({
       [['Total', formatNum(loomsTotal)]],
     );
 
+    if (loomsBySize.length > 0) {
+      section(
+        'Looms Wastage — By Size',
+        ['Size', 'Looms/Yarn Waste (LW)'],
+        loomsBySize.map((row) => [row.label, formatNum(row.loomsWaste)]),
+        [['Total', formatNum(loomsBySize.reduce((s, r) => s + r.loomsWaste, 0))]],
+      );
+    }
+
+    if (loomsByChemical.length > 0) {
+      section(
+        'Looms Wastage — By Chemical',
+        ['Chemical', 'Looms/Yarn Waste (LW)'],
+        loomsByChemical.map((row) => [row.label, formatNum(row.loomsWaste)]),
+        [['Total', formatNum(loomsByChemical.reduce((s, r) => s + r.loomsWaste, 0))]],
+      );
+    }
+
     section(
       'Fabric Checking Wastage',
       ['Color', 'Fabric Waste (FW)', 'Bit Waste (BW)', 'Total'],
       fabricByColor.map((row) => [row.color, formatNum(row.fabricWaste), formatNum(row.bitWaste), formatNum(row.fabricWaste + row.bitWaste)]),
       [['Total', '', '', formatNum(fabricTotal)]],
     );
+
+    if (fabricBySize.length > 0) {
+      section(
+        'Fabric Checking Wastage — By Size',
+        ['Size', 'Fabric Waste (FW)', 'Bit Waste (BW)', 'Total'],
+        fabricBySize.map((row) => [row.label, formatNum(row.fabricWaste), formatNum(row.bitWaste), formatNum(row.fabricWaste + row.bitWaste)]),
+        [['Total', '', '', formatNum(fabricBySize.reduce((s, r) => s + r.fabricWaste + r.bitWaste, 0))]],
+      );
+    }
+
+    if (fabricByChemical.length > 0) {
+      section(
+        'Fabric Checking Wastage — By Chemical',
+        ['Chemical', 'Fabric Waste (FW)', 'Bit Waste (BW)', 'Total'],
+        fabricByChemical.map((row) => [row.label, formatNum(row.fabricWaste), formatNum(row.bitWaste), formatNum(row.fabricWaste + row.bitWaste)]),
+        [['Total', '', '', formatNum(fabricByChemical.reduce((s, r) => s + r.fabricWaste + r.bitWaste, 0))]],
+      );
+    }
 
     const pageHeight = doc.internal.pageSize.getHeight();
     doc.setFontSize(8);
@@ -246,96 +377,57 @@ export function DashboardWastageReportModal({
 
                 {/* Extruder Wastage */}
                 <ReportSection title="Extruder Wastage" total={`Total : ${formatNum(extruderTotal)} kg`}>
-                  <Table>
-                    <TableHeader>
-                      <TableRow className="bg-[#004D40] hover:bg-[#004D40]">
-                        <TableHead className="py-3 px-4 font-bold text-white whitespace-nowrap">Color</TableHead>
-                        <TableHead className="py-3 px-4 font-bold text-white whitespace-nowrap !text-right">Lums (LM)</TableHead>
-                        <TableHead className="py-3 px-4 font-bold text-white whitespace-nowrap !text-right">Loose/Yarn (LO)</TableHead>
-                        <TableHead className="py-3 px-4 font-bold text-white text-right whitespace-nowrap">Total</TableHead>
-                      </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                      {extruderByColor.map((row, i) => (
-                        <TableRow key={row.color} className={i % 2 === 0 ? 'bg-white' : 'bg-emerald-50/40'}>
-                          <TableCell className="py-3 px-4 border-b border-gray-100 text-sm font-semibold text-gray-800">{row.color}</TableCell>
-                          <TableCell className="py-3 px-4 border-b border-gray-100 text-sm text-gray-600 !text-right">{formatNum(row.lums)}</TableCell>
-                          <TableCell className="py-3 px-4 border-b border-gray-100 text-sm text-gray-600 !text-right">{formatNum(row.yarnWaste)}</TableCell>
-                          <TableCell className="py-3 px-4 border-b border-gray-100 text-sm text-right font-bold text-gray-900">{formatNum(row.lums + row.yarnWaste)}</TableCell>
-                        </TableRow>
-                      ))}
-                    </TableBody>
-                    <TableFooter>
-                      <TableRow className="border-t-2 border-[#004D40] bg-emerald-50 hover:bg-emerald-50">
-                        <TableCell className="py-3 px-4 font-bold text-[#004D40]">Total</TableCell>
-                        <TableCell className="py-3 px-4"></TableCell>
-                        <TableCell className="py-3 px-4"></TableCell>
-                        <TableCell className="py-3 px-4 font-bold text-[#004D40] text-right">{formatNum(extruderTotal)}</TableCell>
-                      </TableRow>
-                    </TableFooter>
-                  </Table>
+                  <ExtruderWastageTable labelHeader="Color" rows={extruderByColor.map((r) => ({ label: r.color, lums: r.lums, yarnWaste: r.yarnWaste }))} />
                   <p className="text-[11px] text-gray-500 italic px-4 py-2 border-t border-gray-100">LM - Lums Waste &nbsp;&nbsp; LO - Loose Waste</p>
                 </ReportSection>
 
+                {extruderBySize.length > 0 && (
+                  <ReportSection title="Extruder Wastage — By Size" total={`Total : ${formatNum(extruderBySize.reduce((s, r) => s + r.lums + r.yarnWaste, 0))} kg`}>
+                    <ExtruderWastageTable labelHeader="Size" rows={extruderBySize} />
+                  </ReportSection>
+                )}
+
+                {extruderByChemical.length > 0 && (
+                  <ReportSection title="Extruder Wastage — By Chemical" total={`Total : ${formatNum(extruderByChemical.reduce((s, r) => s + r.lums + r.yarnWaste, 0))} kg`}>
+                    <ExtruderWastageTable labelHeader="Chemical" rows={extruderByChemical} />
+                  </ReportSection>
+                )}
+
                 {/* Looms Wastage */}
                 <ReportSection title="Looms Wastage" total={`Total : ${formatNum(loomsTotal)} kg`}>
-                  <Table>
-                    <TableHeader>
-                      <TableRow className="bg-[#004D40] hover:bg-[#004D40]">
-                        <TableHead className="py-3 px-4 font-bold text-white whitespace-nowrap">Color</TableHead>
-                        <TableHead className="py-3 px-4 font-bold text-white text-right whitespace-nowrap">Looms/Yarn Waste (LW)</TableHead>
-                      </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                      {loomsByColor.map((row, i) => (
-                        <TableRow key={row.color} className={i % 2 === 0 ? 'bg-white' : 'bg-emerald-50/40'}>
-                          <TableCell className="py-3 px-4 border-b border-gray-100 text-sm font-semibold text-gray-800">{row.color}</TableCell>
-                          <TableCell className="py-3 px-4 border-b border-gray-100 text-sm text-right font-bold text-gray-900">{formatNum(row.loomsWaste)}</TableCell>
-                        </TableRow>
-                      ))}
-                    </TableBody>
-                    <TableFooter>
-                      <TableRow className="border-t-2 border-[#004D40] bg-emerald-50 hover:bg-emerald-50">
-                        <TableCell className="py-3 px-4 font-bold text-[#004D40]">Total</TableCell>
-                        <TableCell className="py-3 px-4 font-bold text-[#004D40] text-right">{formatNum(loomsTotal)}</TableCell>
-                      </TableRow>
-                    </TableFooter>
-                  </Table>
+                  <LoomsWastageTable labelHeader="Color" rows={loomsByColor.map((r) => ({ label: r.color, loomsWaste: r.loomsWaste }))} />
                   <p className="text-[11px] text-gray-500 italic px-4 py-2 border-t border-gray-100">LW - Looms/Yarn Waste</p>
                 </ReportSection>
 
+                {loomsBySize.length > 0 && (
+                  <ReportSection title="Looms Wastage — By Size" total={`Total : ${formatNum(loomsBySize.reduce((s, r) => s + r.loomsWaste, 0))} kg`}>
+                    <LoomsWastageTable labelHeader="Size" rows={loomsBySize} />
+                  </ReportSection>
+                )}
+
+                {loomsByChemical.length > 0 && (
+                  <ReportSection title="Looms Wastage — By Chemical" total={`Total : ${formatNum(loomsByChemical.reduce((s, r) => s + r.loomsWaste, 0))} kg`}>
+                    <LoomsWastageTable labelHeader="Chemical" rows={loomsByChemical} />
+                  </ReportSection>
+                )}
+
                 {/* Fabric Checking Wastage */}
                 <ReportSection title="Fabric Checking Wastage" total={`Total : ${formatNum(fabricTotal)} kg`}>
-                  <Table>
-                    <TableHeader>
-                      <TableRow className="bg-[#004D40] hover:bg-[#004D40]">
-                        <TableHead className="py-3 px-4 font-bold text-white whitespace-nowrap">Color</TableHead>
-                        <TableHead className="py-3 px-4 font-bold text-white whitespace-nowrap !text-right">Fabric Waste (FW)</TableHead>
-                        <TableHead className="py-3 px-4 font-bold text-white whitespace-nowrap !text-right">Bit Waste (BW)</TableHead>
-                        <TableHead className="py-3 px-4 font-bold text-white text-right whitespace-nowrap">Total</TableHead>
-                      </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                      {fabricByColor.map((row, i) => (
-                        <TableRow key={row.color} className={i % 2 === 0 ? 'bg-white' : 'bg-emerald-50/40'}>
-                          <TableCell className="py-3 px-4 border-b border-gray-100 text-sm font-semibold text-gray-800">{row.color}</TableCell>
-                          <TableCell className="py-3 px-4 border-b border-gray-100 text-sm text-gray-600 !text-right">{formatNum(row.fabricWaste)}</TableCell>
-                          <TableCell className="py-3 px-4 border-b border-gray-100 text-sm text-gray-600 !text-right">{formatNum(row.bitWaste)}</TableCell>
-                          <TableCell className="py-3 px-4 border-b border-gray-100 text-sm text-right font-bold text-gray-900">{formatNum(row.fabricWaste + row.bitWaste)}</TableCell>
-                        </TableRow>
-                      ))}
-                    </TableBody>
-                    <TableFooter>
-                      <TableRow className="border-t-2 border-[#004D40] bg-emerald-50 hover:bg-emerald-50">
-                        <TableCell className="py-3 px-4 font-bold text-[#004D40]">Total</TableCell>
-                        <TableCell className="py-3 px-4"></TableCell>
-                        <TableCell className="py-3 px-4"></TableCell>
-                        <TableCell className="py-3 px-4 font-bold text-[#004D40] text-right">{formatNum(fabricTotal)}</TableCell>
-                      </TableRow>
-                    </TableFooter>
-                  </Table>
+                  <FabricWastageTable labelHeader="Color" rows={fabricByColor.map((r) => ({ label: r.color, fabricWaste: r.fabricWaste, bitWaste: r.bitWaste }))} />
                   <p className="text-[11px] text-gray-500 italic px-4 py-2 border-t border-gray-100">FW - Fabric Waste &nbsp;&nbsp; BW - Bit Waste</p>
                 </ReportSection>
+
+                {fabricBySize.length > 0 && (
+                  <ReportSection title="Fabric Checking Wastage — By Size" total={`Total : ${formatNum(fabricBySize.reduce((s, r) => s + r.fabricWaste + r.bitWaste, 0))} kg`}>
+                    <FabricWastageTable labelHeader="Size" rows={fabricBySize} />
+                  </ReportSection>
+                )}
+
+                {fabricByChemical.length > 0 && (
+                  <ReportSection title="Fabric Checking Wastage — By Chemical" total={`Total : ${formatNum(fabricByChemical.reduce((s, r) => s + r.fabricWaste + r.bitWaste, 0))} kg`}>
+                    <FabricWastageTable labelHeader="Chemical" rows={fabricByChemical} />
+                  </ReportSection>
+                )}
 
                 <div className="flex items-center justify-between bg-[#004D40] text-white rounded-lg p-4 mt-4">
                   <span className="font-bold uppercase text-sm tracking-wide">Grand Total Wastage</span>
@@ -366,5 +458,101 @@ function ReportSection({ title, total, children }: { title: string; total: strin
         {children}
       </div>
     </div>
+  );
+}
+
+function ExtruderWastageTable({ labelHeader, rows }: { labelHeader: string; rows: WastageExtruderLabelRow[] }) {
+  const total = rows.reduce((s, r) => s + r.lums + r.yarnWaste, 0);
+  return (
+    <Table>
+      <TableHeader>
+        <TableRow className="bg-[#004D40] hover:bg-[#004D40]">
+          <TableHead className="py-3 px-4 font-bold text-white whitespace-nowrap">{labelHeader}</TableHead>
+          <TableHead className="py-3 px-4 font-bold text-white whitespace-nowrap !text-right">Lums (LM)</TableHead>
+          <TableHead className="py-3 px-4 font-bold text-white whitespace-nowrap !text-right">Loose/Yarn (LO)</TableHead>
+          <TableHead className="py-3 px-4 font-bold text-white text-right whitespace-nowrap">Total</TableHead>
+        </TableRow>
+      </TableHeader>
+      <TableBody>
+        {rows.map((row, i) => (
+          <TableRow key={row.label} className={i % 2 === 0 ? 'bg-white' : 'bg-emerald-50/40'}>
+            <TableCell className="py-3 px-4 border-b border-gray-100 text-sm font-semibold text-gray-800">{row.label}</TableCell>
+            <TableCell className="py-3 px-4 border-b border-gray-100 text-sm text-gray-600 !text-right">{formatNum(row.lums)}</TableCell>
+            <TableCell className="py-3 px-4 border-b border-gray-100 text-sm text-gray-600 !text-right">{formatNum(row.yarnWaste)}</TableCell>
+            <TableCell className="py-3 px-4 border-b border-gray-100 text-sm text-right font-bold text-gray-900">{formatNum(row.lums + row.yarnWaste)}</TableCell>
+          </TableRow>
+        ))}
+      </TableBody>
+      <TableFooter>
+        <TableRow className="border-t-2 border-[#004D40] bg-emerald-50 hover:bg-emerald-50">
+          <TableCell className="py-3 px-4 font-bold text-[#004D40]">Total</TableCell>
+          <TableCell className="py-3 px-4"></TableCell>
+          <TableCell className="py-3 px-4"></TableCell>
+          <TableCell className="py-3 px-4 font-bold text-[#004D40] text-right">{formatNum(total)}</TableCell>
+        </TableRow>
+      </TableFooter>
+    </Table>
+  );
+}
+
+function LoomsWastageTable({ labelHeader, rows }: { labelHeader: string; rows: WastageLoomsLabelRow[] }) {
+  const total = rows.reduce((s, r) => s + r.loomsWaste, 0);
+  return (
+    <Table>
+      <TableHeader>
+        <TableRow className="bg-[#004D40] hover:bg-[#004D40]">
+          <TableHead className="py-3 px-4 font-bold text-white whitespace-nowrap">{labelHeader}</TableHead>
+          <TableHead className="py-3 px-4 font-bold text-white text-right whitespace-nowrap">Looms/Yarn Waste (LW)</TableHead>
+        </TableRow>
+      </TableHeader>
+      <TableBody>
+        {rows.map((row, i) => (
+          <TableRow key={row.label} className={i % 2 === 0 ? 'bg-white' : 'bg-emerald-50/40'}>
+            <TableCell className="py-3 px-4 border-b border-gray-100 text-sm font-semibold text-gray-800">{row.label}</TableCell>
+            <TableCell className="py-3 px-4 border-b border-gray-100 text-sm text-right font-bold text-gray-900">{formatNum(row.loomsWaste)}</TableCell>
+          </TableRow>
+        ))}
+      </TableBody>
+      <TableFooter>
+        <TableRow className="border-t-2 border-[#004D40] bg-emerald-50 hover:bg-emerald-50">
+          <TableCell className="py-3 px-4 font-bold text-[#004D40]">Total</TableCell>
+          <TableCell className="py-3 px-4 font-bold text-[#004D40] text-right">{formatNum(total)}</TableCell>
+        </TableRow>
+      </TableFooter>
+    </Table>
+  );
+}
+
+function FabricWastageTable({ labelHeader, rows }: { labelHeader: string; rows: WastageFabricLabelRow[] }) {
+  const total = rows.reduce((s, r) => s + r.fabricWaste + r.bitWaste, 0);
+  return (
+    <Table>
+      <TableHeader>
+        <TableRow className="bg-[#004D40] hover:bg-[#004D40]">
+          <TableHead className="py-3 px-4 font-bold text-white whitespace-nowrap">{labelHeader}</TableHead>
+          <TableHead className="py-3 px-4 font-bold text-white whitespace-nowrap !text-right">Fabric Waste (FW)</TableHead>
+          <TableHead className="py-3 px-4 font-bold text-white whitespace-nowrap !text-right">Bit Waste (BW)</TableHead>
+          <TableHead className="py-3 px-4 font-bold text-white text-right whitespace-nowrap">Total</TableHead>
+        </TableRow>
+      </TableHeader>
+      <TableBody>
+        {rows.map((row, i) => (
+          <TableRow key={row.label} className={i % 2 === 0 ? 'bg-white' : 'bg-emerald-50/40'}>
+            <TableCell className="py-3 px-4 border-b border-gray-100 text-sm font-semibold text-gray-800">{row.label}</TableCell>
+            <TableCell className="py-3 px-4 border-b border-gray-100 text-sm text-gray-600 !text-right">{formatNum(row.fabricWaste)}</TableCell>
+            <TableCell className="py-3 px-4 border-b border-gray-100 text-sm text-gray-600 !text-right">{formatNum(row.bitWaste)}</TableCell>
+            <TableCell className="py-3 px-4 border-b border-gray-100 text-sm text-right font-bold text-gray-900">{formatNum(row.fabricWaste + row.bitWaste)}</TableCell>
+          </TableRow>
+        ))}
+      </TableBody>
+      <TableFooter>
+        <TableRow className="border-t-2 border-[#004D40] bg-emerald-50 hover:bg-emerald-50">
+          <TableCell className="py-3 px-4 font-bold text-[#004D40]">Total</TableCell>
+          <TableCell className="py-3 px-4"></TableCell>
+          <TableCell className="py-3 px-4"></TableCell>
+          <TableCell className="py-3 px-4 font-bold text-[#004D40] text-right">{formatNum(total)}</TableCell>
+        </TableRow>
+      </TableFooter>
+    </Table>
   );
 }
