@@ -20,6 +20,7 @@ import { useExtruderProductions, extruderKeys } from '@/features/extruder/extrud
 import { useLoomsProductions, loomsKeys } from '@/features/looms/loom-queries';
 import { useFabricCheckingRecords, fabricCheckingKeys } from '@/features/fabric/fabric-queries';
 import { useLoadSentRecords, getLoadSentWeight, type LoadSentRecord, loadSentKeys } from '@/features/inventory/load-sent-queries';
+import { useMonthlyDashboard } from '@/features/dashboard/dashboard-queries';
 import { LoadSentFormDialog } from '@/features/inventory/load-sent-form-dialog';
 import { ProductionHeaderContext } from '@/features/production/production-context';
 import { NewEntry } from '@/features/production/new-entry';
@@ -166,6 +167,32 @@ export function SampleProductionPage() {
   const { data: loomsData } = useLoomsProductions('?limit=100&type=SAMPLE');
   const { data: fabricData } = useFabricCheckingRecords('?limit=100&type=SAMPLE');
   const { data: deliveredData } = useLoadSentRecords('?limit=100&type=SAMPLE');
+
+  // Feeds the Sample Production report modal — color/size/chemical-wise breakdowns for the
+  // selected month, same source (and same shape) the Production Details report uses, just
+  // scoped to type=SAMPLE so it never mixes in real Production records.
+  const companyName = user?.kind === 'company-user' ? user.company.name : 'LK Knits';
+  const { dashboardData: sampleMonthlyDashboardData } = useMonthlyDashboard(monthStr, 'SAMPLE');
+  const reportDeliveryByColor = useMemo(() => {
+    const map = new Map<string, { label: string; delivered: number }>();
+    (sampleMonthlyDashboardData?.loadSent.items ?? []).forEach((item) => {
+      const kg = item.loadSent?.fabricWeight ?? 0;
+      const entry = map.get(item.color.id) ?? { label: item.color.name, delivered: 0 };
+      entry.delivered += kg;
+      map.set(item.color.id, entry);
+    });
+    return Array.from(map.values());
+  }, [sampleMonthlyDashboardData]);
+  const reportDeliveryBySize = useMemo(() => {
+    const map = new Map<string, { label: string; delivered: number }>();
+    (sampleMonthlyDashboardData?.loadSent.items ?? []).forEach((item) => {
+      const kg = item.loadSent?.fabricWeight ?? 0;
+      const entry = map.get(item.size.id) ?? { label: item.size.name, delivered: 0 };
+      entry.delivered += kg;
+      map.set(item.size.id, entry);
+    });
+    return Array.from(map.values());
+  }, [sampleMonthlyDashboardData]);
 
   const rows = useMemo(() => {
     const dates = new Map<string, any>();
@@ -477,9 +504,23 @@ export function SampleProductionPage() {
       <SampleProductionReportModal
         open={isReportOpen}
         onOpenChange={setIsReportOpen}
+        companyName={companyName}
         monthStr={monthStr}
-        rows={rows}
-        totals={totals}
+        extruderByColor={sampleMonthlyDashboardData?.extruderProduction.byColor ?? []}
+        extruderBySize={sampleMonthlyDashboardData?.extruderProduction.bySize ?? []}
+        extruderByChemical={sampleMonthlyDashboardData?.extruderProduction.byChemical ?? []}
+        extruderTotal={sampleMonthlyDashboardData?.extruderProduction.overall.production ?? 0}
+        loomsByColor={sampleMonthlyDashboardData?.loomsProduction.byColor ?? []}
+        loomsBySize={sampleMonthlyDashboardData?.loomsProduction.bySize ?? []}
+        loomsByChemical={sampleMonthlyDashboardData?.loomsProduction.byChemical ?? []}
+        loomsTotal={sampleMonthlyDashboardData?.loomsProduction.overall.production ?? 0}
+        fabricByColor={sampleMonthlyDashboardData?.fabricProduction.byColor ?? []}
+        fabricBySize={sampleMonthlyDashboardData?.fabricProduction.bySize ?? []}
+        fabricByChemical={sampleMonthlyDashboardData?.fabricProduction.byChemical ?? []}
+        fabricTotal={sampleMonthlyDashboardData?.fabricProduction.overall.outputKg ?? 0}
+        deliveryByColor={reportDeliveryByColor}
+        deliveryBySize={reportDeliveryBySize}
+        deliveryTotal={sampleMonthlyDashboardData?.loadSent.totals.fabricWeightKg ?? 0}
       />
     </div>
   );

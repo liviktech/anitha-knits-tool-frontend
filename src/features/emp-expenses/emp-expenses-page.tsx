@@ -65,12 +65,23 @@ function formatDateDisplay(isoDate: string) {
   });
 }
 
+// Local calendar date, not toISOString()'s UTC one — toISOString() rolls back to "yesterday"
+// for any positive-UTC-offset timezone (e.g. IST) during the first hours of the local day,
+// which made the Add Expense date field default to the wrong day and reject today's real date
+// as "in the future".
 function todayIso() {
-  return new Date().toISOString().slice(0, 10);
+  const d = new Date();
+  const year = d.getFullYear();
+  const month = String(d.getMonth() + 1).padStart(2, "0");
+  const day = String(d.getDate()).padStart(2, "0");
+  return `${year}-${month}-${day}`;
 }
 
 function currentMonthStr() {
-  return new Date().toISOString().slice(0, 7);
+  const d = new Date();
+  const year = d.getFullYear();
+  const month = String(d.getMonth() + 1).padStart(2, "0");
+  return `${year}-${month}`;
 }
 
 /** First/last calendar day of a "YYYY-MM" string, as "YYYY-MM-DD". */

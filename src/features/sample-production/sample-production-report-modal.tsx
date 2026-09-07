@@ -1,20 +1,21 @@
-import { Fragment } from 'react';
-import { format, parseISO } from 'date-fns';
 import { Dialog, DialogClose, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Table, TableBody, TableCell, TableFooter, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Download, FileDown, X } from 'lucide-react';
+import type {
+  ExtruderProductionChemicalSummary,
+  ExtruderProductionColorSummary,
+  ExtruderProductionSizeSummary,
+  FabricProductionChemicalSummary,
+  FabricProductionColorSummary,
+  FabricProductionSizeSummary,
+  LoomsProductionChemicalSummary,
+  LoomsProductionColorSummary,
+  LoomsProductionSizeSummary,
+} from '@/features/dashboard/dashboard-queries';
 
 const TEAL: [number, number, number] = [0, 77, 64]; // #004D40 — this app's primary accent
-
-// Per-stage accents — same colors already used on the Sample Production page's own
-// day-wise table header groups, so the report visually matches the screen it summarizes.
-const STAGE_COLORS = {
-  extruder: { bg: [214, 238, 247] as [number, number, number], fg: [11, 85, 102] as [number, number, number], hex: '#D6EEF7', fgHex: '#0B5566' },
-  looms: { bg: [255, 246, 191] as [number, number, number], fg: [122, 106, 0] as [number, number, number], hex: '#FFF6BF', fgHex: '#7A6A00' },
-  fabric: { bg: [220, 238, 219] as [number, number, number], fg: [47, 107, 47] as [number, number, number], hex: '#DCEEDB', fgHex: '#2F6B2F' },
-  delivered: { bg: [242, 202, 160] as [number, number, number], fg: [97, 64, 30] as [number, number, number], hex: '#f2caa0', fgHex: '#61401E' },
-};
+const TEAL_TINT: [number, number, number] = [232, 245, 240]; // light teal for footer/total rows
 
 function formatNum(n: number): string {
   return n.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
@@ -26,72 +27,131 @@ function getMonthName(monthStr: string) {
   return date.toLocaleDateString('en-IN', { month: 'long', year: 'numeric' });
 }
 
-export interface SampleReportStageTotals {
-  input: number;
-  wastage: number;
-  output: number;
+export interface DeliveryBreakdownRow {
+  label: string;
+  delivered: number;
 }
 
-export interface SampleReportRow {
-  date: string;
-  extruder: SampleReportStageTotals;
-  looms: SampleReportStageTotals;
-  fabric: SampleReportStageTotals;
-  delivered: SampleReportStageTotals & { colors: Set<string> | string[] };
+interface BreakdownRow {
+  label: string;
+  values: number[];
 }
 
 interface SampleProductionReportModalProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
+  companyName: string;
   monthStr: string; // YYYY-MM
-  rows: SampleReportRow[];
-  totals: {
-    extruder: SampleReportStageTotals;
-    looms: SampleReportStageTotals;
-    fabric: SampleReportStageTotals;
-    delivered: SampleReportStageTotals;
-  };
+  extruderByColor: ExtruderProductionColorSummary[];
+  extruderBySize: ExtruderProductionSizeSummary[];
+  extruderByChemical: ExtruderProductionChemicalSummary[];
+  extruderTotal: number;
+  loomsByColor: LoomsProductionColorSummary[];
+  loomsBySize: LoomsProductionSizeSummary[];
+  loomsByChemical: LoomsProductionChemicalSummary[];
+  loomsTotal: number;
+  fabricByColor: FabricProductionColorSummary[];
+  fabricBySize: FabricProductionSizeSummary[];
+  fabricByChemical: FabricProductionChemicalSummary[];
+  fabricTotal: number;
+  deliveryByColor: DeliveryBreakdownRow[];
+  deliveryBySize: DeliveryBreakdownRow[];
+  deliveryTotal: number;
 }
 
-export function SampleProductionReportModal({ open, onOpenChange, monthStr, rows, totals }: SampleProductionReportModalProps) {
-  const hasData = rows.length > 0;
+const EXTRUDER_COLUMNS = ['Production (kg)', 'Lums (kg)', 'Yarn Waste (kg)', 'Total (kg)'];
+const LOOMS_COLUMNS = ['Production (kg)', 'Waste (kg)', 'Total (kg)'];
+const FABRIC_COLUMNS = ['Output (kg)', 'FW Waste (kg)', 'BW Waste (kg)', 'Total (kg)'];
+const DELIVERY_COLUMNS = ['Delivered (kg)'];
 
-  const colorLabel = (row: SampleReportRow) => {
-    const colors = Array.from(row.delivered.colors ?? []);
-    return colors.length > 1 ? 'Mixed' : (colors[0] || '-');
-  };
+function extruderRows<T extends { production: number; lumsKg: number; yarnWasteKg: number; total: number }>(items: T[], labelOf: (item: T) => string): BreakdownRow[] {
+  return items.map((item) => ({ label: labelOf(item), values: [item.production, item.lumsKg, item.yarnWasteKg, item.total] }));
+}
+
+function loomsRows<T extends { production: number; waste: number; total: number }>(items: T[], labelOf: (item: T) => string): BreakdownRow[] {
+  return items.map((item) => ({ label: labelOf(item), values: [item.production, item.waste, item.total] }));
+}
+
+function fabricRows<T extends { production: number; fwWasteKg: number; bwWasteKg: number; total: number }>(items: T[], labelOf: (item: T) => string): BreakdownRow[] {
+  return items.map((item) => ({ label: labelOf(item), values: [item.production, item.fwWasteKg, item.bwWasteKg, item.total] }));
+}
+
+function deliveryRows(items: DeliveryBreakdownRow[]): BreakdownRow[] {
+  return items.map((item) => ({ label: item.label, values: [item.delivered] }));
+}
+
+function columnTotals(rows: BreakdownRow[], columnCount: number): number[] {
+  const totals = new Array(columnCount).fill(0);
+  for (const row of rows) {
+    row.values.forEach((v, i) => {
+      totals[i] += v;
+    });
+  }
+  return totals;
+}
+
+export function SampleProductionReportModal({
+  open,
+  onOpenChange,
+  companyName,
+  monthStr,
+  extruderByColor,
+  extruderBySize,
+  extruderByChemical,
+  extruderTotal,
+  loomsByColor,
+  loomsBySize,
+  loomsByChemical,
+  loomsTotal,
+  fabricByColor,
+  fabricBySize,
+  fabricByChemical,
+  fabricTotal,
+  deliveryByColor,
+  deliveryBySize,
+  deliveryTotal,
+}: SampleProductionReportModalProps) {
+  const sections: { title: string; labelHeader: string; columns: string[]; rows: BreakdownRow[] }[] = [
+    { title: 'Extruder Production — By Color', labelHeader: 'Color', columns: EXTRUDER_COLUMNS, rows: extruderRows(extruderByColor, (i) => i.color.name) },
+    { title: 'Extruder Production — By Size', labelHeader: 'Size', columns: EXTRUDER_COLUMNS, rows: extruderRows(extruderBySize, (i) => i.size.name) },
+    { title: 'Extruder Production — By Chemical', labelHeader: 'Chemical', columns: EXTRUDER_COLUMNS, rows: extruderRows(extruderByChemical, (i) => i.chemical.name) },
+    { title: 'Looms Production — By Color', labelHeader: 'Color', columns: LOOMS_COLUMNS, rows: loomsRows(loomsByColor, (i) => i.color.name) },
+    { title: 'Looms Production — By Size', labelHeader: 'Size', columns: LOOMS_COLUMNS, rows: loomsRows(loomsBySize, (i) => i.size.name) },
+    { title: 'Looms Production — By Chemical', labelHeader: 'Chemical', columns: LOOMS_COLUMNS, rows: loomsRows(loomsByChemical, (i) => i.chemical.name) },
+    { title: 'Fabric Checking — By Color', labelHeader: 'Color', columns: FABRIC_COLUMNS, rows: fabricRows(fabricByColor, (i) => i.color.name) },
+    { title: 'Fabric Checking — By Size', labelHeader: 'Size', columns: FABRIC_COLUMNS, rows: fabricRows(fabricBySize, (i) => i.size.name) },
+    { title: 'Fabric Checking — By Chemical', labelHeader: 'Chemical', columns: FABRIC_COLUMNS, rows: fabricRows(fabricByChemical, (i) => i.chemical.name) },
+    { title: 'Delivery — By Color', labelHeader: 'Color', columns: DELIVERY_COLUMNS, rows: deliveryRows(deliveryByColor) },
+    { title: 'Delivery — By Size', labelHeader: 'Size', columns: DELIVERY_COLUMNS, rows: deliveryRows(deliveryBySize) },
+  ].filter((s) => s.rows.length > 0);
+
+  const hasData = sections.length > 0;
 
   const handleDownloadCSV = () => {
     if (!hasData) return;
 
-    const headers = [
-      'Date',
-      'Extruder Input', 'Extruder Wastage', 'Extruder Output',
-      'Looms Input', 'Looms Wastage', 'Looms Output',
-      'Fabric Input', 'Fabric Wastage', 'Fabric Output',
-      'Delivered Input', 'Delivered Color', 'Delivered Output',
-    ];
-    const csvRows = [headers.join(',')];
+    const escapeCsvField = (value: string | number) => {
+      const str = String(value);
+      return /[",\n]/.test(str) ? `"${str.replace(/"/g, '""')}"` : str;
+    };
 
-    for (const row of rows) {
-      csvRows.push([
-        format(parseISO(row.date), 'dd/MM/yyyy'),
-        row.extruder.input, row.extruder.wastage, row.extruder.output,
-        row.looms.input, row.looms.wastage, row.looms.output,
-        row.fabric.input, row.fabric.wastage, row.fabric.output,
-        row.delivered.input, `"${colorLabel(row)}"`, row.delivered.output,
-      ].join(','));
+    const csvRows: (string | number)[][] = [];
+    csvRows.push(['Sample Production Report']);
+    csvRows.push(['Company', companyName]);
+    csvRows.push(['Period', getMonthName(monthStr)]);
+    csvRows.push(['Generated On', new Date().toLocaleString('en-IN')]);
+    csvRows.push([]);
+
+    for (const section of sections) {
+      csvRows.push([section.title]);
+      csvRows.push([section.labelHeader, ...section.columns]);
+      section.rows.forEach((row) => csvRows.push([row.label, ...row.values]));
+      csvRows.push(['Total', ...columnTotals(section.rows, section.columns.length)]);
+      csvRows.push([]);
     }
-    csvRows.push([
-      'TOTAL',
-      totals.extruder.input, totals.extruder.wastage, totals.extruder.output,
-      totals.looms.input, totals.looms.wastage, totals.looms.output,
-      totals.fabric.input, totals.fabric.wastage, totals.fabric.output,
-      totals.delivered.input, '', totals.delivered.output,
-    ].join(','));
 
-    const csvContent = 'data:text/csv;charset=utf-8,' + csvRows.join('\n');
-    const encodedUri = encodeURI(csvContent);
+    const csvContent = csvRows.map((r) => r.map(escapeCsvField).join(',')).join('\n');
+    const encodedUri = encodeURI('data:text/csv;charset=utf-8,' + csvContent);
     const link = document.createElement('a');
     link.setAttribute('href', encodedUri);
     link.setAttribute('download', `Sample_Production_Report_${monthStr}.csv`);
@@ -106,82 +166,64 @@ export function SampleProductionReportModal({ open, onOpenChange, monthStr, rows
     const { jsPDF } = await import('jspdf');
     const { default: autoTable } = await import('jspdf-autotable');
 
-    const doc = new jsPDF({ orientation: 'landscape' });
+    const doc = new jsPDF();
+    let y = 18;
 
     doc.setFontSize(18);
     doc.setFont('helvetica', 'bold');
     doc.setTextColor(...TEAL);
-    doc.text('ANITHA KNITS', 148, 16, { align: 'center' });
+    doc.text('ANITHA KNITS', 105, y, { align: 'center' });
+    y += 8;
 
     doc.setFontSize(12);
     doc.setFont('helvetica', 'normal');
     doc.setTextColor(90, 90, 90);
-    doc.text('SAMPLE PRODUCTION REPORT', 148, 23, { align: 'center' });
-    doc.text(`Period: ${getMonthName(monthStr)}`, 148, 29, { align: 'center' });
+    doc.text('SAMPLE PRODUCTION REPORT', 105, y, { align: 'center' });
+    y += 7;
+    doc.text(`Period: ${getMonthName(monthStr)}`, 105, y, { align: 'center' });
+    y += 5;
 
     doc.setDrawColor(...TEAL);
     doc.setLineWidth(0.6);
-    doc.line(14, 33, 283, 33);
-
-    autoTable(doc, {
-      startY: 39,
-      margin: { left: 14, right: 14 },
-      head: [[
-        'Date',
-        'Extruder Input', 'Extruder Wastage', 'Extruder Output',
-        'Looms Input', 'Looms Wastage', 'Looms Output',
-        'Fabric Input', 'Fabric Wastage', 'Fabric Output',
-        'Delivered Input', 'Delivered Color', 'Delivered Output',
-      ]],
-      body: rows.map((row) => [
-        format(parseISO(row.date), 'dd/MM/yyyy'),
-        formatNum(row.extruder.input), formatNum(row.extruder.wastage), formatNum(row.extruder.output),
-        formatNum(row.looms.input), formatNum(row.looms.wastage), formatNum(row.looms.output),
-        formatNum(row.fabric.input), formatNum(row.fabric.wastage), formatNum(row.fabric.output),
-        formatNum(row.delivered.input), colorLabel(row), formatNum(row.delivered.output),
-      ]),
-      foot: [[
-        'TOTAL',
-        formatNum(totals.extruder.input), formatNum(totals.extruder.wastage), formatNum(totals.extruder.output),
-        formatNum(totals.looms.input), formatNum(totals.looms.wastage), formatNum(totals.looms.output),
-        formatNum(totals.fabric.input), formatNum(totals.fabric.wastage), formatNum(totals.fabric.output),
-        formatNum(totals.delivered.input), '', formatNum(totals.delivered.output),
-      ]],
-      styles: { fontSize: 7.5, cellPadding: 2, halign: 'right' },
-      columnStyles: { 0: { halign: 'left' }, 11: { halign: 'center' } },
-      footStyles: { fillColor: [240, 240, 240], textColor: 30, fontStyle: 'bold' },
-      didParseCell: (data) => {
-        if (data.section !== 'head') return;
-        const idx = data.column.index;
-        const stage =
-          idx >= 1 && idx <= 3 ? STAGE_COLORS.extruder :
-          idx >= 4 && idx <= 6 ? STAGE_COLORS.looms :
-          idx >= 7 && idx <= 9 ? STAGE_COLORS.fabric :
-          idx >= 10 && idx <= 12 ? STAGE_COLORS.delivered :
-          null;
-        if (stage) {
-          data.cell.styles.fillColor = stage.bg;
-          data.cell.styles.textColor = stage.fg;
-        }
-      },
-    });
+    doc.line(14, y, 196, y);
+    y += 8;
 
     const pageHeight = doc.internal.pageSize.getHeight();
+
+    for (const section of sections) {
+      if (y > pageHeight - 40) {
+        doc.addPage();
+        y = 18;
+      }
+      doc.setFontSize(11);
+      doc.setFont('helvetica', 'bold');
+      doc.setTextColor(...TEAL);
+      doc.text(section.title, 14, y);
+      y += 6;
+
+      autoTable(doc, {
+        startY: y,
+        margin: { left: 14, right: 14 },
+        head: [[section.labelHeader, ...section.columns]],
+        body: section.rows.map((row) => [row.label, ...row.values.map(formatNum)]),
+        foot: [['Total', ...columnTotals(section.rows, section.columns.length).map(formatNum)]],
+        styles: { fontSize: 9, cellPadding: 3 },
+        headStyles: { fillColor: TEAL, textColor: 255, fontStyle: 'bold' },
+        footStyles: { fillColor: TEAL_TINT, textColor: TEAL, fontStyle: 'bold' },
+      });
+      y = (doc as any).lastAutoTable.finalY + 10;
+    }
+
     doc.setFontSize(8);
     doc.setTextColor(150, 150, 150);
-    doc.text(
-      `Generated on ${new Date().toLocaleDateString('en-IN')} at ${new Date().toLocaleTimeString('en-IN')}`,
-      148,
-      pageHeight - 10,
-      { align: 'center' },
-    );
+    doc.text(`Generated on ${new Date().toLocaleDateString('en-IN')} at ${new Date().toLocaleTimeString('en-IN')}`, 105, doc.internal.pageSize.getHeight() - 10, { align: 'center' });
 
     doc.save(`Sample_Production_Report_${monthStr}.pdf`);
   };
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent showCloseButton={false} className="max-w-6xl sm:max-w-6xl max-h-[85vh] flex flex-col p-0 border border-gray-300 overflow-hidden bg-white print:max-w-none print:h-auto print:border-none">
+      <DialogContent showCloseButton={false} className="max-w-4xl sm:max-w-4xl max-h-[85vh] flex flex-col p-0 border border-gray-300 overflow-hidden bg-white print:max-w-none print:h-auto print:border-none">
         {/* Modal Header (Not printed) */}
         {/* Close button rendered in-flow here (not DialogContent's default absolutely-positioned
             one) so it shares the same flex row as Download CSV/PDF and always lines up with them. */}
@@ -208,7 +250,7 @@ export function SampleProductionReportModal({ open, onOpenChange, monthStr, rows
         </DialogHeader>
 
         {/* Report Content - Scrollable */}
-        <div className="flex-1 overflow-auto p-4 print:p-0 bg-gray-100 print:bg-white font-hanken" id="sample-production-report-printable-area">
+        <div className="flex-1 overflow-auto p-4 print:p-0 bg-gray-100 print:bg-white" id="sample-production-report-printable-area">
           <div className="bg-white p-6 shadow-sm border border-gray-200 rounded-lg print:shadow-none print:border-none print:p-0">
             {/* Report Header */}
             <div className="text-center mb-4 border-b-2 border-[#004D40] pb-3">
@@ -230,85 +272,77 @@ export function SampleProductionReportModal({ open, onOpenChange, monthStr, rows
             ) : (
               <>
                 {/* KPI Cards */}
-                <div className="grid grid-cols-3 gap-3 mb-4">
-                  <div className="rounded-lg p-4 border" style={{ backgroundColor: `${STAGE_COLORS.extruder.hex}55`, borderColor: STAGE_COLORS.extruder.hex }}>
-                    <p className="text-xs font-semibold uppercase" style={{ color: STAGE_COLORS.extruder.fgHex }}>Extruder Production</p>
-                    <p className="text-2xl font-bold" style={{ color: STAGE_COLORS.extruder.fgHex }}>{formatNum(totals.extruder.output)} <span className="text-sm font-medium">kg</span></p>
+                <div className="grid grid-cols-4 gap-3 mb-4">
+                  <div className="bg-emerald-50 border border-emerald-200 rounded-lg p-4">
+                    <p className="text-xs font-semibold text-[#004D40]/70 uppercase">Extruder Production</p>
+                    <p className="text-2xl font-bold text-[#004D40]">{formatNum(extruderTotal)} <span className="text-sm font-medium">kg</span></p>
                   </div>
-                  <div className="rounded-lg p-4 border" style={{ backgroundColor: `${STAGE_COLORS.looms.hex}55`, borderColor: STAGE_COLORS.looms.hex }}>
-                    <p className="text-xs font-semibold uppercase" style={{ color: STAGE_COLORS.looms.fgHex }}>Looms Production</p>
-                    <p className="text-2xl font-bold" style={{ color: STAGE_COLORS.looms.fgHex }}>{formatNum(totals.looms.output)} <span className="text-sm font-medium">kg</span></p>
+                  <div className="bg-emerald-50 border border-emerald-200 rounded-lg p-4">
+                    <p className="text-xs font-semibold text-[#004D40]/70 uppercase">Looms Production</p>
+                    <p className="text-2xl font-bold text-[#004D40]">{formatNum(loomsTotal)} <span className="text-sm font-medium">kg</span></p>
                   </div>
-                  <div className="rounded-lg p-4 border" style={{ backgroundColor: `${STAGE_COLORS.fabric.hex}55`, borderColor: STAGE_COLORS.fabric.hex }}>
-                    <p className="text-xs font-semibold uppercase" style={{ color: STAGE_COLORS.fabric.fgHex }}>Fabric Production</p>
-                    <p className="text-2xl font-bold" style={{ color: STAGE_COLORS.fabric.fgHex }}>{formatNum(totals.fabric.output)} <span className="text-sm font-medium">kg</span></p>
+                  <div className="bg-emerald-50 border border-emerald-200 rounded-lg p-4">
+                    <p className="text-xs font-semibold text-[#004D40]/70 uppercase">Fabric Checking</p>
+                    <p className="text-2xl font-bold text-[#004D40]">{formatNum(fabricTotal)} <span className="text-sm font-medium">kg</span></p>
+                  </div>
+                  <div className="bg-emerald-50 border border-emerald-200 rounded-lg p-4">
+                    <p className="text-xs font-semibold text-[#004D40]/70 uppercase">Delivered</p>
+                    <p className="text-2xl font-bold text-[#004D40]">{formatNum(deliveryTotal)} <span className="text-sm font-medium">kg</span></p>
                   </div>
                 </div>
 
-                {/* Data Table */}
-                <div className="mb-4 overflow-x-auto rounded-lg border border-gray-200">
-                  <Table>
-                    <TableHeader>
-                      <TableRow className="hover:bg-transparent">
-                        <TableHead rowSpan={2} className="py-2 px-3 font-bold text-gray-800 bg-white align-bottom whitespace-nowrap">Date</TableHead>
-                        <TableHead colSpan={3} className="py-2 px-3 font-bold whitespace-nowrap !text-center" style={{ backgroundColor: STAGE_COLORS.extruder.hex, color: STAGE_COLORS.extruder.fgHex }}>Extruder</TableHead>
-                        <TableHead colSpan={3} className="py-2 px-3 font-bold whitespace-nowrap !text-center" style={{ backgroundColor: STAGE_COLORS.looms.hex, color: STAGE_COLORS.looms.fgHex }}>Looms</TableHead>
-                        <TableHead colSpan={3} className="py-2 px-3 font-bold whitespace-nowrap !text-center" style={{ backgroundColor: STAGE_COLORS.fabric.hex, color: STAGE_COLORS.fabric.fgHex }}>Fabric</TableHead>
-                        <TableHead colSpan={3} className="py-2 px-3 font-bold whitespace-nowrap !text-center" style={{ backgroundColor: STAGE_COLORS.delivered.hex, color: STAGE_COLORS.delivered.fgHex }}>Delivered</TableHead>
-                      </TableRow>
-                      <TableRow className="hover:bg-transparent">
-                        {(['extruder', 'looms', 'fabric'] as const).map((stage) => (
-                          <Fragment key={stage}>
-                            <TableHead className="py-1.5 px-2 text-[11px] font-bold whitespace-nowrap !text-center" style={{ backgroundColor: `${STAGE_COLORS[stage].hex}80`, color: STAGE_COLORS[stage].fgHex }}>Input</TableHead>
-                            <TableHead className="py-1.5 px-2 text-[11px] font-bold whitespace-nowrap !text-center" style={{ backgroundColor: `${STAGE_COLORS[stage].hex}80`, color: STAGE_COLORS[stage].fgHex }}>Wastage</TableHead>
-                            <TableHead className="py-1.5 px-2 text-[11px] font-bold whitespace-nowrap !text-center" style={{ backgroundColor: `${STAGE_COLORS[stage].hex}80`, color: STAGE_COLORS[stage].fgHex }}>Output</TableHead>
-                          </Fragment>
-                        ))}
-                        <TableHead className="py-1.5 px-2 text-[11px] font-bold whitespace-nowrap !text-center" style={{ backgroundColor: `${STAGE_COLORS.delivered.hex}80`, color: STAGE_COLORS.delivered.fgHex }}>Input</TableHead>
-                        <TableHead className="py-1.5 px-2 text-[11px] font-bold whitespace-nowrap !text-center" style={{ backgroundColor: `${STAGE_COLORS.delivered.hex}80`, color: STAGE_COLORS.delivered.fgHex }}>Color</TableHead>
-                        <TableHead className="py-1.5 px-2 text-[11px] font-bold whitespace-nowrap !text-center" style={{ backgroundColor: `${STAGE_COLORS.delivered.hex}80`, color: STAGE_COLORS.delivered.fgHex }}>Output</TableHead>
-                      </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                      {rows.map((row, idx) => (
-                        <TableRow key={row.date} className={idx % 2 === 0 ? 'bg-white' : 'bg-gray-50'}>
-                          <TableCell className="py-2 px-3 border-b border-gray-100 text-sm font-semibold whitespace-nowrap text-gray-800">
-                            {format(parseISO(row.date), 'dd MMM yyyy')}
-                          </TableCell>
-                          <TableCell className="py-2 px-3 border-b border-gray-100 text-sm text-gray-600">{formatNum(row.extruder.input)}</TableCell>
-                          <TableCell className="py-2 px-3 border-b border-gray-100 text-sm text-gray-600">{formatNum(row.extruder.wastage)}</TableCell>
-                          <TableCell className="py-2 px-3 border-b border-gray-100 text-sm font-semibold text-gray-800">{formatNum(row.extruder.output)}</TableCell>
-                          <TableCell className="py-2 px-3 border-b border-gray-100 text-sm text-gray-600">{formatNum(row.looms.input)}</TableCell>
-                          <TableCell className="py-2 px-3 border-b border-gray-100 text-sm text-gray-600">{formatNum(row.looms.wastage)}</TableCell>
-                          <TableCell className="py-2 px-3 border-b border-gray-100 text-sm font-semibold text-gray-800">{formatNum(row.looms.output)}</TableCell>
-                          <TableCell className="py-2 px-3 border-b border-gray-100 text-sm text-gray-600">{formatNum(row.fabric.input)}</TableCell>
-                          <TableCell className="py-2 px-3 border-b border-gray-100 text-sm text-gray-600">{formatNum(row.fabric.wastage)}</TableCell>
-                          <TableCell className="py-2 px-3 border-b border-gray-100 text-sm font-semibold text-gray-800">{formatNum(row.fabric.output)}</TableCell>
-                          <TableCell className="py-2 px-3 border-b border-gray-100 text-sm text-gray-600">{formatNum(row.delivered.input)}</TableCell>
-                          <TableCell className="py-2 px-3 border-b border-gray-100 text-sm text-gray-600">{colorLabel(row)}</TableCell>
-                          <TableCell className="py-2 px-3 border-b border-gray-100 text-sm font-semibold text-gray-800 !text-center">{formatNum(row.delivered.output)}</TableCell>
-                        </TableRow>
-                      ))}
-                    </TableBody>
-                    <TableFooter>
-                      <TableRow className="border-t-2 border-[#004D40] bg-emerald-50 hover:bg-emerald-50 font-bold text-[#004D40]">
-                        <TableCell className="py-3 px-3">Total</TableCell>
-                        <TableCell className="py-3 px-3">{formatNum(totals.extruder.input)}</TableCell>
-                        <TableCell className="py-3 px-3">{formatNum(totals.extruder.wastage)}</TableCell>
-                        <TableCell className="py-3 px-3">{formatNum(totals.extruder.output)}</TableCell>
-                        <TableCell className="py-3 px-3">{formatNum(totals.looms.input)}</TableCell>
-                        <TableCell className="py-3 px-3">{formatNum(totals.looms.wastage)}</TableCell>
-                        <TableCell className="py-3 px-3">{formatNum(totals.looms.output)}</TableCell>
-                        <TableCell className="py-3 px-3">{formatNum(totals.fabric.input)}</TableCell>
-                        <TableCell className="py-3 px-3">{formatNum(totals.fabric.wastage)}</TableCell>
-                        <TableCell className="py-3 px-3">{formatNum(totals.fabric.output)}</TableCell>
-                        <TableCell className="py-3 px-3">{formatNum(totals.delivered.input)}</TableCell>
-                        <TableCell className="py-3 px-3">-</TableCell>
-                        <TableCell className="py-3 px-3 !text-center">{formatNum(totals.delivered.output)}</TableCell>
-                      </TableRow>
-                    </TableFooter>
-                  </Table>
-                </div>
+                {sections.map((section) => {
+                  const totals = columnTotals(section.rows, section.columns.length);
+                  return (
+                    <div className="mb-4" key={section.title}>
+                      <div className="flex items-center justify-between mb-2">
+                        <h3 className="text-sm font-bold text-gray-800">{section.title}</h3>
+                        <span className="text-[13px] font-bold text-[#004D40]">
+                          Total : {formatNum(totals[totals.length - 1])} kg
+                        </span>
+                      </div>
+                      <div className="rounded-lg overflow-hidden border border-gray-200">
+                        <Table>
+                          <TableHeader>
+                            <TableRow className="bg-[#004D40] hover:bg-[#004D40]">
+                              <TableHead className="py-3 px-4 font-bold text-white whitespace-nowrap">{section.labelHeader}</TableHead>
+                              {section.columns.map((col, i) => (
+                                <TableHead key={col} className={`py-3 px-4 font-bold text-white whitespace-nowrap ${i === section.columns.length - 1 ? 'text-right' : '!text-right'}`}>
+                                  {col}
+                                </TableHead>
+                              ))}
+                            </TableRow>
+                          </TableHeader>
+                          <TableBody>
+                            {section.rows.map((row, ri) => (
+                              <TableRow key={row.label} className={ri % 2 === 0 ? 'bg-white' : 'bg-emerald-50/40'}>
+                                <TableCell className="py-3 px-4 border-b border-gray-100 text-sm font-semibold text-gray-800">{row.label}</TableCell>
+                                {row.values.map((v, ci) => (
+                                  <TableCell
+                                    key={ci}
+                                    className={`py-3 px-4 border-b border-gray-100 text-sm ${ci === row.values.length - 1 ? 'text-right font-bold text-gray-900' : '!text-right text-gray-600'}`}
+                                  >
+                                    {formatNum(v)}
+                                  </TableCell>
+                                ))}
+                              </TableRow>
+                            ))}
+                          </TableBody>
+                          <TableFooter>
+                            <TableRow className="border-t-2 border-[#004D40] bg-emerald-50 hover:bg-emerald-50">
+                              <TableCell className="py-3 px-4 font-bold text-[#004D40]">Total</TableCell>
+                              {totals.map((t, i) => (
+                                <TableCell key={i} className={`py-3 px-4 font-bold text-[#004D40] ${i === totals.length - 1 ? 'text-right' : '!text-right'}`}>
+                                  {formatNum(t)}
+                                </TableCell>
+                              ))}
+                            </TableRow>
+                          </TableFooter>
+                        </Table>
+                      </div>
+                    </div>
+                  );
+                })}
               </>
             )}
 
