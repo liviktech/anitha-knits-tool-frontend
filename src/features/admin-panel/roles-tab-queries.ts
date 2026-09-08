@@ -162,3 +162,57 @@ export function useAssignRoleAccess() {
     [roleAccessKeys.all, ['employees']],
   );
 }
+
+export function useUnassignRoleAccess() {
+  return useApiMutation<{ roleAccessId: string; employeeId: string }>(
+    ({ roleAccessId, employeeId }) =>
+      postJson(`/role-access/${roleAccessId}/unassign`, { employeeId }),
+    [roleAccessKeys.all, ['employees']],
+  );
+}
+
+/* ============================================================= */
+/* MODULE & TAB CRUD MUTATIONS                                   */
+/* ============================================================= */
+
+export function useCreateModule() {
+  return useApiMutation<{ moduleName: string; moduleCode: string }>(
+    (data) => postJson('/modules', data),
+    [moduleKeys.all],
+  );
+}
+
+export function useUpdateModule() {
+  return useApiMutation<{ id: string; moduleName: string }>(
+    ({ id, ...data }) => patchJson(`/modules/${id}`, data),
+    [moduleKeys.all],
+  );
+}
+
+export function useDeleteModule() {
+  return useApiMutation<string>(
+    (id) => apiFetch(`/modules/${id}`, { method: 'DELETE' }),
+    [moduleKeys.all, tabKeys.all, rightKeys.all],
+  );
+}
+
+export function useCreateTab() {
+  return useApiMutation<{ moduleId: string; tabName: string; tabCode: string }>(
+    (data) => postJson('/tabs', data),
+    [tabKeys.all],
+  );
+}
+
+export function useUpdateTab() {
+  return useApiMutation<{ id: string; tabName: string; tabCode?: string }>(
+    ({ id, ...data }) => patchJson(`/tabs/${id}`, data),
+    [tabKeys.all],
+  );
+}
+
+export function useDeleteTab() {
+  return useApiMutation<string>(
+    (id) => apiFetch(`/tabs/${id}`, { method: 'DELETE' }),
+    [tabKeys.all, rightKeys.all],
+  );
+}

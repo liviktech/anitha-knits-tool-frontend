@@ -1,5 +1,5 @@
 import { useState, useMemo, useRef, useEffect, forwardRef, useImperativeHandle } from 'react';
-import { Plus, Edit2, Trash2, Search, Loader2, Calendar, Wallet, Upload, UserRound, FileText } from 'lucide-react';
+import { Plus, Edit2, Trash2, Search, Loader2, Calendar, Wallet, Upload, UserRound, FileText, Download } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -11,6 +11,7 @@ import { DeleteConfirmDialog } from '@/components/shared/delete-confirm-dialog';
 import { TablePaginationControls, RowsPerPageSelect } from '@/components/shared/table-pagination-controls';
 import { AttendanceTab, type AttendanceTabRef } from './attendance-tab';
 import { PayrollTab, type PayrollTabRef } from './payroll-tab';
+import { EmployeeReportModal } from './employee-report-modal';
 import { useAuth } from '@/features/auth/auth-context';
 import { can, hasTabAccess } from '@/lib/access';
 import { RIGHTS } from '@/lib/permissions';
@@ -198,6 +199,7 @@ const EmployeeDirectoryTab = forwardRef<EmployeeDirectoryTabRef>((_props, ref) =
   const [formName, setFormName] = useState('');
   const [formDesignation, setFormDesignation] = useState('');
   const [formMobile, setFormMobile] = useState('');
+  const [formRole, setFormRole] = useState<'EMPLOYEE' | 'MANAGER' | 'SUPERVISOR'>('EMPLOYEE');
   const [formAadhar, setFormAadhar] = useState('');
   const [formDoj, setFormDoj] = useState(todayIso());
   const [formAddress, setFormAddress] = useState('');
@@ -261,8 +263,10 @@ const EmployeeDirectoryTab = forwardRef<EmployeeDirectoryTabRef>((_props, ref) =
 
       const statusStr = emp.isActive ? 'Active' : 'Inactive';
       const matchesStatus = statusFilter === 'ALL' || statusStr === statusFilter;
+      const empRole = emp.role || 'EMPLOYEE';
+      const matchesRole = roleFilter === 'ALL' || empRole === roleFilter;
 
-      return matchesSearch && matchesStatus;
+      return matchesSearch && matchesStatus && matchesRole;
     });
   }, [employees, searchQuery, statusFilter, roleFilter]);
 
@@ -283,6 +287,7 @@ const EmployeeDirectoryTab = forwardRef<EmployeeDirectoryTabRef>((_props, ref) =
     setFormName('');
     setFormDesignation('');
     setFormMobile('');
+    setFormRole('EMPLOYEE');
     setFormAadhar('');
     setFormDoj(todayIso());
     setFormAddress('');
@@ -304,6 +309,7 @@ const EmployeeDirectoryTab = forwardRef<EmployeeDirectoryTabRef>((_props, ref) =
     setFormName(emp.name || '');
     setFormDesignation(emp.employeeDetails?.designation || '');
     setFormMobile(emp.mobile);
+    setFormRole((emp.role as 'EMPLOYEE' | 'MANAGER' | 'SUPERVISOR') || 'EMPLOYEE');
     setFormAadhar(emp.employeeDetails?.aadhaarNumber || '');
     // Take YYYY-MM-DD from ISO string
     const doj = emp.employeeDetails?.joiningDate ? emp.employeeDetails.joiningDate.split('T')[0] : todayIso();
@@ -333,6 +339,7 @@ const EmployeeDirectoryTab = forwardRef<EmployeeDirectoryTabRef>((_props, ref) =
       const payload = {
         name: formName.trim(),
         mobile: formMobile.trim(),
+        role: formRole,
         isActive: formStatus === 'Active',
         employeeDetails: {
           designation: formDesignation.trim(),
@@ -481,6 +488,9 @@ const EmployeeDirectoryTab = forwardRef<EmployeeDirectoryTabRef>((_props, ref) =
                 <TableHead className="text-sm font-semibold tracking-wide text-gray-800 px-2 w-[130px] border-r border-gray-300">
                   Designation
                 </TableHead>
+                <TableHead className="text-sm font-semibold tracking-wide text-gray-800 px-2 w-[100px] border-r border-gray-300">
+                  Role
+                </TableHead>
                 <TableHead className="text-sm font-semibold tracking-wide text-gray-800 px-2 w-[110px] border-r border-gray-300">
                   Mobile Number
                 </TableHead>
@@ -536,6 +546,19 @@ const EmployeeDirectoryTab = forwardRef<EmployeeDirectoryTabRef>((_props, ref) =
                     
                     <TableCell className="px-2 py-2 text-sm text-gray-700 whitespace-nowrap border-r border-gray-300">
                       {emp.employeeDetails?.designation || '-'}
+                    </TableCell>
+                    <TableCell className="px-2 py-2 text-sm whitespace-nowrap border-r border-gray-300">
+                      <span
+                        className={`inline-flex items-center rounded-full px-2 py-0.5 text-[11px] font-semibold ${
+                          emp.role === 'MANAGER'
+                            ? 'bg-purple-100 text-purple-800 border border-purple-300'
+                            : emp.role === 'SUPERVISOR'
+                            ? 'bg-blue-100 text-blue-800 border border-blue-300'
+                            : 'bg-gray-100 text-gray-700 border border-gray-200'
+                        }`}
+                      >
+                        {emp.role || 'EMPLOYEE'}
+                      </span>
                     </TableCell>
                     <TableCell className="px-2 py-2 text-[13px] text-gray-700 whitespace-nowrap border-r border-gray-300">
                       {emp.mobile}
@@ -683,6 +706,20 @@ const EmployeeDirectoryTab = forwardRef<EmployeeDirectoryTabRef>((_props, ref) =
               </div>
 
               <div className="flex flex-col gap-1.5">
+                <Label htmlFor="emp-role" className="text-xs font-semibold text-gray-700">Role / Promotion Level</Label>
+                <Select value={formRole} onValueChange={(val) => setFormRole(val as 'EMPLOYEE' | 'MANAGER' | 'SUPERVISOR')}>
+                  <SelectTrigger id="emp-role" className="w-full h-9 text-xs bg-white border-gray-400">
+                    <SelectValue placeholder="Select role" />
+                  </SelectTrigger>
+                  <SelectContent position="popper">
+                    <SelectItem value="EMPLOYEE">Employee (Default - No Login Access)</SelectItem>
+                    <SelectItem value="MANAGER">Manager (Promoted - Default Pass: manager)</SelectItem>
+                    <SelectItem value="SUPERVISOR">Supervisor (Promoted - Default Pass: supervisor)</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div className="flex flex-col gap-1.5">
                 <Label htmlFor="emp-doj" className="text-xs font-semibold text-gray-700">Date of Joining</Label>
                 <Input
                   id="emp-doj"
@@ -827,6 +864,7 @@ const EmployeeDirectoryTab = forwardRef<EmployeeDirectoryTabRef>((_props, ref) =
               <ViewField label="Employee ID" value={viewTarget.employeeDetails?.customUserId || viewTarget.id} />
               <ViewField label="Full Name" value={viewTarget.name || '-'} />
               <ViewField label="Designation" value={viewTarget.employeeDetails?.designation || '-'} />
+              <ViewField label="Role Level" value={viewTarget.role || 'EMPLOYEE'} />
               <ViewField label="Mobile Number" value={viewTarget.mobile} />
               <ViewField label="Date of Joining" value={formatDateDisplay(viewTarget.employeeDetails?.joiningDate || '')} />
               <ViewField label="Monthly Salary (₹)" value={viewTarget.employeeDetails?.salary ? formatCurrency(viewTarget.employeeDetails.salary) : '-'} />
@@ -882,6 +920,7 @@ export function EmployeePage() {
   const canMarkAttendance = can(user, RIGHTS.employees.attendance.edit);
 
   const [activeTab, setActiveTab] = useState('directory');
+  const [isReportModalOpen, setIsReportModalOpen] = useState(false);
   const directoryRef = useRef<EmployeeDirectoryTabRef>(null);
   const attendanceRef = useRef<AttendanceTabRef>(null);
   const payrollRef = useRef<PayrollTabRef>(null);
@@ -915,6 +954,14 @@ export function EmployeePage() {
               <span className="text-sm font-medium text-gray-700">{todayFormatted()}</span>
               <Calendar className="h-4 w-4 text-gray-500" />
             </div> */}
+            <Button
+              variant="outline"
+              className="flex items-center gap-2 border-[#004D40] text-[#004D40] hover:bg-[#004D40]/10 rounded-md px-3 py-2 h-auto text-[12px] font-bold tracking-wide"
+              onClick={() => attendanceRef.current?.openReportModal()}
+            >
+              <Download className="w-3 h-3" />
+              REPORT
+            </Button>
             {canMarkAttendance && (
               <Button
                 className="flex items-center gap-2 bg-[#004D40] hover:bg-[#00382e] text-white rounded-md px-3 py-2 h-auto text-[12px] font-bold tracking-wide shadow-[0_1px_2px_rgba(0,45,35,0.2)]"
@@ -926,23 +973,45 @@ export function EmployeePage() {
             )}
           </div>
         )}
-        {activeTab === 'directory' && canSeeDirectory && canAddEmployee && (
-          <Button
-            className="flex items-center gap-2 bg-[#004D40] hover:bg-[#00382e] text-white rounded-md px-3 py-2 h-auto text-[12px] font-bold tracking-wide shadow-[0_1px_2px_rgba(0,45,35,0.2)]"
-            onClick={() => directoryRef.current?.openCreateModal()}
-          >
-            <Plus className="w-3 h-3" />
-            ADD EMPLOYEE
-          </Button>
+        {activeTab === 'directory' && canSeeDirectory && (
+          <div className="flex items-center gap-3">
+            <Button
+              variant="outline"
+              className="flex items-center gap-2 border-[#004D40] text-[#004D40] hover:bg-[#004D40]/10 rounded-md px-3 py-2 h-auto text-[12px] font-bold tracking-wide"
+              onClick={() => setIsReportModalOpen(true)}
+            >
+              <Download className="w-3 h-3" />
+              REPORT
+            </Button>
+            {canAddEmployee && (
+              <Button
+                className="flex items-center gap-2 bg-[#004D40] hover:bg-[#00382e] text-white rounded-md px-3 py-2 h-auto text-[12px] font-bold tracking-wide shadow-[0_1px_2px_rgba(0,45,35,0.2)]"
+                onClick={() => directoryRef.current?.openCreateModal()}
+              >
+                <Plus className="w-3 h-3" />
+                ADD EMPLOYEE
+              </Button>
+            )}
+          </div>
         )}
         {activeTab === 'payroll' && (
-          <Button
-            className="flex items-center gap-2 bg-[#004D40] hover:bg-[#00382e] text-white rounded-md px-3 py-2 h-auto text-[12px] font-bold tracking-wide shadow-[0_1px_2px_rgba(0,45,35,0.2)]"
-            onClick={() => payrollRef.current?.openGenerateModal()}
-          >
-            <FileText className="w-3 h-3" />
-            GENERATE PAYROLL
-          </Button>
+          <div className="flex items-center gap-3">
+            <Button
+              variant="outline"
+              className="flex items-center gap-2 border-[#004D40] text-[#004D40] hover:bg-[#004D40]/10 rounded-md px-3 py-2 h-auto text-[12px] font-bold tracking-wide"
+              onClick={() => payrollRef.current?.openReportModal()}
+            >
+              <Download className="w-3 h-3" />
+              REPORT
+            </Button>
+            <Button
+              className="flex items-center gap-2 bg-[#004D40] hover:bg-[#00382e] text-white rounded-md px-3 py-2 h-auto text-[12px] font-bold tracking-wide shadow-[0_1px_2px_rgba(0,45,35,0.2)]"
+              onClick={() => payrollRef.current?.openGenerateModal()}
+            >
+              <FileText className="w-3 h-3" />
+              GENERATE PAYROLL
+            </Button>
+          </div>
         )}
       </div>
 
@@ -991,6 +1060,12 @@ export function EmployeePage() {
           </TabsContent>
         )}
       </Tabs>
+
+      {/* Report Modal */}
+      <EmployeeReportModal
+        open={isReportModalOpen}
+        onOpenChange={setIsReportModalOpen}
+      />
     </div>
   );
 }

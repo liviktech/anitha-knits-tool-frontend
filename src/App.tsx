@@ -7,7 +7,7 @@ import { ForgotPasswordPage } from './features/auth/forgot-password-page';
 import { useAuth, defaultRouteFor } from './features/auth/auth-context';
 import type { AuthUser, CompanyUserProfile } from './features/auth/auth-service';
 import { hasModuleAccess } from '@/lib/access';
-import { Settings, User, Wallet, Menu, Package, LineChart, LogOut, LayoutDashboard, Layers } from 'lucide-react';
+import { Settings, User, Wallet, Menu, Package, LineChart, LogOut, LayoutDashboard, Layers, FileText } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet';
 import { Loader } from '@/components/shared/loader';
@@ -26,6 +26,7 @@ const EmpExpensesPage = lazy(() => import('./features/emp-expenses/emp-expenses-
 const EmployeePage = lazy(() => import('./features/employee/employee-page').then((m) => ({ default: m.EmployeePage })));
 const AdminPanelPage = lazy(() => import('./features/admin-panel/admin-panel-page').then((m) => ({ default: m.AdminPanelPage })));
 const AdminLoginPage = lazy(() => import('./features/admin/admin-login-page').then((m) => ({ default: m.AdminLoginPage })));
+const ReportsModule = lazy(() => import('./features/reports/reports-module').then((m) => ({ default: m.ReportsModule })));
 const AdminForgotPasswordPage = lazy(() =>
   import('./features/admin/admin-forgot-password-page').then((m) => ({ default: m.AdminForgotPasswordPage })),
 );
@@ -50,18 +51,22 @@ const navItems = [
   { to: '/inventory', label: 'Inventory', icon: Package, moduleCode: 'inventory' },
   { to: '/employees', label: 'Employees', icon: User, moduleCode: 'employees' },
   { to: '/expenses', label: 'Expenses', icon: Wallet, moduleCode: 'expenses' },
+  { to: '/reports', label: 'Reports', icon: FileText, moduleCode: 'reports' },
   { to: '/admin-panel', label: 'Admin Panel', icon: Settings, moduleCode: 'admin_panel' },
 ];
 
 function getNavItems(user: CompanyUserProfile | undefined) {
   if (!user) return [];
   if (!user.access) {
-    // No RoleAccess assigned yet — fall back to the legacy SUPERVISOR default so existing
-    // behavior doesn't change until an admin actively assigns this role rights.
+    // No RoleAccess assigned yet — fall back to legacy SUPERVISOR default
     if (user.role === 'SUPERVISOR') return navItems.filter((item) => item.moduleCode === 'dashboard');
     return navItems;
   }
-  return navItems.filter((item) => item.moduleCode === 'sampleproduction' || user.access!.moduleCodes.includes(item.moduleCode));
+  return navItems.filter(
+    (item) =>
+      user.access!.moduleCodes.includes(item.moduleCode) ||
+      user.access!.moduleCodes.includes(item.moduleCode.replace('-', '')),
+  );
 }
 
 /** First nav item `user` actually has access to, or null if none (used as a safe redirect target). */
@@ -242,6 +247,7 @@ function AppShell() {
           <Route path="/inventory" element={<RequireModule moduleCode="inventory"><InventoryPage /></RequireModule>} />
           <Route path="/employees/*" element={<RequireModule moduleCode="employees"><EmployeePage /></RequireModule>} />
           <Route path="/expenses/*" element={<RequireModule moduleCode="expenses"><EmpExpensesPage /></RequireModule>} />
+          <Route path="/reports/*" element={<RequireModule moduleCode="reports"><ReportsModule /></RequireModule>} />
           <Route path="/admin-panel" element={<RequireModule moduleCode="admin_panel"><AdminPanelPage /></RequireModule>} />
         </Routes>
       </main>

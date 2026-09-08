@@ -9,7 +9,7 @@ import type { AuthUser } from '@/features/auth/auth-service';
 export function hasModuleAccess(user: AuthUser | null | undefined, moduleCode: string): boolean {
   if (!user || user.kind !== 'company-user') return false;
   if (!user.access) return true;
-  return user.access.moduleCodes.includes(moduleCode);
+  return user.access.moduleCodes.includes(moduleCode) || user.access.moduleCodes.includes(moduleCode.replace('-', ''));
 }
 
 /**

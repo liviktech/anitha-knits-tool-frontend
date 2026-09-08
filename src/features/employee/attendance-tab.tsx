@@ -10,6 +10,7 @@ import { Loader } from '@/components/shared/loader';
 import { TablePaginationControls, RowsPerPageSelect } from '@/components/shared/table-pagination-controls';
 import { MarkAttendanceModal } from './mark-attendance-modal';
 import { EmployeeAttendanceDetailsModal } from './employee-attendance-details-modal';
+import { AttendanceReportModal } from './attendance-report-modal';
 import { useEmployees } from './employee-queries';
 import { useAttendanceRecords, useUpsertAttendance } from './attendance-queries';
 
@@ -31,6 +32,7 @@ export interface AttendanceRecord {
 
 export interface AttendanceTabRef {
   openAddModal: () => void;
+  openReportModal: () => void;
 }
 
 export const AttendanceTab = forwardRef<AttendanceTabRef>((_props, ref) => {
@@ -41,6 +43,7 @@ export const AttendanceTab = forwardRef<AttendanceTabRef>((_props, ref) => {
   const [roleFilter, setRoleFilter] = useState('ALL');
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isDetailsModalOpen, setIsDetailsModalOpen] = useState(false);
+  const [isReportModalOpen, setIsReportModalOpen] = useState(false);
   const [selectedEmployee, setSelectedEmployee] = useState<{ id: string; name: string } | null>(null);
   const [selectedRecord, setSelectedRecord] = useState<AttendanceRecord | null>(null);
 
@@ -54,7 +57,9 @@ export const AttendanceTab = forwardRef<AttendanceTabRef>((_props, ref) => {
     setIsModalOpen(true);
   };
 
-  useImperativeHandle(ref, () => ({ openAddModal }));
+  const openReportModal = () => setIsReportModalOpen(true);
+
+  useImperativeHandle(ref, () => ({ openAddModal, openReportModal }));
 
   // We pass 'isActive=true' or just fetch all for employeeOptions
   const { data: employeesData } = useEmployees('isActive=true');
@@ -121,7 +126,11 @@ export const AttendanceTab = forwardRef<AttendanceTabRef>((_props, ref) => {
   const absentCount = filteredRecords.filter(r => r.status === 'Absent').length;
   const halfDayCount = filteredRecords.filter(r => r.status === 'Half-day').length;
 
-  const summaryRows = useMemo(() => {
+  // Unfiltered — every employee's present/absent/half-day counts for the selected month,
+  // regardless of the on-screen search/role filters. Feeds the Report modal (which exports
+  // the whole month, matching how the Expense/Employee Directory reports work) as well as
+  // `summaryRows` below (which then applies the on-screen filters for the table itself).
+  const allSummaryRows = useMemo(() => {
     const map = new Map<string, { employeeId: string; rawId: string; employeeName: string; role: string; present: number; absent: number; halfDay: number }>();
 
     // Initialize with all employees
@@ -150,16 +159,20 @@ export const AttendanceTab = forwardRef<AttendanceTabRef>((_props, ref) => {
       }
     });
 
+    return Array.from(map.values());
+  }, [employeeOptions, filteredRecords]);
+
+  const summaryRows = useMemo(() => {
     // Apply search and role filters
     const q = searchQuery.toLowerCase();
-    const rows = Array.from(map.values()).filter(row => {
+    const rows = allSummaryRows.filter(row => {
       const matchesSearch = row.employeeName.toLowerCase().includes(q) || row.employeeId.toLowerCase().includes(q);
       const matchesRole = roleFilter === 'ALL' || row.role === roleFilter;
       return matchesSearch && matchesRole;
     });
 
     return rows;
-  }, [employeeOptions, filteredRecords, searchQuery, roleFilter]);
+  }, [allSummaryRows, searchQuery, roleFilter]);
 
   const detailsRecords = useMemo(() => {
     if (!selectedEmployee) return [];
@@ -416,6 +429,16 @@ export const AttendanceTab = forwardRef<AttendanceTabRef>((_props, ref) => {
           setIsDetailsModalOpen(false);
           setSelectedEmployee(null);
         }}
+      />
+
+      <AttendanceReportModal
+        open={isReportModalOpen}
+        onOpenChange={setIsReportModalOpen}
+        monthStr={monthFilter}
+        rows={allSummaryRows}
+        presentCount={presentCount}
+        absentCount={absentCount}
+        halfDayCount={halfDayCount}
       />
     </div>
   );

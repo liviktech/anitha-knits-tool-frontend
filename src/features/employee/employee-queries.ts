@@ -23,6 +23,7 @@ export interface Employee {
   companyId: string;
   name?: string | null;
   mobile: string;
+  role?: ManagedRole;
   isActive: boolean;
   createdAt: string;
   updatedAt: string;
@@ -94,15 +95,17 @@ export function useCreateEmployee() {
   return useMutation({
     mutationFn: async (
       data: Partial<Employee> & {
+        role?: ManagedRole;
         password: string;
         employeeDetails?: Partial<EmployeeDetails>;
       } & { photo?: File | null; aadhaarFile?: File | null },
     ) => {
-      const { name, mobile, password, employeeDetails, photo, aadhaarFile } = data;
+      const { name, mobile, role, password, employeeDetails, photo, aadhaarFile } = data;
       const formData = buildEmployeeFormData(
         {
           name,
           mobile,
+          role,
           password,
           designation: employeeDetails?.designation ?? undefined,
           address: employeeDetails?.address ?? undefined,
@@ -138,15 +141,17 @@ export function useUpdateEmployee() {
     }: {
       id: string;
       data: Partial<Employee> & {
+        role?: ManagedRole;
         employeeDetails?: Partial<EmployeeDetails>;
       } & { photo?: File | null; aadhaarFile?: File | null };
     }) => {
-      const { name, mobile, isActive, employeeDetails, photo, aadhaarFile } =
+      const { name, mobile, role, isActive, employeeDetails, photo, aadhaarFile } =
         data;
       const formData = buildEmployeeFormData(
         {
           name,
           mobile,
+          role,
           isActive,
           designation: employeeDetails?.designation ?? undefined,
           address: employeeDetails?.address ?? undefined,
@@ -272,6 +277,61 @@ export function useGrantSalaryAdvance() {
       queryClient.invalidateQueries({ queryKey: employeeKeys.lists() });
       queryClient.invalidateQueries({ queryKey: [...employeeKeys.lists(), 'salary-advances'] });
     }
+  });
+}
+
+export function useUpdateSalaryAdvance() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async ({
+      id,
+      data,
+    }: {
+      id: string;
+      data: {
+        amount: number;
+        effectiveDate: string;
+        repaymentMethod: 'single' | 'emi';
+        totalMonths?: number;
+      };
+    }) => {
+      const response = await fetchJson<{ data: any }>(
+        `/company/payroll/advance/${id}`,
+        {
+          method: 'PATCH',
+          body: JSON.stringify(data),
+          headers: {
+            'Content-Type': 'application/json',
+          },
+        },
+      );
+      return response.data;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: employeeKeys.lists() });
+      queryClient.invalidateQueries({ queryKey: [...employeeKeys.lists(), 'salary-advances'] });
+    },
+  });
+}
+
+/** Removes one salary advance entirely — backs the Salary Advance tab's Actions > Delete. */
+export function useDeleteSalaryAdvance() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async (id: string) => {
+      const response = await apiFetch(`/company/payroll/advance/${id}`, {
+        method: 'DELETE',
+      });
+      if (!response.ok) {
+        const err = await response.json().catch(() => ({}));
+        throw new Error(err.error?.message || 'Failed to delete salary advance');
+      }
+      return true;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: employeeKeys.lists() });
+      queryClient.invalidateQueries({ queryKey: [...employeeKeys.lists(), 'salary-advances'] });
+    },
   });
 }
 
@@ -449,5 +509,36 @@ export function useSavedPayrollRecords(month: number, year: number) {
       );
       return response.data;
     },
+  });
+}
+
+/**
+ * Merges the employee list with saved payroll records (once generated) or the live payroll
+ * summary/market-value allocations (before generation) into one row per employee — shared by
+ * the Payroll table (search-filtered on screen) and the Payroll report (unfiltered, every
+ * employee for the month).
+ */
+export function buildPayrollRows(
+  employees: ReturnType<typeof useEmployees>['data'],
+  savedRecords: ReturnType<typeof useSavedPayrollRecords>['data'],
+  payrollSummary: ReturnType<typeof usePayrollSummary>['data'],
+  marketValueAllocations: ReturnType<typeof useMarketValueAllocations>['data'],
+) {
+  return (employees ?? []).map(emp => {
+    const saved = (savedRecords ?? []).find(s => s.employeeId === emp.id);
+    const summary = (payrollSummary ?? []).find(s => s.id === emp.id);
+    return {
+      ...emp,
+      customUserId: emp.employeeDetails?.customUserId,
+      baseSalary: saved ? Number(saved.baseSalary) : (summary?.baseSalary || emp.employeeDetails?.salary || 0),
+      daysWorked: saved ? Number(saved.daysWorked) : (summary?.daysWorked || 0),
+      grossSalary: saved ? Number(saved.grossSalary) : 0,
+      advanceDeduction: saved ? Number(saved.advanceDeduction) : (summary?.advanceDeduction || 0),
+      marketValueBonus: saved ? Number(saved.marketValueBonus) : ((marketValueAllocations ?? {})[emp.id] || 0),
+      marketValueDeduction: saved ? Number(saved.marketValueDeduction) : (summary?.marketValueDeduction || 0),
+      otherDeduction: saved ? Number(saved.otherDeduction || 0) : (summary?.otherDeduction || 0),
+      netSalary: saved ? Number(saved.netSalary) : 0,
+      status: saved?.status || 'Pending',
+    };
   });
 }

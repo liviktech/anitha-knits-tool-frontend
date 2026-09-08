@@ -6,6 +6,7 @@ import {
   Edit2,
   Trash2,
   Search,
+  Download,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -42,6 +43,7 @@ import {
   useExpenses,
   type ExpenseRecord,
 } from "./expense-queries";
+import { ExpenseReportModal } from "./expense-report-modal";
 
 function formatCurrency(num: number) {
   return new Intl.NumberFormat("en-IN", {
@@ -63,12 +65,23 @@ function formatDateDisplay(isoDate: string) {
   });
 }
 
+// Local calendar date, not toISOString()'s UTC one — toISOString() rolls back to "yesterday"
+// for any positive-UTC-offset timezone (e.g. IST) during the first hours of the local day,
+// which made the Add Expense date field default to the wrong day and reject today's real date
+// as "in the future".
 function todayIso() {
-  return new Date().toISOString().slice(0, 10);
+  const d = new Date();
+  const year = d.getFullYear();
+  const month = String(d.getMonth() + 1).padStart(2, "0");
+  const day = String(d.getDate()).padStart(2, "0");
+  return `${year}-${month}-${day}`;
 }
 
 function currentMonthStr() {
-  return new Date().toISOString().slice(0, 7);
+  const d = new Date();
+  const year = d.getFullYear();
+  const month = String(d.getMonth() + 1).padStart(2, "0");
+  return `${year}-${month}`;
 }
 
 /** First/last calendar day of a "YYYY-MM" string, as "YYYY-MM-DD". */
@@ -99,6 +112,7 @@ export function EmpExpensesPage() {
   const [deleteTarget, setDeleteTarget] = useState<ExpenseRecord | null>(null);
   const [isSaving, setIsSaving] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
+  const [isReportModalOpen, setIsReportModalOpen] = useState(false);
 
   // Form input states
   const [formDate, setFormDate] = useState(todayIso());
@@ -265,6 +279,14 @@ export function EmpExpensesPage() {
             }}
             className="h-9 w-40 bg-white border border-gray-400 rounded-md px-3 py-2 text-sm font-semibold text-[#003140] shadow-[0_1px_2px_rgba(0,0,0,0.05)] hover:bg-gray-50 focus-visible:ring-1 focus-visible:ring-[#004D40]"
           />
+          <Button
+            variant="outline"
+            className="flex items-center gap-2 border-[#004D40] text-[#004D40] hover:bg-[#004D40]/10 rounded-md px-3 py-2 h-auto text-[12px] font-bold tracking-wide"
+            onClick={() => setIsReportModalOpen(true)}
+          >
+            <Download className="w-3 h-3" />
+            REPORT
+          </Button>
           <Button
             className="flex items-center gap-2 bg-[#004D40] hover:bg-[#00382e] text-white rounded-md px-3 py-2 h-auto text-[12px] font-bold tracking-wide shadow-[0_1px_2px_rgba(0,45,35,0.2)]"
             onClick={openCreateModal}
@@ -605,6 +627,13 @@ export function EmpExpensesPage() {
           />
         </div>
       </div>
+      
+      {/* Report Modal */}
+      <ExpenseReportModal
+        open={isReportModalOpen}
+        onOpenChange={setIsReportModalOpen}
+        monthStr={selectedMonth}
+      />
     </div>
   );
 }

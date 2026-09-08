@@ -3,12 +3,13 @@ import { useQueryClient } from '@tanstack/react-query';
 import '@fontsource-variable/hanken-grotesk';
 import '@fontsource-variable/inter';
 import { format, parseISO } from 'date-fns';
-import { ArrowLeft, Edit, Plus, Trash2 } from 'lucide-react';
+import { ArrowLeft, Edit, Plus, Trash2, Download, CheckCircle2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { DeleteConfirmDialog } from '@/components/shared/delete-confirm-dialog';
+import { ApproveConfirmDialog } from '@/components/shared/approve-confirm-dialog';
 import { apiFetch, fetchJson } from '@/lib/api-client';
 import { currentMonthStr } from '@/lib/date-utils';
 import extruderIcon from '@/assets/extruder-icon.png';
@@ -20,10 +21,12 @@ import { useExtruderProductions, extruderKeys } from '@/features/extruder/extrud
 import { useLoomsProductions, loomsKeys } from '@/features/looms/loom-queries';
 import { useFabricCheckingRecords, fabricCheckingKeys } from '@/features/fabric/fabric-queries';
 import { useLoadSentRecords, getLoadSentWeight, type LoadSentRecord, loadSentKeys } from '@/features/inventory/load-sent-queries';
+import { useMonthlyDashboard } from '@/features/dashboard/dashboard-queries';
 import { LoadSentFormDialog } from '@/features/inventory/load-sent-form-dialog';
 import { ProductionHeaderContext } from '@/features/production/production-context';
 import { NewEntry } from '@/features/production/new-entry';
 import { DayDetailView } from '@/features/production/production-design-2';
+import { SampleProductionReportModal } from './sample-production-report-modal';
 
 // Shared header chrome for both the entry form and the day-detail view — mirrors
 // ProductionLayout's header from production-details.tsx (back button, title, header-right
@@ -129,16 +132,16 @@ function statCard(opts: {
         <CardContent className="px-3 pb-4 pt-0 flex-1 flex flex-col justify-between">
           <div className="flex border border-gray-100 rounded-lg bg-white overflow-hidden">
             <div className="flex-1 border-r border-gray-100 px-2 sm:px-3 py-3 flex flex-col justify-center">
-              <p className="text-[10.5px] font-extrabold uppercase tracking-wide text-gray-600 mb-1.5 whitespace-nowrap">TOTAL PRODUCTION (KG)</p>
-              <p className="text-[18px] font-bold text-[#004D40] leading-none font-inter">{formatNum(totals.output)}</p>
+              <p className="text-[10.5px] font-extrabold uppercase tracking-wide text-gray-600 mb-1.5 whitespace-nowrap text-center">TOTAL PRODUCTION (KG)</p>
+              <p className="text-[18px] font-bold text-[#004D40] leading-none font-inter text-center">{formatNum(totals.output)}</p>
             </div>
             <div className="flex-1 border-r border-gray-100 px-2 sm:px-3 py-3 flex flex-col justify-center">
-              <p className="text-[10.5px] font-extrabold uppercase tracking-wide text-gray-600 mb-1.5 whitespace-nowrap">TOTAL WASTAGE (KG)</p>
-              <p className="text-[17px] font-bold text-[#004D40] leading-none font-inter">{formatNum(totals.wastage)}</p>
+              <p className="text-[10.5px] font-extrabold uppercase tracking-wide text-gray-600 mb-1.5 whitespace-nowrap text-center">TOTAL WASTAGE (KG)</p>
+              <p className="text-[17px] font-bold text-[#004D40] leading-none font-inter text-center">{formatNum(totals.wastage)}</p>
             </div>
             <div className="flex-1 px-2 sm:px-3 py-3 flex flex-col justify-center">
-              <p className="text-[10.5px] font-extrabold uppercase tracking-wide text-gray-600 mb-1.5 whitespace-nowrap">WASTAGE %</p>
-              <p className="text-[17px] font-bold text-[#D32F2F] leading-none font-inter">{wastePct.toFixed(2)}%</p>
+              <p className="text-[10.5px] font-extrabold uppercase tracking-wide text-gray-600 mb-1.5 whitespace-nowrap text-center">WASTAGE %</p>
+              <p className="text-[17px] font-bold text-[#D32F2F] leading-none font-inter text-center">{wastePct.toFixed(2)}%</p>
             </div>
           </div>
         </CardContent>
@@ -157,6 +160,9 @@ export function SampleProductionPage() {
   const [monthFilter, setMonthFilter] = useState<Date>(new Date());
   const [deleteTargetDate, setDeleteTargetDate] = useState<string | null>(null);
   const [deletingDate, setDeletingDate] = useState(false);
+  const [approveTargetDate, setApproveTargetDate] = useState<string | null>(null);
+  const [approvingDate, setApprovingDate] = useState(false);
+  const [isReportOpen, setIsReportOpen] = useState(false);
 
   const monthStr = format(monthFilter, 'yyyy-MM');
 
@@ -164,6 +170,32 @@ export function SampleProductionPage() {
   const { data: loomsData } = useLoomsProductions('?limit=100&type=SAMPLE');
   const { data: fabricData } = useFabricCheckingRecords('?limit=100&type=SAMPLE');
   const { data: deliveredData } = useLoadSentRecords('?limit=100&type=SAMPLE');
+
+  // Feeds the Sample Production report modal — color/size/chemical-wise breakdowns for the
+  // selected month, same source (and same shape) the Production Details report uses, just
+  // scoped to type=SAMPLE so it never mixes in real Production records.
+  const companyName = user?.kind === 'company-user' ? user.company.name : 'LK Knits';
+  const { dashboardData: sampleMonthlyDashboardData } = useMonthlyDashboard(monthStr, 'SAMPLE');
+  const reportDeliveryByColor = useMemo(() => {
+    const map = new Map<string, { label: string; delivered: number }>();
+    (sampleMonthlyDashboardData?.loadSent.items ?? []).forEach((item) => {
+      const kg = item.loadSent?.fabricWeight ?? 0;
+      const entry = map.get(item.color.id) ?? { label: item.color.name, delivered: 0 };
+      entry.delivered += kg;
+      map.set(item.color.id, entry);
+    });
+    return Array.from(map.values());
+  }, [sampleMonthlyDashboardData]);
+  const reportDeliveryBySize = useMemo(() => {
+    const map = new Map<string, { label: string; delivered: number }>();
+    (sampleMonthlyDashboardData?.loadSent.items ?? []).forEach((item) => {
+      const kg = item.loadSent?.fabricWeight ?? 0;
+      const entry = map.get(item.size.id) ?? { label: item.size.name, delivered: 0 };
+      entry.delivered += kg;
+      map.set(item.size.id, entry);
+    });
+    return Array.from(map.values());
+  }, [sampleMonthlyDashboardData]);
 
   const rows = useMemo(() => {
     const dates = new Map<string, any>();
@@ -173,6 +205,7 @@ export function SampleProductionPage() {
       if (!dates.has(d)) {
         dates.set(d, {
           date: d,
+          isApproved: false,
           extruder: { input: 0, wastage: 0, output: 0 },
           looms: { input: 0, wastage: 0, output: 0 },
           fabric: { input: 0, wastage: 0, output: 0 },
@@ -188,6 +221,7 @@ export function SampleProductionPage() {
       d.extruder.input += item.extruder?.rawMaterialKg || 0;
       d.extruder.wastage += sumWastageByCode(item.wastages, 'LUMPS') + sumWastageByCode(item.wastages, 'YARN_WASTE');
       d.extruder.output += item.extruder?.yarnOutputKg || 0;
+      if (item.isApproved) d.isApproved = true;
     }
 
     for (const item of (loomsData?.data || [])) {
@@ -196,6 +230,7 @@ export function SampleProductionPage() {
       d.looms.input += item.loom?.yarnInputKg || 0;
       d.looms.wastage += sumWastageByCode(item.wastages, 'LOOMS_WASTE');
       d.looms.output += item.loom?.fabricOutputKg || 0;
+      if (item.isApproved) d.isApproved = true;
     }
 
     for (const item of (fabricData?.data || [])) {
@@ -204,6 +239,7 @@ export function SampleProductionPage() {
       d.fabric.input += item.fabricCheck?.fabricInputKg || 0;
       d.fabric.wastage += sumWastageByCode(item.wastages, 'FW') + sumWastageByCode(item.wastages, 'BW');
       d.fabric.output += item.fabricCheck?.outputKg || 0;
+      if (item.isApproved) d.isApproved = true;
     }
 
     for (const item of (deliveredData?.data || [])) {
@@ -274,6 +310,37 @@ export function SampleProductionPage() {
     }
   };
 
+  const handleApproveDate = async () => {
+    if (!approveTargetDate) return;
+    setApprovingDate(true);
+    try {
+      const dateQuery = `?date_from=${approveTargetDate}T00:00:00.000Z&date_to=${approveTargetDate}T23:59:59.999Z&limit=100&type=SAMPLE`;
+      const [extruderRes, loomsRes, fabricRes] = await Promise.all([
+        fetchJson<{ data: { id: string; isApproved: boolean }[] }>(`/production/extruder${dateQuery}`),
+        fetchJson<{ data: { id: string; isApproved: boolean }[] }>(`/production/looms${dateQuery}`),
+        fetchJson<{ data: { id: string; isApproved: boolean }[] }>(`/fabric-checking${dateQuery}`),
+      ]);
+
+      const results = await Promise.all([
+        ...extruderRes.data.filter((r) => !r.isApproved).map((r) => apiFetch(`/production/extruder/${r.id}/approve`, { method: 'PATCH' })),
+        ...loomsRes.data.filter((r) => !r.isApproved).map((r) => apiFetch(`/production/looms/${r.id}/approve`, { method: 'PATCH' })),
+        ...fabricRes.data.filter((r) => !r.isApproved).map((r) => apiFetch(`/fabric-checking/${r.id}/approve`, { method: 'PATCH' })),
+      ]);
+      if (results.some((r) => !r.ok)) throw new Error('Failed to approve one or more sample entries');
+
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: extruderKeys.all }),
+        queryClient.invalidateQueries({ queryKey: loomsKeys.all }),
+        queryClient.invalidateQueries({ queryKey: fabricCheckingKeys.all }),
+      ]);
+      setApproveTargetDate(null);
+    } catch (error) {
+      console.error('Error approving sample day entries:', error);
+    } finally {
+      setApprovingDate(false);
+    }
+  };
+
   if (view.kind === 'entry') {
     return <SampleNewEntryWrapper date={view.date} onClose={() => setView(view.date ? { kind: 'detail', date: view.date } : { kind: 'list' })} />;
   }
@@ -309,6 +376,14 @@ export function SampleProductionPage() {
             className="h-9 w-40 bg-white border border-gray-400 rounded-md px-3 py-2 text-sm font-semibold text-[#003140] shadow-[0_1px_2px_rgba(0,0,0,0.05)] hover:bg-gray-50 focus-visible:ring-1 focus-visible:ring-[#004D40]"
           />
           <Button
+            variant="outline"
+            className="flex items-center gap-2 border-[#004D40] text-[#004D40] hover:bg-[#004D40]/10 rounded-md px-3 py-2 h-auto text-[12px] font-bold tracking-wide"
+            onClick={() => setIsReportOpen(true)}
+          >
+            <Download className="w-3 h-3" />
+            REPORT
+          </Button>
+          <Button
             className="flex items-center gap-2 bg-[#004D40] hover:bg-[#00382e] text-white rounded-md px-3 py-2 h-auto text-[12px] font-bold tracking-wide shadow-[0_1px_2px_rgba(0,45,35,0.2)] cursor-pointer"
             onClick={() => setView({ kind: 'entry', date: null })}
           >
@@ -343,16 +418,16 @@ export function SampleProductionPage() {
                 <TableRow className="hover:bg-transparent border-b border-gray-300">
                   <TableHead rowSpan={2} className="!text-center font-bold text-gray-800 align-middle border-r border-gray-300 w-[95px] min-w-[95px] px-1.5 bg-white text-xs uppercase tracking-wider">Date</TableHead>
                   <TableHead colSpan={3} className="text-[#0B5566] font-bold bg-[#D6EEF7] border-r border-gray-300 py-2 text-xs uppercase tracking-wider">
-                    <span className="flex items-center justify-center gap-2 text-[13px] font-extrabold">EXTRUDER</span>
+                    <span className="flex items-center justify-center gap-2 text-[13px] font-extrabold">EXTRUDER PRODUCTION</span>
                   </TableHead>
                   <TableHead colSpan={3} className="text-[#7A6A00] font-bold bg-[#FFF6BF] border-r border-gray-300 py-2 text-xs uppercase tracking-wider">
-                    <span className="flex items-center justify-center gap-2 text-[13px] font-extrabold">LOOMS</span>
+                    <span className="flex items-center justify-center gap-2 text-[13px] font-extrabold">LOOMS PRODUCTION</span>
                   </TableHead>
                   <TableHead colSpan={3} className="text-[#2F6B2F] font-bold bg-[#DCEEDB] border-r border-gray-300 py-2 text-xs uppercase tracking-wider">
-                    <span className="flex items-center justify-center gap-2 text-[13px] font-extrabold">FABRIC</span>
+                    <span className="flex items-center justify-center gap-2 text-[13px] font-extrabold">FABRIC PRODUCTION</span>
                   </TableHead>
                   <TableHead colSpan={3} className="text-[#61401E] font-bold bg-[#f2caa0] border-r border-gray-300 py-2 text-xs uppercase tracking-wider">
-                    <span className="flex items-center justify-center gap-2 text-[13px] font-extrabold">DELIVERED</span>
+                    <span className="flex items-center justify-center gap-2 text-[13px] font-extrabold">FABRIC DELIVERED</span>
                   </TableHead>
                   <TableHead rowSpan={2} className="!text-center font-extrabold text-gray-800 align-middle border-gray-300 w-[130px] min-w-[130px] px-1 bg-white text-xs uppercase tracking-wider">Actions</TableHead>
                 </TableRow>
@@ -407,6 +482,19 @@ export function SampleProductionPage() {
                         <TableCell className="!text-center text-gray-800 font-medium text-[14px] py-1 border-r border-gray-300">{formatNum(delivered.output)}</TableCell>
                         <TableCell className="py-1">
                           <div className="flex items-center justify-center gap-2">
+                            {user?.role === 'ADMIN' &&
+                              (<span title={day.isApproved ? 'Already Approved' : 'Approve'} className="inline-flex">
+                                <Button
+                                  variant="outline"
+                                  size="icon"
+                                  className="h-6 w-6 text-emerald-600 disabled:opacity-50 disabled:pointer-events-none"
+                                  onClick={() => setApproveTargetDate(day.date)}
+                                  disabled={day.isApproved}
+                                >
+                                  <CheckCircle2 className="h-[13px] w-[13px]" />
+                                </Button>
+                              </span>)
+                            }
                             <Button variant="outline" size="icon" className="h-6 w-6 text-[#004D40] hover:bg-[#004D40]/10" onClick={() => setView({ kind: 'entry', date: day.date })} title="Edit the sample entry">
                               <Edit className="h-[13px] w-[13px]" />
                             </Button>
@@ -462,6 +550,37 @@ export function SampleProductionPage() {
         description={deleteTargetDate ? 'Are you sure want to delete this record?' : undefined}
         isPending={deletingDate}
         onConfirm={handleDeleteDate}
+      />
+
+      <ApproveConfirmDialog
+        open={!!approveTargetDate}
+        onOpenChange={(open) => !open && setApproveTargetDate(null)}
+        title="Approve this day's entries?"
+        description={approveTargetDate ? `Approves every not-yet-approved sample record for ${format(parseISO(approveTargetDate), 'dd MMM, yyyy')}. Once approved, a Manager can no longer edit them — this cannot be undone.` : undefined}
+        isPending={approvingDate}
+        onConfirm={handleApproveDate}
+      />
+
+      <SampleProductionReportModal
+        open={isReportOpen}
+        onOpenChange={setIsReportOpen}
+        companyName={companyName}
+        monthStr={monthStr}
+        extruderByColor={sampleMonthlyDashboardData?.extruderProduction.byColor ?? []}
+        extruderBySize={sampleMonthlyDashboardData?.extruderProduction.bySize ?? []}
+        extruderByChemical={sampleMonthlyDashboardData?.extruderProduction.byChemical ?? []}
+        extruderTotal={sampleMonthlyDashboardData?.extruderProduction.overall.production ?? 0}
+        loomsByColor={sampleMonthlyDashboardData?.loomsProduction.byColor ?? []}
+        loomsBySize={sampleMonthlyDashboardData?.loomsProduction.bySize ?? []}
+        loomsByChemical={sampleMonthlyDashboardData?.loomsProduction.byChemical ?? []}
+        loomsTotal={sampleMonthlyDashboardData?.loomsProduction.overall.production ?? 0}
+        fabricByColor={sampleMonthlyDashboardData?.fabricProduction.byColor ?? []}
+        fabricBySize={sampleMonthlyDashboardData?.fabricProduction.bySize ?? []}
+        fabricByChemical={sampleMonthlyDashboardData?.fabricProduction.byChemical ?? []}
+        fabricTotal={sampleMonthlyDashboardData?.fabricProduction.overall.outputKg ?? 0}
+        deliveryByColor={reportDeliveryByColor}
+        deliveryBySize={reportDeliveryBySize}
+        deliveryTotal={sampleMonthlyDashboardData?.loadSent.totals.fabricWeightKg ?? 0}
       />
     </div>
   );

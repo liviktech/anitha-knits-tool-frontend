@@ -45,10 +45,12 @@ export function FabricDeliveredModalForm({ productionDate, initialData, isEditMo
 
     const colorId = findIdByName(lookups.colors, draft.color);
     const sizeId = findIdByName(lookups.sizes, draft.size);
+    const chemicalId = findIdByName(lookups.chemicals, draft.chemical);
 
     const missingFields: string[] = [];
     if (!sizeId) missingFields.push('Size');
     if (!colorId) missingFields.push('Color');
+    if (!chemicalId) missingFields.push('Chemical');
     if (!draft.delivered || draft.delivered.trim() === '') missingFields.push('Delivered (kg)');
 
     if (missingFields.length > 0) {
@@ -89,6 +91,7 @@ export function FabricDeliveredModalForm({ productionDate, initialData, isEditMo
       date: productionDate,
       colorId: colorId!,
       sizeId: sizeId!,
+      chemicalId: chemicalId!,
       fabricWeight: parseFloat(draft.delivered) || 0,
       type: entryType,
       ...(draft.vehicleNo?.trim() ? { vehicleNo: draft.vehicleNo.trim() } : {}),
@@ -147,6 +150,15 @@ export function FabricDeliveredModalForm({ productionDate, initialData, isEditMo
             value={draft.delivered}
             onChange={(e) => updateField('delivered', e.target.value)}
           />
+        </div>
+      </div>
+      <div className="grid grid-cols-2 gap-4">
+        <div className="space-y-1.5">
+          <Label className="text-gray-600 text-xs font-semibold uppercase tracking-wider">Chemical</Label>
+          <Select value={draft.chemical} onValueChange={(v) => updateField('chemical', v)} disabled={isEditMode}>
+            <SelectTrigger><SelectValue placeholder="Select Chemical" /></SelectTrigger>
+            <SelectContent position="popper">{lookups.chemicals?.map((c) => <SelectItem key={c.id} value={c.name}>{c.name}</SelectItem>)}</SelectContent>
+          </Select>
         </div>
       </div>
       <div className="grid grid-cols-2 gap-4">

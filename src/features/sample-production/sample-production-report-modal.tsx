@@ -37,7 +37,7 @@ interface BreakdownRow {
   values: number[];
 }
 
-interface DayWiseReportModalProps {
+interface SampleProductionReportModalProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   companyName: string;
@@ -90,7 +90,7 @@ function columnTotals(rows: BreakdownRow[], columnCount: number): number[] {
   return totals;
 }
 
-export function DayWiseReportModal({
+export function SampleProductionReportModal({
   open,
   onOpenChange,
   companyName,
@@ -110,7 +110,7 @@ export function DayWiseReportModal({
   deliveryByColor,
   deliveryBySize,
   deliveryTotal,
-}: DayWiseReportModalProps) {
+}: SampleProductionReportModalProps) {
   const sections: { title: string; labelHeader: string; columns: string[]; rows: BreakdownRow[] }[] = [
     { title: 'Extruder Production — By Color', labelHeader: 'Color', columns: EXTRUDER_COLUMNS, rows: extruderRows(extruderByColor, (i) => i.color.name) },
     { title: 'Extruder Production — By Size', labelHeader: 'Size', columns: EXTRUDER_COLUMNS, rows: extruderRows(extruderBySize, (i) => i.size.name) },
@@ -136,7 +136,7 @@ export function DayWiseReportModal({
     };
 
     const csvRows: (string | number)[][] = [];
-    csvRows.push(['Production Details Report']);
+    csvRows.push(['Sample Production Report']);
     csvRows.push(['Company', companyName]);
     csvRows.push(['Period', getMonthName(monthStr)]);
     csvRows.push(['Generated On', new Date().toLocaleString('en-IN')]);
@@ -154,7 +154,7 @@ export function DayWiseReportModal({
     const encodedUri = encodeURI('data:text/csv;charset=utf-8,' + csvContent);
     const link = document.createElement('a');
     link.setAttribute('href', encodedUri);
-    link.setAttribute('download', `Production_Details_Report_${monthStr}.csv`);
+    link.setAttribute('download', `Sample_Production_Report_${monthStr}.csv`);
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
@@ -178,7 +178,7 @@ export function DayWiseReportModal({
     doc.setFontSize(12);
     doc.setFont('helvetica', 'normal');
     doc.setTextColor(90, 90, 90);
-    doc.text('PRODUCTION DETAILS REPORT', 105, y, { align: 'center' });
+    doc.text('SAMPLE PRODUCTION REPORT', 105, y, { align: 'center' });
     y += 7;
     doc.text(`Period: ${getMonthName(monthStr)}`, 105, y, { align: 'center' });
     y += 5;
@@ -218,7 +218,7 @@ export function DayWiseReportModal({
     doc.setTextColor(150, 150, 150);
     doc.text(`Generated on ${new Date().toLocaleDateString('en-IN')} at ${new Date().toLocaleTimeString('en-IN')}`, 105, doc.internal.pageSize.getHeight() - 10, { align: 'center' });
 
-    doc.save(`Production_Details_Report_${monthStr}.pdf`);
+    doc.save(`Sample_Production_Report_${monthStr}.pdf`);
   };
 
   return (
@@ -230,7 +230,7 @@ export function DayWiseReportModal({
         <DialogHeader className="px-6 py-4 border-b border-gray-200 bg-[#A8DCAB] shrink-0 print:hidden">
           <div className="flex items-center justify-between">
             <DialogTitle className="text-xl font-bold text-black">
-              Production Details Report Overview
+              Sample Production Report Overview
             </DialogTitle>
             <div className="flex items-center gap-3">
               <Button variant="outline" size="sm" onClick={handleDownloadPDF} disabled={!hasData} className="gap-2 bg-white border-[#004D40] text-[#004D40] hover:bg-[#004D40]/10">
@@ -250,7 +250,7 @@ export function DayWiseReportModal({
         </DialogHeader>
 
         {/* Report Content - Scrollable */}
-        <div className="flex-1 overflow-auto p-4 print:p-0 bg-gray-100 print:bg-white" id="production-details-report-printable-area">
+        <div className="flex-1 overflow-auto p-4 print:p-0 bg-gray-100 print:bg-white" id="sample-production-report-printable-area">
           <div className="bg-white p-6 shadow-sm border border-gray-200 rounded-lg print:shadow-none print:border-none print:p-0">
             {/* Report Header */}
             <div className="text-center mb-4 border-b-2 border-[#004D40] pb-3">
@@ -258,7 +258,7 @@ export function DayWiseReportModal({
                 Anitha Knits
               </h1>
               <h2 className="text-xl font-semibold text-gray-600 uppercase tracking-wide">
-                Production Details Report
+                Sample Production Report
               </h2>
               <p className="text-gray-500 mt-2 font-medium">
                 Period: {getMonthName(monthStr)}
@@ -267,7 +267,7 @@ export function DayWiseReportModal({
 
             {!hasData ? (
               <div className="text-center py-20 text-gray-500">
-                No production records found for this period.
+                No sample production records found for this period.
               </div>
             ) : (
               <>

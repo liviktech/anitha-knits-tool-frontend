@@ -3,7 +3,7 @@ import { useQueryClient } from '@tanstack/react-query';
 import '@fontsource-variable/hanken-grotesk';
 import '@fontsource-variable/inter';
 import { parseISO, format } from 'date-fns';
-import { Trash2, Calendar, Plus, Edit2, Edit, Layers, ChevronRight, CheckCircle2 } from 'lucide-react';
+import { Trash2, Calendar, Plus, Edit2, Edit, Layers, ChevronRight, CheckCircle2, Download } from 'lucide-react';
 import { LoadSentFormDialog } from '../inventory/load-sent-form-dialog';
 import { type LoadSentRecord } from '../inventory/load-sent-queries';
 import { Loader } from '@/components/shared/loader';
@@ -20,6 +20,7 @@ import { useLoomsProductions, loomsKeys } from '@/features/looms/loom-queries';
 import { useFabricCheckingRecords, fabricCheckingKeys } from '@/features/fabric/fabric-queries';
 import { useLoadSentRecords, loadSentKeys } from '@/features/inventory/load-sent-queries';
 import { useDayWiseProduction, dashboardProductionKey } from './day-wise-queries';
+import { useMonthlyDashboard } from '@/features/dashboard/dashboard-queries';
 import { mapExtruderItem, mapLoomItem, mapFabricItem } from './day-entry-sections';
 import { DayWiseReportModal } from './day-wise-report-modal';
 import { useProductionHeader } from './production-context';
@@ -590,6 +591,32 @@ export function ProductionDesign2() {
   );
   const selectedMonthDeliveryTotal = selectedMonthDeliveryRows.reduce((sum, record) => sum + record.delivered, 0);
 
+  // Feeds the Production Details report modal — color/size/chemical-wise breakdowns for the
+  // selected month (extruder/looms/fabric) come from the same monthly-dashboard endpoint the
+  // Dashboard reports already use, so the report's numbers stay consistent with the dashboard.
+  const companyName = user?.kind === 'company-user' ? user.company.name : 'LK Knits';
+  const { dashboardData: monthlyDashboardData } = useMonthlyDashboard(monthStr, 'PRODUCTION');
+  const reportDeliveryByColor = useMemo(() => {
+    const map = new Map<string, { label: string; delivered: number }>();
+    (monthlyDashboardData?.loadSent.items ?? []).forEach((item) => {
+      const kg = item.loadSent?.fabricWeight ?? 0;
+      const entry = map.get(item.color.id) ?? { label: item.color.name, delivered: 0 };
+      entry.delivered += kg;
+      map.set(item.color.id, entry);
+    });
+    return Array.from(map.values());
+  }, [monthlyDashboardData]);
+  const reportDeliveryBySize = useMemo(() => {
+    const map = new Map<string, { label: string; delivered: number }>();
+    (monthlyDashboardData?.loadSent.items ?? []).forEach((item) => {
+      const kg = item.loadSent?.fabricWeight ?? 0;
+      const entry = map.get(item.size.id) ?? { label: item.size.name, delivered: 0 };
+      entry.delivered += kg;
+      map.set(item.size.id, entry);
+    });
+    return Array.from(map.values());
+  }, [monthlyDashboardData]);
+
   // Deletes every Extruder/Looms/Fabric Checking record for one date — the
   // day-wise table only has aggregated totals for each row, not record ids,
   // so this fetches the real records for that date first, then removes each.
@@ -701,6 +728,14 @@ export function ProductionDesign2() {
               className="h-9 w-40 bg-white border border-gray-400 rounded-md px-3 py-2 text-sm font-semibold text-[#003140] shadow-[0_1px_2px_rgba(0,0,0,0.05)] hover:bg-gray-50 focus-visible:ring-1 focus-visible:ring-[#004D40]"
             />
           </div>
+          <Button
+            variant="outline"
+            className="flex items-center gap-2 border-[#004D40] text-[#004D40] hover:bg-[#004D40]/10 rounded-md px-3 py-2 h-auto text-[12px] font-bold tracking-wide"
+            onClick={() => setIsReportOpen(true)}
+          >
+            <Download className="w-3 h-3" />
+            REPORT
+          </Button>
           {canCreateProductionRecord(user) && (
             <Button
               className="flex items-center gap-2 bg-[#004D40] hover:bg-[#00382e] text-white rounded-md px-3 py-2 h-auto text-[12px] font-bold tracking-wide shadow-[0_1px_2px_rgba(0,45,35,0.2)] cursor-pointer"
@@ -793,11 +828,11 @@ export function ProductionDesign2() {
                 <CardContent className="px-3 pt-0 flex-1 flex flex-col justify-between">
                   <div className="flex border border-gray-100 rounded-lg mb-4 bg-white overflow-hidden">
                     <div className="flex-1 border-r border-gray-100 px-2 sm:px-3 py-3 flex flex-col justify-center">
-                      <p className="text-[10.5px] font-extrabold uppercase tracking-wide text-gray-600 mb-1.5 whitespace-nowrap">TOTAL PRODUCTION (KG)</p>
-                      <p className="text-[18px] font-bold text-[#004D40] leading-none font-inter text-center">{formatNum(extruderSummary.output)}</p>
+                      <p className="text-[10.5px] font-extrabold uppercase tracking-wide text-gray-600 mb-1.5 whitespace-nowrap text-center">TOTAL PRODUCTION (KG)</p>
+                      <p className="text-[18px] font-bold text-[#004D40] leading-none font-inter !text-center">{formatNum(extruderSummary.output)}</p>
                     </div>
                     <div className="flex-1 border-r border-gray-100 px-2 sm:px-3 py-3 flex flex-col justify-center">
-                      <p className="text-[10.5px] font-extrabold uppercase tracking-wide text-gray-600 mb-1.5 whitespace-nowrap">TOTAL WASTAGE (KG)</p>
+                      <p className="text-[10.5px] font-extrabold uppercase tracking-wide text-gray-600 mb-1.5 whitespace-nowrap text-center">TOTAL WASTAGE (KG)</p>
                       <p className="text-[17px] font-bold text-[#004D40] leading-none font-inter text-center">{formatNum(extruderSummary.wastage)}</p>
                     </div>
                     <div className="flex-1 px-2 sm:px-3 py-3 flex flex-col justify-center">
@@ -823,11 +858,11 @@ export function ProductionDesign2() {
                 <CardContent className="px-3 pt-0 flex-1 flex flex-col justify-between">
                   <div className="flex border border-gray-100 rounded-lg mb-4 bg-white overflow-hidden">
                     <div className="flex-1 border-r border-gray-100 px-2 sm:px-3 py-3 flex flex-col justify-center">
-                      <p className="text-[10.5px] font-extrabold uppercase tracking-wide text-gray-600 mb-1.5 whitespace-nowrap">TOTAL PRODUCTION (KG)</p>
+                      <p className="text-[10.5px] font-extrabold uppercase tracking-wide text-gray-600 mb-1.5 whitespace-nowrap text-center">TOTAL PRODUCTION (KG)</p>
                       <p className="text-[18px] font-bold text-[#004D40] leading-none font-inter text-center">{loomsSummary.output.toFixed(2)}</p>
                     </div>
                     <div className="flex-1 border-r border-gray-100 px-2 sm:px-3 py-3 flex flex-col justify-center">
-                      <p className="text-[10.5px] font-extrabold uppercase tracking-wide text-gray-600 mb-1.5 whitespace-nowrap">TOTAL WASTAGE (KG)</p>
+                      <p className="text-[10.5px] font-extrabold uppercase tracking-wide text-gray-600 mb-1.5 whitespace-nowrap text-center">TOTAL WASTAGE (KG)</p>
                       <p className="text-[17px] font-bold text-[#004D40] leading-none font-inter text-center">{loomsSummary.wastage.toFixed(2)}</p>
                     </div>
                     <div className="flex-1 px-2 sm:px-3 py-3 flex flex-col justify-center">
@@ -853,11 +888,11 @@ export function ProductionDesign2() {
                 <CardContent className="px-3 pt-0 flex-1 flex flex-col justify-between">
                   <div className="flex border border-gray-100 rounded-lg mb-4 bg-white overflow-hidden">
                     <div className="flex-1 border-r border-gray-100 px-2 sm:px-3 py-3 flex flex-col justify-center">
-                      <p className="text-[10.5px] font-extrabold uppercase tracking-wide text-gray-600 mb-1.5 whitespace-nowrap">TOTAL PRODUCTION (KG)</p>
+                      <p className="text-[10.5px] font-extrabold uppercase tracking-wide text-gray-600 mb-1.5 whitespace-nowrap text-center">TOTAL PRODUCTION (KG)</p>
                       <p className="text-[18px] font-bold text-[#004D40] leading-none font-inter text-center">{fabricSummary.checked.toFixed(2)}</p>
                     </div>
                     <div className="flex-1 border-r border-gray-100 px-2 sm:px-3 py-3 flex flex-col justify-center">
-                      <p className="text-[10.5px] font-extrabold uppercase tracking-wide text-gray-600 mb-1.5 whitespace-nowrap">TOTAL WASTAGE (KG)</p>
+                      <p className="text-[10.5px] font-extrabold uppercase tracking-wide text-gray-600 mb-1.5 whitespace-nowrap text-center">TOTAL WASTAGE (KG)</p>
                       <p className="text-[17px] font-bold text-[#004D40] leading-none font-inter text-center">{fabricSummary.wastage.toFixed(2)}</p>
                     </div>
                     <div className="flex-1 px-2 sm:px-3 py-3 flex flex-col justify-center">
@@ -878,16 +913,6 @@ export function ProductionDesign2() {
                 <img src="/Table-icon.jpg" alt="" className="w-10 h-10 object-contain rounded-sm" />
                 Day Wise Production & Wastage Details
               </CardTitle>
-              {/* <div className="flex flex-wrap gap-2">
-                <Button
-                  variant="outline"
-                  size="sm"
-                  className="flex gap-2 font-bold uppercase tracking-wider text-[11px] h-8 px-3 text-gray-600 border-gray-400"
-                  onClick={() => setIsReportOpen(true)}
-                >
-                  <Download className="w-[14px] h-[14px]" /> REPORT
-                </Button>
-              </div> */}
             </CardHeader>
             <div className="overflow-x-auto w-full">
               <Table className="w-full table-fixed">
@@ -1105,7 +1130,27 @@ export function ProductionDesign2() {
           </Card>
         </div>
       )}
-      <DayWiseReportModal open={isReportOpen} onOpenChange={setIsReportOpen} />
+      <DayWiseReportModal
+        open={isReportOpen}
+        onOpenChange={setIsReportOpen}
+        companyName={companyName}
+        monthStr={monthStr}
+        extruderByColor={monthlyDashboardData?.extruderProduction.byColor ?? []}
+        extruderBySize={monthlyDashboardData?.extruderProduction.bySize ?? []}
+        extruderByChemical={monthlyDashboardData?.extruderProduction.byChemical ?? []}
+        extruderTotal={monthlyDashboardData?.extruderProduction.overall.production ?? 0}
+        loomsByColor={monthlyDashboardData?.loomsProduction.byColor ?? []}
+        loomsBySize={monthlyDashboardData?.loomsProduction.bySize ?? []}
+        loomsByChemical={monthlyDashboardData?.loomsProduction.byChemical ?? []}
+        loomsTotal={monthlyDashboardData?.loomsProduction.overall.production ?? 0}
+        fabricByColor={monthlyDashboardData?.fabricProduction.byColor ?? []}
+        fabricBySize={monthlyDashboardData?.fabricProduction.bySize ?? []}
+        fabricByChemical={monthlyDashboardData?.fabricProduction.byChemical ?? []}
+        fabricTotal={monthlyDashboardData?.fabricProduction.overall.outputKg ?? 0}
+        deliveryByColor={reportDeliveryByColor}
+        deliveryBySize={reportDeliveryBySize}
+        deliveryTotal={monthlyDashboardData?.loadSent.totals.fabricWeightKg ?? 0}
+      />
       <DeleteConfirmDialog
         open={!!deleteTargetDate}
         onOpenChange={(open) => !open && setDeleteTargetDate(null)}
