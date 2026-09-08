@@ -240,6 +240,7 @@ export const LoomSection = forwardRef<SectionRef, LoomSectionProps>(({
             <TableRow className="hover:!bg-transparent border-b-0">
               <TableHead className={`text-sm !text-center font-semibold tracking-wide border-b border-gray-300 ${theme.headerText}`}>Size</TableHead>
               <TableHead className={`w-37.5 min-w-37.5 text-center text-sm font-semibold  tracking-wide border border-gray-300 ${theme.headerText}`}>Color</TableHead>
+              <TableHead className={`w-37.5 min-w-37.5 text-center text-sm font-semibold  tracking-wide border border-gray-300 ${theme.headerText}`}>Chemical</TableHead>
               <TableHead className={`text-center text-sm font-semibold  tracking-wide border border-gray-300 ${theme.headerText}`}>Looms Production</TableHead>
               <TableHead className={`text-center text-sm font-semibold  tracking-wide border border-gray-300 ${theme.headerText}`}>Looms/Yarn Waste</TableHead>
               <TableHead className={`text-center text-sm font-semibold  tracking-wide border border-gray-300 ${theme.headerText}`}>Fabric Production</TableHead>
@@ -249,7 +250,7 @@ export const LoomSection = forwardRef<SectionRef, LoomSectionProps>(({
           <TableBody>
             {isLoading ? (
               <TableRow>
-                <TableCell colSpan={readOnly ? 5 : 6} className="h-20 text-center">
+                <TableCell colSpan={readOnly ? 6 : 7} className="h-20 text-center">
                   <div className="flex items-center justify-center gap-2 text-gray-500">
                     <Loader size="sm" /> Loading entries...
                   </div>
@@ -257,7 +258,7 @@ export const LoomSection = forwardRef<SectionRef, LoomSectionProps>(({
               </TableRow>
             ) : isError ? (
               <TableRow>
-                <TableCell colSpan={readOnly ? 5 : 6} className="h-20 !text-center">
+                <TableCell colSpan={readOnly ? 6 : 7} className="h-20 !text-center">
                   <div className="flex flex-col items-center justify-center gap-2 text-gray-500">
                     <span>Unable to load loom entries. Please try again.</span>
                     <Button variant="outline" size="sm" className="h-7 text-xs" onClick={() => refetch()}>
@@ -273,6 +274,7 @@ export const LoomSection = forwardRef<SectionRef, LoomSectionProps>(({
                     <TableRow key={row.key} className="bg-orange-50/50">
                       <TableCell className="!text-center"><span className="font-medium text-gray-700 border border-gray-300">{row.size || '-'}</span></TableCell>
                       <TableCell className="w-37.5 min-w-37.5 text-center"><span className="font-medium text-gray-700 border border-gray-300">{row.color || '-'}</span></TableCell>
+                      <TableCell className="w-37.5 min-w-37.5 text-center"><span className="font-medium text-gray-700 border border-gray-300">{row.chemical || '-'}</span></TableCell>
                       <TableCell className="text-center border border-gray-300">{parseFloat(row.input) > 0 ? parseFloat(row.input).toFixed(2) : '-'}</TableCell>
                       <TableCell className="text-center border border-gray-300">{parseFloat(row.loomsWasteKg) > 0 ? parseFloat(row.loomsWasteKg).toFixed(2) : '-'}</TableCell>
                       <TableCell className="text-center border border-gray-300">{parseFloat(row.output) > 0 ? parseFloat(row.output).toFixed(2) : '-'}</TableCell>
@@ -292,6 +294,7 @@ export const LoomSection = forwardRef<SectionRef, LoomSectionProps>(({
                   <TableRow key={row.id}>
                     <TableCell className="!text-center border border-gray-300">{row.size}</TableCell>
                     <TableCell className="w-37.5 min-w-37.5 text-center border border-gray-300">{row.color}</TableCell>
+                    <TableCell className="w-37.5 min-w-37.5 text-center border border-gray-300">{row.chemical || '-'}</TableCell>
                     <TableCell className="text-center border border-gray-300">{row.input.toFixed(2)}</TableCell>
                     <TableCell className="text-center border border-gray-300">{row.loomsWasteKg.toFixed(2)}</TableCell>
                     <TableCell className="text-center border border-gray-300">{row.output.toFixed(2)}</TableCell>
@@ -334,7 +337,7 @@ export const LoomSection = forwardRef<SectionRef, LoomSectionProps>(({
                 ))}
                 {rows.length === 0 && newRows.length === 0 && (
                   <TableRow>
-                    <TableCell colSpan={readOnly ? 5 : 6} className="h-20 !text-center text-gray-500">No entries yet.</TableCell>
+                    <TableCell colSpan={readOnly ? 6 : 7} className="h-20 !text-center text-gray-500">No entries yet.</TableCell>
                   </TableRow>
                 )}
               </>

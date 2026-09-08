@@ -3,12 +3,13 @@ import { useQueryClient } from '@tanstack/react-query';
 import '@fontsource-variable/hanken-grotesk';
 import '@fontsource-variable/inter';
 import { format, parseISO } from 'date-fns';
-import { ArrowLeft, Edit, Plus, Trash2, Download } from 'lucide-react';
+import { ArrowLeft, Edit, Plus, Trash2, Download, CheckCircle2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { DeleteConfirmDialog } from '@/components/shared/delete-confirm-dialog';
+import { ApproveConfirmDialog } from '@/components/shared/approve-confirm-dialog';
 import { apiFetch, fetchJson } from '@/lib/api-client';
 import { currentMonthStr } from '@/lib/date-utils';
 import extruderIcon from '@/assets/extruder-icon.png';
@@ -159,6 +160,8 @@ export function SampleProductionPage() {
   const [monthFilter, setMonthFilter] = useState<Date>(new Date());
   const [deleteTargetDate, setDeleteTargetDate] = useState<string | null>(null);
   const [deletingDate, setDeletingDate] = useState(false);
+  const [approveTargetDate, setApproveTargetDate] = useState<string | null>(null);
+  const [approvingDate, setApprovingDate] = useState(false);
   const [isReportOpen, setIsReportOpen] = useState(false);
 
   const monthStr = format(monthFilter, 'yyyy-MM');
@@ -202,6 +205,7 @@ export function SampleProductionPage() {
       if (!dates.has(d)) {
         dates.set(d, {
           date: d,
+          isApproved: false,
           extruder: { input: 0, wastage: 0, output: 0 },
           looms: { input: 0, wastage: 0, output: 0 },
           fabric: { input: 0, wastage: 0, output: 0 },
@@ -217,6 +221,7 @@ export function SampleProductionPage() {
       d.extruder.input += item.extruder?.rawMaterialKg || 0;
       d.extruder.wastage += sumWastageByCode(item.wastages, 'LUMPS') + sumWastageByCode(item.wastages, 'YARN_WASTE');
       d.extruder.output += item.extruder?.yarnOutputKg || 0;
+      if (item.isApproved) d.isApproved = true;
     }
 
     for (const item of (loomsData?.data || [])) {
@@ -225,6 +230,7 @@ export function SampleProductionPage() {
       d.looms.input += item.loom?.yarnInputKg || 0;
       d.looms.wastage += sumWastageByCode(item.wastages, 'LOOMS_WASTE');
       d.looms.output += item.loom?.fabricOutputKg || 0;
+      if (item.isApproved) d.isApproved = true;
     }
 
     for (const item of (fabricData?.data || [])) {
@@ -233,6 +239,7 @@ export function SampleProductionPage() {
       d.fabric.input += item.fabricCheck?.fabricInputKg || 0;
       d.fabric.wastage += sumWastageByCode(item.wastages, 'FW') + sumWastageByCode(item.wastages, 'BW');
       d.fabric.output += item.fabricCheck?.outputKg || 0;
+      if (item.isApproved) d.isApproved = true;
     }
 
     for (const item of (deliveredData?.data || [])) {
@@ -300,6 +307,37 @@ export function SampleProductionPage() {
     } finally {
       setDeletingDate(false);
       setDeleteTargetDate(null);
+    }
+  };
+
+  const handleApproveDate = async () => {
+    if (!approveTargetDate) return;
+    setApprovingDate(true);
+    try {
+      const dateQuery = `?date_from=${approveTargetDate}T00:00:00.000Z&date_to=${approveTargetDate}T23:59:59.999Z&limit=100&type=SAMPLE`;
+      const [extruderRes, loomsRes, fabricRes] = await Promise.all([
+        fetchJson<{ data: { id: string; isApproved: boolean }[] }>(`/production/extruder${dateQuery}`),
+        fetchJson<{ data: { id: string; isApproved: boolean }[] }>(`/production/looms${dateQuery}`),
+        fetchJson<{ data: { id: string; isApproved: boolean }[] }>(`/fabric-checking${dateQuery}`),
+      ]);
+
+      const results = await Promise.all([
+        ...extruderRes.data.filter((r) => !r.isApproved).map((r) => apiFetch(`/production/extruder/${r.id}/approve`, { method: 'PATCH' })),
+        ...loomsRes.data.filter((r) => !r.isApproved).map((r) => apiFetch(`/production/looms/${r.id}/approve`, { method: 'PATCH' })),
+        ...fabricRes.data.filter((r) => !r.isApproved).map((r) => apiFetch(`/fabric-checking/${r.id}/approve`, { method: 'PATCH' })),
+      ]);
+      if (results.some((r) => !r.ok)) throw new Error('Failed to approve one or more sample entries');
+
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: extruderKeys.all }),
+        queryClient.invalidateQueries({ queryKey: loomsKeys.all }),
+        queryClient.invalidateQueries({ queryKey: fabricCheckingKeys.all }),
+      ]);
+      setApproveTargetDate(null);
+    } catch (error) {
+      console.error('Error approving sample day entries:', error);
+    } finally {
+      setApprovingDate(false);
     }
   };
 
@@ -444,6 +482,19 @@ export function SampleProductionPage() {
                         <TableCell className="!text-center text-gray-800 font-medium text-[14px] py-1 border-r border-gray-300">{formatNum(delivered.output)}</TableCell>
                         <TableCell className="py-1">
                           <div className="flex items-center justify-center gap-2">
+                            {user?.role === 'ADMIN' &&
+                              (<span title={day.isApproved ? 'Already Approved' : 'Approve'} className="inline-flex">
+                                <Button
+                                  variant="outline"
+                                  size="icon"
+                                  className="h-6 w-6 text-emerald-600 disabled:opacity-50 disabled:pointer-events-none"
+                                  onClick={() => setApproveTargetDate(day.date)}
+                                  disabled={day.isApproved}
+                                >
+                                  <CheckCircle2 className="h-[13px] w-[13px]" />
+                                </Button>
+                              </span>)
+                            }
                             <Button variant="outline" size="icon" className="h-6 w-6 text-[#004D40] hover:bg-[#004D40]/10" onClick={() => setView({ kind: 'entry', date: day.date })} title="Edit the sample entry">
                               <Edit className="h-[13px] w-[13px]" />
                             </Button>
@@ -499,6 +550,15 @@ export function SampleProductionPage() {
         description={deleteTargetDate ? 'Are you sure want to delete this record?' : undefined}
         isPending={deletingDate}
         onConfirm={handleDeleteDate}
+      />
+
+      <ApproveConfirmDialog
+        open={!!approveTargetDate}
+        onOpenChange={(open) => !open && setApproveTargetDate(null)}
+        title="Approve this day's entries?"
+        description={approveTargetDate ? `Approves every not-yet-approved sample record for ${format(parseISO(approveTargetDate), 'dd MMM, yyyy')}. Once approved, a Manager can no longer edit them — this cannot be undone.` : undefined}
+        isPending={approvingDate}
+        onConfirm={handleApproveDate}
       />
 
       <SampleProductionReportModal
