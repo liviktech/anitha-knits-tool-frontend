@@ -158,22 +158,22 @@ export function DetailBreakdownCard({ title, total, theme, rows, emptyMessage = 
         ) : table ? (
           <div className="flex flex-col gap-1.5">
             <div className="flex flex-row items-center px-1">
-              <div className="w-[72px] shrink-0" />
-              <div className="flex-1 flex flex-row items-center justify-between gap-1 min-w-max">
+              <div className="w-[80px] shrink-0" />
+              <div className={`flex-1 flex flex-row items-center ${table.columns.length === 1 ? 'justify-start' : 'justify-between'}`}>
                 {table.columns.map((col) => (
-                  <span key={col} className="text-[11px] text-gray-500 font-bold uppercase w-16 text-center tracking-wide">{col}</span>
+                  <span key={col} className={`flex-1 text-[10px] text-gray-500 font-bold uppercase tracking-wide ${table.columns.length === 1 ? 'text-left' : 'text-center'}`}>{col}</span>
                 ))}
               </div>
             </div>
             <div className="flex flex-col gap-1.5">
               {table.rows.map((row) => (
-                <div key={row.label} className="flex flex-row items-center border border-gray-200 rounded p-1.5 bg-[#f8fafc]">
-                  <span className="w-[72px] shrink-0 text-[12px] font-bold text-gray-600 uppercase tracking-wide">{row.label}</span>
-                  <div className="flex-1 flex flex-row items-center justify-between gap-1 min-w-max">
+                <div key={row.label} className="flex flex-row items-start border border-gray-200 rounded p-1.5 bg-[#f8fafc] gap-1">
+                  <span className="w-[80px] shrink-0 text-[11px] font-bold text-gray-600 uppercase tracking-wide leading-tight break-words">{row.label}</span>
+                  <div className={`flex-1 flex flex-row items-center pt-px ${table.columns.length === 1 ? 'justify-start' : 'justify-between'}`}>
                     {table.columns.map((col) => {
                       const value = row.values[col] ?? 0;
                       return (
-                        <span key={col} className="text-[12px] font-inter font-bold text-gray-800 w-16 text-center">
+                        <span key={col} className={`flex-1 text-[11px] font-inter font-bold text-gray-800 ${table.columns.length === 1 ? 'text-left' : 'text-center'}`}>
                           {value > 0 ? formatNum(value) : '-'}
                         </span>
                       );
@@ -317,8 +317,6 @@ export function SectionSummaryCard({
   totalColorClassName = 'text-[#2F6B2F]',
   isLoading = false,
   loadingMessage = 'Loading...',
-  isEmpty = false,
-  emptyMessage = 'No records yet.',
   children,
 }: SectionSummaryCardProps) {
   return (
@@ -498,13 +496,13 @@ export function ExtruderSummaryCard({ title, total, rows, theme, rowLabelClassNa
                     </div>
 
                     {row.chemicals.length > 0 && (
-                      <div className="flex flex-col gap-1.5 border-t border-gray-100 pt-1.5 overflow-x-auto">
+                      <div className="flex flex-col gap-1.5 border-t border-gray-100 pt-1.5">
                         {allSizes.length > 0 && (
                           <div className="flex flex-row items-center px-1">
-                            <div className="w-[72px] shrink-0"></div>
-                            <div className="flex-1 flex flex-row items-center justify-between gap-1 min-w-max">
+                            <div className="w-[64px] shrink-0"></div>
+                            <div className={`flex-1 flex flex-row items-center ${allSizes.length === 1 ? 'justify-start' : 'justify-between'}`}>
                               {allSizes.map(size => (
-                                <span key={size} className="text-[11px] text-gray-500 font-bold uppercase w-16 text-center tracking-wide">{size}</span>
+                                <span key={size} className={`flex-1 text-[10px] text-gray-500 font-bold uppercase tracking-wide ${allSizes.length === 1 ? 'text-left' : 'text-center'}`}>{size}</span>
                               ))}
                             </div>
                           </div>
@@ -512,12 +510,12 @@ export function ExtruderSummaryCard({ title, total, rows, theme, rowLabelClassNa
                         <div className="flex flex-col gap-1.5">
                           {row.chemicals.map(chem => (
                             <div key={chem.chemical} className="flex flex-row items-center border border-gray-200 rounded p-1.5 bg-[#f8fafc]">
-                              <span className="w-[72px] shrink-0 text-[12px] font-bold text-gray-600 uppercase tracking-wide">{chem.chemical}</span>
-                              <div className="flex-1 flex flex-row items-center justify-between gap-1 min-w-max">
+                              <span className="w-[64px] shrink-0 text-[11px] font-bold text-gray-600 uppercase tracking-wide truncate">{chem.chemical}</span>
+                              <div className={`flex-1 flex flex-row items-center ${allSizes.length === 1 ? 'justify-start' : 'justify-between'}`}>
                                 {allSizes.map(size => {
                                   const s = chem.sizes.find(x => x.size === size);
                                   return (
-                                    <span key={size} className="text-[12px] font-inter font-bold text-gray-800 w-16 text-center">
+                                    <span key={size} className={`flex-1 text-[11px] font-inter font-bold text-gray-800 ${allSizes.length === 1 ? 'text-left' : 'text-center'}`}>
                                       {s ? formatNum(s.production) : '-'}
                                     </span>
                                   );
