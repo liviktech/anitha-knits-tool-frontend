@@ -1,11 +1,8 @@
 import { useState, useEffect, useMemo } from 'react';
-import { Button } from '@/components/ui/button';
-import { Download } from 'lucide-react';
-import { Loader } from '@/components/shared/loader';
-import { Input } from '@/components/ui/input';
 import { useInventoryRecords, inventoryTypeLabels, type InventoryType } from '@/features/inventory/inventory-queries';
 import { useOpeningBalanceRawMaterials } from '@/features/admin-panel/opening-balance-queries';
 import { formatDateDisplay } from '@/features/inventory/inventory-utils';
+import { ReportLayout } from './report-layout';
 
 const TEAL: [number, number, number] = [0, 77, 64];
 const TEAL_TINT: [number, number, number] = [232, 245, 240];
@@ -17,19 +14,37 @@ function getMonthName(monthStr: string) {
   return date.toLocaleDateString('en-IN', { month: 'long', year: 'numeric' });
 }
 
-export function InventoryReportView() {
-  const [monthStr, setMonthStr] = useState(() => {
+interface InventoryReportViewProps {
+  allReports?: { id: string; label: string; moduleId: string }[];
+  selectedReport?: string;
+  onReportChange?: (tabId: string, moduleId: string) => void;
+}
+
+export function InventoryReportView({ allReports, selectedReport, onReportChange }: InventoryReportViewProps) {
+  const [fromMonthStr, setFromMonthStr] = useState(() => {
+    const d = new Date();
+    return `${d.getFullYear()}-${(d.getMonth() + 1).toString().padStart(2, '0')}`;
+  });
+  const [toMonthStr, setToMonthStr] = useState(() => {
     const d = new Date();
     return `${d.getFullYear()}-${(d.getMonth() + 1).toString().padStart(2, '0')}`;
   });
 
-  const { data, isLoading, isError, refetch } = useInventoryRecords('?limit=100');
+  const { data, isLoading } = useInventoryRecords('?limit=100');
   const { data: obRes } = useOpeningBalanceRawMaterials('?limit=100');
   const obRecords = obRes?.data ?? [];
 
   const monthRecords = useMemo(
-    () => (data?.data ?? []).filter((r) => r.date.startsWith(monthStr)).sort((a, b) => b.date.localeCompare(a.date)),
-    [data, monthStr],
+    () => {
+      if (!data?.data) return [];
+      return data.data
+        .filter((r) => {
+          const m = r.date.substring(0, 7);
+          return m >= fromMonthStr && m <= toMonthStr;
+        })
+        .sort((a, b) => b.date.localeCompare(a.date));
+    },
+    [data, fromMonthStr, toMonthStr],
   );
 
   const categoryTotal = (type: InventoryType) => {
@@ -45,6 +60,7 @@ export function InventoryReportView() {
 
   const [pdfBlobUrl, setPdfBlobUrl] = useState<string | null>(null);
   const [isGenerating, setIsGenerating] = useState(false);
+  const [isGeneratingXlsx, setIsGeneratingXlsx] = useState(false);
 
   useEffect(() => {
     if (isLoading) return;
@@ -68,7 +84,8 @@ export function InventoryReportView() {
       doc.setFont('helvetica', 'normal');
       doc.setTextColor(90, 90, 90);
       doc.text('INVENTORY STOCK REPORT', 105, 26, { align: 'center' });
-      doc.text(`Period: ${getMonthName(monthStr)}`, 105, 33, { align: 'center' });
+      const periodText = fromMonthStr === toMonthStr ? getMonthName(fromMonthStr) : `${getMonthName(fromMonthStr)} - ${getMonthName(toMonthStr)}`;
+      doc.text(`Period: ${periodText}`, 105, 33, { align: 'center' });
 
       doc.setDrawColor(...TEAL);
       doc.setLineWidth(0.6);
@@ -119,62 +136,78 @@ export function InventoryReportView() {
     return () => {
       isCancelled = true;
     };
-  }, [monthRecords, isLoading, monthStr, hdpeTotal, chemicalTotal, colorTotal, grandTotal]);
+  }, [monthRecords, isLoading, fromMonthStr, toMonthStr, hdpeTotal, chemicalTotal, colorTotal, grandTotal]);
+
+  const handleDownloadXlsx = async () => {
+    if (isLoading) return;
+    setIsGeneratingXlsx(true);
+    try {
+      const { utils, writeFile } = await import('xlsx');
+      const wb = utils.book_new();
+      const wsData: any[][] = [];
+
+      wsData.push(['INVENTORY STOCK REPORT']);
+      const periodText = fromMonthStr === toMonthStr ? getMonthName(fromMonthStr) : `${getMonthName(fromMonthStr)} - ${getMonthName(toMonthStr)}`;
+      wsData.push([`Period: ${periodText}`]);
+      wsData.push([]);
+      
+      wsData.push([`HDPE: ${hdpeTotal.toFixed(2)} kg`, `Chemical: ${chemicalTotal.toFixed(2)} kg`, `Color: ${colorTotal.toFixed(2)} kg`]);
+      wsData.push([]);
+
+      wsData.push(['Date', 'Type', 'Name', 'Bags', 'Weight (kg)', 'DC Number']);
+      monthRecords.forEach((r) => {
+        wsData.push([
+          formatDateDisplay(r.date),
+          inventoryTypeLabels[r.type],
+          r.name,
+          r.bagCount ?? 0,
+          r.weightKg.toFixed(2),
+          r.DC_NUMBER || '-',
+        ]);
+      });
+      wsData.push(['', '', '', '', `Total: ${grandTotal.toFixed(2)} kg`, '']);
+
+      const ws = utils.aoa_to_sheet(wsData);
+      utils.book_append_sheet(wb, ws, 'Inventory');
+
+      const period = fromMonthStr === toMonthStr ? fromMonthStr : `${fromMonthStr}_to_${toMonthStr}`;
+      writeFile(wb, `Anitha_Knits_Inventory_Report_${period}.xlsx`);
+    } catch (err) {
+      console.error(err);
+    } finally {
+      setIsGeneratingXlsx(false);
+    }
+  };
+
+  const handleDownload = () => {
+    if (pdfBlobUrl) {
+      const a = document.createElement('a');
+      a.href = pdfBlobUrl;
+      const period = fromMonthStr === toMonthStr ? fromMonthStr : `${fromMonthStr}_to_${toMonthStr}`;
+      a.download = `Anitha_Knits_Inventory_Report_${period}.pdf`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+    }
+  };
 
   return (
-    <div className="flex flex-col h-full bg-white">
-      {/* Header */}
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between px-4 py-2.5 bg-white border-b border-gray-200 shrink-0 print:hidden">
-        <div>
-          <h2 className="text-[14px] font-bold text-gray-700 leading-tight uppercase tracking-wide">Inventory Report PDF Preview</h2>
-        </div>
-        <div className="flex flex-wrap items-center gap-3">
-          <Input
-            type="month"
-            value={monthStr}
-            max={`${new Date().getFullYear()}-${(new Date().getMonth() + 1).toString().padStart(2, '0')}`}
-            onChange={(e) => setMonthStr(e.target.value)}
-            className="h-8 w-40 bg-white border border-gray-400 rounded-md px-3 py-2 text-sm font-semibold text-[#003140] shadow-[0_1px_2px_rgba(0,0,0,0.05)] hover:bg-gray-50 focus-visible:ring-1 focus-visible:ring-[#004D40]"
-          />
-          <Button
-            onClick={() => {
-              if (pdfBlobUrl) {
-                const a = document.createElement('a');
-                a.href = pdfBlobUrl;
-                a.download = `Inventory_Report_${monthStr}.pdf`;
-                a.click();
-              }
-            }}
-            disabled={!pdfBlobUrl || isGenerating}
-            className="flex items-center gap-2 bg-[#004D40] hover:bg-[#00382e] text-white rounded-md px-3 py-2 h-8 text-[12px] font-bold tracking-wide shadow-[0_1px_2px_rgba(0,45,35,0.2)]"
-          >
-            <Download className="w-3.5 h-3.5" /> DOWNLOAD PDF
-          </Button>
-        </div>
-      </div>
-
-      {/* Content */}
-      <div className="flex-1 bg-gray-100 flex items-center justify-center p-4">
-        {isLoading || isGenerating ? (
-          <div className="flex flex-col items-center justify-center py-20 text-gray-500">
-            <Loader size="lg" className="mb-4 text-[#004D40]" />
-            <p>Generating PDF Preview...</p>
-          </div>
-        ) : isError ? (
-          <div className="text-center text-red-500">
-            <p>Unable to load report data.</p>
-            <Button variant="outline" onClick={() => refetch()} className="mt-4">Retry</Button>
-          </div>
-        ) : pdfBlobUrl ? (
-          <iframe
-            src={pdfBlobUrl}
-            className="w-full h-full rounded-lg shadow-sm border border-gray-300 bg-white"
-            title="Inventory Report PDF Preview"
-          />
-        ) : (
-          <div className="text-gray-500">Could not generate PDF.</div>
-        )}
-      </div>
-    </div>
+    <ReportLayout
+      displayTitle="Inventory"
+      allReports={allReports}
+      selectedReport={selectedReport}
+      onReportChange={onReportChange}
+      fromMonthStr={fromMonthStr}
+      toMonthStr={toMonthStr}
+      onFromMonthChange={setFromMonthStr}
+      onToMonthChange={setToMonthStr}
+      showMonthPicker={true}
+      pdfBlobUrl={pdfBlobUrl}
+      isGenerating={isGenerating}
+      isGeneratingXlsx={isGeneratingXlsx}
+      isLoading={isLoading}
+      onDownloadXlsx={handleDownloadXlsx}
+      onDownload={handleDownload}
+    />
   );
 }

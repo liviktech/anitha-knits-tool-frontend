@@ -147,11 +147,9 @@ export function InventoryReportModal({ open, onOpenChange, month }: InventoryRep
               <Button variant="outline" size="sm" onClick={handleDownloadPDF} disabled={isLoading || monthRecords.length === 0} className="gap-2 bg-white border-[#004D40] text-[#004D40] hover:bg-[#004D40]/10">
                 <FileDown className="w-4 h-4" /> Download PDF
               </Button>
-              <Button size="sm" onClick={handleDownloadCSV} disabled={isLoading || monthRecords.length === 0} className="gap-2 bg-[#004D40] hover:bg-[#00382e] text-white">
-                <Download className="w-4 h-4" /> Download CSV
-              </Button>
+
               <DialogClose asChild>
-                <Button size="icon-sm" className="bg-red-700 text-white hover:bg-red-400 focus-visible:ring-red-400">
+                <Button size="icon-sm" className="bg-red-700 text-white hover:bg-red-400 focus-visible:ring-red-400 cursor-pointer">
                   <X className="w-4 h-4" />
                   <span className="sr-only">Close</span>
                 </Button>

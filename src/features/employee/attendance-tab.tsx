@@ -11,7 +11,7 @@ import { TablePaginationControls, RowsPerPageSelect } from '@/components/shared/
 import { MarkAttendanceModal } from './mark-attendance-modal';
 import { EmployeeAttendanceDetailsModal } from './employee-attendance-details-modal';
 import { AttendanceReportModal } from './attendance-report-modal';
-import { useEmployees } from './employee-queries';
+import { useEmployees, getEmployeeDisplayId } from './employee-queries';
 import { useAttendanceRecords, useUpsertAttendance } from './attendance-queries';
 
 
@@ -69,7 +69,7 @@ export const AttendanceTab = forwardRef<AttendanceTabRef>((_props, ref) => {
       id: emp.id,
       name: emp.name || 'Unknown',
       role: emp.employeeDetails?.designation || 'Unknown',
-      customUserId: emp.employeeDetails?.customUserId || emp.id,
+      customUserId: getEmployeeDisplayId(emp),
     }));
   }, [employeesData]);
 

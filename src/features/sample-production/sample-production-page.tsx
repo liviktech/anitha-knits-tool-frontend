@@ -175,7 +175,7 @@ export function SampleProductionPage() {
   // selected month, same source (and same shape) the Production Details report uses, just
   // scoped to type=SAMPLE so it never mixes in real Production records.
   const companyName = user?.kind === 'company-user' ? user.company.name : 'LK Knits';
-  const { dashboardData: sampleMonthlyDashboardData } = useMonthlyDashboard(monthStr, 'SAMPLE');
+  const { dashboardData: sampleMonthlyDashboardData } = useMonthlyDashboard(monthStr, monthStr, 'SAMPLE');
   const reportDeliveryByColor = useMemo(() => {
     const map = new Map<string, { label: string; delivered: number }>();
     (sampleMonthlyDashboardData?.loadSent.items ?? []).forEach((item) => {
@@ -409,9 +409,11 @@ export function SampleProductionPage() {
         </div>
 
         <Card className="shadow-sm border-0 bg-white rounded-xl overflow-hidden gap-0 p-0 flex flex-col">
-          <CardHeader className="flex flex-col gap-1 border-b border-gray-300 px-3 py-2.5 sm:flex-row sm:items-center sm:justify-between bg-white">
-            <CardTitle className="text-[17px] font-bold text-[#004D40] leading-tight">Day Wise Sample Production Details</CardTitle>
-          </CardHeader>
+          <CardHeader className="flex flex-col gap-1 border-b border-gray-300 px-3 py-2 sm:flex-row sm:items-center sm:justify-between bg-white">
+            <CardTitle className="text-[17px] font-bold text-[#004D40] leading-tight flex items-center">
+              <img src="/Table-icon.jpg" alt="" className="w-10 h-10 object-contain rounded-sm" />
+              Day Wise Production & Wastage Details
+            </CardTitle>          </CardHeader>
           <div className="overflow-x-auto w-full">
             <Table className="w-full table-fixed">
               <TableHeader>

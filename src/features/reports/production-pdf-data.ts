@@ -6,8 +6,8 @@ export interface DeliveryBreakdownRow {
   delivered: number;
 }
 
-export function useProductionPdfData(monthStr: string, isSample: boolean) {
-  const { dashboardData, isLoading } = useMonthlyDashboard(monthStr, isSample ? 'SAMPLE' : 'PRODUCTION');
+export function useProductionPdfData(fromMonthStr: string, toMonthStr: string, isSample: boolean) {
+  const { dashboardData, isLoading } = useMonthlyDashboard(fromMonthStr, toMonthStr, isSample ? 'SAMPLE' : 'PRODUCTION');
 
   return useMemo(() => {
     if (!dashboardData) return { isLoading: true, data: null };

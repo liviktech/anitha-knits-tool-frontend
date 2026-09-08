@@ -1,19 +1,15 @@
 import { useEffect, useState } from 'react';
-import { Loader } from '@/components/shared/loader';
-import { Input } from '@/components/ui/input';
-import { Download } from 'lucide-react';
-import { Button } from '@/components/ui/button';
 import { useEmployeePdfData } from './employee-pdf-data';
+import { ReportLayout } from './report-layout';
 
 const TEAL: [number, number, number] = [0, 77, 64];
 const TEAL_TINT: [number, number, number] = [232, 245, 240];
 
 function formatCurrency(num: number) {
-  return new Intl.NumberFormat('en-IN', {
-    style: 'currency',
-    currency: 'INR',
+  const formatted = new Intl.NumberFormat('en-IN', {
     maximumFractionDigits: 0,
   }).format(num);
+  return `Rs. ${formatted}`;
 }
 
 function formatDateDisplay(isoDate: string) {
@@ -33,20 +29,29 @@ function getMonthName(monthStr: string) {
 
 interface EmployeePdfViewProps {
   tab: string; // 'employee_directory' | 'attendance_report' | 'payroll_report'
+  allReports?: { id: string; label: string; moduleId: string }[];
+  selectedReport?: string;
+  onReportChange?: (tabId: string, moduleId: string) => void;
 }
 
-export function EmployeePdfView({ tab }: EmployeePdfViewProps) {
-  const [monthStr, setMonthStr] = useState(() => {
+export function EmployeePdfView({ tab, allReports, selectedReport, onReportChange }: EmployeePdfViewProps) {
+  const [fromMonthStr, setFromMonthStr] = useState(() => {
+    const d = new Date();
+    return `${d.getFullYear()}-${(d.getMonth() + 1).toString().padStart(2, '0')}`;
+  });
+  const [toMonthStr, setToMonthStr] = useState(() => {
     const d = new Date();
     return `${d.getFullYear()}-${(d.getMonth() + 1).toString().padStart(2, '0')}`;
   });
 
-  const data = useEmployeePdfData(monthStr);
+  const data = useEmployeePdfData(fromMonthStr, toMonthStr);
+  const isLoading = data.isLoading;
   const [pdfBlobUrl, setPdfBlobUrl] = useState<string | null>(null);
   const [isGenerating, setIsGenerating] = useState(false);
+  const [isGeneratingXlsx, setIsGeneratingXlsx] = useState(false);
 
   useEffect(() => {
-    if (data.isLoading) return;
+    if (isLoading) return;
     
     let isCancelled = false;
     
@@ -84,7 +89,8 @@ export function EmployeePdfView({ tab }: EmployeePdfViewProps) {
       if (tab === 'employee_directory') {
         doc.text(`As of ${formatDateDisplay(new Date().toISOString())}`, centerX, y, { align: 'center' });
       } else {
-        doc.text(`Period: ${getMonthName(monthStr)}`, centerX, y, { align: 'center' });
+        const periodText = fromMonthStr === toMonthStr ? getMonthName(fromMonthStr) : `${getMonthName(fromMonthStr)} - ${getMonthName(toMonthStr)}`;
+        doc.text(`Period: ${periodText}`, centerX, y, { align: 'center' });
       }
       y += 5;
 
@@ -198,7 +204,87 @@ export function EmployeePdfView({ tab }: EmployeePdfViewProps) {
     return () => {
       isCancelled = true;
     };
-  }, [data, tab, monthStr]);
+  }, [data, isLoading, tab, fromMonthStr, toMonthStr]);
+
+  const handleDownloadXlsx = async () => {
+    if (!data) return;
+    setIsGeneratingXlsx(true);
+    try {
+      const { utils, writeFile } = await import('xlsx');
+      const wb = utils.book_new();
+      const wsData: any[][] = [];
+
+      let displayTitle = '';
+      if (tab === 'employee_directory') displayTitle = 'Employee Directory';
+      else if (tab === 'attendance_report') displayTitle = 'Attendance Report';
+      else if (tab === 'payroll_report') displayTitle = 'Payroll Report';
+
+      wsData.push([displayTitle]);
+      if (tab === 'employee_directory') {
+        wsData.push([`As of ${formatDateDisplay(new Date().toISOString())}`]);
+      } else {
+        const periodText = fromMonthStr === toMonthStr ? getMonthName(fromMonthStr) : `${getMonthName(fromMonthStr)} - ${getMonthName(toMonthStr)}`;
+        wsData.push([`Period: ${periodText}`]);
+      }
+      wsData.push([]);
+
+      if (tab === 'employee_directory') {
+        wsData.push(['ID', 'Name', 'Designation', 'Mobile Number', 'Aadhar Card', 'Date of Joining', 'Address', 'Gender', 'Status']);
+        data.employees.forEach((emp) => {
+          wsData.push([
+            emp.employeeDetails?.customUserId || emp.id,
+            emp.name || '-',
+            emp.employeeDetails?.designation || '-',
+            emp.mobile,
+            emp.employeeDetails?.aadhaarNumber || '-',
+            formatDateDisplay(emp.employeeDetails?.joiningDate || ''),
+            emp.employeeDetails?.address || '-',
+            emp.employeeDetails?.gender || '-',
+            emp.isActive ? 'Active' : 'Inactive',
+          ]);
+        });
+      } else if (tab === 'attendance_report') {
+        wsData.push(['Emp ID', 'Employee Name', 'Role', 'Present Days', 'Absent Days', 'Half Days']);
+        data.attendanceRows.forEach((row) => {
+          wsData.push([
+            row.employeeId,
+            row.employeeName,
+            row.role,
+            row.present,
+            row.absent,
+            row.halfDay,
+          ]);
+        });
+      } else if (tab === 'payroll_report') {
+        wsData.push(['Emp ID', 'Name', 'Base Salary', 'Days Worked', 'Gross Salary', 'Advance Deducted', 'Machine Value', 'Market Value', 'Other Deduction', 'Net Payable']);
+        data.payrollRows.forEach((row) => {
+          wsData.push([
+            row.employeeId,
+            row.name,
+            row.baseSalary,
+            row.daysWorked,
+            row.grossSalary,
+            row.advanceDeduction,
+            row.marketValueBonus,
+            row.marketValueDeduction,
+            row.otherDeduction,
+            row.netSalary,
+          ]);
+        });
+        wsData.push(['', '', '', '', '', '', '', '', 'Total:', data.totalPayroll]);
+      }
+
+      const ws = utils.aoa_to_sheet(wsData);
+      utils.book_append_sheet(wb, ws, displayTitle.substring(0, 31));
+
+      const period = fromMonthStr === toMonthStr ? fromMonthStr : `${fromMonthStr}_to_${toMonthStr}`;
+      writeFile(wb, `Anitha_Knits_${tab}_${period}.xlsx`);
+    } catch (err) {
+      console.error(err);
+    } finally {
+      setIsGeneratingXlsx(false);
+    }
+  };
 
   let displayTitle = '';
   if (tab === 'employee_directory') displayTitle = 'Employee Directory';
@@ -207,57 +293,35 @@ export function EmployeePdfView({ tab }: EmployeePdfViewProps) {
 
   const showMonthPicker = tab !== 'employee_directory';
 
-  return (
-    <div className="flex flex-col h-full bg-white">
-      {/* Header */}
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between px-4 py-2.5 bg-white border-b border-gray-200 shrink-0 print:hidden">
-        <div>
-          <h2 className="text-[14px] font-bold text-gray-700 leading-tight uppercase tracking-wide">{displayTitle} PDF Preview</h2>
-        </div>
-        <div className="flex flex-wrap items-center gap-3">
-          {showMonthPicker && (
-            <Input
-              type="month"
-              value={monthStr}
-              max={`${new Date().getFullYear()}-${(new Date().getMonth() + 1).toString().padStart(2, '0')}`}
-              onChange={(e) => setMonthStr(e.target.value)}
-              className="h-8 w-40 bg-white border border-gray-400 rounded-md px-3 py-2 text-sm font-semibold text-[#003140] shadow-[0_1px_2px_rgba(0,0,0,0.05)] hover:bg-gray-50 focus-visible:ring-1 focus-visible:ring-[#004D40]"
-            />
-          )}
-          <Button
-            onClick={() => {
-              if (pdfBlobUrl) {
-                const a = document.createElement('a');
-                a.href = pdfBlobUrl;
-                a.download = `${tab}_report_${showMonthPicker ? monthStr : new Date().toISOString().slice(0,10)}.pdf`;
-                a.click();
-              }
-            }}
-            disabled={!pdfBlobUrl || isGenerating}
-            className="flex items-center gap-2 bg-[#004D40] hover:bg-[#00382e] text-white rounded-md px-3 py-2 h-8 text-[12px] font-bold tracking-wide shadow-[0_1px_2px_rgba(0,45,35,0.2)]"
-          >
-            <Download className="w-3.5 h-3.5" /> DOWNLOAD PDF
-          </Button>
-        </div>
-      </div>
+  const handleDownload = () => {
+    if (pdfBlobUrl) {
+      const a = document.createElement('a');
+      a.href = pdfBlobUrl;
+      const period = fromMonthStr === toMonthStr ? fromMonthStr : `${fromMonthStr}_to_${toMonthStr}`;
+      a.download = `Anitha_Knits_${tab}_${period}.pdf`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+    }
+  };
 
-      {/* Content */}
-      <div className="flex-1 bg-gray-100 flex items-center justify-center p-4">
-        {data.isLoading || isGenerating ? (
-          <div className="flex flex-col items-center justify-center py-20 text-gray-500">
-            <Loader size="lg" className="mb-4 text-[#004D40]" />
-            <p>Generating PDF Preview...</p>
-          </div>
-        ) : pdfBlobUrl ? (
-          <iframe 
-            src={pdfBlobUrl} 
-            className="w-full h-full rounded-lg shadow-sm border border-gray-300 bg-white"
-            title={`${displayTitle} PDF Preview`}
-          />
-        ) : (
-          <div className="text-gray-500">Could not generate PDF.</div>
-        )}
-      </div>
-    </div>
+  return (
+    <ReportLayout
+      displayTitle={displayTitle}
+      allReports={allReports}
+      selectedReport={selectedReport}
+      onReportChange={onReportChange}
+      fromMonthStr={fromMonthStr}
+      toMonthStr={toMonthStr}
+      onFromMonthChange={setFromMonthStr}
+      onToMonthChange={setToMonthStr}
+      showMonthPicker={showMonthPicker}
+      pdfBlobUrl={pdfBlobUrl}
+      isGenerating={isGenerating}
+      isGeneratingXlsx={isGeneratingXlsx}
+      isLoading={isLoading}
+      onDownloadXlsx={handleDownloadXlsx}
+      onDownload={handleDownload}
+    />
   );
 }

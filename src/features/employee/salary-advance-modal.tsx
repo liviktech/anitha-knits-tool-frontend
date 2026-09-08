@@ -5,7 +5,7 @@ import { Input } from '@/components/ui/input';
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Label } from '@/components/ui/label';
-import { useEmployees, useGrantSalaryAdvance, useUpdateSalaryAdvance, type SalaryAdvanceRecord } from './employee-queries';
+import { useEmployees, useGrantSalaryAdvance, useUpdateSalaryAdvance, getEmployeeDisplayId, type SalaryAdvanceRecord } from './employee-queries';
 
 interface SalaryAdvanceModalProps {
   open: boolean;
@@ -73,7 +73,7 @@ export function SalaryAdvanceModal({ open, onOpenChange, advance = null }: Salar
               <SelectTrigger className="h-9 text-xs"><SelectValue placeholder="Choose Employee..." /></SelectTrigger>
               <SelectContent position="popper">
                 {employees.map(emp => (
-                  <SelectItem key={emp.id} value={emp.id}>{emp.employeeDetails?.customUserId || emp.id} - {emp.name || 'Unnamed'}</SelectItem>
+                  <SelectItem key={emp.id} value={emp.id}>{getEmployeeDisplayId(emp)} - {emp.name || 'Unnamed'}</SelectItem>
                 ))}
               </SelectContent>
             </Select>

@@ -7,7 +7,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Loader } from '@/components/shared/loader';
 import { DeleteConfirmDialog } from '@/components/shared/delete-confirm-dialog';
 import { TablePaginationControls, RowsPerPageSelect } from '@/components/shared/table-pagination-controls';
-import { useSalaryAdvances, useDeleteSalaryAdvance, type SalaryAdvanceRecord, type SalaryAdvanceStatus } from './employee-queries';
+import { useSalaryAdvances, useDeleteSalaryAdvance, getEmployeeDisplayId, type SalaryAdvanceRecord, type SalaryAdvanceStatus } from './employee-queries';
 import { SalaryAdvanceModal } from './salary-advance-modal';
 
 function formatDateDisplay(isoDate: string) {
@@ -52,7 +52,7 @@ export function SalaryAdvanceTable({ onOpenAdvanceModal }: SalaryAdvanceTablePro
     const q = advanceSearchQuery.toLowerCase();
     const matchesSearch =
       (adv.employeeName || '').toLowerCase().includes(q) ||
-      (adv.customUserId || '').toLowerCase().includes(q);
+      getEmployeeDisplayId(adv).toLowerCase().includes(q);
     const matchesStatus = advanceStatusFilter === 'ALL' || adv.status === advanceStatusFilter;
     return matchesSearch && matchesStatus;
   });
@@ -124,7 +124,7 @@ export function SalaryAdvanceTable({ onOpenAdvanceModal }: SalaryAdvanceTablePro
             ) : (
               pagedAdvances.map((adv) => (
                 <TableRow key={adv.id} className="border-b border-gray-300 hover:bg-emerald-50/30 transition-colors">
-                  <TableCell className="px-5 py-3 text-sm font-bold text-gray-900 border-r border-gray-300">{adv.customUserId || adv.employeeId}</TableCell>
+                  <TableCell className="px-5 py-3 text-sm font-bold text-gray-900 border-r border-gray-300">{getEmployeeDisplayId(adv)}</TableCell>
                   <TableCell className="px-5 py-3 text-sm font-semibold text-gray-800 border-r border-gray-300">{adv.employeeName || '-'}</TableCell>
                   <TableCell className="px-5 py-3 text-sm text-right border-r border-gray-300">₹{adv.amount.toLocaleString()}</TableCell>
                   <TableCell className="px-5 py-3 text-sm border-r border-gray-300">

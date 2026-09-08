@@ -595,7 +595,7 @@ export function ProductionDesign2() {
   // selected month (extruder/looms/fabric) come from the same monthly-dashboard endpoint the
   // Dashboard reports already use, so the report's numbers stay consistent with the dashboard.
   const companyName = user?.kind === 'company-user' ? user.company.name : 'LK Knits';
-  const { dashboardData: monthlyDashboardData } = useMonthlyDashboard(monthStr, 'PRODUCTION');
+  const { dashboardData: monthlyDashboardData } = useMonthlyDashboard(monthStr, monthStr, 'PRODUCTION');
   const reportDeliveryByColor = useMemo(() => {
     const map = new Map<string, { label: string; delivered: number }>();
     (monthlyDashboardData?.loadSent.items ?? []).forEach((item) => {

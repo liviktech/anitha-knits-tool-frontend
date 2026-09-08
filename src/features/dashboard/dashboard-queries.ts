@@ -179,17 +179,22 @@ export interface DashboardResponse {
 
 export const monthlyDashboardKey = ['dashboard', 'monthly'] as const;
 
-export function useMonthlyDashboard(monthStr?: string, type: 'PRODUCTION' | 'SAMPLE' = 'PRODUCTION') {
-  const queryKey = [...monthlyDashboardKey, monthStr ?? 'current', type] as const;
+export function useMonthlyDashboard(fromMonthStr?: string, toMonthStr?: string, type: 'PRODUCTION' | 'SAMPLE' = 'PRODUCTION') {
+  const queryKey = [...monthlyDashboardKey, fromMonthStr ?? 'current', toMonthStr ?? 'current', type] as const;
 
   const { data, isLoading } = useQuery({
     queryKey,
     queryFn: () => {
       const params = new URLSearchParams({ type });
-      if (monthStr) {
-        const [year, month] = monthStr.split('-');
-        params.set('year', year);
-        params.set('month', month);
+      if (fromMonthStr) {
+        const [year, month] = fromMonthStr.split('-');
+        params.set('date_from', `${year}-${month}-01`);
+      }
+      if (toMonthStr) {
+        const [year, month] = toMonthStr.split('-');
+        // Get the last day of the month for date_to
+        const lastDay = new Date(parseInt(year), parseInt(month), 0).getDate();
+        params.set('date_to', `${year}-${month}-${lastDay}`);
       }
       return fetchJson<DashboardResponse>(`/dashboard?${params.toString()}`);
     },
