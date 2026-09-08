@@ -844,6 +844,7 @@ const EmployeeDirectoryTab = forwardRef<EmployeeDirectoryTabRef>((_props, ref) =
         open={!!deleteTarget}
         onOpenChange={(open) => !open && setDeleteTarget(null)}
         onConfirm={handleDeleteConfirm}
+        isPending={deleteEmployee.isPending}
         title="Delete Employee Record?"
         description={
           deleteTarget
