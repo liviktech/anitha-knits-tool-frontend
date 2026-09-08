@@ -195,7 +195,9 @@ export function DashboardReportModal({
     rows.push(['Fabric Stock']);
     rows.push(['Color', 'Size', 'Stock (kg)']);
     fabricStockByColor.forEach((row) => {
-      FABRIC_STOCK_SIZES.forEach((size) => rows.push([row.color, size, row.stockBySize[size] || 0]));
+      Object.entries(row.stockBySize).forEach(([size, stock]) => {
+        if ((stock || 0) > 0) rows.push([row.color, size, stock]);
+      });
     });
     rows.push(['Total Fabric Stock', '', totalFabricStock]);
     rows.push([]);
@@ -316,9 +318,13 @@ export function DashboardReportModal({
 
     const fabricStockBody: (string | number)[][] = [];
     fabricStockByColor.forEach((row) => {
-      FABRIC_STOCK_SIZES.forEach((size) => fabricStockBody.push([row.color, size, formatNum(row.stockBySize[size] || 0)]));
+      Object.entries(row.stockBySize).forEach(([size, stock]) => {
+        if ((stock || 0) > 0) fabricStockBody.push([row.color, size, formatNum(stock)]);
+      });
     });
-    section('Fabric Stock', ['Color', 'Size', 'Stock (kg)'], fabricStockBody, [['Total Fabric Stock', '', formatNum(totalFabricStock)]]);
+    if (fabricStockBody.length > 0) {
+      section('Fabric Stock', ['Color', 'Size', 'Stock (kg)'], fabricStockBody, [['Total Fabric Stock', '', formatNum(totalFabricStock)]]);
+    }
 
     const deliveredBody: (string | number)[][] = [];
     deliveriesByColor.forEach((colorRow) => {
@@ -470,13 +476,15 @@ export function DashboardReportModal({
                     </TableHeader>
                     <TableBody>
                       {fabricStockByColor.flatMap((row) =>
-                        FABRIC_STOCK_SIZES.map((size) => (
-                          <TableRow key={`${row.color}-${size}`}>
-                            <TableCell className="py-3 px-4 border-b border-gray-100 text-sm font-semibold text-gray-800">{row.color}</TableCell>
-                            <TableCell className="py-3 px-4 border-b border-gray-100 text-sm text-gray-600 !text-left">{size}</TableCell>
-                            <TableCell className="py-3 px-4 border-b border-gray-100 text-sm text-right text-gray-900">{formatNum(row.stockBySize[size] || 0)}</TableCell>
-                          </TableRow>
-                        )),
+                        Object.entries(row.stockBySize)
+                          .filter(([, stock]) => (stock || 0) > 0)
+                          .map(([size, stock]) => (
+                            <TableRow key={`${row.color}-${size}`}>
+                              <TableCell className="py-3 px-4 border-b border-gray-100 text-sm font-semibold text-gray-800">{row.color}</TableCell>
+                              <TableCell className="py-3 px-4 border-b border-gray-100 text-sm text-gray-600 !text-left">{size}</TableCell>
+                              <TableCell className="py-3 px-4 border-b border-gray-100 text-sm text-right text-gray-900">{formatNum(stock)}</TableCell>
+                            </TableRow>
+                          )),
                       )}
                     </TableBody>
                     <TableFooter>
