@@ -13,6 +13,7 @@ import {
   useDistributeMarketValue,
   useGrantMarketValueDeduction,
   useGrantOtherDeduction,
+  getEmployeeDisplayId,
 } from './employee-queries';
 
 interface PayrollValueModalProps {
@@ -239,7 +240,7 @@ export function PayrollValueModal({ open, onOpenChange, month, year }: PayrollVa
                       <TableRow key={emp.id} className="border-b border-gray-100 hover:bg-gray-50/50">
                         <TableCell className="py-1.5 text-xs">
                           <div className="font-medium text-gray-900">{emp.name || 'Unnamed Employee'}</div>
-                          <div className="text-[10px] text-gray-500">{emp.employeeDetails?.customUserId || emp.mobile || emp.id}</div>
+                          <div className="text-[10px] text-gray-500">{getEmployeeDisplayId(emp)}</div>
                         </TableCell>
                         <TableCell className="py-1.5 text-right">
                           <Input
@@ -276,7 +277,7 @@ export function PayrollValueModal({ open, onOpenChange, month, year }: PayrollVa
                       <TableRow key={emp.id} className="border-b border-gray-100 hover:bg-gray-50/50">
                         <TableCell className="py-1.5 text-xs">
                           <div className="font-medium text-gray-900">{emp.name || 'Unnamed Employee'}</div>
-                          <div className="text-[10px] text-gray-500">{emp.employeeDetails?.customUserId || emp.mobile || emp.id}</div>
+                          <div className="text-[10px] text-gray-500">{getEmployeeDisplayId(emp)}</div>
                         </TableCell>
                         <TableCell className="py-1.5 text-right">
                           <Input
@@ -315,7 +316,7 @@ export function PayrollValueModal({ open, onOpenChange, month, year }: PayrollVa
                       <TableRow key={emp.id} className="border-b border-gray-100 hover:bg-gray-50/50">
                         <TableCell className="py-1.5 text-xs">
                           <div className="font-medium text-gray-900">{emp.name || 'Unnamed Employee'}</div>
-                          <div className="text-[10px] text-gray-500">{emp.employeeDetails?.customUserId || emp.mobile || emp.id}</div>
+                          <div className="text-[10px] text-gray-500">{getEmployeeDisplayId(emp)}</div>
                         </TableCell>
                         <TableCell className="py-1.5">
                           <Input

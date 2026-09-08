@@ -49,7 +49,7 @@ function toChemicalTable(colorRow: { chemicals: { chemical: string; sizes: { siz
 const FABRIC_STOCK_SIZES = ['150cm', '160cm', '170cm', '180cm', '190cm'] as const;
 const FABRIC_COLORS = ['Blue', 'Green', 'White'] as const;
 
-export function DashboardDesign2() {
+export function DashboardDesign() {
   const { user } = useAuth();
   const companyName = user?.kind === 'company-user' ? user.company.name : 'LK Knits';
   const [filterDate, setFilterDate] = useState<Date>(new Date());

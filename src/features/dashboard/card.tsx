@@ -161,7 +161,7 @@ export function DetailBreakdownCard({ title, total, theme, rows, emptyMessage = 
               <div className="w-[72px] shrink-0" />
               <div className="flex-1 flex flex-row items-center justify-between gap-1 min-w-max">
                 {table.columns.map((col) => (
-                  <span key={col} className="text-[11px] text-gray-500 font-bold uppercase w-16 text-center tracking-wide">{col}</span>
+                  <span key={col} className="text-[11px] font-bold uppercase w-16 text-center tracking-wide">{col}</span>
                 ))}
               </div>
             </div>
@@ -173,7 +173,7 @@ export function DetailBreakdownCard({ title, total, theme, rows, emptyMessage = 
                     {table.columns.map((col) => {
                       const value = row.values[col] ?? 0;
                       return (
-                        <span key={col} className="text-[12px] font-inter font-bold text-gray-800 w-16 text-center">
+                        <span key={col} className="text-[12px] font-inter font-bold text-gray-400 w-16 text-center">
                           {value > 0 ? formatNum(value) : '-'}
                         </span>
                       );
@@ -428,10 +428,13 @@ export function RawMaterialCard({
       </div>
       <div className={contentWrapperClassName}>
         {items.length > 0 ? (
-          <div className={`flex flex-wrap items-center ${itemsGapClassName} ${items.length === 1 ? 'justify-center' : 'justify-start'}`}>
+          <div
+            className={`grid ${itemsGapClassName}`}
+            style={{ gridTemplateColumns: `repeat(${items.length}, minmax(0, 1fr))` }}
+          >
             {items.map((item) => (
-              <div key={item.name} className={`flex flex-col gap-0.5 text-sm ${items.length === 1 ? 'items-center text-center' : 'items-start text-left'}`}>
-                <span className="font-medium text-gray-500">{item.name}</span>
+              <div key={item.name} className="flex flex-col gap-0.5 text-sm items-start text-left">
+                <span className="font-medium text-gray-500 truncate w-full">{item.name}</span>
                 {weightSuffixVariant === 'inline-bags' ? (
                   <span className="font-extrabold text-[#004D40]">{item.weight.toFixed(2)}kg / {item.bags} bags</span>
                 ) : weightSuffixVariant === 'plain' ? (
@@ -506,9 +509,9 @@ export function ExtruderSummaryCard({ title, total, rows, theme, rowLabelClassNa
                         {allSizes.length > 0 && (
                           <div className="flex flex-row items-center px-1">
                             <div className="w-[72px] shrink-0"></div>
-                            <div className="flex-1 flex flex-row items-center justify-between gap-1 min-w-max">
+                            <div className="flex-1 flex flex-row items-center justify-start gap-1 min-w-max">
                               {allSizes.map(size => (
-                                <span key={size} className="text-[11px] text-gray-500 font-bold uppercase w-16 text-center tracking-wide">{size}</span>
+                                <span key={size} className="text-[11px] font-bold uppercase w-16 text-center tracking-wide">{size}</span>
                               ))}
                             </div>
                           </div>
@@ -517,11 +520,11 @@ export function ExtruderSummaryCard({ title, total, rows, theme, rowLabelClassNa
                           {row.chemicals.map(chem => (
                             <div key={chem.chemical} className="flex flex-row items-center border border-gray-200 rounded p-1.5 bg-[#f8fafc]">
                               <span className="w-[72px] shrink-0 text-[12px] font-bold text-gray-600 uppercase tracking-wide">{chem.chemical}</span>
-                              <div className="flex-1 flex flex-row items-center justify-between gap-1 min-w-max">
+                              <div className="flex-1 flex flex-row items-center justify-start gap-1 min-w-max">
                                 {allSizes.map(size => {
                                   const s = chem.sizes.find(x => x.size === size);
                                   return (
-                                    <span key={size} className="text-[12px] font-inter font-bold text-gray-800 w-16 text-center">
+                                    <span key={size} className="text-[12px] font-inter font-bold text-gray-700 w-16 text-center">
                                       {s ? formatNum(s.production) : '-'}
                                     </span>
                                   );
