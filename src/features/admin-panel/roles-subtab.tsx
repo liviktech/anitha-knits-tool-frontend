@@ -652,7 +652,6 @@ export function RolesSubTab({
               </TableRow>
             ) : (
               paginatedRoles.map((role) => {
-                const assignedEmployees = employees.filter((e) => e.roleAccessId === role.id);
                 const count = roleEmployeeCounts.get(role.id) ?? 0;
                 return (
                   <TableRow
