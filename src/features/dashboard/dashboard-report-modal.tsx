@@ -5,7 +5,6 @@ import { Download, FileDown, X } from 'lucide-react';
 
 const TEAL: [number, number, number] = [0, 77, 64]; // #004D40 — this app's primary accent
 const TEAL_TINT: [number, number, number] = [232, 245, 240]; // light teal for footer/total rows
-const FABRIC_STOCK_SIZES = ['150cm', '160cm', '170cm', '180cm', '190cm'] as const;
 
 function formatNum(n: number): string {
   return n.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
@@ -352,6 +351,9 @@ export function DashboardReportModal({
               {reportTitle} Overview
             </DialogTitle>
             <div className="flex items-center gap-3">
+              <Button variant="outline" size="sm" onClick={handleDownloadCSV} disabled={!hasData} className="gap-2 bg-white border-[#004D40] text-[#004D40] hover:bg-[#004D40]/10">
+                <Download className="w-4 h-4" /> Download CSV
+              </Button>
               <Button variant="outline" size="sm" onClick={handleDownloadPDF} disabled={!hasData} className="gap-2 bg-white border-[#004D40] text-[#004D40] hover:bg-[#004D40]/10">
                 <FileDown className="w-4 h-4" /> Download PDF
               </Button>
