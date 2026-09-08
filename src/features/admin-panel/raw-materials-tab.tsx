@@ -12,6 +12,8 @@ import {
   type LookupItem,
   type LookupResource,
 } from './raw-materials-queries';
+import { useModules, useTabs } from './roles-tab-queries';
+import { ModulesManagementPanel, ModulesCard } from './modules-management';
 
 interface CategoryMeta {
   key: LookupResource;
@@ -78,20 +80,27 @@ function formatLastUpdated(iso: string) {
   return d.toLocaleString('en-GB', { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' });
 }
 
+type TabKey = LookupResource | 'modules';
+
 export function RawMaterialsTab() {
-  const [selectedKey, setSelectedKey] = useState<LookupResource>('brands');
+  const [selectedKey, setSelectedKey] = useState<TabKey>('brands');
+  const modulesQuery = useModules();
+  const tabsQuery = useTabs();
+  const modulesData = modulesQuery.data ?? [];
+  const tabsData = tabsQuery.data ?? [];
   const [isAddOpen, setIsAddOpen] = useState(false);
   const [editingItem, setEditingItem] = useState<LookupItem | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<LookupItem | null>(null);
 
   const lookupsQuery = useLookups();
-  const createMutation = useCreateLookupItem(selectedKey);
-  const updateMutation = useUpdateLookupItem(selectedKey);
-  const deleteMutation = useDeleteLookupItem(selectedKey);
+  const safeLookupKey = selectedKey === 'modules' ? 'brands' : selectedKey;
+  const createMutation = useCreateLookupItem(safeLookupKey);
+  const updateMutation = useUpdateLookupItem(safeLookupKey);
+  const deleteMutation = useDeleteLookupItem(safeLookupKey);
 
   const lookups = lookupsQuery.data;
   const selectedMeta = CATEGORY_META.find((c) => c.key === selectedKey) ?? CATEGORY_META[0];
-  const selectedItems = lookups?.[selectedMeta.lookupsKey] ?? [];
+  const selectedItems = selectedKey !== 'modules' ? (lookups?.[selectedMeta.lookupsKey] ?? []) : [];
   // const totalItems = lookups ? lookups.brands.length + lookups.colors.length + lookups.chemicals.length + lookups.sizes.length : 0;
 
   const handleOpenAdd = () => {
@@ -208,101 +217,95 @@ export function RawMaterialsTab() {
                   : 'border-gray-200 bg-white hover:border-[#004D40]/40 hover:shadow-sm'
                   }`}
               >
-                {/* Icon - fills the card height */}
-                <div
-                  className={`flex h-full w-[100px] shrink-0 items-center justify-center rounded-md border ${category.accent}`}
-                >
+                <div className={`flex h-full w-[100px] shrink-0 items-center justify-center rounded-md border ${category.accent}`}>
                   <Icon className="h-10 w-10" />
                 </div>
-
-                {/* Category content - pushed toward right */}
                 <div className="ml-auto flex flex-col items-end justify-center pr-3">
-                  <h3
-                    className={`text-[15px] font-semibold ${isSelected ? 'text-[#004D40]' : 'text-gray-900'
-                      }`}
-                  >
+                  <h3 className={`text-[15px] font-semibold ${isSelected ? 'text-[#004D40]' : 'text-gray-900'}`}>
                     {category.title}
                   </h3>
-
-                  <span
-                    className={`mt-1 text-[20px] font-bold ${isSelected ? 'text-[#004D40]' : 'text-gray-700'
-                      }`}
-                  >
+                  <span className={`mt-1 text-[20px] font-bold ${isSelected ? 'text-[#004D40]' : 'text-gray-700'}`}>
                     {count} Items
                   </span>
                 </div>
               </button>
             );
           })}
+
+          {/* Modules card */}
+          <ModulesCard
+            modules={modulesData}
+            tabs={tabsData}
+            isSelected={selectedKey === 'modules'}
+            onClick={() => setSelectedKey('modules')}
+          />
         </div>
 
-        <section className="overflow-hidden rounded-xl border border-gray-400 bg-white shadow-sm">
+        {selectedKey === 'modules' ? (
+          <ModulesManagementPanel />
+        ) : (
+          <section className="overflow-hidden rounded-xl border border-gray-400 bg-white shadow-sm">
+            <div className="flex flex-col gap-4 border-b border-gray-100 bg-[#F8FAF9] px-5 py-3.5 md:flex-row md:items-center md:justify-between">
+              <div className="flex items-center gap-3">
+                <div className={`flex h-10 w-10 items-center justify-center rounded-md border ${selectedMeta.accent}`}>
+                  <selectedMeta.icon className="h-4 w-4" />
+                </div>
+                <div>
+                  <h2 className="text-[15px] font-bold text-gray-900">{selectedMeta.title}</h2>
+                </div>
+              </div>
 
-          <div className="flex flex-col gap-4 border-b border-gray-100 bg-[#F8FAF9] px-5 py-3.5 md:flex-row md:items-center md:justify-between">
-            <div className="flex items-center gap-3">
-              <div className={`flex h-10 w-10 items-center justify-center rounded-md border ${selectedMeta.accent}`}>
-                <selectedMeta.icon className="h-4 w-4" />
-              </div>
-              <div>
-                <h2 className="text-[15px] font-bold text-gray-900">{selectedMeta.title}</h2>
-                {/* <p className="mt-0.5 text-[11px] font-medium text-gray-400">{selectedMeta.description}</p> */}
-              </div>
+              <button
+                type="button"
+                onClick={handleOpenAdd}
+                className="inline-flex items-center gap-2 rounded-lg bg-[#004D40] px-4 py-2 text-[12px] font-semibold text-white shadow-sm transition-colors hover:bg-[#003D33]"
+              >
+                <Plus className="h-4 w-4" />
+                Add {selectedMeta.singular}
+              </button>
             </div>
 
-            <button
-              type="button"
-              onClick={handleOpenAdd}
-              className="inline-flex items-center gap-2 rounded-lg bg-[#004D40] px-4 py-2 text-[12px] font-semibold text-white shadow-sm transition-colors hover:bg-[#003D33]"
-            >
-              <Plus className="h-4 w-4" />
-              Add {selectedMeta.singular}
-            </button>
-          </div>
-
-          <div className="overflow-x-auto">
-            <table className="w-full border-collapse">
-              <thead>
-                <tr className="border-b border-emerald-300 bg-emerald-50/30">
-                  <th className="whitespace-nowrap px-5 py-3 text-left text-sm font-semibold tracking-wide text-gray-800">Name</th>
-                  <th className="whitespace-nowrap px-5 py-3 text-right text-sm font-semibold tracking-wide text-gray-800">Last Updated</th>
-                  <th className="whitespace-nowrap px-5 py-3 text-right text-sm font-semibold tracking-wide text-gray-800">Actions</th>
-                </tr>
-              </thead>
-
-              <tbody>
-                {selectedItems.length === 0 ? (
-                  <tr>
-                    <td colSpan={3} className="px-5 py-6 text-center text-[13px] text-gray-400">
-                      None configured yet.
-                    </td>
+            <div className="overflow-x-auto">
+              <table className="w-full border-collapse">
+                <thead>
+                  <tr className="border-b border-emerald-300 bg-emerald-50/30">
+                    <th className="whitespace-nowrap px-5 py-3 text-left text-sm font-semibold tracking-wide text-gray-800">Name</th>
+                    <th className="whitespace-nowrap px-5 py-3 text-right text-sm font-semibold tracking-wide text-gray-800">Last Updated</th>
+                    <th className="whitespace-nowrap px-5 py-3 text-right text-sm font-semibold tracking-wide text-gray-800">Actions</th>
                   </tr>
-                ) : (
-                  selectedItems.map((item) => (
-                    <tr key={item.id} className="group border-b border-emerald-300 last:border-b-0 transition-colors hover:bg-emerald-50/30">
-                      <td className="whitespace-nowrap px-5 py-1.5 text-[13px] font-medium text-gray-900">{item.name}</td>
-                      <td className="whitespace-nowrap px-5 py-1.5 text-right text-[12px] text-gray-500">{formatLastUpdated(item.updatedAt)}</td>
-                      <td className="whitespace-nowrap px-5 py-1.5">
-                        <div className="flex justify-end gap-1">
-                          <button type="button" title="Edit" onClick={() => handleOpenEdit(item)} className="rounded-md p-1.5 text-[#004D40] transition-colors hover:bg-[#004D40]/10">
-                            <Edit2 className="h-4 w-4" />
-                          </button>
-                          <button type="button" title="Delete" onClick={() => setDeleteTarget(item)} className="rounded-md p-1.5 text-red-500 transition-colors hover:bg-red-50">
-                            <Trash2 className="h-4 w-4" />
-                          </button>
-                        </div>
-                      </td>
+                </thead>
+                <tbody>
+                  {selectedItems.length === 0 ? (
+                    <tr>
+                      <td colSpan={3} className="px-5 py-6 text-center text-[13px] text-gray-400">None configured yet.</td>
                     </tr>
-                  ))
-                )}
-              </tbody>
-            </table>
-          </div>
+                  ) : (
+                    selectedItems.map((item) => (
+                      <tr key={item.id} className="group border-b border-emerald-300 last:border-b-0 transition-colors hover:bg-emerald-50/30">
+                        <td className="whitespace-nowrap px-5 py-1.5 text-[13px] font-medium text-gray-900">{item.name}</td>
+                        <td className="whitespace-nowrap px-5 py-1.5 text-right text-[12px] text-gray-500">{formatLastUpdated(item.updatedAt)}</td>
+                        <td className="whitespace-nowrap px-5 py-1.5">
+                          <div className="flex justify-end gap-1">
+                            <button type="button" title="Edit" onClick={() => handleOpenEdit(item)} className="rounded-md p-1.5 text-[#004D40] transition-colors hover:bg-[#004D40]/10">
+                              <Edit2 className="h-4 w-4" />
+                            </button>
+                            <button type="button" title="Delete" onClick={() => setDeleteTarget(item)} className="rounded-md p-1.5 text-red-500 transition-colors hover:bg-red-50">
+                              <Trash2 className="h-4 w-4" />
+                            </button>
+                          </div>
+                        </td>
+                      </tr>
+                    ))
+                  )}
+                </tbody>
+              </table>
+            </div>
 
-          <div className="flex items-center justify-between border-t border-gray-400 bg-emerald-50/20 px-5 py-3 text-xs text-gray-700">
-            <span>Showing {selectedItems.length} of {selectedItems.length} items</span>
-          </div>
-
-        </section>
+            <div className="flex items-center justify-between border-t border-gray-400 bg-emerald-50/20 px-5 py-3 text-xs text-gray-700">
+              <span>Showing {selectedItems.length} of {selectedItems.length} items</span>
+            </div>
+          </section>
+        )}
 
       </div>
 
