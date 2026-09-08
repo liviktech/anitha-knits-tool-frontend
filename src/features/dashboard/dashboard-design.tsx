@@ -79,40 +79,40 @@ export function DashboardDesign() {
   const { data: fabricCheckingRes } = useFabricCheckingRecords('?limit=100&type=PRODUCTION');
   const { data: sampleFabricCheckingRes } = useFabricCheckingRecords('?limit=100&type=SAMPLE');
 
-  
+
 
 
   const buildSummaryRows = (records: any[], byColorSummary: any[], stage: 'extruder' | 'looms' | 'fabric') => {
     return FABRIC_COLORS.map(color => {
       const stageRecords = records.filter((r: any) => r.color?.name?.toLowerCase() === color.toLowerCase() && r.productionDate?.startsWith(currentMonthStr));
-      
+
       const uniqueSizes = new Set<string>();
       const chemMap = new Map<string, { total: number, sizes: Map<string, number> }>();
-      
-      stageRecords.forEach((r: any) => {
-         const chemical = r.chemical?.name || r.extruder?.chemical?.name || 'Unknown';
-         const size = r.size?.name;
-         
-         let output = 0;
-         if (stage === 'extruder') output = r.extruder?.yarnOutputKg ?? 0;
-         if (stage === 'looms') output = r.loom?.fabricOutputKg ?? 0;
-         if (stage === 'fabric') output = r.fabricCheck?.outputKg ?? 0;
 
-         if (!size) return;
-         
-         uniqueSizes.add(size);
-         
-         if (!chemMap.has(chemical)) chemMap.set(chemical, { total: 0, sizes: new Map() });
-         const entry = chemMap.get(chemical)!;
-         entry.total += output;
-         entry.sizes.set(size, (entry.sizes.get(size) ?? 0) + output);
+      stageRecords.forEach((r: any) => {
+        const chemical = r.chemical?.name || r.extruder?.chemical?.name || 'Unknown';
+        const size = r.size?.name;
+
+        let output = 0;
+        if (stage === 'extruder') output = r.extruder?.yarnOutputKg ?? 0;
+        if (stage === 'looms') output = r.loom?.fabricOutputKg ?? 0;
+        if (stage === 'fabric') output = r.fabricCheck?.outputKg ?? 0;
+
+        if (!size) return;
+
+        uniqueSizes.add(size);
+
+        if (!chemMap.has(chemical)) chemMap.set(chemical, { total: 0, sizes: new Map() });
+        const entry = chemMap.get(chemical)!;
+        entry.total += output;
+        entry.sizes.set(size, (entry.sizes.get(size) ?? 0) + output);
       });
 
       const chemicals = Array.from(chemMap.entries()).map(([chemical, entry]) => ({
         chemical,
         production: entry.total,
-        sizes: Array.from(entry.sizes.entries()).map(([size, production]) => ({ size, production })).sort((a,b) => a.size.localeCompare(b.size))
-      })).sort((a,b) => a.chemical.localeCompare(b.chemical));
+        sizes: Array.from(entry.sizes.entries()).map(([size, production]) => ({ size, production })).sort((a, b) => a.size.localeCompare(b.size))
+      })).sort((a, b) => a.chemical.localeCompare(b.chemical));
 
       const summaryRecord = byColorSummary.find((s: any) => s.color.name === color);
       const backendTotal = summaryRecord?.production ?? 0;
@@ -129,33 +129,33 @@ export function DashboardDesign() {
   const buildWastageChemicalRows = (records: any[], stage: 'extruder' | 'looms' | 'fabric') => {
     return FABRIC_COLORS.map(color => {
       const stageRecords = records.filter((r: any) => r.color?.name?.toLowerCase() === color.toLowerCase() && r.productionDate?.startsWith(currentMonthStr));
-      
-      const chemMap = new Map<string, { lums: Map<string, number>, yarnWaste: Map<string, number>, loomsWaste: Map<string, number>, fabricWaste: Map<string, number>, bitWaste: Map<string, number> }>();
-      
-      stageRecords.forEach((r: any) => {
-         const chemical = r.chemical?.name || r.extruder?.chemical?.name || 'Unknown';
-         const size = r.size?.name;
-         if (!size) return;
-         
-         if (!chemMap.has(chemical)) {
-           chemMap.set(chemical, { lums: new Map(), yarnWaste: new Map(), loomsWaste: new Map(), fabricWaste: new Map(), bitWaste: new Map() });
-         }
-         const entry = chemMap.get(chemical)!;
 
-         if (stage === 'extruder') {
-           const lumsKg = r.wastages?.find((w: any) => w.wastageType?.code === 'LUMPS')?.quantityKg ?? 0;
-           const yarnKg = r.wastages?.find((w: any) => w.wastageType?.code === 'YARN_WASTE')?.quantityKg ?? 0;
-           entry.lums.set(size, (entry.lums.get(size) ?? 0) + lumsKg);
-           entry.yarnWaste.set(size, (entry.yarnWaste.get(size) ?? 0) + yarnKg);
-         } else if (stage === 'looms') {
-           const lwKg = r.wastages?.find((w: any) => w.wastageType?.code === 'LOOMS_WASTE')?.quantityKg ?? 0;
-           entry.loomsWaste.set(size, (entry.loomsWaste.get(size) ?? 0) + lwKg);
-         } else if (stage === 'fabric') {
-           const fwKg = r.wastages?.find((w: any) => w.wastageType?.code === 'FW')?.quantityKg ?? 0;
-           const bwKg = r.wastages?.find((w: any) => w.wastageType?.code === 'BW')?.quantityKg ?? 0;
-           entry.fabricWaste.set(size, (entry.fabricWaste.get(size) ?? 0) + fwKg);
-           entry.bitWaste.set(size, (entry.bitWaste.get(size) ?? 0) + bwKg);
-         }
+      const chemMap = new Map<string, { lums: Map<string, number>, yarnWaste: Map<string, number>, loomsWaste: Map<string, number>, fabricWaste: Map<string, number>, bitWaste: Map<string, number> }>();
+
+      stageRecords.forEach((r: any) => {
+        const chemical = r.chemical?.name || r.extruder?.chemical?.name || 'Unknown';
+        const size = r.size?.name;
+        if (!size) return;
+
+        if (!chemMap.has(chemical)) {
+          chemMap.set(chemical, { lums: new Map(), yarnWaste: new Map(), loomsWaste: new Map(), fabricWaste: new Map(), bitWaste: new Map() });
+        }
+        const entry = chemMap.get(chemical)!;
+
+        if (stage === 'extruder') {
+          const lumsKg = r.wastages?.find((w: any) => w.wastageType?.code === 'LUMPS')?.quantityKg ?? 0;
+          const yarnKg = r.wastages?.find((w: any) => w.wastageType?.code === 'YARN_WASTE')?.quantityKg ?? 0;
+          entry.lums.set(size, (entry.lums.get(size) ?? 0) + lumsKg);
+          entry.yarnWaste.set(size, (entry.yarnWaste.get(size) ?? 0) + yarnKg);
+        } else if (stage === 'looms') {
+          const lwKg = r.wastages?.find((w: any) => w.wastageType?.code === 'LOOMS_WASTE')?.quantityKg ?? 0;
+          entry.loomsWaste.set(size, (entry.loomsWaste.get(size) ?? 0) + lwKg);
+        } else if (stage === 'fabric') {
+          const fwKg = r.wastages?.find((w: any) => w.wastageType?.code === 'FW')?.quantityKg ?? 0;
+          const bwKg = r.wastages?.find((w: any) => w.wastageType?.code === 'BW')?.quantityKg ?? 0;
+          entry.fabricWaste.set(size, (entry.fabricWaste.get(size) ?? 0) + fwKg);
+          entry.bitWaste.set(size, (entry.bitWaste.get(size) ?? 0) + bwKg);
+        }
       });
 
       const chemicals = Array.from(chemMap.entries()).map(([chemical, entry]) => {
@@ -168,7 +168,7 @@ export function DashboardDesign() {
           bitWaste: entry.bitWaste.get(size) ?? 0,
         }));
         return { chemical, sizes };
-      }).sort((a,b) => a.chemical.localeCompare(b.chemical));
+      }).sort((a, b) => a.chemical.localeCompare(b.chemical));
 
       return {
         color,
@@ -236,7 +236,7 @@ export function DashboardDesign() {
 
   const { data: obFabricStockRes } = useOpeningBalanceFabricStock('?limit=100');
   const obFabricStock = obFabricStockRes?.data || [];
-const buildExtruderSummaryRows = (dataMap: Map<string, any>) => {
+  const buildExtruderSummaryRows = (dataMap: Map<string, any>) => {
     return FABRIC_COLORS.map(color => {
       let colorTotal = 0;
       const chemMap = new Map<string, { total: number, sizes: Map<string, number> }>();
@@ -247,7 +247,7 @@ const buildExtruderSummaryRows = (dataMap: Map<string, any>) => {
         if (parts[0] !== color && parts[0] !== color.charAt(0).toUpperCase() + color.slice(1).toLowerCase()) return;
         const size = parts[1];
         const chemical = parts[2] && parts[2] !== 'null' ? parts[2] : 'Unknown';
-        
+
         const output = entry.balance ?? entry.availableFabricStockKg ?? entry.kg ?? 0;
         if (output <= 0) return;
 
@@ -263,8 +263,8 @@ const buildExtruderSummaryRows = (dataMap: Map<string, any>) => {
       const chemicals = Array.from(chemMap.entries()).map(([chem, entry]) => ({
         chemical: chem,
         production: entry.total,
-        sizes: Array.from(entry.sizes.entries()).map(([s, p]) => ({ size: s, production: p })).sort((a,b) => a.size.localeCompare(b.size))
-      })).sort((a,b) => a.chemical.localeCompare(b.chemical));
+        sizes: Array.from(entry.sizes.entries()).map(([s, p]) => ({ size: s, production: p })).sort((a, b) => a.size.localeCompare(b.size))
+      })).sort((a, b) => a.chemical.localeCompare(b.chemical));
 
       return {
         color,
@@ -1132,14 +1132,19 @@ const buildExtruderSummaryRows = (dataMap: Map<string, any>) => {
                   </TabsContent>
 
                   <TabsContent value="wastage" className="flex flex-col gap-2 animate-in fade-in-0 slide-in-from-right-8 duration-500 ease-out">
-                    <WastageCard
-                      looseWaste={looseWasteKg}
-                      lums={lumsWasteKg}
-                      extruderWasteByChemical={buildWastageChemicalRows(extruderProductionsRes?.data ?? [], 'extruder')}
+                    <WastageTabContent
+                      currentMonthStr={currentMonthStr}
+                      looseWasteKg={looseWasteKg}
+                      lumsWasteKg={lumsWasteKg}
+                      extruderProductionsData={extruderProductionsRes?.data ?? []}
+                      loomsProductionsData={loomsProductionsRes?.data ?? []}
+                      fabricCheckingData={fabricCheckingRes?.data ?? []}
+                      sampleExtruderData={sampleExtruderProductionsRes?.data ?? []}
+                      sampleLoomsData={sampleLoomsProductionsRes?.data ?? []}
+                      sampleFabricData={sampleFabricCheckingRes?.data ?? []}
+                      buildWastageChemicalRows={buildWastageChemicalRows}
                       loomsWasteByColor={loomsWasteByColor}
-                      loomsWasteByChemical={buildWastageChemicalRows(loomsProductionsRes?.data ?? [], 'looms')}
                       fabricWasteByColor={fabricWasteByColor}
-                      fabricWasteByChemical={buildWastageChemicalRows(fabricCheckingRes?.data ?? [], 'fabric')}
                     />
                   </TabsContent>
                 </div>
@@ -1226,6 +1231,105 @@ function FabricStockCard({
   );
 }
 
+function WastageTabContent({
+  currentMonthStr,
+  looseWasteKg,
+  lumsWasteKg,
+  extruderProductionsData,
+  loomsProductionsData,
+  fabricCheckingData,
+  sampleExtruderData,
+  sampleLoomsData,
+  sampleFabricData,
+  buildWastageChemicalRows,
+  loomsWasteByColor,
+  fabricWasteByColor,
+}: {
+  currentMonthStr: string;
+  looseWasteKg: number;
+  lumsWasteKg: number;
+  extruderProductionsData: any[];
+  loomsProductionsData: any[];
+  fabricCheckingData: any[];
+  sampleExtruderData: any[];
+  sampleLoomsData: any[];
+  sampleFabricData: any[];
+  buildWastageChemicalRows: (records: any[], stage: 'extruder' | 'looms' | 'fabric') => any[];
+  loomsWasteByColor: { color: string; loomsWaste: number }[];
+  fabricWasteByColor: { color: string; fabricWaste: number; bitWaste: number }[];
+}) {
+  const [wastageMode, setWastageMode] = useState<'production' | 'sample'>('production');
+
+  // Sample scalar totals — derived from sample records (no separate dashboard API for sample wastage)
+  const sampleLooseWaste = sampleExtruderData
+    .filter((r: any) => r.productionDate?.startsWith(currentMonthStr))
+    .reduce((sum: number, r: any) => sum + (r.wastages?.find((w: any) => w.wastageType?.code === 'YARN_WASTE')?.quantityKg ?? 0), 0);
+  const sampleLums = sampleExtruderData
+    .filter((r: any) => r.productionDate?.startsWith(currentMonthStr))
+    .reduce((sum: number, r: any) => sum + (r.wastages?.find((w: any) => w.wastageType?.code === 'LUMPS')?.quantityKg ?? 0), 0);
+
+  const sampleLoomsWasteByColor = FABRIC_COLORS.map(color => ({
+    color,
+    loomsWaste: sampleLoomsData
+      .filter((r: any) => r.color?.name?.toLowerCase() === color.toLowerCase() && r.productionDate?.startsWith(currentMonthStr))
+      .reduce((sum: number, r: any) => sum + (r.wastages?.find((w: any) => w.wastageType?.code === 'LOOMS_WASTE')?.quantityKg ?? 0), 0),
+  }));
+
+  const sampleFabricWasteByColor = FABRIC_COLORS.map(color => ({
+    color,
+    fabricWaste: sampleFabricData
+      .filter((r: any) => r.color?.name?.toLowerCase() === color.toLowerCase() && r.productionDate?.startsWith(currentMonthStr))
+      .reduce((sum: number, r: any) => sum + (r.wastages?.find((w: any) => w.wastageType?.code === 'FW')?.quantityKg ?? 0), 0),
+    bitWaste: sampleFabricData
+      .filter((r: any) => r.color?.name?.toLowerCase() === color.toLowerCase() && r.productionDate?.startsWith(currentMonthStr))
+      .reduce((sum: number, r: any) => sum + (r.wastages?.find((w: any) => w.wastageType?.code === 'BW')?.quantityKg ?? 0), 0),
+  }));
+
+  const isProduction = wastageMode === 'production';
+
+  return (
+    <div className="flex flex-col gap-3">
+      {/* Toggle */}
+      <div className="flex justify-end">
+        <div className="inline-flex items-center rounded-full border border-gray-300 bg-gray-100 p-0.5 text-xs font-semibold shadow-sm">
+          <button
+            type="button"
+            onClick={() => setWastageMode('production')}
+            className={`rounded-full px-4 py-1.5 transition-all duration-200 ${
+              isProduction
+                ? 'bg-[#004D40] text-white shadow'
+                : 'text-gray-500 hover:text-gray-700'
+            }`}
+          >
+            Production
+          </button>
+          <button
+            type="button"
+            onClick={() => setWastageMode('sample')}
+            className={`rounded-full px-4 py-1.5 transition-all duration-200 ${
+              !isProduction
+                ? 'bg-[#004D40] text-white shadow'
+                : 'text-gray-500 hover:text-gray-700'
+            }`}
+          >
+            Sample
+          </button>
+        </div>
+      </div>
+
+      <WastageCard
+        looseWaste={isProduction ? looseWasteKg : sampleLooseWaste}
+        lums={isProduction ? lumsWasteKg : sampleLums}
+        extruderWasteByChemical={buildWastageChemicalRows(isProduction ? extruderProductionsData : sampleExtruderData, 'extruder')}
+        loomsWasteByColor={isProduction ? loomsWasteByColor : sampleLoomsWasteByColor}
+        loomsWasteByChemical={buildWastageChemicalRows(isProduction ? loomsProductionsData : sampleLoomsData, 'looms')}
+        fabricWasteByColor={isProduction ? fabricWasteByColor : sampleFabricWasteByColor}
+        fabricWasteByChemical={buildWastageChemicalRows(isProduction ? fabricCheckingData : sampleFabricData, 'fabric')}
+      />
+    </div>
+  );
+}
+
 function WastageCard({
   looseWaste,
   lums,
@@ -1259,7 +1363,6 @@ function WastageCard({
       return s1 + rows.reduce((s2, r) => s2 + Object.values(r.values).reduce((s3, v) => s3 + v, 0), 0);
     }, 0);
 
-    if (rowTotal === 0) return null;
     const theme = fabricStockCardTheme(color);
 
     return (
@@ -1268,28 +1371,34 @@ function WastageCard({
           <span className={`text-[17px] font-bold ${deliveryColorClass(color)}`}>{color}</span>
           <span className={`text-[14px] font-bold ${deliveryColorClass(color)}`}>Total : <span className="font-inter">{formatNum(rowTotal)}</span> kg</span>
         </div>
-        
-        <div className="flex flex-col gap-3 p-3">
-          {chemicals.map(chem => {
-            const columns = [...FABRIC_STOCK_SIZES];
-            const tableRows = getRowDefs(chem).filter((r) => Object.values(r.values).some((v) => v > 0));
-            const chemTotal = tableRows.reduce((sum, r) => sum + Object.values(r.values).reduce((s, v) => s + v, 0), 0);
-            
-            if (chemTotal === 0) return null;
 
-            return (
-              <DetailBreakdownCard
-                key={chem.chemical}
-                title={chem.chemical}
-                total={chemTotal}
-                theme={{ cardBg: 'bg-white', cardBorder: 'border-gray-200', labelColor: 'text-gray-700' }}
-                rows={[]}
-                table={{ columns: [...columns], rows: tableRows }}
-                emptyMessage="No waste recorded yet."
-              />
-            );
-          })}
-        </div>
+        {rowTotal === 0 ? (
+          <div className="flex items-center justify-center py-5">
+            <p className="text-xs text-gray-400 italic">No wastage recorded yet.</p>
+          </div>
+        ) : (
+          <div className="flex flex-col gap-3 p-3">
+            {chemicals.map(chem => {
+              const columns = [...FABRIC_STOCK_SIZES];
+              const tableRows = getRowDefs(chem).filter((r) => Object.values(r.values).some((v) => v > 0));
+              const chemTotal = tableRows.reduce((sum, r) => sum + Object.values(r.values).reduce((s, v) => s + v, 0), 0);
+
+              if (chemTotal === 0) return null;
+
+              return (
+                <DetailBreakdownCard
+                  key={chem.chemical}
+                  title={chem.chemical}
+                  total={chemTotal}
+                  theme={{ cardBg: 'bg-white', cardBorder: 'border-gray-200', labelColor: 'text-gray-700' }}
+                  rows={[]}
+                  table={{ columns: [...columns], rows: tableRows }}
+                  emptyMessage="No waste recorded yet."
+                />
+              );
+            })}
+          </div>
+        )}
       </div>
     );
   };
@@ -1299,7 +1408,7 @@ function WastageCard({
       {/* Extruder Wastage */}
       <div className="flex flex-col">
         <SectionSummaryCard title="Extruder Wastage" total={extruderTotal} isEmpty={extruderTotal === 0} emptyMessage="No wastage record found." totalColorClassName="text-[#0B5566]">
-          {extruderWasteByChemical.map((row) => 
+          {extruderWasteByChemical.map((row) =>
             renderChemicalTable(row.color, row.chemicals, (chem) => [
               { label: 'LOOMS WASTE', values: Object.fromEntries(chem.sizes.map((s: any) => [s.size, s.yarnWaste])) },
               { label: 'LUMPS WASTE', values: Object.fromEntries(chem.sizes.map((s: any) => [s.size, s.lums])) },
@@ -1311,7 +1420,7 @@ function WastageCard({
       {/* Looms Wastage */}
       <div className="flex flex-col">
         <SectionSummaryCard title="Looms Wastage" total={loomsWasteTotal} isEmpty={loomsWasteTotal === 0} emptyMessage="No wastage record found." totalColorClassName="text-[#7A6A00]">
-          {loomsWasteByChemical.map((row) => 
+          {loomsWasteByChemical.map((row) =>
             renderChemicalTable(row.color, row.chemicals, (chem) => [
               { label: 'LOOMS WASTE', values: Object.fromEntries(chem.sizes.map((s: any) => [s.size, s.loomsWaste])) },
             ])
@@ -1322,7 +1431,7 @@ function WastageCard({
       {/* Fabric Checking Wastage */}
       <div className="flex flex-col">
         <SectionSummaryCard title="Fabric Checking Wastage" total={fabricWasteTotal} isEmpty={fabricWasteTotal === 0} emptyMessage="No wastage record found." totalColorClassName="text-[#2F6B2F]">
-          {fabricWasteByChemical.map((row) => 
+          {fabricWasteByChemical.map((row) =>
             renderChemicalTable(row.color, row.chemicals, (chem) => [
               { label: 'FABRIC WASTE', values: Object.fromEntries(chem.sizes.map((s: any) => [s.size, s.fabricWaste])) },
               { label: 'BIT WASTE', values: Object.fromEntries(chem.sizes.map((s: any) => [s.size, s.bitWaste])) },
