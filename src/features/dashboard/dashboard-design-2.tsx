@@ -417,14 +417,6 @@ const buildExtruderSummaryRows = (dataMap: Map<string, any>) => {
   });
 
   const loomsByVariantMap = new Map((dashboardData?.loomsProduction?.byVariant || []).map(r => [`${r.color.name}_${r.size.name}`, r]));
-  const loomsWasteByVariant = FABRIC_COLORS.map(color => {
-    const sizes = FABRIC_STOCK_SIZES.map(size => {
-      const variantKey = `${color}_${size}`;
-      const r = loomsByVariantMap.get(variantKey);
-      return { size, loomsWaste: r?.waste ?? 0 };
-    });
-    return { color, sizes };
-  });
 
   const loomsColorRows = buildSummaryRows(loomsProductionsRes?.data ?? [], dashboardData?.loomsProduction?.byColor || [], 'looms');
   const loomsGrandTotal = dashboardData?.loomsProduction?.overall.production || 0;
@@ -448,14 +440,6 @@ const buildExtruderSummaryRows = (dataMap: Map<string, any>) => {
   });
 
   const fabricByVariantMap = new Map((dashboardData?.fabricProduction.byVariant || []).map(r => [`${r.color.name}_${r.size.name}`, r]));
-  const fabricWasteByVariant = FABRIC_COLORS.map(color => {
-    const sizes = FABRIC_STOCK_SIZES.map(size => {
-      const variantKey = `${color}_${size}`;
-      const r = fabricByVariantMap.get(variantKey);
-      return { size, fabricWaste: r?.fwWasteKg ?? 0, bitWaste: r?.bwWasteKg ?? 0 };
-    });
-    return { color, sizes };
-  });
 
   const fabricColorRows = buildSummaryRows(fabricCheckingRes?.data ?? [], dashboardData?.fabricProduction?.byColor || [], 'fabric');
   const fabricGrandTotal = dashboardData?.fabricProduction.overall.outputKg || 0;
@@ -1285,7 +1269,7 @@ function WastageCard({
         
         <div className="flex flex-col gap-3 p-3">
           {chemicals.map(chem => {
-            const columns = FABRIC_STOCK_SIZES;
+            const columns = [...FABRIC_STOCK_SIZES];
             const tableRows = getRowDefs(chem).filter((r) => Object.values(r.values).some((v) => v > 0));
             const chemTotal = tableRows.reduce((sum, r) => sum + Object.values(r.values).reduce((s, v) => s + v, 0), 0);
             
