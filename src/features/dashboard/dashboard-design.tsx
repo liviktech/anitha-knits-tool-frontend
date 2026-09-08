@@ -549,6 +549,7 @@ const buildExtruderSummaryRows = (dataMap: Map<string, any>) => {
         id: item.id,
         date: item.productionDate,
         size: item.size.name,
+        chemical: item.chemical?.name ?? '',
         kg: item.loadSent?.fabricWeight ?? 0,
       }))
       .sort((a, b) => (a.date < b.date ? 1 : -1));
@@ -655,6 +656,7 @@ const buildExtruderSummaryRows = (dataMap: Map<string, any>) => {
         id: item.id,
         date: item.productionDate,
         size: item.size.name,
+        chemical: item.chemical?.name ?? '',
         kg: item.loadSent?.fabricWeight ?? 0,
       }))
       .sort((a, b) => (a.date < b.date ? 1 : -1));
@@ -1282,7 +1284,7 @@ function WastageCard({
                 total={chemTotal}
                 theme={{ cardBg: 'bg-white', cardBorder: 'border-gray-200', labelColor: 'text-gray-700' }}
                 rows={[]}
-                table={{ columns, rows: tableRows }}
+                table={{ columns: [...columns], rows: tableRows }}
                 emptyMessage="No waste recorded yet."
               />
             );

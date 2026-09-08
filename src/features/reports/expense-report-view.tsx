@@ -1,9 +1,6 @@
 import { useState, useEffect } from "react";
-import { Button } from "@/components/ui/button";
-import { Download } from "lucide-react";
-import { Loader } from "@/components/shared/loader";
 import { apiFetch } from "@/lib/api-client";
-import { Input } from "@/components/ui/input";
+import { ReportLayout } from "./report-layout";
 
 const TEAL: [number, number, number] = [0, 77, 64];
 const TEAL_TINT: [number, number, number] = [232, 245, 240];
@@ -35,39 +32,41 @@ function getMonthName(monthStr: string) {
   return date.toLocaleDateString("en-IN", { month: "long", year: "numeric" });
 }
 
-function monthRange(monthStr: string): { from: string; to: string } {
-  const [year, month] = monthStr.split("-").map(Number);
-  const lastDay = new Date(year, month, 0).getDate();
-  return {
-    from: `${monthStr}-01`,
-    to: `${monthStr}-${String(lastDay).padStart(2, "0")}`,
-  };
+interface ExpenseReportViewProps {
+  allReports?: { id: string; label: string; moduleId: string }[];
+  selectedReport?: string;
+  onReportChange?: (tabId: string, moduleId: string) => void;
 }
 
-export function ExpenseReportView() {
-  const [monthStr, setMonthStr] = useState(() => {
+export function ExpenseReportView({ allReports, selectedReport, onReportChange }: ExpenseReportViewProps) {
+  const [fromMonthStr, setFromMonthStr] = useState(() => {
+    const d = new Date();
+    return `${d.getFullYear()}-${(d.getMonth() + 1).toString().padStart(2, '0')}`;
+  });
+  const [toMonthStr, setToMonthStr] = useState(() => {
     const d = new Date();
     return `${d.getFullYear()}-${(d.getMonth() + 1).toString().padStart(2, '0')}`;
   });
 
   const [reportData, setReportData] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
   const [pdfBlobUrl, setPdfBlobUrl] = useState<string | null>(null);
   const [isGenerating, setIsGenerating] = useState(false);
+  const [isGeneratingXlsx, setIsGeneratingXlsx] = useState(false);
   const totalAmount = reportData.reduce((sum, item) => sum + item.amount, 0);
 
   useEffect(() => {
-    if (monthStr) {
+    if (fromMonthStr && toMonthStr) {
       fetchReportData();
     }
-  }, [monthStr]);
+  }, [fromMonthStr, toMonthStr]);
 
   const fetchReportData = async () => {
     setIsLoading(true);
-    setError(null);
     try {
-      const { from, to } = monthRange(monthStr);
+      const from = `${fromMonthStr}-01`;
+      const [yearStr, monthStrPart] = toMonthStr.split('-');
+      const to = `${toMonthStr}-${new Date(parseInt(yearStr), parseInt(monthStrPart), 0).getDate()}`;
       let allData: any[] = [];
       let page = 1;
       let totalPages = 1;
@@ -87,7 +86,6 @@ export function ExpenseReportView() {
       setReportData(allData);
     } catch (err: any) {
       console.error(err);
-      setError("Unable to load report data.");
     } finally {
       setIsLoading(false);
     }
@@ -105,29 +103,34 @@ export function ExpenseReportView() {
       const { default: autoTable } = await import("jspdf-autotable");
 
       const doc = new jsPDF();
+      let y = 18;
 
       doc.setFontSize(18);
       doc.setFont("helvetica", "bold");
       doc.setTextColor(...TEAL);
-      doc.text("ANITHA KNITS", 105, 18, { align: "center" });
+      doc.text("ANITHA KNITS", 105, y, { align: "center" });
+      y += 8;
 
       doc.setFontSize(12);
       doc.setFont("helvetica", "normal");
       doc.setTextColor(90, 90, 90);
-      doc.text("EXPENSE REPORT", 105, 26, { align: "center" });
-      doc.text(`Period: ${getMonthName(monthStr)}`, 105, 33, { align: "center" });
-
+      doc.text('EXPENSES SUMMARY REPORT', 105, y, { align: 'center' });
+      y += 7;
+      const periodText = fromMonthStr === toMonthStr ? getMonthName(fromMonthStr) : `${getMonthName(fromMonthStr)} - ${getMonthName(toMonthStr)}`;
+      doc.text(`Period: ${periodText}`, 105, y, { align: 'center' });
+      y += 5;
       doc.setDrawColor(...TEAL);
       doc.setLineWidth(0.6);
-      doc.line(14, 38, 196, 38);
+      doc.line(14, y, 196, y);
+      y += 8;
 
       doc.setFontSize(10);
       doc.setTextColor(60, 60, 60);
-      doc.text(`Total Expenses: ${formatCurrency(totalAmount)}`, 14, 46);
-      doc.text(`Total Entries: ${reportData.length}`, 196, 46, { align: "right" });
+      doc.text(`Total Expenses: ${formatCurrency(totalAmount)}`, 14, y);
+      doc.text(`Total Entries: ${reportData.length}`, 196, y, { align: "right" });
 
       autoTable(doc, {
-        startY: 52,
+        startY: y + 6,
         head: [["Date", "ID", "Expense Name", "Amount"]],
         body: reportData.map((item) => [
           formatDateDisplay(item.date),
@@ -163,62 +166,76 @@ export function ExpenseReportView() {
     return () => {
       isCancelled = true;
     };
-  }, [reportData, isLoading, monthStr, totalAmount]);
+  }, [reportData, isLoading, fromMonthStr, toMonthStr, totalAmount]);
+
+  const handleDownloadXlsx = async () => {
+    if (isLoading) return;
+    setIsGeneratingXlsx(true);
+    try {
+      const { utils, writeFile } = await import('xlsx');
+      const wb = utils.book_new();
+      const wsData: any[][] = [];
+
+      wsData.push(['EXPENSES SUMMARY REPORT']);
+      const periodText = fromMonthStr === toMonthStr ? getMonthName(fromMonthStr) : `${getMonthName(fromMonthStr)} - ${getMonthName(toMonthStr)}`;
+      wsData.push([`Period: ${periodText}`]);
+      wsData.push([]);
+      
+      wsData.push([`Total Expenses: ${formatCurrency(totalAmount)}`, '', '', `Total Entries: ${reportData.length}`]);
+      wsData.push([]);
+
+      wsData.push(['Date', 'ID', 'Expense Name', 'Amount']);
+      reportData.forEach((item) => {
+        wsData.push([
+          formatDateDisplay(item.date),
+          item.expenseId,
+          item.expenseName,
+          item.amount,
+        ]);
+      });
+      wsData.push(['', '', 'Total:', totalAmount]);
+
+      const ws = utils.aoa_to_sheet(wsData);
+      utils.book_append_sheet(wb, ws, 'Expenses');
+
+      const period = fromMonthStr === toMonthStr ? fromMonthStr : `${fromMonthStr}_to_${toMonthStr}`;
+      writeFile(wb, `Anitha_Knits_Expenses_Report_${period}.xlsx`);
+    } catch (err) {
+      console.error(err);
+    } finally {
+      setIsGeneratingXlsx(false);
+    }
+  };
+
+  const handleDownload = () => {
+    if (pdfBlobUrl) {
+      const a = document.createElement('a');
+      a.href = pdfBlobUrl;
+      const period = fromMonthStr === toMonthStr ? fromMonthStr : `${fromMonthStr}_to_${toMonthStr}`;
+      a.download = `Anitha_Knits_Expenses_Report_${period}.pdf`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+    }
+  };
 
   return (
-    <div className="flex flex-col h-full bg-white">
-      {/* Header */}
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between px-4 py-2.5 bg-white border-b border-gray-200 shrink-0 print:hidden">
-        <div>
-          <h2 className="text-[14px] font-bold text-gray-700 leading-tight uppercase tracking-wide">Expense Report PDF Preview</h2>
-        </div>
-        <div className="flex flex-wrap items-center gap-3">
-          <Input
-            type="month"
-            value={monthStr}
-            max={`${new Date().getFullYear()}-${(new Date().getMonth() + 1).toString().padStart(2, '0')}`}
-            onChange={(e) => setMonthStr(e.target.value)}
-            className="h-8 w-40 bg-white border border-gray-400 rounded-md px-3 py-2 text-sm font-semibold text-[#003140] shadow-[0_1px_2px_rgba(0,0,0,0.05)] hover:bg-gray-50 focus-visible:ring-1 focus-visible:ring-[#004D40]"
-          />
-          <Button
-            onClick={() => {
-              if (pdfBlobUrl) {
-                const a = document.createElement('a');
-                a.href = pdfBlobUrl;
-                a.download = `Expenses_Report_${monthStr}.pdf`;
-                a.click();
-              }
-            }}
-            disabled={!pdfBlobUrl || isGenerating}
-            className="flex items-center gap-2 bg-[#004D40] hover:bg-[#00382e] text-white rounded-md px-3 py-2 h-8 text-[12px] font-bold tracking-wide shadow-[0_1px_2px_rgba(0,45,35,0.2)]"
-          >
-            <Download className="w-3.5 h-3.5" /> DOWNLOAD PDF
-          </Button>
-        </div>
-      </div>
-
-      {/* Content */}
-      <div className="flex-1 bg-gray-100 flex items-center justify-center p-4">
-        {isLoading || isGenerating ? (
-          <div className="flex flex-col items-center justify-center py-20 text-gray-500">
-            <Loader size="lg" className="mb-4 text-[#004D40]" />
-            <p>Generating PDF Preview...</p>
-          </div>
-        ) : error ? (
-          <div className="text-center text-red-500">
-            <p>{error}</p>
-            <Button variant="outline" onClick={fetchReportData} className="mt-4">Retry</Button>
-          </div>
-        ) : pdfBlobUrl ? (
-          <iframe
-            src={pdfBlobUrl}
-            className="w-full h-full rounded-lg shadow-sm border border-gray-300 bg-white"
-            title="Expense Report PDF Preview"
-          />
-        ) : (
-          <div className="text-gray-500">Could not generate PDF.</div>
-        )}
-      </div>
-    </div>
+    <ReportLayout
+      displayTitle="Expense"
+      allReports={allReports}
+      selectedReport={selectedReport}
+      onReportChange={onReportChange}
+      fromMonthStr={fromMonthStr}
+      toMonthStr={toMonthStr}
+      onFromMonthChange={setFromMonthStr}
+      onToMonthChange={setToMonthStr}
+      showMonthPicker={true}
+      pdfBlobUrl={pdfBlobUrl}
+      isGenerating={isGenerating}
+      isGeneratingXlsx={isGeneratingXlsx}
+      isLoading={isLoading}
+      onDownloadXlsx={handleDownloadXlsx}
+      onDownload={handleDownload}
+    />
   );
 }
