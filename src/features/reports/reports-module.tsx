@@ -11,10 +11,10 @@ const TABS: Record<string, { id: string; label: string; icon: LucideIcon }[]> = 
   dashboard: [
     { id: 'production_summary', label: 'Production summary', icon: BarChart3 },
     { id: 'wastage_summary', label: 'Wastage Summary', icon: Trash2 },
-    { id: 'sample_production', label: 'Sample Production', icon: Layers },
+    { id: 'sample_production', label: 'Sample production summary', icon: Layers },
   ],
   production: [
-    { id: 'day_wise_report', label: 'Day Wise Report', icon: CalendarDays },
+    { id: 'day_wise_report', label: 'Production details report', icon: CalendarDays },
   ],
   sample_production: [
     { id: 'sample_production_report', label: 'Sample Production Report', icon: Layers },
