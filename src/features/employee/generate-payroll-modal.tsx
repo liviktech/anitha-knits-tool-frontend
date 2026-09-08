@@ -11,6 +11,7 @@ import {
   useSalaryAdvances,
   useSavedPayrollRecords,
   useSavePayrollRecords,
+  getEmployeeDisplayId,
 } from './employee-queries';
 import { useAttendanceRecords } from './attendance-queries';
 
@@ -145,7 +146,7 @@ export function GeneratePayrollModal({ open, onOpenChange, month, year, onMonthY
 
                 return (
                   <TableRow key={emp.id} className="border-b border-gray-300">
-                    <TableCell className="text-sm font-bold text-gray-900 px-2 border-r border-gray-300">{emp.employeeDetails?.customUserId || emp.id}</TableCell>
+                    <TableCell className="text-sm font-bold text-gray-900 px-2 border-r border-gray-300">{getEmployeeDisplayId(emp)}</TableCell>
                     <TableCell className="text-sm font-semibold text-gray-800 px-2 border-r border-gray-300">{emp.name}</TableCell>
                     <TableCell className="text-sm text-right px-2 border-r border-gray-300">₹{baseSalary.toLocaleString()}</TableCell>
                     <TableCell className="text-sm text-center font-bold text-emerald-600 px-2 border-r border-gray-300">{presentDays}</TableCell>

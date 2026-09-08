@@ -30,6 +30,29 @@ export interface Employee {
   employeeDetails?: EmployeeDetails | null;
   roleAccessId?: string | null;
   roleAccess?: { id: string; roleName: string } | null;
+  empId?: string | null;
+  customUserId?: string | null;
+}
+
+export function getEmployeeDisplayId(emp: {
+  id?: string | null;
+  employeeId?: string | null;
+  empId?: string | null;
+  customUserId?: string | null;
+  employeeDetails?: { customUserId?: string | null } | null;
+} | null | undefined): string {
+  if (!emp) return '-';
+  if (emp.employeeDetails?.customUserId) return emp.employeeDetails.customUserId;
+  if (emp.customUserId) return emp.customUserId;
+  if (emp.empId) return emp.empId;
+  const rawId = emp.id || emp.employeeId;
+  if (rawId) {
+    if (rawId.includes('-')) {
+      return `EMP-${rawId.slice(0, 6).toUpperCase()}`;
+    }
+    return rawId;
+  }
+  return '-';
 }
 
 export interface ListEmployeesResponse {

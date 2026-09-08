@@ -30,7 +30,7 @@ export interface EmployeeRecord {
   status: 'Active' | 'Inactive';
 }
 
-import { useEmployees, useCreateEmployee, useUpdateEmployee, useDeleteEmployee } from './employee-queries';
+import { useEmployees, useCreateEmployee, useUpdateEmployee, useDeleteEmployee, getEmployeeDisplayId } from './employee-queries';
 import type { Employee } from './employee-queries';
 
 function formatCurrency(num: number) {
@@ -252,7 +252,7 @@ const EmployeeDirectoryTab = forwardRef<EmployeeDirectoryTabRef>((_props, ref) =
   const filteredEmployees = useMemo(() => {
     return employees.filter((emp) => {
       const q = searchQuery.toLowerCase();
-      const empId = emp.employeeDetails?.customUserId || emp.id;
+      const empId = getEmployeeDisplayId(emp);
       const matchesSearch =
         empId.toLowerCase().includes(q) ||
         (emp.name || '').toLowerCase().includes(q) ||
@@ -305,7 +305,7 @@ const EmployeeDirectoryTab = forwardRef<EmployeeDirectoryTabRef>((_props, ref) =
 
   const openEditModal = (emp: Employee) => {
     setEditingEmployee(emp);
-    setFormId(emp.employeeDetails?.customUserId || emp.id);
+    setFormId(getEmployeeDisplayId(emp));
     setFormName(emp.name || '');
     setFormDesignation(emp.employeeDetails?.designation || '');
     setFormMobile(emp.mobile);
@@ -537,7 +537,7 @@ const EmployeeDirectoryTab = forwardRef<EmployeeDirectoryTabRef>((_props, ref) =
                         onClick={() => setViewTarget(emp)}
                         className="text-blue-600 hover:text-blue-800 hover:underline cursor-pointer"
                       >
-                        {emp.employeeDetails?.customUserId || emp.id}
+                        {getEmployeeDisplayId(emp)}
                       </button>
                     </TableCell>
                     <TableCell className="px-2 py-2 text-sm font-semibold text-gray-900 whitespace-nowrap border-r border-gray-300">
@@ -844,6 +844,7 @@ const EmployeeDirectoryTab = forwardRef<EmployeeDirectoryTabRef>((_props, ref) =
         open={!!deleteTarget}
         onOpenChange={(open) => !open && setDeleteTarget(null)}
         onConfirm={handleDeleteConfirm}
+        isPending={deleteEmployee.isPending}
         title="Delete Employee Record?"
         description={
           deleteTarget
@@ -861,7 +862,7 @@ const EmployeeDirectoryTab = forwardRef<EmployeeDirectoryTabRef>((_props, ref) =
 
           {viewTarget && (
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 py-2">
-              <ViewField label="Employee ID" value={viewTarget.employeeDetails?.customUserId || viewTarget.id} />
+              <ViewField label="Employee ID" value={getEmployeeDisplayId(viewTarget)} />
               <ViewField label="Full Name" value={viewTarget.name || '-'} />
               <ViewField label="Designation" value={viewTarget.employeeDetails?.designation || '-'} />
               <ViewField label="Role Level" value={viewTarget.role || 'EMPLOYEE'} />

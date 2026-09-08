@@ -3,7 +3,7 @@ import { Button } from '@/components/ui/button';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Download, FileDown, X } from 'lucide-react';
 import { Loader } from '@/components/shared/loader';
-import { useEmployees } from './employee-queries';
+import { useEmployees, getEmployeeDisplayId } from './employee-queries';
 
 const TEAL: [number, number, number] = [0, 77, 64]; // #004D40 — this app's primary accent
 const TEAL_TINT: [number, number, number] = [232, 245, 240]; // light teal for footer/total rows
@@ -36,7 +36,7 @@ export function EmployeeReportModal({ open, onOpenChange }: EmployeeReportModalP
 
     for (const emp of employees) {
       csvRows.push([
-        escapeCsvField(emp.employeeDetails?.customUserId || emp.id),
+        escapeCsvField(getEmployeeDisplayId(emp)),
         escapeCsvField(emp.name || ''),
         escapeCsvField(emp.employeeDetails?.designation || ''),
         escapeCsvField(emp.mobile),
@@ -90,7 +90,7 @@ export function EmployeeReportModal({ open, onOpenChange }: EmployeeReportModalP
       startY: 45,
       head: [['ID', 'Name', 'Designation', 'Mobile Number', 'Aadhar Card', 'Date of Joining', 'Address', 'Gender', 'Status']],
       body: employees.map((emp) => [
-        emp.employeeDetails?.customUserId || emp.id,
+        getEmployeeDisplayId(emp),
         emp.name || '-',
         emp.employeeDetails?.designation || '-',
         emp.mobile,
@@ -214,7 +214,7 @@ export function EmployeeReportModal({ open, onOpenChange }: EmployeeReportModalP
                         employees.map((emp, idx) => (
                           <TableRow key={emp.id} className={idx % 2 === 0 ? 'bg-white' : 'bg-emerald-50/40'}>
                             <TableCell className="py-3 px-4 border-b border-gray-100 text-sm font-medium whitespace-nowrap text-gray-600">
-                              {emp.employeeDetails?.customUserId || emp.id}
+                              {getEmployeeDisplayId(emp)}
                             </TableCell>
                             <TableCell className="py-3 px-4 border-b border-gray-100 text-sm font-semibold whitespace-nowrap text-gray-800 !text-left">
                               {emp.name || '-'}

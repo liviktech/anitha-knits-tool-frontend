@@ -3,6 +3,7 @@ import { Search, Loader2 } from 'lucide-react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { getEmployeeDisplayId } from './employee-queries';
 
 export interface AttendanceEmployeeOption {
   id: string;
@@ -75,7 +76,7 @@ export function MarkAttendanceModal({ isOpen, onClose, onSave, employees, defaul
 
   const filtered = employees.filter(
     (e) => e.name.toLowerCase().includes(search.toLowerCase()) ||
-      (e.customUserId || e.id).toLowerCase().includes(search.toLowerCase())
+      getEmployeeDisplayId(e).toLowerCase().includes(search.toLowerCase())
   );
 
   const handleSubmit = () => {
@@ -118,7 +119,7 @@ export function MarkAttendanceModal({ isOpen, onClose, onSave, employees, defaul
                 <tr key={emp.id} className="border-t border-gray-300">
                   <td className="px-6 py-3 align-top">
                     <div className="font-semibold text-gray-900">{emp.name}</div>
-                    <div className="text-xs text-blue-600">{emp.customUserId || emp.id}</div>
+                    <div className="text-xs text-blue-600">{getEmployeeDisplayId(emp)}</div>
                   </td>
                   <td className="px-6 py-3 align-top">
                     <div className="flex flex-wrap gap-2">

@@ -5,7 +5,7 @@ import { Input } from '@/components/ui/input';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Loader } from '@/components/shared/loader';
 import { TablePaginationControls, RowsPerPageSelect } from '@/components/shared/table-pagination-controls';
-import { useEmployees, usePayrollSummary, useSavedPayrollRecords, useMarketValueAllocations, buildPayrollRows } from './employee-queries';
+import { useEmployees, usePayrollSummary, useSavedPayrollRecords, useMarketValueAllocations, buildPayrollRows, getEmployeeDisplayId } from './employee-queries';
 
 export type PayrollRow = ReturnType<typeof buildPayrollRows>[number];
 
@@ -116,7 +116,7 @@ export function PayrollTable({
             ) : (
               pagedPayroll.map((row) => (
                 <TableRow key={row.id} className="border-b border-gray-300 hover:bg-emerald-50/30 transition-colors">
-                  <TableCell className="px-5 py-3 text-sm font-bold text-gray-900 border-r border-gray-300">{row.customUserId || row.id}</TableCell>
+                  <TableCell className="px-5 py-3 text-sm font-bold text-gray-900 border-r border-gray-300">{getEmployeeDisplayId(row)}</TableCell>
                   <TableCell className="px-5 py-3 text-sm font-semibold text-gray-800 border-r border-gray-300">{row.name}</TableCell>
                   <TableCell className="px-5 py-3 text-sm text-right border-r border-gray-300">₹{row.baseSalary.toLocaleString()}</TableCell>
                   <TableCell className="px-5 py-3 text-sm text-center font-medium bg-gray-50/50 border-r border-gray-300">{row.daysWorked}</TableCell>
