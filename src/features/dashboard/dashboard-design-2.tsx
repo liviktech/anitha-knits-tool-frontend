@@ -126,6 +126,57 @@ export function DashboardDesign2() {
     });
   };
 
+  const buildWastageChemicalRows = (records: any[], stage: 'extruder' | 'looms' | 'fabric') => {
+    return FABRIC_COLORS.map(color => {
+      const stageRecords = records.filter((r: any) => r.color?.name?.toLowerCase() === color.toLowerCase() && r.productionDate?.startsWith(currentMonthStr));
+      
+      const chemMap = new Map<string, { lums: Map<string, number>, yarnWaste: Map<string, number>, loomsWaste: Map<string, number>, fabricWaste: Map<string, number>, bitWaste: Map<string, number> }>();
+      
+      stageRecords.forEach((r: any) => {
+         const chemical = r.chemical?.name || r.extruder?.chemical?.name || 'Unknown';
+         const size = r.size?.name;
+         if (!size) return;
+         
+         if (!chemMap.has(chemical)) {
+           chemMap.set(chemical, { lums: new Map(), yarnWaste: new Map(), loomsWaste: new Map(), fabricWaste: new Map(), bitWaste: new Map() });
+         }
+         const entry = chemMap.get(chemical)!;
+
+         if (stage === 'extruder') {
+           const lumsKg = r.wastages?.find((w: any) => w.wastageType?.code === 'LUMPS')?.quantityKg ?? 0;
+           const yarnKg = r.wastages?.find((w: any) => w.wastageType?.code === 'YARN_WASTE')?.quantityKg ?? 0;
+           entry.lums.set(size, (entry.lums.get(size) ?? 0) + lumsKg);
+           entry.yarnWaste.set(size, (entry.yarnWaste.get(size) ?? 0) + yarnKg);
+         } else if (stage === 'looms') {
+           const lwKg = r.wastages?.find((w: any) => w.wastageType?.code === 'LOOMS_WASTE')?.quantityKg ?? 0;
+           entry.loomsWaste.set(size, (entry.loomsWaste.get(size) ?? 0) + lwKg);
+         } else if (stage === 'fabric') {
+           const fwKg = r.wastages?.find((w: any) => w.wastageType?.code === 'FW')?.quantityKg ?? 0;
+           const bwKg = r.wastages?.find((w: any) => w.wastageType?.code === 'BW')?.quantityKg ?? 0;
+           entry.fabricWaste.set(size, (entry.fabricWaste.get(size) ?? 0) + fwKg);
+           entry.bitWaste.set(size, (entry.bitWaste.get(size) ?? 0) + bwKg);
+         }
+      });
+
+      const chemicals = Array.from(chemMap.entries()).map(([chemical, entry]) => {
+        const sizes = FABRIC_STOCK_SIZES.map(size => ({
+          size,
+          lums: entry.lums.get(size) ?? 0,
+          yarnWaste: entry.yarnWaste.get(size) ?? 0,
+          loomsWaste: entry.loomsWaste.get(size) ?? 0,
+          fabricWaste: entry.fabricWaste.get(size) ?? 0,
+          bitWaste: entry.bitWaste.get(size) ?? 0,
+        }));
+        return { chemical, sizes };
+      }).sort((a,b) => a.chemical.localeCompare(b.chemical));
+
+      return {
+        color,
+        chemicals
+      };
+    });
+  };
+
   const { data: obRawMaterialsRes } = useOpeningBalanceRawMaterials('?limit=100');
   const obRawMaterials = obRawMaterialsRes?.data || [];
 
@@ -1050,18 +1101,6 @@ const buildExtruderSummaryRows = (dataMap: Map<string, any>) => {
                       </span>
                     </TabsTrigger>
                     <TabsTrigger
-                      value="wastage"
-                      style={{
-                        backgroundColor: activeTab === 'wastage' ? '#004D40' : 'transparent',
-                        color: activeTab === 'wastage' ? 'white' : undefined
-                      }}
-                      className="!rounded-t-md px-6 py-2 transition-all duration-300 data-[state=active]:after:hidden hover:text-[#004D40]"
-                    >
-                      <span className="flex items-center gap-1 text-[15px] font-extrabold">
-                        Wastage Summary
-                      </span>
-                    </TabsTrigger>
-                    <TabsTrigger
                       value="sample"
                       style={{
                         backgroundColor: activeTab === 'sample' ? '#004D40' : 'transparent',
@@ -1071,6 +1110,18 @@ const buildExtruderSummaryRows = (dataMap: Map<string, any>) => {
                     >
                       <span className="flex items-center gap-1 text-[15px] font-extrabold">
                         Sample Production
+                      </span>
+                    </TabsTrigger>
+                    <TabsTrigger
+                      value="wastage"
+                      style={{
+                        backgroundColor: activeTab === 'wastage' ? '#004D40' : 'transparent',
+                        color: activeTab === 'wastage' ? 'white' : undefined
+                      }}
+                      className="!rounded-t-md px-6 py-2 transition-all duration-300 data-[state=active]:after:hidden hover:text-[#004D40]"
+                    >
+                      <span className="flex items-center gap-1 text-[15px] font-extrabold">
+                        Wastage Summary
                       </span>
                     </TabsTrigger>
                   </TabsList>
@@ -1090,20 +1141,20 @@ const buildExtruderSummaryRows = (dataMap: Map<string, any>) => {
                     {renderProductionSummary()}
                   </TabsContent>
 
+                  <TabsContent value="sample" className="flex flex-col gap-2">
+                    {renderSampleProduction()}
+                  </TabsContent>
+
                   <TabsContent value="wastage" className="flex flex-col gap-2 animate-in fade-in-0 slide-in-from-right-8 duration-500 ease-out">
                     <WastageCard
                       looseWaste={looseWasteKg}
                       lums={lumsWasteKg}
-                      extruderWasteByVariant={extruderWasteByVariant}
+                      extruderWasteByChemical={buildWastageChemicalRows(extruderProductionsRes?.data ?? [], 'extruder')}
                       loomsWasteByColor={loomsWasteByColor}
-                      loomsWasteByVariant={loomsWasteByVariant}
+                      loomsWasteByChemical={buildWastageChemicalRows(loomsProductionsRes?.data ?? [], 'looms')}
                       fabricWasteByColor={fabricWasteByColor}
-                      fabricWasteByVariant={fabricWasteByVariant}
+                      fabricWasteByChemical={buildWastageChemicalRows(fabricCheckingRes?.data ?? [], 'fabric')}
                     />
-                  </TabsContent>
-
-                  <TabsContent value="sample" className="flex flex-col gap-2">
-                    {renderSampleProduction()}
                   </TabsContent>
                 </div>
               </Tabs>
@@ -1192,103 +1243,105 @@ function FabricStockCard({
 function WastageCard({
   looseWaste,
   lums,
-  extruderWasteByVariant,
+  extruderWasteByChemical,
   loomsWasteByColor,
-  loomsWasteByVariant,
+  loomsWasteByChemical,
   fabricWasteByColor,
-  fabricWasteByVariant,
+  fabricWasteByChemical,
 }: {
   looseWaste: number;
   lums: number;
-  extruderWasteByVariant: { color: string; sizes: { size: string; lums: number; yarnWaste: number }[] }[];
+  extruderWasteByChemical: { color: string; chemicals: { chemical: string; sizes: { size: string; lums: number; yarnWaste: number }[] }[] }[];
   loomsWasteByColor: { color: string; loomsWaste: number }[];
-  loomsWasteByVariant: { color: string; sizes: { size: string; loomsWaste: number }[] }[];
+  loomsWasteByChemical: { color: string; chemicals: { chemical: string; sizes: { size: string; loomsWaste: number }[] }[] }[];
   fabricWasteByColor: { color: string; fabricWaste: number; bitWaste: number }[];
-  fabricWasteByVariant: { color: string; sizes: { size: string; fabricWaste: number; bitWaste: number }[] }[];
+  fabricWasteByChemical: { color: string; chemicals: { chemical: string; sizes: { size: string; fabricWaste: number; bitWaste: number }[] }[] }[];
 }) {
   const extruderTotal = lums + looseWaste;
   const loomsWasteTotal = loomsWasteByColor.reduce((sum, r) => sum + r.loomsWaste, 0);
   const fabricWasteTotal = fabricWasteByColor.reduce((sum, r) => sum + r.fabricWaste + r.bitWaste, 0);
+
+  const formatNum = (n: number) => n.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+
+  const renderChemicalTable = (
+    color: string,
+    chemicals: any[],
+    getRowDefs: (chem: any) => { label: string; values: Record<string, number> }[]
+  ) => {
+    const rowTotal = chemicals.reduce((s1, c) => {
+      const rows = getRowDefs(c).filter(r => Object.values(r.values).some(v => v > 0));
+      return s1 + rows.reduce((s2, r) => s2 + Object.values(r.values).reduce((s3, v) => s3 + v, 0), 0);
+    }, 0);
+
+    if (rowTotal === 0) return null;
+    const theme = fabricStockCardTheme(color);
+
+    return (
+      <div key={color} className={`${theme.bg} border ${theme.border} rounded-[14px] shadow-sm flex flex-col overflow-hidden mt-2 mb-2`}>
+        <div className={`flex items-center justify-between px-4 py-2.5 bg-white/40 border-b ${theme.border}`}>
+          <span className={`text-[17px] font-bold ${deliveryColorClass(color)}`}>{color}</span>
+          <span className={`text-[14px] font-bold ${deliveryColorClass(color)}`}>Total : <span className="font-inter">{formatNum(rowTotal)}</span> kg</span>
+        </div>
+        
+        <div className="flex flex-col gap-3 p-3">
+          {chemicals.map(chem => {
+            const columns = FABRIC_STOCK_SIZES;
+            const tableRows = getRowDefs(chem).filter((r) => Object.values(r.values).some((v) => v > 0));
+            const chemTotal = tableRows.reduce((sum, r) => sum + Object.values(r.values).reduce((s, v) => s + v, 0), 0);
+            
+            if (chemTotal === 0) return null;
+
+            return (
+              <DetailBreakdownCard
+                key={chem.chemical}
+                title={chem.chemical}
+                total={chemTotal}
+                theme={{ cardBg: 'bg-white', cardBorder: 'border-gray-200', labelColor: 'text-gray-700' }}
+                rows={[]}
+                table={{ columns, rows: tableRows }}
+                emptyMessage="No waste recorded yet."
+              />
+            );
+          })}
+        </div>
+      </div>
+    );
+  };
 
   return (
     <div className="flex flex-col gap-4">
       {/* Extruder Wastage */}
       <div className="flex flex-col">
         <SectionSummaryCard title="Extruder Wastage" total={extruderTotal} isEmpty={extruderTotal === 0} emptyMessage="No extruder wastage recorded." totalColorClassName="text-[#0B5566]">
-          {extruderWasteByVariant
-            .map((row) => {
-              const rowTotal = row.sizes.reduce((s, v) => s + v.lums + v.yarnWaste, 0);
-              const theme = fabricStockCardTheme(row.color);
-              const columns = row.sizes.map((s) => s.size);
-              const tableRows = [
-                { label: 'Lumps Waste', values: Object.fromEntries(row.sizes.map((s) => [s.size, s.lums])) },
-                { label: 'Looms Waste', values: Object.fromEntries(row.sizes.map((s) => [s.size, s.yarnWaste])) },
-              ].filter((r) => Object.values(r.values).some((v) => v > 0));
-              return (
-                <DetailBreakdownCard
-                  key={row.color}
-                  title={row.color}
-                  total={rowTotal}
-                  theme={{ cardBg: theme.bg, cardBorder: theme.border, labelColor: deliveryColorClass(row.color) }}
-                  rows={[]}
-                  table={{ columns, rows: tableRows }}
-                  emptyMessage="No waste recorded yet."
-                />
-              );
-            })}
+          {extruderWasteByChemical.map((row) => 
+            renderChemicalTable(row.color, row.chemicals, (chem) => [
+              { label: 'LOOMS Waste', values: Object.fromEntries(chem.sizes.map((s: any) => [s.size, s.yarnWaste])) },
+              { label: 'LUMPS WASTE', values: Object.fromEntries(chem.sizes.map((s: any) => [s.size, s.lums])) },
+            ])
+          )}
         </SectionSummaryCard>
       </div>
 
       {/* Looms Wastage */}
       <div className="flex flex-col">
         <SectionSummaryCard title="Looms Wastage" total={loomsWasteTotal} isEmpty={loomsWasteTotal === 0} emptyMessage="No looms wastage recorded." totalColorClassName="text-[#7A6A00]">
-          {loomsWasteByVariant
-            .map((row) => {
-              const rowTotal = row.sizes.reduce((s, v) => s + v.loomsWaste, 0);
-              const theme = fabricStockCardTheme(row.color);
-              const columns = row.sizes.map((s) => s.size);
-              const tableRows = [
-                { label: 'Looms/Yarn Waste', values: Object.fromEntries(row.sizes.map((s) => [s.size, s.loomsWaste])) },
-              ].filter((r) => Object.values(r.values).some((v) => v > 0));
-              return (
-                <DetailBreakdownCard
-                  key={row.color}
-                  title={row.color}
-                  total={rowTotal}
-                  theme={{ cardBg: theme.bg, cardBorder: theme.border, labelColor: deliveryColorClass(row.color) }}
-                  rows={[]}
-                  table={{ columns, rows: tableRows }}
-                  emptyMessage="No waste recorded yet."
-                />
-              );
-            })}
+          {loomsWasteByChemical.map((row) => 
+            renderChemicalTable(row.color, row.chemicals, (chem) => [
+              { label: 'LOOMS WASTE', values: Object.fromEntries(chem.sizes.map((s: any) => [s.size, s.loomsWaste])) },
+            ])
+          )}
         </SectionSummaryCard>
       </div>
 
       {/* Fabric Checking Wastage */}
       <div className="flex flex-col">
         <SectionSummaryCard title="Fabric Checking Wastage" total={fabricWasteTotal} isEmpty={fabricWasteTotal === 0} emptyMessage="No fabric wastage recorded." totalColorClassName="text-[#2F6B2F]">
-          {fabricWasteByVariant
-            .map((row) => {
-              const rowTotal = row.sizes.reduce((s, v) => s + v.fabricWaste + v.bitWaste, 0);
-              const theme = fabricStockCardTheme(row.color);
-              const columns = row.sizes.map((s) => s.size);
-              const tableRows = [
-                { label: 'Fabric Waste', values: Object.fromEntries(row.sizes.map((s) => [s.size, s.fabricWaste])) },
-                { label: 'Bit Waste', values: Object.fromEntries(row.sizes.map((s) => [s.size, s.bitWaste])) },
-              ].filter((r) => Object.values(r.values).some((v) => v > 0));
-              return (
-                <DetailBreakdownCard
-                  key={row.color}
-                  title={row.color}
-                  total={rowTotal}
-                  theme={{ cardBg: theme.bg, cardBorder: theme.border, labelColor: deliveryColorClass(row.color) }}
-                  rows={[]}
-                  table={{ columns, rows: tableRows }}
-                  emptyMessage="No waste recorded yet."
-                />
-              );
-            })}
+          {fabricWasteByChemical.map((row) => 
+            renderChemicalTable(row.color, row.chemicals, (chem) => [
+              { label: 'FABRIC WASTE', values: Object.fromEntries(chem.sizes.map((s: any) => [s.size, s.fabricWaste])) },
+              { label: 'BIT WASTE', values: Object.fromEntries(chem.sizes.map((s: any) => [s.size, s.bitWaste])) },
+            ])
+          )}
         </SectionSummaryCard>
       </div>
     </div>
