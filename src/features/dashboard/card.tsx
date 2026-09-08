@@ -50,7 +50,7 @@ export function ProductionSummaryCard({ title, total, rows, theme, rowLabelClass
         </CardTitle>
         <span className={`text-[14px] font-bold ${theme.totalColor}`}>Total : <span className="font-inter">{formatNum(total)}</span> kg</span>
       </CardHeader>
-      <CardContent className="px-2 pb-2 pt-0 flex-1 flex flex-col">
+      <CardContent className="px-2 pb-2 pt-0 flex-1 flex flex-col min-w-0">
         {recordedRows.length === 0 ? (
           <div className="flex-1 flex items-center justify-center py-4">
             <p className="text-xs text-gray-400 italic">{emptyMessage}</p>
@@ -59,18 +59,18 @@ export function ProductionSummaryCard({ title, total, rows, theme, rowLabelClass
           <div className="w-full">
             <div className="space-y-2">
               {recordedRows.map((row) => (
-                <div key={row.color} className="flex flex-col border border-gray-400 rounded-md px-3 py-2 bg-white">
+                <div key={row.color} className="flex flex-col border border-gray-400 rounded-md px-3 py-2 bg-white gap-1 min-w-0">
                   <div className="flex items-center justify-between relative">
                     <span className={`font-semibold ${rowLabelClassName} ${deliveryColorClass(row.color)} shrink-0`}>{row.color}</span>
                     {row.detail && <span className="absolute left-1/2 -translate-x-1/2 text-[11px] font-medium text-gray-500 truncate max-w-[40%] text-center">{row.detail}</span>}
                     <span className="font-bold font-inter text-gray-900 shrink-0">{formatNum(row.production)} kg</span>
                   </div>
                   {row.subItems && row.subItems.length > 0 && (
-                    <div className="flex items-center justify-between mt-1.5 pt-1.5 border-t border-gray-100">
-                      {row.subItems.map((sub, idx) => (
-                        <div key={sub.label} className={`flex flex-col ${idx === 0 ? 'items-start' : idx === row.subItems!.length - 1 ? 'items-end' : 'items-center'}`}>
-                          <span className="text-[9px] font-bold text-gray-400 uppercase tracking-wide">{sub.label}</span>
-                          <span className="text-[11px] font-bold font-inter text-gray-700">{formatNum(sub.value)}</span>
+                    <div className="grid gap-1 mt-1 pt-1.5 border-t border-gray-100 min-w-0 text-center" style={{ gridTemplateColumns: `repeat(${row.subItems.length}, minmax(0, 1fr))` }}>
+                      {row.subItems.map((sub) => (
+                        <div key={sub.label} className="flex flex-col items-center min-w-0">
+                          <span className="text-[9px] font-bold text-gray-400 uppercase tracking-wide truncate w-full">{sub.label}</span>
+                          <span className="text-[11px] font-bold font-inter text-gray-700 truncate w-full">{formatNum(sub.value)}</span>
                         </div>
                       ))}
                     </div>
@@ -142,6 +142,8 @@ export interface DetailBreakdownCardProps {
 export function DetailBreakdownCard({ title, total, theme, rows, emptyMessage = 'No records yet.', zeroDisplay, layout = 'list', table }: DetailBreakdownCardProps) {
   const hasRows = table ? table.rows.length > 0 : rows.length > 0;
   const renderValue = (value: number) => (value > 0 || !zeroDisplay ? `${formatNum(value)} kg` : zeroDisplay);
+  const tableCols = table ? Math.max(1, table.columns.length) : 1;
+
   return (
     <Card className={`${theme.cardBg} border ${theme.cardBorder} rounded-[14px] hover:shadow-md transition-all flex flex-col gap-0 h-full py-0`}>
       <CardHeader className="flex flex-row items-center justify-between pb-2 pt-2 px-3">
@@ -150,30 +152,47 @@ export function DetailBreakdownCard({ title, total, theme, rows, emptyMessage = 
         </CardTitle>
         <span className={`text-[14px] font-bold ${theme.labelColor}`}>Total : <span className="font-inter">{formatNum(total)}</span> kg</span>
       </CardHeader>
-      <CardContent className="px-2 pb-2 flex-1 flex flex-col">
+      <CardContent className="px-2 pb-2 flex-1 flex flex-col min-w-0">
         {!hasRows ? (
           <div className="flex-1 flex items-center justify-center py-4">
             <p className="text-xs text-gray-400 italic">{emptyMessage}</p>
           </div>
         ) : table ? (
-          <div className="flex flex-col gap-1.5">
-            <div className="flex flex-row items-center px-1">
-              <div className="w-[72px] shrink-0" />
-              <div className="flex-1 flex flex-row items-center justify-between gap-1 min-w-max">
-                {table.columns.map((col) => (
-                  <span key={col} className="text-[11px] font-bold uppercase w-16 text-center tracking-wide">{col}</span>
-                ))}
-              </div>
-            </div>
-            <div className="flex flex-col gap-1.5">
+          <div className="border-t border-gray-100 pt-1.5 w-full min-w-0 overflow-x-auto">
+            <div className="w-full min-w-0 flex flex-col gap-1">
+              {/* Size Header Row */}
+              {table.columns.length > 0 && (
+                <div className="flex items-center px-2 py-0.5">
+                  <span className="w-20 shrink-0 text-[10px] font-extrabold uppercase text-gray-400 tracking-wider">
+                    {/* Empty header for chemical column */}
+                  </span>
+                  <div
+                    className={`flex-1 grid gap-1 min-w-0 ${table.columns.length === 1 ? 'text-left pl-2' : 'text-center'}`}
+                    style={{ gridTemplateColumns: table.columns.length === 1 ? 'max-content' : `repeat(${tableCols}, minmax(0, 1fr))` }}
+                  >
+                    {table.columns.map((col) => (
+                      <span key={col} className="text-[10px] font-extrabold uppercase text-gray-600 tracking-tight truncate" title={col}>
+                        {col}
+                      </span>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* Data Rows */}
               {table.rows.map((row) => (
-                <div key={row.label} className="flex flex-row items-center border border-gray-200 rounded p-1.5 bg-[#f8fafc]">
-                  <span className="w-[72px] shrink-0 text-[12px] font-bold text-gray-600 uppercase tracking-wide">{row.label}</span>
-                  <div className="flex-1 flex flex-row items-center justify-between gap-1 min-w-max">
+                <div key={row.label} className="flex items-center border border-gray-200 rounded-md px-2 py-1.5 bg-[#f8fafc] hover:bg-slate-100 transition-colors">
+                  <span className="w-20 shrink-0 text-[10.5px] font-bold text-gray-700 uppercase tracking-wide leading-tight whitespace-normal break-words pr-1" title={row.label}>
+                    {row.label}
+                  </span>
+                  <div
+                    className={`flex-1 grid gap-1 min-w-0 ${table.columns.length === 1 ? 'text-left pl-2' : 'text-center'}`}
+                    style={{ gridTemplateColumns: table.columns.length === 1 ? 'max-content' : `repeat(${tableCols}, minmax(0, 1fr))` }}
+                  >
                     {table.columns.map((col) => {
                       const value = row.values[col] ?? 0;
                       return (
-                        <span key={col} className="text-[12px] font-inter font-bold text-gray-400 w-16 text-center">
+                        <span key={col} className="text-[11px] font-inter font-bold text-gray-800 truncate" title={value > 0 ? formatNum(value) : '-'}>
                           {value > 0 ? formatNum(value) : '-'}
                         </span>
                       );
@@ -242,49 +261,68 @@ export interface WasteVariantCardProps {
 
 export function WasteVariantCard({ title, total, theme, columns, rows, emptyMessage = 'No waste recorded yet.' }: WasteVariantCardProps) {
   const recordedRows = rows.filter((row) => columns.some((col) => (row.values[col.key] ?? 0) > 0));
+  const numCols = Math.max(1, columns.length);
   return (
     <Card className={`${theme.cardBg} border ${theme.cardBorder} rounded-[14px] hover:shadow-md transition-all flex flex-col gap-0 h-full py-0`}>
-      <CardHeader className="flex flex-col pb-2 pt-2 px-3 gap-2">
-        <div className="w-full flex flex-row items-center justify-between">
-          <CardTitle className={`min-w-0 text-[17px] font-bold flex items-center gap-2 ${theme.labelColor}`}>
-            {title}
-          </CardTitle>
-          <span className={`shrink-0 text-center text-[14px] font-bold whitespace-nowrap ${theme.labelColor}`}>Total : <span className="font-inter">{formatNum(total)}</span> kg</span>
-        </div>
-        {recordedRows.length > 0 && (
-          <div className="w-full flex flex-row items-end gap-1 relative h-4">
-            <div className="absolute left-1/2 -translate-x-1/2 bottom-0 flex gap-1">
-              {columns.map((col) => (
-                <span key={col.key} className="w-24 shrink-0 text-center text-[10px] font-bold text-gray-400 uppercase tracking-wide whitespace-nowrap">{col.label}</span>
-              ))}
-            </div>
-          </div>
-        )}
+      <CardHeader className="flex flex-row items-center justify-between pb-2 pt-2 px-3">
+        <CardTitle className={`min-w-0 text-[17px] font-bold flex items-center gap-2 ${theme.labelColor}`}>
+          {title}
+        </CardTitle>
+        <span className={`shrink-0 text-center text-[14px] font-bold whitespace-nowrap ${theme.labelColor}`}>
+          Total : <span className="font-inter">{formatNum(total)}</span> kg
+        </span>
       </CardHeader>
-      <CardContent className="px-2 pb-2 flex-1 flex flex-col">
+      <CardContent className="px-2 pb-2 flex-1 flex flex-col min-w-0">
         {recordedRows.length === 0 ? (
           <div className="flex-1 flex items-center justify-center py-4">
             <p className="text-xs text-gray-400 italic">{emptyMessage}</p>
           </div>
         ) : (
-          <div className="space-y-2">
+          <div className="w-full flex flex-col gap-1 min-w-0 overflow-x-auto">
+            {/* Header row */}
+            <div className="flex items-center px-2 py-0.5">
+              <span className="w-16 shrink-0 text-[10px] font-extrabold uppercase text-gray-400 tracking-wider truncate">
+                {/* Size column label space */}
+              </span>
+              <div
+                className="flex-1 grid gap-1 text-center min-w-0"
+                style={{ gridTemplateColumns: `repeat(${numCols}, minmax(0, 1fr))` }}
+              >
+                {columns.map((col) => (
+                  <span key={col.key} className="text-[10px] font-extrabold uppercase text-gray-500 tracking-tight truncate" title={col.label}>
+                    {col.label}
+                  </span>
+                ))}
+              </div>
+              <span className="w-16 shrink-0 text-right text-[10px] font-extrabold uppercase text-gray-400 tracking-wider truncate pl-1">
+                Total
+              </span>
+            </div>
+
+            {/* Data rows */}
             {recordedRows.map((row) => {
               const rowTotal = columns.reduce((sum, col) => sum + (row.values[col.key] ?? 0), 0);
               return (
-                <div key={row.size} className="flex items-center gap-1 border border-gray-400 rounded-md px-3 py-2 bg-white relative">
-                  <span className="w-20 min-w-0 font-semibold text-[13px] text-gray-600">{row.size}</span>
-                  <div className="absolute left-1/2 -translate-x-1/2 flex gap-1 items-center">
+                <div key={row.size} className="flex items-center border border-gray-400 rounded-md px-2 py-1.5 bg-white hover:bg-slate-50 transition-colors">
+                  <span className="w-16 shrink-0 font-semibold text-[12.5px] text-gray-700 truncate pr-1" title={row.size}>
+                    {row.size}
+                  </span>
+                  <div
+                    className="flex-1 grid gap-1 text-center min-w-0"
+                    style={{ gridTemplateColumns: `repeat(${numCols}, minmax(0, 1fr))` }}
+                  >
                     {columns.map((col) => {
                       const value = row.values[col.key] ?? 0;
                       return (
-                        <span key={col.key} className="w-24 shrink-0 text-center font-bold font-inter text-gray-900">
+                        <span key={col.key} className="text-[11.5px] font-bold font-inter text-gray-800 truncate" title={value > 0 ? formatNum(value) : '--'}>
                           {value > 0 ? formatNum(value) : '--'}
                         </span>
                       );
                     })}
                   </div>
-                  <div className="flex-1" />
-                  <span className="shrink-0 text-right font-bold font-inter text-gray-900 whitespace-nowrap">{formatNum(rowTotal)} kg</span>
+                  <span className="w-16 shrink-0 text-right font-bold font-inter text-[12px] text-gray-900 truncate pl-1" title={`${formatNum(rowTotal)} kg`}>
+                    {formatNum(rowTotal)}
+                  </span>
                 </div>
               );
             })}
@@ -476,6 +514,7 @@ export interface ExtruderSummaryCardProps {
 }
 
 export function ExtruderSummaryCard({ title, total, rows, theme, rowLabelClassName = 'text-[13.5px]' }: ExtruderSummaryCardProps) {
+  const activeRows = rows.filter((row) => row.production > 0 || row.chemicals.length > 0);
   return (
     <Card className={`${theme.cardBg} border ${theme.cardBorder} rounded-[14px] hover:shadow-md transition-all flex flex-col gap-0 h-full py-0`}>
       <CardHeader className="flex flex-row items-center justify-between pb-2 pt-2 px-3">
@@ -484,61 +523,93 @@ export function ExtruderSummaryCard({ title, total, rows, theme, rowLabelClassNa
           Total : <span className="font-inter">{formatNum(total)}</span> kg
         </span>
       </CardHeader>
-      <CardContent className="px-2 pb-2 flex-1 flex flex-col">
-        {rows.filter(row => row.production > 0 || row.chemicals.length > 0).length === 0 ? (
+      <CardContent className="px-2 pb-2 flex-1 flex flex-col min-w-0">
+        {activeRows.length === 0 ? (
           <div className="flex-1 flex items-center justify-center py-4">
             <p className="text-xs text-gray-400 italic">No production recorded yet.</p>
           </div>
         ) : (
-          <div className="w-full">
-            <div className="space-y-2">
-              {rows.filter(row => row.production > 0 || row.chemicals.length > 0).map((row) => {
-                const allSizes = Array.from(new Set(row.chemicals.flatMap(c => c.sizes.map(s => s.size)))).sort((a, b) => a.localeCompare(b));
-                return (
-                  <div key={row.color} className="flex flex-col border border-gray-400 rounded-md p-2 bg-white gap-2">
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center gap-2">
-                        <span className={`font-semibold ${rowLabelClassName} ${deliveryColorClass(row.color)} shrink-0`}>{row.color}</span>
+          <div className="w-full space-y-2">
+            {activeRows.map((row) => {
+              const allSizes = Array.from(
+                new Set(row.chemicals.flatMap((c) => c.sizes.map((s) => s.size)))
+              ).sort((a, b) => a.localeCompare(b));
+              const numCols = Math.max(1, allSizes.length);
 
-                      </div>
-                      <span className="font-bold font-inter text-[12px] text-gray-900 shrink-0">{formatNum(row.production)} kg</span>
-                    </div>
+              return (
+                <div key={row.color} className="flex flex-col border border-gray-400 rounded-md p-2 bg-white gap-1.5 min-w-0">
+                  <div className="flex items-center justify-between">
+                    <span className={`font-semibold ${rowLabelClassName} ${deliveryColorClass(row.color)} shrink-0`}>
+                      {row.color}
+                    </span>
+                    <span className="font-bold font-inter text-[12px] text-gray-900 shrink-0">
+                      {formatNum(row.production)} kg
+                    </span>
+                  </div>
 
-                    {row.chemicals.length > 0 && (
-                      <div className="flex flex-col gap-1.5 border-t border-gray-100 pt-1.5 overflow-x-auto">
+                  {row.chemicals.length > 0 && (
+                    <div className="border-t border-gray-100 pt-1.5 w-full min-w-0 overflow-x-auto">
+                      <div className="w-full min-w-0 flex flex-col gap-1">
+                        {/* Size Header Row */}
                         {allSizes.length > 0 && (
-                          <div className="flex flex-row items-center px-1">
-                            <div className="w-[72px] shrink-0"></div>
-                            <div className="flex-1 flex flex-row items-center justify-start gap-1 min-w-max">
-                              {allSizes.map(size => (
-                                <span key={size} className="text-[11px] font-bold uppercase w-16 text-center tracking-wide">{size}</span>
+                          <div className="flex items-center px-2 py-0.5">
+                            <span className="w-20 shrink-0 text-[10px] font-extrabold uppercase text-gray-400 tracking-wider">
+                              {/* Empty header for chemical column */}
+                            </span>
+                            <div
+                              className={`flex-1 grid gap-1 min-w-0 ${allSizes.length === 1 ? 'text-left pl-2' : 'text-center'}`}
+                              style={{ gridTemplateColumns: allSizes.length === 1 ? 'max-content' : `repeat(${numCols}, minmax(0, 1fr))` }}
+                            >
+                              {allSizes.map((size) => (
+                                <span
+                                  key={size}
+                                  className="text-[10px] font-extrabold uppercase text-gray-600 tracking-tight truncate"
+                                  title={size}
+                                >
+                                  {size}
+                                </span>
                               ))}
                             </div>
                           </div>
                         )}
-                        <div className="flex flex-col gap-1.5">
-                          {row.chemicals.map(chem => (
-                            <div key={chem.chemical} className="flex flex-row items-center border border-gray-200 rounded p-1.5 bg-[#f8fafc]">
-                              <span className="w-[72px] shrink-0 text-[12px] font-bold text-gray-600 uppercase tracking-wide">{chem.chemical}</span>
-                              <div className="flex-1 flex flex-row items-center justify-start gap-1 min-w-max">
-                                {allSizes.map(size => {
-                                  const s = chem.sizes.find(x => x.size === size);
-                                  return (
-                                    <span key={size} className="text-[12px] font-inter font-bold text-gray-700 w-16 text-center">
-                                      {s ? formatNum(s.production) : '-'}
-                                    </span>
-                                  );
-                                })}
-                              </div>
+
+                        {/* Chemical Data Rows */}
+                        {row.chemicals.map((chem) => (
+                          <div
+                            key={chem.chemical}
+                            className="flex items-center border border-gray-200 rounded-md px-2 py-1.5 bg-[#f8fafc] hover:bg-slate-100 transition-colors"
+                          >
+                            <span
+                              className="w-20 shrink-0 text-[10.5px] font-bold text-gray-700 uppercase tracking-wide leading-tight whitespace-normal break-words pr-1"
+                              title={chem.chemical}
+                            >
+                              {chem.chemical}
+                            </span>
+                            <div
+                              className={`flex-1 grid gap-1 min-w-0 ${allSizes.length === 1 ? 'text-left pl-2' : 'text-center'}`}
+                              style={{ gridTemplateColumns: allSizes.length === 1 ? 'max-content' : `repeat(${numCols}, minmax(0, 1fr))` }}
+                            >
+                              {allSizes.map((size) => {
+                                const s = chem.sizes.find((x) => x.size === size);
+                                return (
+                                  <span
+                                    key={size}
+                                    className="text-[11px] font-inter font-bold text-gray-800 truncate"
+                                    title={s ? formatNum(s.production) : '-'}
+                                  >
+                                    {s ? formatNum(s.production) : '-'}
+                                  </span>
+                                );
+                              })}
                             </div>
-                          ))}
-                        </div>
+                          </div>
+                        ))}
                       </div>
-                    )}
-                  </div>
-                );
-              })}
-            </div>
+                    </div>
+                  )}
+                </div>
+              );
+            })}
           </div>
         )}
       </CardContent>

@@ -1296,10 +1296,10 @@ function WastageCard({
     <div className="flex flex-col gap-4">
       {/* Extruder Wastage */}
       <div className="flex flex-col">
-        <SectionSummaryCard title="Extruder Wastage" total={extruderTotal} isEmpty={extruderTotal === 0} emptyMessage="No extruder wastage recorded." totalColorClassName="text-[#0B5566]">
+        <SectionSummaryCard title="Extruder Wastage" total={extruderTotal} isEmpty={extruderTotal === 0} emptyMessage="No wastage record found." totalColorClassName="text-[#0B5566]">
           {extruderWasteByChemical.map((row) => 
             renderChemicalTable(row.color, row.chemicals, (chem) => [
-              { label: 'LOOMS Waste', values: Object.fromEntries(chem.sizes.map((s: any) => [s.size, s.yarnWaste])) },
+              { label: 'LOOMS WASTE', values: Object.fromEntries(chem.sizes.map((s: any) => [s.size, s.yarnWaste])) },
               { label: 'LUMPS WASTE', values: Object.fromEntries(chem.sizes.map((s: any) => [s.size, s.lums])) },
             ])
           )}
@@ -1308,7 +1308,7 @@ function WastageCard({
 
       {/* Looms Wastage */}
       <div className="flex flex-col">
-        <SectionSummaryCard title="Looms Wastage" total={loomsWasteTotal} isEmpty={loomsWasteTotal === 0} emptyMessage="No looms wastage recorded." totalColorClassName="text-[#7A6A00]">
+        <SectionSummaryCard title="Looms Wastage" total={loomsWasteTotal} isEmpty={loomsWasteTotal === 0} emptyMessage="No wastage record found." totalColorClassName="text-[#7A6A00]">
           {loomsWasteByChemical.map((row) => 
             renderChemicalTable(row.color, row.chemicals, (chem) => [
               { label: 'LOOMS WASTE', values: Object.fromEntries(chem.sizes.map((s: any) => [s.size, s.loomsWaste])) },
@@ -1319,7 +1319,7 @@ function WastageCard({
 
       {/* Fabric Checking Wastage */}
       <div className="flex flex-col">
-        <SectionSummaryCard title="Fabric Checking Wastage" total={fabricWasteTotal} isEmpty={fabricWasteTotal === 0} emptyMessage="No fabric wastage recorded." totalColorClassName="text-[#2F6B2F]">
+        <SectionSummaryCard title="Fabric Checking Wastage" total={fabricWasteTotal} isEmpty={fabricWasteTotal === 0} emptyMessage="No wastage record found." totalColorClassName="text-[#2F6B2F]">
           {fabricWasteByChemical.map((row) => 
             renderChemicalTable(row.color, row.chemicals, (chem) => [
               { label: 'FABRIC WASTE', values: Object.fromEntries(chem.sizes.map((s: any) => [s.size, s.fabricWaste])) },
