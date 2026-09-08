@@ -23,6 +23,7 @@ export interface Employee {
   companyId: string;
   name?: string | null;
   mobile: string;
+  role?: ManagedRole;
   isActive: boolean;
   createdAt: string;
   updatedAt: string;
@@ -94,15 +95,17 @@ export function useCreateEmployee() {
   return useMutation({
     mutationFn: async (
       data: Partial<Employee> & {
+        role?: ManagedRole;
         password: string;
         employeeDetails?: Partial<EmployeeDetails>;
       } & { photo?: File | null; aadhaarFile?: File | null },
     ) => {
-      const { name, mobile, password, employeeDetails, photo, aadhaarFile } = data;
+      const { name, mobile, role, password, employeeDetails, photo, aadhaarFile } = data;
       const formData = buildEmployeeFormData(
         {
           name,
           mobile,
+          role,
           password,
           designation: employeeDetails?.designation ?? undefined,
           address: employeeDetails?.address ?? undefined,
@@ -138,15 +141,17 @@ export function useUpdateEmployee() {
     }: {
       id: string;
       data: Partial<Employee> & {
+        role?: ManagedRole;
         employeeDetails?: Partial<EmployeeDetails>;
       } & { photo?: File | null; aadhaarFile?: File | null };
     }) => {
-      const { name, mobile, isActive, employeeDetails, photo, aadhaarFile } =
+      const { name, mobile, role, isActive, employeeDetails, photo, aadhaarFile } =
         data;
       const formData = buildEmployeeFormData(
         {
           name,
           mobile,
+          role,
           isActive,
           designation: employeeDetails?.designation ?? undefined,
           address: employeeDetails?.address ?? undefined,

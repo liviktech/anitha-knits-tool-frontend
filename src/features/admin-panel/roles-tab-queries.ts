@@ -162,3 +162,11 @@ export function useAssignRoleAccess() {
     [roleAccessKeys.all, ['employees']],
   );
 }
+
+export function useUnassignRoleAccess() {
+  return useApiMutation<{ roleAccessId: string; employeeId: string }>(
+    ({ roleAccessId, employeeId }) =>
+      postJson(`/role-access/${roleAccessId}/unassign`, { employeeId }),
+    [roleAccessKeys.all, ['employees']],
+  );
+}

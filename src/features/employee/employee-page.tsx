@@ -199,6 +199,7 @@ const EmployeeDirectoryTab = forwardRef<EmployeeDirectoryTabRef>((_props, ref) =
   const [formName, setFormName] = useState('');
   const [formDesignation, setFormDesignation] = useState('');
   const [formMobile, setFormMobile] = useState('');
+  const [formRole, setFormRole] = useState<'EMPLOYEE' | 'MANAGER' | 'SUPERVISOR'>('EMPLOYEE');
   const [formAadhar, setFormAadhar] = useState('');
   const [formDoj, setFormDoj] = useState(todayIso());
   const [formAddress, setFormAddress] = useState('');
@@ -262,8 +263,10 @@ const EmployeeDirectoryTab = forwardRef<EmployeeDirectoryTabRef>((_props, ref) =
 
       const statusStr = emp.isActive ? 'Active' : 'Inactive';
       const matchesStatus = statusFilter === 'ALL' || statusStr === statusFilter;
+      const empRole = emp.role || 'EMPLOYEE';
+      const matchesRole = roleFilter === 'ALL' || empRole === roleFilter;
 
-      return matchesSearch && matchesStatus;
+      return matchesSearch && matchesStatus && matchesRole;
     });
   }, [employees, searchQuery, statusFilter, roleFilter]);
 
@@ -284,6 +287,7 @@ const EmployeeDirectoryTab = forwardRef<EmployeeDirectoryTabRef>((_props, ref) =
     setFormName('');
     setFormDesignation('');
     setFormMobile('');
+    setFormRole('EMPLOYEE');
     setFormAadhar('');
     setFormDoj(todayIso());
     setFormAddress('');
@@ -305,6 +309,7 @@ const EmployeeDirectoryTab = forwardRef<EmployeeDirectoryTabRef>((_props, ref) =
     setFormName(emp.name || '');
     setFormDesignation(emp.employeeDetails?.designation || '');
     setFormMobile(emp.mobile);
+    setFormRole((emp.role as 'EMPLOYEE' | 'MANAGER' | 'SUPERVISOR') || 'EMPLOYEE');
     setFormAadhar(emp.employeeDetails?.aadhaarNumber || '');
     // Take YYYY-MM-DD from ISO string
     const doj = emp.employeeDetails?.joiningDate ? emp.employeeDetails.joiningDate.split('T')[0] : todayIso();
@@ -334,6 +339,7 @@ const EmployeeDirectoryTab = forwardRef<EmployeeDirectoryTabRef>((_props, ref) =
       const payload = {
         name: formName.trim(),
         mobile: formMobile.trim(),
+        role: formRole,
         isActive: formStatus === 'Active',
         employeeDetails: {
           designation: formDesignation.trim(),
@@ -482,6 +488,9 @@ const EmployeeDirectoryTab = forwardRef<EmployeeDirectoryTabRef>((_props, ref) =
                 <TableHead className="text-sm font-semibold tracking-wide text-gray-800 px-2 w-[130px] border-r border-gray-300">
                   Designation
                 </TableHead>
+                <TableHead className="text-sm font-semibold tracking-wide text-gray-800 px-2 w-[100px] border-r border-gray-300">
+                  Role
+                </TableHead>
                 <TableHead className="text-sm font-semibold tracking-wide text-gray-800 px-2 w-[110px] border-r border-gray-300">
                   Mobile Number
                 </TableHead>
@@ -537,6 +546,19 @@ const EmployeeDirectoryTab = forwardRef<EmployeeDirectoryTabRef>((_props, ref) =
                     
                     <TableCell className="px-2 py-2 text-sm text-gray-700 whitespace-nowrap border-r border-gray-300">
                       {emp.employeeDetails?.designation || '-'}
+                    </TableCell>
+                    <TableCell className="px-2 py-2 text-sm whitespace-nowrap border-r border-gray-300">
+                      <span
+                        className={`inline-flex items-center rounded-full px-2 py-0.5 text-[11px] font-semibold ${
+                          emp.role === 'MANAGER'
+                            ? 'bg-purple-100 text-purple-800 border border-purple-300'
+                            : emp.role === 'SUPERVISOR'
+                            ? 'bg-blue-100 text-blue-800 border border-blue-300'
+                            : 'bg-gray-100 text-gray-700 border border-gray-200'
+                        }`}
+                      >
+                        {emp.role || 'EMPLOYEE'}
+                      </span>
                     </TableCell>
                     <TableCell className="px-2 py-2 text-[13px] text-gray-700 whitespace-nowrap border-r border-gray-300">
                       {emp.mobile}
@@ -684,6 +706,20 @@ const EmployeeDirectoryTab = forwardRef<EmployeeDirectoryTabRef>((_props, ref) =
               </div>
 
               <div className="flex flex-col gap-1.5">
+                <Label htmlFor="emp-role" className="text-xs font-semibold text-gray-700">Role / Promotion Level</Label>
+                <Select value={formRole} onValueChange={(val) => setFormRole(val as 'EMPLOYEE' | 'MANAGER' | 'SUPERVISOR')}>
+                  <SelectTrigger id="emp-role" className="w-full h-9 text-xs bg-white border-gray-400">
+                    <SelectValue placeholder="Select role" />
+                  </SelectTrigger>
+                  <SelectContent position="popper">
+                    <SelectItem value="EMPLOYEE">Employee (Default - No Login Access)</SelectItem>
+                    <SelectItem value="MANAGER">Manager (Promoted - Default Pass: manager)</SelectItem>
+                    <SelectItem value="SUPERVISOR">Supervisor (Promoted - Default Pass: supervisor)</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div className="flex flex-col gap-1.5">
                 <Label htmlFor="emp-doj" className="text-xs font-semibold text-gray-700">Date of Joining</Label>
                 <Input
                   id="emp-doj"
@@ -828,6 +864,7 @@ const EmployeeDirectoryTab = forwardRef<EmployeeDirectoryTabRef>((_props, ref) =
               <ViewField label="Employee ID" value={viewTarget.employeeDetails?.customUserId || viewTarget.id} />
               <ViewField label="Full Name" value={viewTarget.name || '-'} />
               <ViewField label="Designation" value={viewTarget.employeeDetails?.designation || '-'} />
+              <ViewField label="Role Level" value={viewTarget.role || 'EMPLOYEE'} />
               <ViewField label="Mobile Number" value={viewTarget.mobile} />
               <ViewField label="Date of Joining" value={formatDateDisplay(viewTarget.employeeDetails?.joiningDate || '')} />
               <ViewField label="Monthly Salary (₹)" value={viewTarget.employeeDetails?.salary ? formatCurrency(viewTarget.employeeDetails.salary) : '-'} />

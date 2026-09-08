@@ -58,12 +58,15 @@ const navItems = [
 function getNavItems(user: CompanyUserProfile | undefined) {
   if (!user) return [];
   if (!user.access) {
-    // No RoleAccess assigned yet — fall back to the legacy SUPERVISOR default so existing
-    // behavior doesn't change until an admin actively assigns this role rights.
+    // No RoleAccess assigned yet — fall back to legacy SUPERVISOR default
     if (user.role === 'SUPERVISOR') return navItems.filter((item) => item.moduleCode === 'dashboard');
     return navItems;
   }
-  return navItems.filter((item) => item.moduleCode === 'sampleproduction' || item.moduleCode === 'reports' || user.access!.moduleCodes.includes(item.moduleCode));
+  return navItems.filter(
+    (item) =>
+      user.access!.moduleCodes.includes(item.moduleCode) ||
+      user.access!.moduleCodes.includes(item.moduleCode.replace('-', '')),
+  );
 }
 
 /** First nav item `user` actually has access to, or null if none (used as a safe redirect target). */
