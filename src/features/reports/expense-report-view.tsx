@@ -6,11 +6,10 @@ const TEAL: [number, number, number] = [0, 77, 64];
 const TEAL_TINT: [number, number, number] = [232, 245, 240];
 
 function formatCurrency(num: number) {
-  return new Intl.NumberFormat("en-IN", {
-    style: "currency",
-    currency: "INR",
+  const formatted = new Intl.NumberFormat("en-IN", {
     maximumFractionDigits: 0,
   }).format(num);
+  return `Rs. ${formatted}`;
 }
 
 function formatDateDisplay(isoDate: string) {

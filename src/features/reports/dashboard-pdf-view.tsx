@@ -92,6 +92,11 @@ export function DashboardPdfView({ tab, allReports, selectedReport, onReportChan
     () => Object.fromEntries(allSectionDefs.map((s) => [s.key, true])) as Record<SectionKey, boolean>
   );
 
+  // Reset checkboxes when switching between Production and Wastage tabs
+  useEffect(() => {
+    setVisibleSections(Object.fromEntries(allSectionDefs.map((s) => [s.key, true])) as Record<SectionKey, boolean>);
+  }, [tab]);
+
   const toggleSection = (key: SectionKey) =>
     setVisibleSections((prev) => ({ ...prev, [key]: !prev[key] }));
 
@@ -213,9 +218,13 @@ export function DashboardPdfView({ tab, allReports, selectedReport, onReportChan
         if (visibleSections.fabricStock) {
           const fabricStockBody: (string | number)[][] = [];
           data.fabricStockByColor.forEach((row) => {
-            ['150cm', '160cm', '170cm', '180cm', '190cm'].forEach((size) => fabricStockBody.push([row.color, size, formatNum(row.stockBySize[size] || 0)]));
+            Object.entries(row.stockBySize).forEach(([size, stock]) => {
+              if ((stock || 0) > 0) fabricStockBody.push([row.color, size, formatNum(stock)]);
+            });
           });
-          section('Fabric Stock', ['Color', 'Size', 'Stock (kg)'], fabricStockBody, [['Total Fabric Stock', '', formatNum(data.totalFabricStock)]]);
+          if (fabricStockBody.length > 0) {
+            section('Fabric Stock', ['Color', 'Size', 'Stock (kg)'], fabricStockBody, [['Total Fabric Stock', '', formatNum(data.totalFabricStock)]]);
+          }
         }
 
         if (visibleSections.fabricDelivered) {
@@ -345,9 +354,13 @@ export function DashboardPdfView({ tab, allReports, selectedReport, onReportChan
         if (visibleSections.fabricStock) {
           const fabricStockBody: (string | number)[][] = [];
           data.fabricStockByColor.forEach((row) => {
-            ['150cm', '160cm', '170cm', '180cm', '190cm'].forEach((size) => fabricStockBody.push([row.color, size, formatNum(row.stockBySize[size] || 0)]));
+            Object.entries(row.stockBySize).forEach(([size, stock]) => {
+              if ((stock || 0) > 0) fabricStockBody.push([row.color, size, formatNum(stock)]);
+            });
           });
-          section('Fabric Stock', ['Color', 'Size', 'Stock (kg)'], fabricStockBody, [['Total Fabric Stock', '', formatNum(data.totalFabricStock)]]);
+          if (fabricStockBody.length > 0) {
+            section('Fabric Stock', ['Color', 'Size', 'Stock (kg)'], fabricStockBody, [['Total Fabric Stock', '', formatNum(data.totalFabricStock)]]);
+          }
         }
 
         if (visibleSections.fabricDelivered) {

@@ -66,7 +66,7 @@ export function DashboardDesign2() {
     }, 2000);
   };
 
-  const { dashboardData, isLoading: loadingDashboard } = useMonthlyDashboard(currentMonthStr);
+  const { dashboardData, isLoading: loadingDashboard } = useMonthlyDashboard(currentMonthStr, currentMonthStr);
 
   // Chemical used per color, for the Extruder Production card's middle column —
   // the monthly dashboard aggregation has no per-color chemical field, so this
@@ -449,34 +449,18 @@ const buildExtruderSummaryRows = (dataMap: Map<string, any>) => {
   const fabricWasteBySize = (dashboardData?.fabricProduction?.bySize || []).map(r => ({ label: r.size.name, fabricWaste: r.fwWasteKg, bitWaste: r.bwWasteKg }));
   const fabricWasteByChemical = (dashboardData?.fabricProduction?.byChemical || []).map(r => ({ label: r.chemical.name, fabricWaste: r.fwWasteKg, bitWaste: r.bwWasteKg }));
 
-  // Fabric Stock — no persisted "current stock" field exists anywhere in the API
-  // (unlike HDPE/Chemical/Color inventory). Derived as everything Fabric Checking
-  // has produced minus everything that's gone out via Load Sent, grouped by color x size.
-  const fabricStockByColor = (() => {
-    const byColor = new Map<string, { color: string; colorClass: string; stockBySize: Record<string, number> }>();
-    const getRow = (color: string) => {
-      const existing = byColor.get(color);
-      if (existing) return existing;
-      const row = { color, colorClass: deliveryColorClass(color), stockBySize: {} as Record<string, number> };
-      byColor.set(color, row);
-      return row;
-    };
-    FABRIC_COLORS.forEach((color) => getRow(color));
-    (dashboardData?.stockBalance || []).forEach(r => {
-      const row = getRow(r.color.name);
-      row.stockBySize[r.size.name] = (row.stockBySize[r.size.name] || 0) + r.availableFabricStockKg;
+  // Build fabricStockByColor for the report modal from fabricStockColorRows
+  // (which already correctly computes non-zero available stock per color+size+chemical).
+  // Flatten the chemical→size breakdown into a color→stockBySize map, summing across chemicals.
+  const fabricStockByColor = fabricStockColorRows.map((row) => {
+    const stockBySize: Record<string, number> = {};
+    row.chemicals.forEach((chem) => {
+      chem.sizes.forEach(({ size, production }) => {
+        stockBySize[size] = (stockBySize[size] || 0) + production;
+      });
     });
-
-    obFabricStock.forEach(r => {
-      if (r.color?.name && r.size?.name) {
-        const colorName = r.color.name.trim();
-        const normalizedColor = colorName.charAt(0).toUpperCase() + colorName.slice(1).toLowerCase();
-        const row = getRow(normalizedColor);
-        row.stockBySize[r.size.name] = (row.stockBySize[r.size.name] || 0) + r.fabricStockKg;
-      }
-    });
-    return Array.from(byColor.values());
-  })();
+    return { color: row.color, colorClass: deliveryColorClass(row.color), stockBySize };
+  });
   const totalFabricStockKg = fabricStockByColor.reduce(
     (sum, row) => sum + Object.values(row.stockBySize).reduce((s, v) => s + v, 0),
     0,
@@ -563,7 +547,7 @@ const buildExtruderSummaryRows = (dataMap: Map<string, any>) => {
   // (backend now filters every underlying query by production_records.type), so all the
   // shapes below mirror the PRODUCTION versions above exactly — just without an Opening
   // Balance term, since OB is a real-inventory starting value that doesn't apply to samples.
-  const { dashboardData: sampleDashboardData, isLoading: loadingSampleDashboard } = useMonthlyDashboard(currentMonthStr, 'SAMPLE');
+  const { dashboardData: sampleDashboardData, isLoading: loadingSampleDashboard } = useMonthlyDashboard(currentMonthStr, currentMonthStr, 'SAMPLE');
 
   const sampleExtruderByColorMap = new Map((sampleDashboardData?.extruderProduction?.byColor || []).map(r => [r.color.name, r]));
   const sampleExtruderColorRows = buildSummaryRows(sampleExtruderProductionsRes?.data ?? [], sampleDashboardData?.extruderProduction?.byColor || [], 'extruder');

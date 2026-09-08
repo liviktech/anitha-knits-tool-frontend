@@ -175,7 +175,7 @@ export function SampleProductionPage() {
   // selected month, same source (and same shape) the Production Details report uses, just
   // scoped to type=SAMPLE so it never mixes in real Production records.
   const companyName = user?.kind === 'company-user' ? user.company.name : 'LK Knits';
-  const { dashboardData: sampleMonthlyDashboardData } = useMonthlyDashboard(monthStr, 'SAMPLE');
+  const { dashboardData: sampleMonthlyDashboardData } = useMonthlyDashboard(monthStr, monthStr, 'SAMPLE');
   const reportDeliveryByColor = useMemo(() => {
     const map = new Map<string, { label: string; delivered: number }>();
     (sampleMonthlyDashboardData?.loadSent.items ?? []).forEach((item) => {
