@@ -16,7 +16,7 @@ import { RIGHTS } from '@/lib/permissions';
 import { useOpeningBalanceRawMaterials } from '@/features/admin-panel/opening-balance-queries';
 import { canCreateProductionRecord, canDeleteProductionRecord, canEditProductionRecord } from '@/lib/production-permissions';
 import { currentMonthStr } from '@/lib/date-utils';
-import { RawMaterialCard } from '@/features/dashboard/card';
+import { RawMaterialCard, RawMaterialsSection } from '@/features/dashboard/card';
 import { formatDate, formatDateDisplay } from './inventory-utils';
 import { InventoryFormDialog } from './inventory-form-dialog';
 import { LoadSentFormDialog } from './load-sent-form-dialog';
@@ -452,13 +452,48 @@ function StockSummaryCard({ month, onEditDate, onDeleteDate }: { month: string; 
     return { weight, items };
   };
 
-  const rawMaterials = getCategoryDataWithOb('HDPE');
-  const chemicals = getCategoryDataWithOb('CHEMICAL');
-  const colors = getCategoryDataWithOb('COLOR');
+  const HDPE_ORDER = ['Ghail', 'Haldia', 'Opel', 'Reliance'];
+  const sortHdpe = (a: string, b: string) => {
+    const idxA = HDPE_ORDER.findIndex(o => a.toLowerCase() === o.toLowerCase());
+    const idxB = HDPE_ORDER.findIndex(o => b.toLowerCase() === o.toLowerCase());
+    if (idxA === -1 && idxB === -1) return a.localeCompare(b);
+    if (idxA === -1) return 1;
+    if (idxB === -1) return -1;
+    return idxA - idxB;
+  };
 
-  const hdpeNames = (lookupsData?.brands ?? []).map(b => b.name).sort();
-  const chemicalNames = (lookupsData?.chemicals ?? []).map(c => c.name).sort();
-  const colorNames = (lookupsData?.colors ?? []).map(c => c.name).sort();
+  const CHEMICAL_ORDER = ['ACM', 'DN+MB'];
+  const sortChemical = (a: string, b: string) => {
+    const idxA = CHEMICAL_ORDER.findIndex(o => a.toLowerCase() === o.toLowerCase());
+    const idxB = CHEMICAL_ORDER.findIndex(o => b.toLowerCase() === o.toLowerCase());
+    if (idxA === -1 && idxB === -1) return a.localeCompare(b);
+    if (idxA === -1) return 1;
+    if (idxB === -1) return -1;
+    return idxA - idxB;
+  };
+
+  const COLOR_ORDER = ['Blue', 'Green', 'White'];
+  const sortColor = (a: string, b: string) => {
+    const idxA = COLOR_ORDER.findIndex(o => a.toLowerCase() === o.toLowerCase());
+    const idxB = COLOR_ORDER.findIndex(o => b.toLowerCase() === o.toLowerCase());
+    if (idxA === -1 && idxB === -1) return a.localeCompare(b);
+    if (idxA === -1) return 1;
+    if (idxB === -1) return -1;
+    return idxA - idxB;
+  };
+
+  const rawMaterials = getCategoryDataWithOb('HDPE');
+  rawMaterials.items.sort((a, b) => sortHdpe(a.name, b.name));
+  
+  const chemicals = getCategoryDataWithOb('CHEMICAL');
+  chemicals.items.sort((a, b) => sortChemical(a.name, b.name));
+
+  const colors = getCategoryDataWithOb('COLOR');
+  colors.items.sort((a, b) => sortColor(a.name, b.name));
+
+  const hdpeNames = (lookupsData?.brands ?? []).map(b => b.name).sort(sortHdpe);
+  const chemicalNames = (lookupsData?.chemicals ?? []).map(c => c.name).sort(sortChemical);
+  const colorNames = (lookupsData?.colors ?? []).map(c => c.name).sort(sortColor);
 
   const groupedByDate = Array.from(
     monthRecords.reduce((map, r) => {
@@ -497,59 +532,47 @@ function StockSummaryCard({ month, onEditDate, onDeleteDate }: { month: string; 
 
   return (
     <div className="flex flex-col gap-2">
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-2">
-        <div className="md:col-span-2 flex flex-col">
-          <RawMaterialCard
-            icon="/hdpe.png"
-            iconAlt="HDPE"
-            title="HDPE Materials"
-            totalWeight={rawMaterials.weight}
-            totalValueClassName="text-gray-800"
-            hoverBorderClassName="hover:border-blue-200"
-            items={rawMaterials.items}
-            itemsGapClassName="gap-x-12 gap-y-1"
-            weightSuffixVariant="inline-bags"
-            emptyMessage="No HDPE brands configured"
-            headerRowClassName="flex justify-between items-center mb-2 relative z-10"
-            contentWrapperClassName="mt-auto relative z-10 pt-1 border-t border-gray-50"
-            className="h-full"
-          />
-        </div>
+      <RawMaterialsSection>
+        <RawMaterialCard
+          icon="/hdpe.png"
+          iconAlt="HDPE"
+          title="HDPE Materials"
+          totalWeight={rawMaterials.weight}
+          totalValueClassName="text-brown-400"
+          hoverBorderClassName="hover:border-blue-200"
+          items={rawMaterials.items}
+          itemsGapClassName="gap-x-10 gap-y-3"
+          showBags
+          weightSuffixVariant="plain"
+          emptyMessage="No HDPE brands configured"
+        />
 
-        <div className="md:col-span-1 flex flex-col">
-          <RawMaterialCard
-            icon="/chemical.png"
-            iconAlt="Chemicals"
-            title="Chemicals"
-            totalWeight={chemicals.weight}
-            totalValueClassName="text-gray-800"
-            hoverBorderClassName="hover:border-orange-200"
-            items={chemicals.items}
-            itemsGapClassName="gap-x-9 gap-y-3 mt-2"
-            weightSuffixVariant="styled"
-            emptyMessage="No chemicals configured"
-            headerRowClassName="flex justify-between items-center mb-2 relative z-10"
-            className="h-full"
-          />
-        </div>
+        <RawMaterialCard
+          icon="/chemical.png"
+          iconAlt="Chemicals"
+          title="Chemicals"
+          totalWeight={chemicals.weight}
+          totalValueClassName="text-gray-800"
+          hoverBorderClassName="hover:border-orange-200"
+          items={chemicals.items}
+          itemsGapClassName="gap-x-9 gap-y-3 mt-px"
+          weightSuffixVariant="styled"
+          emptyMessage="No chemicals configured"
+        />
 
-        <div className="md:col-span-1 flex flex-col">
-          <RawMaterialCard
-            icon="/color.png"
-            iconAlt="Colors"
-            title="Colors"
-            totalWeight={colors.weight}
-            totalValueClassName="text-gray-800"
-            hoverBorderClassName="hover:border-purple-200"
-            items={colors.items}
-            itemsGapClassName="gap-x-9 gap-y-3 mt-2"
-            weightSuffixVariant="styled"
-            emptyMessage="No colors configured"
-            headerRowClassName="flex justify-between items-center mb-2 relative z-10"
-            className="h-full"
-          />
-        </div>
-      </div>
+        <RawMaterialCard
+          icon="/color.png"
+          iconAlt="Colors"
+          title="Colors"
+          totalWeight={colors.weight}
+          totalValueClassName="text-gray-800"
+          hoverBorderClassName="hover:border-purple-200"
+          items={colors.items}
+          itemsGapClassName="gap-x-9 gap-y-3 mt-1"
+          weightSuffixVariant="styled"
+          emptyMessage="No colors configured"
+        />
+      </RawMaterialsSection>
 
       <div className="rounded-xl border border-gray-400 bg-white shadow-sm overflow-hidden">
         <div className="px-4 py-3 border-b border-gray-400 bg-gray-50">
