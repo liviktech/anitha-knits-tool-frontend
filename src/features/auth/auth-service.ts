@@ -180,6 +180,18 @@ export async function resetPassword(mobile: string, resetToken: string, newPassw
 }
 
 /**
+ * Direct password reset — bypasses OTP entirely. Accepts mobile + newPassword and resets
+ * immediately. Does not establish a session — the user signs in fresh afterward.
+ */
+export async function resetPasswordDirect(mobile: string, newPassword: string): Promise<void> {
+  await postJson<void>(
+    '/company/auth/password/reset-direct',
+    { mobile, newPassword },
+    'Failed to reset password. Please try again.',
+  );
+}
+
+/**
  * Re-resolves the current session's profile + access from the server (GET /me) — used to pick
  * up a RoleAccess change an admin made after this session's last login, without re-authenticating.
  * Returns null if the session cookie is missing/expired (apiFetch's own 401 handling already
