@@ -5,8 +5,8 @@ import { useOpeningBalanceWastage, useOpeningBalanceFabricStock } from '@/featur
 const FABRIC_STOCK_SIZES = ['150cm', '160cm', '170cm', '180cm', '190cm'] as const;
 const FABRIC_COLORS = ['Blue', 'Green', 'White'] as const;
 
-export function useDashboardReportData(monthStr: string, isSample: boolean = false) {
-  const { dashboardData } = useMonthlyDashboard(monthStr, isSample ? 'SAMPLE' : undefined);
+export function useDashboardReportData(fromMonthStr: string, toMonthStr: string, isSample: boolean = false) {
+  const { dashboardData } = useMonthlyDashboard(fromMonthStr, toMonthStr, isSample ? 'SAMPLE' : undefined);
   const { data: obWastageRes } = useOpeningBalanceWastage('?limit=100');
   const obWastage = obWastageRes?.data || [];
 

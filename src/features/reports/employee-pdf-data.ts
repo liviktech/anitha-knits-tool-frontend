@@ -2,24 +2,27 @@ import { useMemo } from 'react';
 import { useEmployees, useSavedPayrollRecords, usePayrollSummary, useMarketValueAllocations, buildPayrollRows } from '@/features/employee/employee-queries';
 import { useAttendanceRecords } from '@/features/employee/attendance-queries';
 
-export function useEmployeePdfData(monthStr: string) {
-  const [year, month] = monthStr.split('-');
-  const yearNum = Number(year);
-  const monthNum = Number(month);
+export function useEmployeePdfData(fromMonthStr: string, toMonthStr: string) {
+  const [yearFrom, monthFrom] = fromMonthStr.split('-');
+  const [yearTo, monthTo] = toMonthStr.split('-');
+  const yearNumTo = Number(yearTo);
+  const monthNumTo = Number(monthTo);
 
   // For Employee Directory
   const { data: allEmployeesData = [], isLoading: isLoadingEmployees } = useEmployees();
 
   // For Attendance Report
-  const dateFrom = `${yearNum}-${month.padStart(2, '0')}-01`;
-  const lastDay = new Date(yearNum, monthNum, 0).getDate();
-  const dateTo = `${yearNum}-${month.padStart(2, '0')}-${lastDay}`;
-  const { data: attendanceData, isLoading: isLoadingAttendance } = useAttendanceRecords(dateFrom, dateTo);
+  const dateFromStr = `${yearFrom}-${monthFrom.padStart(2, '0')}-01`;
+  const lastDayTo = new Date(yearNumTo, monthNumTo, 0).getDate();
+  const dateToStr = `${yearTo}-${monthTo.padStart(2, '0')}-${lastDayTo}`;
+  const { data: attendanceData, isLoading: isLoadingAttendance } = useAttendanceRecords(dateFromStr, dateToStr);
 
   // For Payroll Report
-  const { data: savedRecords = [], isLoading: isLoadingSaved } = useSavedPayrollRecords(monthNum, yearNum);
-  const { data: payrollSummary = [], isLoading: isLoadingSummary } = usePayrollSummary(monthNum, yearNum);
-  const { data: marketValueAllocations = {}, isLoading: isLoadingMarketValue } = useMarketValueAllocations(monthNum, yearNum);
+  // NOTE: Backend for payroll may only support a single month query. We use `toMonthStr` to fetch that specific month for now.
+  // Aggregating multiple months of payroll would require backend API changes.
+  const { data: savedRecords = [], isLoading: isLoadingSaved } = useSavedPayrollRecords(monthNumTo, yearNumTo);
+  const { data: payrollSummary = [], isLoading: isLoadingSummary } = usePayrollSummary(monthNumTo, yearNumTo);
+  const { data: marketValueAllocations = {}, isLoading: isLoadingMarketValue } = useMarketValueAllocations(monthNumTo, yearNumTo);
 
   return useMemo(() => {
     // 1. Employee Directory
@@ -52,7 +55,10 @@ export function useEmployeePdfData(monthStr: string) {
       };
     });
 
-    const filteredRecords = records.filter((r) => r.date.startsWith(monthStr));
+    const filteredRecords = records.filter((r) => {
+      const m = r.date.substring(0, 7);
+      return m >= fromMonthStr && m <= toMonthStr;
+    });
 
     const presentCount = filteredRecords.filter(r => r.status === 'Day shift' || r.status === 'Night shift').length;
     const absentCount = filteredRecords.filter(r => r.status === 'Absent').length;
@@ -128,7 +134,8 @@ export function useEmployeePdfData(monthStr: string) {
     savedRecords,
     payrollSummary,
     marketValueAllocations,
-    monthStr,
+    fromMonthStr,
+    toMonthStr,
     isLoadingEmployees,
     isLoadingAttendance,
     isLoadingSaved,

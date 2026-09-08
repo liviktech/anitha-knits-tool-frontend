@@ -417,15 +417,7 @@ const buildExtruderSummaryRows = (dataMap: Map<string, any>) => {
   });
 
   const loomsByVariantMap = new Map((dashboardData?.loomsProduction?.byVariant || []).map(r => [`${r.color.name}_${r.size.name}`, r]));
-  const loomsWasteByVariant = FABRIC_COLORS.map(color => {
-    const sizes = FABRIC_STOCK_SIZES.map(size => {
-      const variantKey = `${color}_${size}`;
-      const r = loomsByVariantMap.get(variantKey);
-      return { size, loomsWaste: r?.waste ?? 0 };
-    });
-    return { color, sizes };
-  });
-
+  
   const loomsColorRows = buildSummaryRows(loomsProductionsRes?.data ?? [], dashboardData?.loomsProduction?.byColor || [], 'looms');
   const loomsGrandTotal = dashboardData?.loomsProduction?.overall.production || 0;
 
@@ -448,14 +440,6 @@ const buildExtruderSummaryRows = (dataMap: Map<string, any>) => {
   });
 
   const fabricByVariantMap = new Map((dashboardData?.fabricProduction.byVariant || []).map(r => [`${r.color.name}_${r.size.name}`, r]));
-  const fabricWasteByVariant = FABRIC_COLORS.map(color => {
-    const sizes = FABRIC_STOCK_SIZES.map(size => {
-      const variantKey = `${color}_${size}`;
-      const r = fabricByVariantMap.get(variantKey);
-      return { size, fabricWaste: r?.fwWasteKg ?? 0, bitWaste: r?.bwWasteKg ?? 0 };
-    });
-    return { color, sizes };
-  });
 
   const fabricColorRows = buildSummaryRows(fabricCheckingRes?.data ?? [], dashboardData?.fabricProduction?.byColor || [], 'fabric');
   const fabricGrandTotal = dashboardData?.fabricProduction.overall.outputKg || 0;
@@ -565,6 +549,7 @@ const buildExtruderSummaryRows = (dataMap: Map<string, any>) => {
         id: item.id,
         date: item.productionDate,
         size: item.size.name,
+        chemical: item.chemical?.name ?? '',
         kg: item.loadSent?.fabricWeight ?? 0,
       }))
       .sort((a, b) => (a.date < b.date ? 1 : -1));
@@ -671,6 +656,7 @@ const buildExtruderSummaryRows = (dataMap: Map<string, any>) => {
         id: item.id,
         date: item.productionDate,
         size: item.size.name,
+        chemical: item.chemical?.name ?? '',
         kg: item.loadSent?.fabricWeight ?? 0,
       }))
       .sort((a, b) => (a.date < b.date ? 1 : -1));
@@ -1298,7 +1284,7 @@ function WastageCard({
                 total={chemTotal}
                 theme={{ cardBg: 'bg-white', cardBorder: 'border-gray-200', labelColor: 'text-gray-700' }}
                 rows={[]}
-                table={{ columns, rows: tableRows }}
+                table={{ columns: [...columns], rows: tableRows }}
                 emptyMessage="No waste recorded yet."
               />
             );
