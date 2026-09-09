@@ -1,19 +1,13 @@
 import { useEffect, useState } from 'react';
 import { useDashboardReportData } from './dashboard-pdf-data';
 import { ReportLayout } from './report-layout';
+import { useReportPeriod } from './report-period';
 
 const TEAL: [number, number, number] = [0, 77, 64];
 const TEAL_TINT: [number, number, number] = [232, 245, 240];
 
 function formatNum(n: number): string {
   return n.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-}
-
-function getMonthName(monthStr: string) {
-  if (!monthStr) return '';
-  const [year, month] = monthStr.split('-').map(Number);
-  const date = new Date(year, month - 1, 1);
-  return date.toLocaleDateString('en-IN', { month: 'long', year: 'numeric' });
 }
 
 type SectionKey =
@@ -52,18 +46,11 @@ interface DashboardPdfViewProps {
 }
 
 export function DashboardPdfView({ tab, allReports, selectedReport, onReportChange }: DashboardPdfViewProps) {
-  const [fromMonthStr, setFromMonthStr] = useState(() => {
-    const d = new Date();
-    return `${d.getFullYear()}-${(d.getMonth() + 1).toString().padStart(2, '0')}`;
-  });
-  const [toMonthStr, setToMonthStr] = useState(() => {
-    const d = new Date();
-    return `${d.getFullYear()}-${(d.getMonth() + 1).toString().padStart(2, '0')}`;
-  });
+  const period = useReportPeriod();
 
   const isSample = tab === 'sample_production' || tab === 'sample_wastage_summary';
   const isWastage = tab === 'wastage_summary' || tab === 'sample_wastage_summary';
-  const data = useDashboardReportData(fromMonthStr, toMonthStr, isSample);
+  const data = useDashboardReportData(period.effectiveFrom, period.effectiveTo, isSample);
 
   const allSectionDefs = isWastage ? WASTAGE_SECTIONS : PRODUCTION_SECTIONS;
   const [visibleSections, setVisibleSections] = useState<Record<SectionKey, boolean>>(
@@ -114,8 +101,7 @@ export function DashboardPdfView({ tab, allReports, selectedReport, onReportChan
 
       doc.text(title, 105, y, { align: 'center' });
       y += 7;
-      const periodText = fromMonthStr === toMonthStr ? getMonthName(fromMonthStr) : `${getMonthName(fromMonthStr)} - ${getMonthName(toMonthStr)}`;
-      doc.text(`Period: ${periodText}`, 105, y, { align: 'center' });
+      doc.text(`Period: ${period.label}`, 105, y, { align: 'center' });
       y += 5;
 
       doc.setDrawColor(...TEAL);
@@ -249,7 +235,7 @@ export function DashboardPdfView({ tab, allReports, selectedReport, onReportChan
 
     generatePdf();
     return () => { isCancelled = true; };
-  }, [data, tab, fromMonthStr, toMonthStr, visibleSections]);
+  }, [data, tab, period.label, visibleSections]);
 
   const handleDownloadXlsx = async () => {
     if (!data) return;
@@ -369,8 +355,7 @@ export function DashboardPdfView({ tab, allReports, selectedReport, onReportChan
       const ws = utils.aoa_to_sheet(wsData);
       utils.book_append_sheet(wb, ws, displayTitle.substring(0, 31));
 
-      const period = fromMonthStr === toMonthStr ? fromMonthStr : `${fromMonthStr}_to_${toMonthStr}`;
-      writeFile(wb, `${tab}_report_${period}.xlsx`);
+      writeFile(wb, `${tab}_report_${period.fileSuffix}.xlsx`);
     } catch (err) {
       console.error('Failed to generate XLSX', err);
     } finally {
@@ -390,11 +375,8 @@ export function DashboardPdfView({ tab, allReports, selectedReport, onReportChan
       allReports={allReports}
       selectedReport={selectedReport}
       onReportChange={onReportChange}
-      fromMonthStr={fromMonthStr}
-      onFromMonthChange={setFromMonthStr}
-      toMonthStr={toMonthStr}
-      onToMonthChange={setToMonthStr}
-      showMonthPicker={true}
+      period={period}
+      showPeriodPicker={true}
       pdfBlobUrl={pdfBlobUrl}
       isGenerating={isGenerating}
       isGeneratingXlsx={isGeneratingXlsx}
@@ -404,8 +386,7 @@ export function DashboardPdfView({ tab, allReports, selectedReport, onReportChan
         if (pdfBlobUrl) {
           const a = document.createElement('a');
           a.href = pdfBlobUrl;
-          const period = fromMonthStr === toMonthStr ? fromMonthStr : `${fromMonthStr}_to_${toMonthStr}`;
-          a.download = `${tab}_report_${period}.pdf`;
+          a.download = `${tab}_report_${period.fileSuffix}.pdf`;
           a.click();
         }
       }}

@@ -3,26 +3,19 @@ import { Input } from '@/components/ui/input';
 import { Download } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-
-function getMonthName(monthStr?: string) {
-  if (!monthStr) return '';
-  const [year, month] = monthStr.split('-').map(Number);
-  const date = new Date(year, month - 1, 1);
-  return date.toLocaleDateString('en-IN', { month: 'long', year: 'numeric' });
-}
+import { currentMonthStr, todayStr, type ReportPeriod } from './report-period';
 
 interface ReportLayoutProps {
   displayTitle: string;
   allReports?: { id: string; label: string; moduleId: string }[];
   selectedReport?: string;
   onReportChange?: (tabId: string, moduleId: string) => void;
-  
-  // Date/Month range picker
-  fromMonthStr?: string;
-  toMonthStr?: string;
-  onFromMonthChange?: (val: string) => void;
-  onToMonthChange?: (val: string) => void;
-  showMonthPicker?: boolean;
+
+  // Period picker (Month range or exact Date range)
+  period?: ReportPeriod;
+  showPeriodPicker?: boolean;
+  /** Set false to lock the picker to Month mode only (e.g. Payroll, which the backend only aggregates per calendar month). Defaults to true. */
+  supportsDateMode?: boolean;
 
   // Custom sections (like checkboxes)
   sectionsPanel?: React.ReactNode;
@@ -34,7 +27,7 @@ interface ReportLayoutProps {
   onDownload: () => void;
   onDownloadXlsx?: () => void;
   isGeneratingXlsx?: boolean;
-  
+
   // Optional date format for the download file name fallback
   downloadFileName?: string;
 }
@@ -44,11 +37,9 @@ export function ReportLayout({
   allReports,
   selectedReport,
   onReportChange,
-  fromMonthStr,
-  toMonthStr,
-  onFromMonthChange,
-  onToMonthChange,
-  showMonthPicker = false,
+  period,
+  showPeriodPicker = false,
+  supportsDateMode = true,
   sectionsPanel,
   pdfBlobUrl,
   isGenerating,
@@ -85,40 +76,73 @@ export function ReportLayout({
           )}
         </div>
 
-        {/* Month Picker */}
-        {showMonthPicker && onFromMonthChange && onToMonthChange && (
+        {/* Period Picker (Month or Date range) */}
+        {showPeriodPicker && period && (
           <div className="px-5 py-4 border-b border-[#004D40]/10">
-            <label className="block text-[11px] font-hanken font-bold text-[#004D40]/70 uppercase tracking-wider mb-2">Select Period</label>
+            <div className="flex items-center justify-between mb-2">
+              <label className="block text-[11px] font-hanken font-bold text-[#004D40]/70 uppercase tracking-wider">Select Period</label>
+              {supportsDateMode && (
+                <div className="inline-flex items-center rounded-full border border-[#004D40]/20 bg-white p-0.5 text-[10px] font-hanken font-bold shadow-sm">
+                  {(['month', 'date'] as const).map((m) => (
+                    <button
+                      key={m}
+                      type="button"
+                      onClick={() => period.setMode(m)}
+                      className={`rounded-full px-2.5 py-1 capitalize transition-all duration-150 ${
+                        period.mode === m ? 'bg-[#004D40] text-white shadow' : 'text-[#004D40]/60 hover:text-[#004D40]'
+                      }`}
+                    >
+                      {m}
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
             <div className="flex items-center gap-2 mb-2">
               <div className="flex-1">
                 <p className="text-[10px] text-[#004D40]/60 font-bold mb-1 ml-1 uppercase font-hanken">From</p>
-                <Input
-                  type="month"
-                  value={fromMonthStr || ''}
-                  max={toMonthStr || `${new Date().getFullYear()}-${(new Date().getMonth() + 1).toString().padStart(2, '0')}`}
-                  onChange={(e) => onFromMonthChange(e.target.value)}
-                  className="h-9 w-full bg-white border border-[#004D40]/20 rounded-md px-2 py-2 text-sm font-semibold font-hanken text-gray-700 focus-visible:ring-1 focus-visible:ring-[#004D40]"
-                />
+                {period.mode === 'month' ? (
+                  <Input
+                    type="month"
+                    value={period.fromMonthStr}
+                    max={period.toMonthStr || currentMonthStr()}
+                    onChange={(e) => period.setFromMonthStr(e.target.value)}
+                    className="h-9 w-full bg-white border border-[#004D40]/20 rounded-md px-2 py-2 text-sm font-semibold font-hanken text-gray-700 focus-visible:ring-1 focus-visible:ring-[#004D40]"
+                  />
+                ) : (
+                  <Input
+                    type="date"
+                    value={period.fromDateStr}
+                    max={period.toDateStr || todayStr()}
+                    onChange={(e) => period.setFromDateStr(e.target.value)}
+                    className="h-9 w-full bg-white border border-[#004D40]/20 rounded-md px-2 py-2 text-sm font-semibold font-hanken text-gray-700 focus-visible:ring-1 focus-visible:ring-[#004D40]"
+                  />
+                )}
               </div>
               <div className="flex-1">
                 <p className="text-[10px] text-[#004D40]/60 font-bold mb-1 ml-1 uppercase font-hanken">To</p>
-                <Input
-                  type="month"
-                  value={toMonthStr || ''}
-                  min={fromMonthStr || ''}
-                  max={`${new Date().getFullYear()}-${(new Date().getMonth() + 1).toString().padStart(2, '0')}`}
-                  onChange={(e) => onToMonthChange(e.target.value)}
-                  className="h-9 w-full bg-white border border-[#004D40]/20 rounded-md px-2 py-2 text-sm font-semibold font-hanken text-gray-700 focus-visible:ring-1 focus-visible:ring-[#004D40]"
-                />
+                {period.mode === 'month' ? (
+                  <Input
+                    type="month"
+                    value={period.toMonthStr}
+                    min={period.fromMonthStr}
+                    max={currentMonthStr()}
+                    onChange={(e) => period.setToMonthStr(e.target.value)}
+                    className="h-9 w-full bg-white border border-[#004D40]/20 rounded-md px-2 py-2 text-sm font-semibold font-hanken text-gray-700 focus-visible:ring-1 focus-visible:ring-[#004D40]"
+                  />
+                ) : (
+                  <Input
+                    type="date"
+                    value={period.toDateStr}
+                    min={period.fromDateStr}
+                    max={todayStr()}
+                    onChange={(e) => period.setToDateStr(e.target.value)}
+                    className="h-9 w-full bg-white border border-[#004D40]/20 rounded-md px-2 py-2 text-sm font-semibold font-hanken text-gray-700 focus-visible:ring-1 focus-visible:ring-[#004D40]"
+                  />
+                )}
               </div>
             </div>
-            {fromMonthStr && toMonthStr && (
-              <p className="mt-1 text-[12px] text-[#004D40]/60 font-medium text-center font-hanken">
-                {fromMonthStr === toMonthStr 
-                  ? getMonthName(fromMonthStr) 
-                  : `${getMonthName(fromMonthStr)} — ${getMonthName(toMonthStr)}`}
-              </p>
-            )}
+            <p className="mt-1 text-[12px] text-[#004D40]/60 font-medium text-center font-hanken">{period.label}</p>
           </div>
         )}
 
@@ -140,14 +164,10 @@ export function ReportLayout({
             <span className="text-[12px] font-bold font-hanken text-[#004D40]/70 uppercase tracking-wide">Preview</span>
             <span className="text-[#004D40]/30 text-sm font-bold">›</span>
             <span className="text-[12px] font-bold font-hanken text-[#004D40]">{displayTitle} PDF</span>
-            {showMonthPicker && fromMonthStr && toMonthStr && (
+            {showPeriodPicker && period && (
               <>
                 <span className="text-[#004D40]/30 text-sm font-bold">·</span>
-                <span className="text-[12px] font-bold font-hanken text-[#004D40]/70">
-                  {fromMonthStr === toMonthStr 
-                    ? getMonthName(fromMonthStr) 
-                    : `${getMonthName(fromMonthStr)} - ${getMonthName(toMonthStr)}`}
-                </span>
+                <span className="text-[12px] font-bold font-hanken text-[#004D40]/70">{period.label}</span>
               </>
             )}
           </div>

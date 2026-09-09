@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { useProductionPdfData, type DeliveryVariantRow } from './production-pdf-data';
 import { ReportLayout } from './report-layout';
+import { useReportPeriod } from './report-period';
 import type {
   ExtruderProductionVariantChemicalSummary,
   FabricProductionVariantChemicalSummary,
@@ -14,12 +15,14 @@ function formatNum(n: number): string {
   return n.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 }
 
-function getMonthName(monthStr: string) {
-  if (!monthStr) return '';
-  const [year, month] = monthStr.split('-').map(Number);
-  const date = new Date(year, month - 1, 1);
-  return date.toLocaleDateString('en-IN', { month: 'long', year: 'numeric' });
-}
+type SectionKey = 'extruderProduction' | 'loomsProduction' | 'fabricChecking' | 'fabricDelivered';
+
+const SECTION_DEFS: { key: SectionKey; label: string }[] = [
+  { key: 'extruderProduction', label: 'Extruder Production' },
+  { key: 'loomsProduction', label: 'Looms Production' },
+  { key: 'fabricChecking', label: 'Fabric Checking' },
+  { key: 'fabricDelivered', label: 'Fabric Delivered' },
+];
 
 interface ReportRow {
   labels: string[];
@@ -27,6 +30,7 @@ interface ReportRow {
 }
 
 interface ReportSection {
+  key: SectionKey;
   title: string;
   headers: string[]; // label headers followed by numeric headers
   labelColCount: number;
@@ -54,6 +58,7 @@ function buildExtruderSection(items: ExtruderProductionVariantChemicalSummary[])
     values: [r.production, r.lumsKg, r.yarnWasteKg, r.total],
   }));
   return {
+    key: 'extruderProduction',
     title: 'Extruder Production',
     headers: ['Size', 'Color', 'Chemical', 'Production (kg)', 'Lums (kg)', 'Yarn Waste (kg)', 'Total (kg)'],
     labelColCount: 3,
@@ -68,6 +73,7 @@ function buildLoomsSection(items: LoomsProductionVariantChemicalSummary[]): Repo
     values: [r.production, r.waste, r.total],
   }));
   return {
+    key: 'loomsProduction',
     title: 'Looms Production',
     headers: ['Size', 'Color', 'Chemical', 'Production (kg)', 'Waste (kg)', 'Total (kg)'],
     labelColCount: 3,
@@ -82,6 +88,7 @@ function buildFabricSection(items: FabricProductionVariantChemicalSummary[]): Re
     values: [r.outputKg, r.fwWasteKg, r.bwWasteKg, r.total],
   }));
   return {
+    key: 'fabricChecking',
     title: 'Fabric Checking',
     headers: ['Size', 'Color', 'Chemical', 'Output (kg)', 'FW Waste (kg)', 'BW Waste (kg)', 'Total (kg)'],
     labelColCount: 3,
@@ -96,6 +103,7 @@ function buildFabricDeliveredSection(items: DeliveryVariantRow[]): ReportSection
     values: [r.delivered],
   }));
   return {
+    key: 'fabricDelivered',
     title: 'Fabric Delivered',
     headers: ['Size', 'Color', 'Chemical', 'Delivered (kg)'],
     labelColCount: 3,
@@ -128,19 +136,18 @@ interface ProductionPdfViewProps {
 export function ProductionPdfView({ tab, allReports, selectedReport, onReportChange }: ProductionPdfViewProps) {
   const isSample = tab === 'sample_production_report';
 
-  const [fromMonthStr, setFromMonthStr] = useState(() => {
-    const d = new Date();
-    return `${d.getFullYear()}-${(d.getMonth() + 1).toString().padStart(2, '0')}`;
-  });
-  const [toMonthStr, setToMonthStr] = useState(() => {
-    const d = new Date();
-    return `${d.getFullYear()}-${(d.getMonth() + 1).toString().padStart(2, '0')}`;
-  });
+  const period = useReportPeriod();
 
-  const { data, isLoading } = useProductionPdfData(fromMonthStr, toMonthStr, isSample);
+  const { data, isLoading } = useProductionPdfData(period.effectiveFrom, period.effectiveTo, isSample);
   const [pdfBlobUrl, setPdfBlobUrl] = useState<string | null>(null);
   const [isGenerating, setIsGenerating] = useState(false);
   const [isGeneratingXlsx, setIsGeneratingXlsx] = useState(false);
+
+  const [visibleSections, setVisibleSections] = useState<Record<SectionKey, boolean>>(
+    () => Object.fromEntries(SECTION_DEFS.map((s) => [s.key, true])) as Record<SectionKey, boolean>
+  );
+  const toggleSection = (key: SectionKey) =>
+    setVisibleSections((prev) => ({ ...prev, [key]: !prev[key] }));
 
   useEffect(() => {
     if (isLoading || !data) return;
@@ -170,8 +177,7 @@ export function ProductionPdfView({ tab, allReports, selectedReport, onReportCha
 
       doc.text(title, 105, y, { align: 'center' });
       y += 7;
-      const periodText = fromMonthStr === toMonthStr ? getMonthName(fromMonthStr) : `${getMonthName(fromMonthStr)} - ${getMonthName(toMonthStr)}`;
-      doc.text(`Period: ${periodText}`, 105, y, { align: 'center' });
+      doc.text(`Period: ${period.label}`, 105, y, { align: 'center' });
       y += 5;
 
       doc.setDrawColor(...TEAL);
@@ -179,7 +185,7 @@ export function ProductionPdfView({ tab, allReports, selectedReport, onReportCha
       doc.line(14, y, 196, y);
       y += 8;
 
-      const sections = buildSections(data);
+      const sections = buildSections(data).filter((s) => visibleSections[s.key]);
 
       const pageHeight = doc.internal.pageSize.getHeight();
 
@@ -227,7 +233,7 @@ export function ProductionPdfView({ tab, allReports, selectedReport, onReportCha
     return () => {
       isCancelled = true;
     };
-  }, [data, isLoading, tab, fromMonthStr, toMonthStr, isSample]);
+  }, [data, isLoading, tab, period.label, isSample, visibleSections]);
 
   const handleDownloadXlsx = async () => {
     if (!data) return;
@@ -237,7 +243,7 @@ export function ProductionPdfView({ tab, allReports, selectedReport, onReportCha
       const wb = utils.book_new();
       const wsData: any[][] = [];
 
-      const sections = buildSections(data);
+      const sections = buildSections(data).filter((s) => visibleSections[s.key]);
 
       for (const section of sections) {
         wsData.push([section.title]);
@@ -251,8 +257,7 @@ export function ProductionPdfView({ tab, allReports, selectedReport, onReportCha
       const ws = utils.aoa_to_sheet(wsData);
       utils.book_append_sheet(wb, ws, displayTitle.substring(0, 31));
 
-      const period = fromMonthStr === toMonthStr ? fromMonthStr : `${fromMonthStr}_to_${toMonthStr}`;
-      writeFile(wb, `Anitha_Knits_${isSample ? 'Sample_' : ''}Production_Details_${period}.xlsx`);
+      writeFile(wb, `Anitha_Knits_${isSample ? 'Sample_' : ''}Production_Details_${period.fileSuffix}.xlsx`);
     } catch (err) {
       console.error(err);
     } finally {
@@ -264,8 +269,7 @@ export function ProductionPdfView({ tab, allReports, selectedReport, onReportCha
     if (pdfBlobUrl) {
       const a = document.createElement('a');
       a.href = pdfBlobUrl;
-      const period = fromMonthStr === toMonthStr ? fromMonthStr : `${fromMonthStr}_to_${toMonthStr}`;
-      a.download = `Anitha_Knits_${isSample ? 'Sample_' : ''}Production_Details_${period}.pdf`;
+      a.download = `Anitha_Knits_${isSample ? 'Sample_' : ''}Production_Details_${period.fileSuffix}.pdf`;
       document.body.appendChild(a);
       a.click();
       document.body.removeChild(a);
@@ -280,17 +284,42 @@ export function ProductionPdfView({ tab, allReports, selectedReport, onReportCha
       allReports={allReports}
       selectedReport={selectedReport}
       onReportChange={onReportChange}
-      fromMonthStr={fromMonthStr}
-      toMonthStr={toMonthStr}
-      onFromMonthChange={setFromMonthStr}
-      onToMonthChange={setToMonthStr}
-      showMonthPicker={true}
+      period={period}
+      showPeriodPicker={true}
       pdfBlobUrl={pdfBlobUrl}
       isGenerating={isGenerating}
       isGeneratingXlsx={isGeneratingXlsx}
       isLoading={isLoading}
       onDownloadXlsx={handleDownloadXlsx}
       onDownload={handleDownload}
+      sectionsPanel={
+        <div className="flex flex-col gap-1.5">
+          {SECTION_DEFS.map(({ key, label }) => (
+            <button
+              key={key}
+              onClick={() => toggleSection(key)}
+              className={`flex items-center gap-2.5 rounded-lg px-3 py-2 text-left transition-all border ${
+                visibleSections[key]
+                  ? 'bg-[#004D40]/5 border-[#004D40]/20 text-[#004D40]'
+                  : 'bg-transparent border-transparent text-gray-400 hover:bg-gray-50'
+              }`}
+            >
+              <span
+                className={`w-4 h-4 rounded border-2 flex items-center justify-center shrink-0 transition-all ${
+                  visibleSections[key] ? 'bg-[#004D40] border-[#004D40]' : 'border-gray-300'
+                }`}
+              >
+                {visibleSections[key] && (
+                  <svg className="w-2.5 h-2.5 text-white" fill="none" viewBox="0 0 10 10">
+                    <path d="M1.5 5L4 7.5L8.5 2.5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+                  </svg>
+                )}
+              </span>
+              <span className="text-[12px] font-medium leading-tight">{label}</span>
+            </button>
+          ))}
+        </div>
+      }
     />
   );
 }

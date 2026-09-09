@@ -214,6 +214,24 @@ export interface DashboardResponse {
 
 export const monthlyDashboardKey = ['dashboard', 'monthly'] as const;
 
+/** Accepts either a "YYYY-MM" month (expanded to that month's first/last day) or an exact "YYYY-MM-DD" date, passed through as-is. */
+function toDateFrom(str: string): string {
+  if (str.length === 7) {
+    const [year, month] = str.split('-');
+    return `${year}-${month}-01`;
+  }
+  return str;
+}
+
+function toDateTo(str: string): string {
+  if (str.length === 7) {
+    const [year, month] = str.split('-');
+    const lastDay = new Date(parseInt(year), parseInt(month), 0).getDate();
+    return `${year}-${month}-${lastDay}`;
+  }
+  return str;
+}
+
 export function useMonthlyDashboard(fromMonthStr?: string, toMonthStr?: string, type: 'PRODUCTION' | 'SAMPLE' = 'PRODUCTION') {
   const queryKey = [...monthlyDashboardKey, fromMonthStr ?? 'current', toMonthStr ?? 'current', type] as const;
 
@@ -221,16 +239,8 @@ export function useMonthlyDashboard(fromMonthStr?: string, toMonthStr?: string, 
     queryKey,
     queryFn: () => {
       const params = new URLSearchParams({ type });
-      if (fromMonthStr) {
-        const [year, month] = fromMonthStr.split('-');
-        params.set('date_from', `${year}-${month}-01`);
-      }
-      if (toMonthStr) {
-        const [year, month] = toMonthStr.split('-');
-        // Get the last day of the month for date_to
-        const lastDay = new Date(parseInt(year), parseInt(month), 0).getDate();
-        params.set('date_to', `${year}-${month}-${lastDay}`);
-      }
+      if (fromMonthStr) params.set('date_from', toDateFrom(fromMonthStr));
+      if (toMonthStr) params.set('date_to', toDateTo(toMonthStr));
       return fetchJson<DashboardResponse>(`/dashboard?${params.toString()}`);
     },
   });
