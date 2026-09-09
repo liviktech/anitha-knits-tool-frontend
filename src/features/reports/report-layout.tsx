@@ -27,6 +27,8 @@ interface ReportLayoutProps {
   onDownload: () => void;
   onDownloadXlsx?: () => void;
   isGeneratingXlsx?: boolean;
+  /** Set false once loading finishes and the report has no rows to show (for the selected period/sections) — shows "No preview available" instead of a blank PDF. Defaults to true. */
+  hasData?: boolean;
 
   // Optional date format for the download file name fallback
   downloadFileName?: string;
@@ -47,6 +49,7 @@ export function ReportLayout({
   onDownload,
   onDownloadXlsx,
   isGeneratingXlsx,
+  hasData = true,
 }: ReportLayoutProps) {
   return (
     <div className="flex h-full min-h-0 bg-[#004D40]/5">
@@ -176,7 +179,7 @@ export function ReportLayout({
             {onDownloadXlsx && (
               <Button
                 onClick={onDownloadXlsx}
-                disabled={isGeneratingXlsx || isLoading}
+                disabled={isGeneratingXlsx || isLoading || !hasData}
                 className="flex items-center justify-center gap-2 bg-[#004D40] font-hanken hover:bg-[#00382e] text-white rounded-md px-4 py-2 h-auto text-[13px] font-bold tracking-wide transition-colors shadow-sm"
               >
                 {isGeneratingXlsx ? <Loader className="w-4 h-4 animate-spin" /> : <Download className="w-4 h-4" />}
@@ -185,7 +188,7 @@ export function ReportLayout({
             )}
             <Button
               onClick={onDownload}
-              disabled={!pdfBlobUrl || isGenerating || isLoading}
+              disabled={!pdfBlobUrl || isGenerating || isLoading || !hasData}
               className="flex items-center justify-center gap-2 bg-[#004D40] font-hanken hover:bg-[#00382e] text-white rounded-md px-4 py-2 h-auto text-[13px] font-bold tracking-wide transition-colors shadow-sm"
             >
               <Download className="w-4 h-4" /> Download PDF
@@ -200,6 +203,11 @@ export function ReportLayout({
               <div className="flex-1 flex flex-col items-center justify-center py-20 text-[#004D40]/60">
                 <Loader size="lg" className="mb-4 text-[#004D40]" />
                 <p className="text-sm font-hanken font-bold">Generating PDF Preview...</p>
+              </div>
+            ) : !hasData ? (
+              <div className="flex-1 flex flex-col items-center justify-center">
+                <p className="text-base font-hanken font-bold text-[#004D40]">No preview available</p>
+                <p className="text-sm font-hanken mt-1.5 text-gray-500">No data found for the selected period</p>
               </div>
             ) : pdfBlobUrl ? (
               <iframe
