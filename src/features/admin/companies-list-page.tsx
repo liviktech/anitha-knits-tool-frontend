@@ -9,7 +9,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Loader } from '@/components/shared/loader';
 import { TablePaginationControls, RowsPerPageSelect } from '@/components/shared/table-pagination-controls';
-import { useCompanies, formatCompanyDate, type Company } from './companies-queries';
+import { useCompanies, useDeleteCompany, formatCompanyDate, type Company } from './companies-queries';
 import { CompanyFormDialog } from './company-form-dialog';
 
 /**
@@ -27,7 +27,8 @@ export function CompaniesListPage() {
   const { data, isLoading, isError } = useCompanies('');
   const [formState, setFormState] = useState<{ mode: 'add' | 'edit'; company: Company | null } | null>(null);
   const [companyToDelete, setCompanyToDelete] = useState<Company | null>(null);
-  const [isDeleting, setIsDeleting] = useState(false);
+  const [deleteError, setDeleteError] = useState<string | null>(null);
+  const deleteCompany = useDeleteCompany();
 
   const filteredCompanies = useMemo(() => {
     let items = (data?.data ?? []).slice();
@@ -224,7 +225,7 @@ export function CompaniesListPage() {
 
         {formState && <CompanyFormDialog company={formState.company} onClose={() => setFormState(null)} />}
 
-        <Dialog open={!!companyToDelete} onOpenChange={(open) => !open && setCompanyToDelete(null)}>
+        <Dialog open={!!companyToDelete} onOpenChange={(open) => { if (!open) { setCompanyToDelete(null); setDeleteError(null); } }}>
           <DialogContent>
             <DialogHeader>
               <DialogTitle>Delete Company</DialogTitle>
@@ -232,23 +233,25 @@ export function CompaniesListPage() {
                 Are you sure you want to delete <strong>{companyToDelete?.name}</strong> ({companyToDelete?.companyCode})? This action cannot be undone and will remove all associated data.
               </DialogDescription>
             </DialogHeader>
+            {deleteError && <p className="text-[11px] text-red-600 font-medium">{deleteError}</p>}
             <DialogFooter className="mt-4">
-              <Button className="text-xs " variant="outline" onClick={() => setCompanyToDelete(null)} disabled={isDeleting}>Cancel</Button>
+              <Button className="text-xs " variant="outline" onClick={() => { setCompanyToDelete(null); setDeleteError(null); }} disabled={deleteCompany.isPending}>Cancel</Button>
               <Button
                 variant="destructive"
                 className="bg-red-600 hover:bg-red-700 text-white text-xs"
-                disabled={isDeleting}
+                disabled={deleteCompany.isPending}
                 onClick={async () => {
-                  setIsDeleting(true);
-                  // Placeholder for actual API call
-                  setTimeout(() => {
-                    console.log('Deleted', companyToDelete?.id);
-                    setIsDeleting(false);
+                  if (!companyToDelete) return;
+                  setDeleteError(null);
+                  try {
+                    await deleteCompany.mutateAsync(companyToDelete.id);
                     setCompanyToDelete(null);
-                  }, 800);
+                  } catch (err) {
+                    setDeleteError(err instanceof Error ? err.message : 'Failed to delete company');
+                  }
                 }}
               >
-                {isDeleting && <Loader size="sm" className="mr-2 text-white" />}
+                {deleteCompany.isPending && <Loader size="sm" className="mr-2 text-white" />}
                 Delete Company
               </Button>
             </DialogFooter>

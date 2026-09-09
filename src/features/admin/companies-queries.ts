@@ -1,5 +1,5 @@
-import { useQuery } from '@tanstack/react-query';
-import { fetchJson } from '@/lib/api-client';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { apiFetch, fetchJson } from '@/lib/api-client';
 import type { PaginationMeta } from '@/lib/api-types';
 
 /** Matches the real API's CompanySummary schema (see /api/docs). */
@@ -89,6 +89,26 @@ export function useCompanyUsers(id: string | undefined, enabled: boolean = true)
     queryKey: companiesKeys.users(id ?? ''),
     queryFn: () => fetchJson<CompanyUsersResponse>(`/platform/admin/companies/${id}/users`),
     enabled: enabled && !!id,
+  });
+}
+
+/** Permanently deletes a company; cascades server-side to its users/employees/all other data. */
+export function useDeleteCompany() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async (id: string) => {
+      const response = await apiFetch(`/platform/admin/companies/${id}`, {
+        method: 'DELETE',
+      });
+      if (!response.ok) {
+        const err = await response.json().catch(() => ({}));
+        throw new Error(err.error?.message || 'Failed to delete company');
+      }
+      return true;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: companiesKeys.all });
+    },
   });
 }
 

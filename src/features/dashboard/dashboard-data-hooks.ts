@@ -73,6 +73,7 @@ export function buildWastageChemicalRows(
   records: any[],
   stage: 'extruder' | 'looms' | 'fabric',
   currentMonthStr: string,
+  obRecords: any[] = [],
 ): ColorChemicalRow[] {
   return FABRIC_COLORS.map((color) => {
     const stageRecords = records.filter(
@@ -115,6 +116,33 @@ export function buildWastageChemicalRows(
         entry.bitWaste.set(size, (entry.bitWaste.get(size) ?? 0) + bwKg);
       }
     });
+
+    // Opening Balance wastage is a running baseline, not tied to a production
+    // month, so it's merged in unfiltered — matching how looseWasteKg/lumsWasteKg
+    // and loomsWasteByColor/fabricWasteByColor already fold it into their totals.
+    obRecords
+      .filter((r: any) => r.color?.name?.toLowerCase() === color.toLowerCase())
+      .forEach((r: any) => {
+        const chemical = r.chemical?.name || 'Unknown';
+        const size = r.size?.name;
+        if (!size) return;
+        if (!chemMap.has(chemical)) {
+          chemMap.set(chemical, {
+            lums: new Map(), yarnWaste: new Map(),
+            loomsWaste: new Map(), fabricWaste: new Map(), bitWaste: new Map(),
+          });
+        }
+        const entry = chemMap.get(chemical)!;
+        if (stage === 'extruder') {
+          entry.lums.set(size, (entry.lums.get(size) ?? 0) + (r.extruderLumpsKg || 0));
+          entry.yarnWaste.set(size, (entry.yarnWaste.get(size) ?? 0) + (r.extruderLoomsWasteKg || 0));
+        } else if (stage === 'looms') {
+          entry.loomsWaste.set(size, (entry.loomsWaste.get(size) ?? 0) + (r.loomsYarnWasteKg || 0));
+        } else {
+          entry.fabricWaste.set(size, (entry.fabricWaste.get(size) ?? 0) + (r.fabricWasteKg || 0));
+          entry.bitWaste.set(size, (entry.bitWaste.get(size) ?? 0) + (r.fabricBitwasteKg || 0));
+        }
+      });
 
     const chemicals = Array.from(chemMap.entries())
       .map(([chemical, entry]) => ({
@@ -235,6 +263,7 @@ export interface DashboardDataResult {
   extruderProductionsData: any[];
   loomsProductionsData: any[];
   fabricCheckingData: any[];
+  obWastage: any[];
 
   // Sample tab
   sampleExtruderColorRows: ExtruderSummaryColorRow[];
@@ -277,8 +306,8 @@ export interface DashboardDataResult {
 // ─── Main hook ────────────────────────────────────────────────────────────────
 
 export function useDashboardData(currentMonthStr: string): DashboardDataResult {
-  const { dashboardData, isLoading: loadingDashboard } = useMonthlyDashboard(currentMonthStr);
-  const { dashboardData: sampleDashboardData, isLoading: loadingSampleDashboard } = useMonthlyDashboard(currentMonthStr, 'SAMPLE');
+  const { dashboardData, isLoading: loadingDashboard } = useMonthlyDashboard(currentMonthStr, currentMonthStr, 'PRODUCTION');
+  const { dashboardData: sampleDashboardData, isLoading: loadingSampleDashboard } = useMonthlyDashboard(currentMonthStr, currentMonthStr, 'SAMPLE');
 
   const { data: extruderProductionsRes } = useExtruderProductions('?limit=100&type=PRODUCTION');
   const { data: sampleExtruderProductionsRes } = useExtruderProductions('?limit=100&type=SAMPLE');
@@ -390,11 +419,14 @@ export function useDashboardData(currentMonthStr: string): DashboardDataResult {
         return { size, lums: r?.lumsKg ?? 0, yarnWaste: r?.yarnWasteKg ?? 0 };
       }),
     }));
-    const extruderWasteSummaryByColor = extruderWasteByVariant.map((row) => ({
-      color: row.color,
-      lums: row.sizes.reduce((s, r) => s + r.lums, 0),
-      yarnWaste: row.sizes.reduce((s, r) => s + r.yarnWaste, 0),
-    }));
+    const extruderWasteSummaryByColor = extruderWasteByVariant.map((row) => {
+      const ob = obWastageByColor.get(row.color) ?? { lums: 0, loose: 0 };
+      return {
+        color: row.color,
+        lums: row.sizes.reduce((s, r) => s + r.lums, 0) + ob.lums,
+        yarnWaste: row.sizes.reduce((s, r) => s + r.yarnWaste, 0) + ob.loose,
+      };
+    });
 
     // ── Production — looms ─────────────────────────────────────────────────
     const loomsByColorMap = new Map((dashboardData?.loomsProduction?.byColor ?? []).map((r) => [r.color.name, r]));
@@ -446,7 +478,7 @@ export function useDashboardData(currentMonthStr: string): DashboardDataResult {
       const s = r.size?.name; const ch = r.chemical?.name || 'Unknown';
       if (!c || !s) return;
       const k = toKey(c, s, ch);
-      yarnBalanceMap.set(k, { balance: (yarnBalanceMap.get(k)?.balance || 0) - ((r.loom?.fabricOutputKg || 0) + (r.wastage?.totalWasteKg || 0)) });
+      yarnBalanceMap.set(k, { balance: (yarnBalanceMap.get(k)?.balance || 0) - (r.loom?.yarnInputKg || 0) });
     });
 
     const koraBalanceMap = new Map<string, any>();
@@ -457,19 +489,20 @@ export function useDashboardData(currentMonthStr: string): DashboardDataResult {
       const k = toKey(c, s, ch);
       koraBalanceMap.set(k, { balance: (koraBalanceMap.get(k)?.balance || 0) + (r.koraBalanceKg || 0) });
     });
-    loomsProductionsRes?.data?.forEach((r: any) => {
+    // Use monthly dashboard summary (byVariantChemical) so detail rows match the totals.
+    (dashboardData?.loomsProduction?.byVariantChemical ?? []).forEach((r: any) => {
       const c = normalizeColor(r.color?.name ?? '');
       const s = r.size?.name; const ch = r.chemical?.name || 'Unknown';
       if (!c || !s) return;
       const k = toKey(c, s, ch);
-      koraBalanceMap.set(k, { balance: (koraBalanceMap.get(k)?.balance || 0) + (r.loom?.fabricOutputKg || 0) });
+      koraBalanceMap.set(k, { balance: (koraBalanceMap.get(k)?.balance || 0) + (r.production || 0) });
     });
-    fabricCheckingRes?.data?.forEach((r: any) => {
+    (dashboardData?.fabricProduction?.byVariantChemical ?? []).forEach((r: any) => {
       const c = normalizeColor(r.color?.name ?? '');
       const s = r.size?.name; const ch = r.chemical?.name || 'Unknown';
       if (!c || !s) return;
       const k = toKey(c, s, ch);
-      koraBalanceMap.set(k, { balance: (koraBalanceMap.get(k)?.balance || 0) - (r.fabricCheck?.outputKg || 0) });
+      koraBalanceMap.set(k, { balance: (koraBalanceMap.get(k)?.balance || 0) - (r.fabricInputKg || 0) });
     });
 
     const fabricStockMap = new Map<string, any>();
@@ -479,6 +512,13 @@ export function useDashboardData(currentMonthStr: string): DashboardDataResult {
       if (!c || !s) return;
       const k = toKey(c, s, ch);
       fabricStockMap.set(k, { availableFabricStockKg: (fabricStockMap.get(k)?.availableFabricStockKg || 0) + (r.availableFabricStockKg || 0) });
+    });
+    obFabricStock.forEach((r: any) => {
+      const c = normalizeColor(r.color?.name ?? '');
+      const s = r.size?.name; const ch = r.chemical?.name || 'Unknown';
+      if (!c || !s) return;
+      const k = toKey(c, s, ch);
+      fabricStockMap.set(k, { availableFabricStockKg: (fabricStockMap.get(k)?.availableFabricStockKg || 0) + (r.fabricStockKg || 0) });
     });
 
     const fabricDeliveredMap = new Map<string, any>();
@@ -498,7 +538,7 @@ export function useDashboardData(currentMonthStr: string): DashboardDataResult {
     const yarnBalanceByColor: BalanceColorRow[] = FABRIC_COLORS.map((color) => {
       const yarnProduced = extruderByColorMap.get(color)?.production ?? 0;
       const loomsRow = loomsByColorMap.get(color);
-      return { color, balance: Math.max(0, yarnProduced - ((loomsRow?.production ?? 0) + (loomsRow?.waste ?? 0))) };
+      return { color, balance: Math.max(0, yarnProduced - (loomsRow?.production ?? 0)) };
     });
     const yarnBalanceByVariant: BalanceVariantRow[] = FABRIC_COLORS.map((color) => ({
       color,
@@ -506,7 +546,7 @@ export function useDashboardData(currentMonthStr: string): DashboardDataResult {
         const key = `${color}_${size}`;
         const yarnProduced = extruderByVariantMap.get(key)?.production ?? 0;
         const loomsRow = loomsByVariantMap.get(key);
-        return { size, balance: Math.max(0, yarnProduced - ((loomsRow?.production ?? 0) + (loomsRow?.waste ?? 0))) };
+        return { size, balance: Math.max(0, yarnProduced - (loomsRow?.production ?? 0)) };
       }),
     }));
 
@@ -606,7 +646,7 @@ export function useDashboardData(currentMonthStr: string): DashboardDataResult {
     const sampleYarnBalanceByColor: BalanceColorRow[] = FABRIC_COLORS.map((color) => {
       const yarnProduced = sampleExtruderByColorMap.get(color)?.production ?? 0;
       const loomsRow = sampleLoomsByColorMap.get(color);
-      return { color, balance: Math.max(0, yarnProduced - ((loomsRow?.production ?? 0) + (loomsRow?.waste ?? 0))) };
+      return { color, balance: Math.max(0, yarnProduced - (loomsRow?.production ?? 0)) };
     });
     const sampleYarnBalanceByVariant: BalanceVariantRow[] = FABRIC_COLORS.map((color) => ({
       color,
@@ -614,7 +654,7 @@ export function useDashboardData(currentMonthStr: string): DashboardDataResult {
         const key = `${color}_${size}`;
         const yarnProduced = sampleExtruderByVariantMap.get(key)?.production ?? 0;
         const loomsRow = sampleLoomsByVariantMap.get(key);
-        return { size, balance: Math.max(0, yarnProduced - ((loomsRow?.production ?? 0) + (loomsRow?.waste ?? 0))) };
+        return { size, balance: Math.max(0, yarnProduced - (loomsRow?.production ?? 0)) };
       }),
     }));
 
@@ -643,21 +683,22 @@ export function useDashboardData(currentMonthStr: string): DashboardDataResult {
       const c = normalizeColor(r.color?.name ?? ''); const s = r.size?.name; const ch = r.chemical?.name || 'Unknown';
       if (!c || !s) return;
       const k = toKey(c, s, ch);
-      sampleYarnBalanceMap.set(k, { balance: (sampleYarnBalanceMap.get(k)?.balance || 0) - ((r.loom?.fabricOutputKg || 0) + (r.wastage?.totalWasteKg || 0)) });
+      sampleYarnBalanceMap.set(k, { balance: (sampleYarnBalanceMap.get(k)?.balance || 0) - (r.loom?.yarnInputKg || 0) });
     });
 
     const sampleKoraBalanceMap = new Map<string, any>();
-    sampleLoomsProductionsRes?.data?.forEach((r: any) => {
+    // Use monthly dashboard summary (byVariantChemical) so detail rows match the totals.
+    (sampleDashboardData?.loomsProduction?.byVariantChemical ?? []).forEach((r: any) => {
       const c = normalizeColor(r.color?.name ?? ''); const s = r.size?.name; const ch = r.chemical?.name || 'Unknown';
       if (!c || !s) return;
       const k = toKey(c, s, ch);
-      sampleKoraBalanceMap.set(k, { balance: (sampleKoraBalanceMap.get(k)?.balance || 0) + (r.loom?.fabricOutputKg || 0) });
+      sampleKoraBalanceMap.set(k, { balance: (sampleKoraBalanceMap.get(k)?.balance || 0) + (r.production || 0) });
     });
-    sampleFabricCheckingRes?.data?.forEach((r: any) => {
+    (sampleDashboardData?.fabricProduction?.byVariantChemical ?? []).forEach((r: any) => {
       const c = normalizeColor(r.color?.name ?? ''); const s = r.size?.name; const ch = r.chemical?.name || 'Unknown';
       if (!c || !s) return;
       const k = toKey(c, s, ch);
-      sampleKoraBalanceMap.set(k, { balance: (sampleKoraBalanceMap.get(k)?.balance || 0) - (r.fabricCheck?.outputKg || 0) });
+      sampleKoraBalanceMap.set(k, { balance: (sampleKoraBalanceMap.get(k)?.balance || 0) - (r.fabricInputKg || 0) });
     });
 
     const sampleFabricStockMap = new Map<string, any>();
@@ -704,6 +745,7 @@ export function useDashboardData(currentMonthStr: string): DashboardDataResult {
       extruderProductionsData: extruderProductionsRes?.data ?? [],
       loomsProductionsData: loomsProductionsRes?.data ?? [],
       fabricCheckingData: fabricCheckingRes?.data ?? [],
+      obWastage,
       sampleExtruderColorRows, sampleExtruderGrandTotal, sampleExtruderBySizeRows, sampleExtruderByChemicalRows,
       sampleLoomsColorRows, sampleLoomsGrandTotal, sampleLoomsBySizeRows, sampleLoomsByChemicalRows,
       sampleFabricColorRows, sampleFabricGrandTotal, sampleFabricBySizeRows, sampleFabricByChemicalRows,
