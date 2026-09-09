@@ -1,7 +1,8 @@
+import { useState } from 'react';
 import { Dialog, DialogClose, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Table, TableBody, TableCell, TableFooter, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { FileDown, X } from 'lucide-react';
+import { FileDown, FileSpreadsheet, Loader2, X } from 'lucide-react';
 
 const TEAL: [number, number, number] = [0, 77, 64]; // #004D40 — this app's primary accent
 const TEAL_TINT: [number, number, number] = [232, 245, 240]; // light teal for footer/total rows
@@ -52,6 +53,8 @@ export function PayrollReportModal({
   totalAdvances,
   totalMachineValue,
 }: PayrollReportModalProps) {
+  const [isGeneratingXlsx, setIsGeneratingXlsx] = useState(false);
+
   const handleDownloadPDF = async () => {
     if (rows.length === 0) return;
 
@@ -125,6 +128,40 @@ export function PayrollReportModal({
     doc.save(`Payroll_Report_${monthStr}.pdf`);
   };
 
+  const handleDownloadXlsx = async () => {
+    if (rows.length === 0) return;
+    setIsGeneratingXlsx(true);
+    try {
+      const { utils, writeFile } = await import('xlsx');
+      const wb = utils.book_new();
+      const wsData: any[][] = [];
+
+      wsData.push(['ANITHA KNITS']);
+      wsData.push(['PAYROLL REPORT']);
+      wsData.push([`Period: ${getMonthName(monthStr)}`]);
+      wsData.push([]);
+      wsData.push([`Total Payroll: ${formatCurrency(totalPayroll)}`, `Total Advances: ${formatCurrency(totalAdvances)}`, '', `Machine Value: ${formatCurrency(totalMachineValue)}`]);
+      wsData.push([]);
+      wsData.push(['Emp ID', 'Name', 'Base Salary', 'Days Worked', 'Gross Salary', 'Advance Deducted', 'Machine Value', 'Market Value', 'Other Deduction', 'Net Payable']);
+      rows.forEach((row) => {
+        wsData.push([
+          row.employeeId, row.name, row.baseSalary, row.daysWorked, row.grossSalary,
+          row.advanceDeduction, row.marketValueBonus, row.marketValueDeduction, row.otherDeduction, row.netSalary,
+        ]);
+      });
+      wsData.push(['', '', '', '', '', '', '', '', 'Total:', totalPayroll]);
+
+      const ws = utils.aoa_to_sheet(wsData);
+      utils.book_append_sheet(wb, ws, 'Payroll');
+
+      writeFile(wb, `Payroll_Report_${monthStr}.xlsx`);
+    } catch (err) {
+      console.error(err);
+    } finally {
+      setIsGeneratingXlsx(false);
+    }
+  };
+
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent showCloseButton={false} className="max-w-6xl sm:max-w-6xl max-h-[85vh] flex flex-col p-0 border border-gray-300 overflow-hidden bg-white print:max-w-none print:h-auto print:border-none">
@@ -137,6 +174,10 @@ export function PayrollReportModal({
               Payroll Report Overview
             </DialogTitle>
             <div className="flex items-center gap-3">
+              <Button size="sm" onClick={handleDownloadXlsx} disabled={rows.length === 0 || isGeneratingXlsx} className="gap-2 bg-[#004D40] text-white hover:bg-[#00382e]">
+                {isGeneratingXlsx ? <Loader2 className="w-4 h-4 animate-spin" /> : <FileSpreadsheet className="w-4 h-4" />} Download XLSX
+              </Button>
+
               <Button size="sm" onClick={handleDownloadPDF} disabled={rows.length === 0} className="gap-2 bg-[#004D40] text-white hover:bg-[#00382e]">
                 <FileDown className="w-4 h-4" /> Download PDF
               </Button>

@@ -61,8 +61,8 @@ export function DashboardPdfView({ tab, allReports, selectedReport, onReportChan
     return `${d.getFullYear()}-${(d.getMonth() + 1).toString().padStart(2, '0')}`;
   });
 
-  const isSample = tab === 'sample_production';
-  const isWastage = tab === 'wastage_summary';
+  const isSample = tab === 'sample_production' || tab === 'sample_wastage_summary';
+  const isWastage = tab === 'wastage_summary' || tab === 'sample_wastage_summary';
   const data = useDashboardReportData(fromMonthStr, toMonthStr, isSample);
 
   const allSectionDefs = isWastage ? WASTAGE_SECTIONS : PRODUCTION_SECTIONS;
@@ -110,6 +110,7 @@ export function DashboardPdfView({ tab, allReports, selectedReport, onReportChan
       if (tab === 'production_summary') title = 'PRODUCTION SUMMARY REPORT';
       else if (tab === 'sample_production') title = 'SAMPLE PRODUCTION REPORT';
       else if (tab === 'wastage_summary') title = 'WASTAGE SUMMARY REPORT';
+      else if (tab === 'sample_wastage_summary') title = 'SAMPLE WASTAGE SUMMARY REPORT';
 
       doc.text(title, 105, y, { align: 'center' });
       y += 7;
@@ -206,7 +207,7 @@ export function DashboardPdfView({ tab, allReports, selectedReport, onReportChan
           );
         }
 
-      } else if (tab === 'wastage_summary') {
+      } else if (isWastage) {
         if (visibleSections.extruderWastage && data.extruderWasteVariantRows.length > 0) {
           section(
             'Extruder Wastage',
@@ -330,7 +331,7 @@ export function DashboardPdfView({ tab, allReports, selectedReport, onReportChan
           );
         }
 
-      } else if (tab === 'wastage_summary') {
+      } else if (isWastage) {
         if (visibleSections.extruderWastage && data.extruderWasteVariantRows.length > 0) {
           section(
             'Extruder Wastage',
@@ -363,6 +364,7 @@ export function DashboardPdfView({ tab, allReports, selectedReport, onReportChan
       if (tab === 'production_summary') displayTitle = 'Production Summary';
       else if (tab === 'sample_production') displayTitle = 'Sample Production';
       else if (tab === 'wastage_summary') displayTitle = 'Wastage Summary';
+      else if (tab === 'sample_wastage_summary') displayTitle = 'Sample Wastage Summary';
 
       const ws = utils.aoa_to_sheet(wsData);
       utils.book_append_sheet(wb, ws, displayTitle.substring(0, 31));
@@ -380,6 +382,7 @@ export function DashboardPdfView({ tab, allReports, selectedReport, onReportChan
   if (tab === 'production_summary') displayTitle = 'Production Summary';
   else if (tab === 'sample_production') displayTitle = 'Sample Production';
   else if (tab === 'wastage_summary') displayTitle = 'Wastage Summary';
+  else if (tab === 'sample_wastage_summary') displayTitle = 'Sample Wastage Summary';
 
   return (
     <ReportLayout

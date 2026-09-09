@@ -162,6 +162,42 @@ export function buildWastageChemicalRows(
   });
 }
 
+// Sample-side equivalent of looseWasteKg/lumsWasteKg/loomsWasteByColor/fabricWasteByColor —
+// used both by the on-screen Wastage tab's Sample toggle and the Wastage Summary report, so the
+// report can show the exact numbers the toggle is currently displaying.
+export function buildSampleWastageTotals(
+  sampleExtruderData: any[],
+  sampleLoomsData: any[],
+  sampleFabricData: any[],
+  currentMonthStr: string,
+) {
+  const sampleLooseWaste = sampleExtruderData
+    .filter((r: any) => r.productionDate?.startsWith(currentMonthStr))
+    .reduce((sum: number, r: any) => sum + (r.wastages?.find((w: any) => w.wastageType?.code === 'YARN_WASTE')?.quantityKg ?? 0), 0);
+  const sampleLums = sampleExtruderData
+    .filter((r: any) => r.productionDate?.startsWith(currentMonthStr))
+    .reduce((sum: number, r: any) => sum + (r.wastages?.find((w: any) => w.wastageType?.code === 'LUMPS')?.quantityKg ?? 0), 0);
+
+  const sampleLoomsWasteByColor = FABRIC_COLORS.map((color) => ({
+    color,
+    loomsWaste: sampleLoomsData
+      .filter((r: any) => r.color?.name?.toLowerCase() === color.toLowerCase() && r.productionDate?.startsWith(currentMonthStr))
+      .reduce((sum: number, r: any) => sum + (r.wastages?.find((w: any) => w.wastageType?.code === 'LOOMS_WASTE')?.quantityKg ?? 0), 0),
+  }));
+
+  const sampleFabricWasteByColor = FABRIC_COLORS.map((color) => ({
+    color,
+    fabricWaste: sampleFabricData
+      .filter((r: any) => r.color?.name?.toLowerCase() === color.toLowerCase() && r.productionDate?.startsWith(currentMonthStr))
+      .reduce((sum: number, r: any) => sum + (r.wastages?.find((w: any) => w.wastageType?.code === 'FW')?.quantityKg ?? 0), 0),
+    bitWaste: sampleFabricData
+      .filter((r: any) => r.color?.name?.toLowerCase() === color.toLowerCase() && r.productionDate?.startsWith(currentMonthStr))
+      .reduce((sum: number, r: any) => sum + (r.wastages?.find((w: any) => w.wastageType?.code === 'BW')?.quantityKg ?? 0), 0),
+  }));
+
+  return { sampleLooseWaste, sampleLums, sampleLoomsWasteByColor, sampleFabricWasteByColor };
+}
+
 function buildExtruderSummaryRows(dataMap: Map<string, any>): ExtruderSummaryColorRow[] {
   return FABRIC_COLORS.map((color) => {
     let colorTotal = 0;

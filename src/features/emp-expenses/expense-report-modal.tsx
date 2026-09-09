@@ -2,7 +2,7 @@ import { useState, useEffect } from "react";
 import { Dialog, DialogClose, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Table, TableBody, TableCell, TableFooter, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { FileDown, X } from "lucide-react";
+import { FileDown, FileSpreadsheet, Loader2, X } from "lucide-react";
 import { Loader } from "@/components/shared/loader";
 import { apiFetch } from "@/lib/api-client";
 
@@ -54,6 +54,7 @@ export function ExpenseReportModal({ open, onOpenChange, monthStr }: ExpenseRepo
   const [reportData, setReportData] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [isGeneratingXlsx, setIsGeneratingXlsx] = useState(false);
   const totalAmount = reportData.reduce((sum, item) => sum + item.amount, 0);
 
   useEffect(() => {
@@ -161,6 +162,37 @@ export function ExpenseReportModal({ open, onOpenChange, monthStr }: ExpenseRepo
     doc.save(`Expenses_Report_${monthStr}.pdf`);
   };
 
+  const handleDownloadXlsx = async () => {
+    if (reportData.length === 0) return;
+    setIsGeneratingXlsx(true);
+    try {
+      const { utils, writeFile } = await import("xlsx");
+      const wb = utils.book_new();
+      const wsData: any[][] = [];
+
+      wsData.push(["ANITHA KNITS"]);
+      wsData.push(["EXPENSE REPORT"]);
+      wsData.push([`Period: ${getMonthName(monthStr)}`]);
+      wsData.push([]);
+      wsData.push([`Total Expenses: ${formatCurrency(totalAmount)}`, "", "", `Total Entries: ${reportData.length}`]);
+      wsData.push([]);
+      wsData.push(["Date", "ID", "Expense Name", "Amount"]);
+      reportData.forEach((item) => {
+        wsData.push([formatDateDisplay(item.date), item.expenseId, item.expenseName, item.amount]);
+      });
+      wsData.push(["", "", "Total:", totalAmount]);
+
+      const ws = utils.aoa_to_sheet(wsData);
+      utils.book_append_sheet(wb, ws, "Expenses");
+
+      writeFile(wb, `Expenses_Report_${monthStr}.xlsx`);
+    } catch (err) {
+      console.error(err);
+    } finally {
+      setIsGeneratingXlsx(false);
+    }
+  };
+
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent showCloseButton={false} className="max-w-4xl sm:max-w-4xl max-h-[85vh] flex flex-col p-0 border border-gray-300 overflow-hidden bg-white print:max-w-none print:h-auto print:border-none">
@@ -173,6 +205,10 @@ export function ExpenseReportModal({ open, onOpenChange, monthStr }: ExpenseRepo
               Expense Report Overview
             </DialogTitle>
             <div className="flex items-center gap-3">
+              <Button size="sm" onClick={handleDownloadXlsx} disabled={isLoading || isGeneratingXlsx || reportData.length === 0} className="gap-2 bg-[#004D40] text-white hover:bg-[#00382e]">
+                {isGeneratingXlsx ? <Loader2 className="w-4 h-4 animate-spin" /> : <FileSpreadsheet className="w-4 h-4" />} Download XLSX
+              </Button>
+
               <Button size="sm" onClick={handleDownloadPDF} disabled={isLoading || reportData.length === 0} className="gap-2 bg-[#004D40] text-white hover:bg-[#00382e]">
                 <FileDown className="w-4 h-4" /> Download PDF
               </Button>

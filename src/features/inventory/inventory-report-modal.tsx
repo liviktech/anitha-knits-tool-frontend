@@ -1,7 +1,8 @@
+import { useState } from 'react';
 import { Dialog, DialogClose, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Table, TableBody, TableCell, TableFooter, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { FileDown, X } from 'lucide-react';
+import { FileDown, FileSpreadsheet, Loader2, X } from 'lucide-react';
 import { Loader } from '@/components/shared/loader';
 import { useInventoryRecords, inventoryTypeLabels, type InventoryType } from './inventory-queries';
 import { useOpeningBalanceRawMaterials } from '@/features/admin-panel/opening-balance-queries';
@@ -23,6 +24,7 @@ function getMonthName(monthStr: string) {
 }
 
 export function InventoryReportModal({ open, onOpenChange, month }: InventoryReportModalProps) {
+  const [isGeneratingXlsx, setIsGeneratingXlsx] = useState(false);
   const { data, isLoading, isError, refetch } = useInventoryRecords('?limit=100');
   const { data: obRes } = useOpeningBalanceRawMaterials('?limit=100');
   const records = data?.data ?? [];
@@ -108,6 +110,37 @@ export function InventoryReportModal({ open, onOpenChange, month }: InventoryRep
     doc.save(`Inventory_Report_${month}.pdf`);
   };
 
+  const handleDownloadXlsx = async () => {
+    if (monthRecords.length === 0) return;
+    setIsGeneratingXlsx(true);
+    try {
+      const { utils, writeFile } = await import('xlsx');
+      const wb = utils.book_new();
+      const wsData: any[][] = [];
+
+      wsData.push(['ANITHA KNITS']);
+      wsData.push(['INVENTORY STOCK REPORT']);
+      wsData.push([`Period: ${getMonthName(month)}`]);
+      wsData.push([]);
+      wsData.push([`HDPE: ${hdpeTotal.toFixed(2)} kg`, `Chemical: ${chemicalTotal.toFixed(2)} kg`, `Color: ${colorTotal.toFixed(2)} kg`]);
+      wsData.push([]);
+      wsData.push(['Date', 'Type', 'Name', 'Bags', 'Weight (kg)', 'DC Number']);
+      monthRecords.forEach((r) => {
+        wsData.push([formatDateDisplay(r.date), inventoryTypeLabels[r.type], r.name, r.bagCount ?? 0, r.weightKg, r.DC_NUMBER || '-']);
+      });
+      wsData.push(['', '', '', '', `Total: ${grandTotal.toFixed(2)} kg`, '']);
+
+      const ws = utils.aoa_to_sheet(wsData);
+      utils.book_append_sheet(wb, ws, 'Inventory');
+
+      writeFile(wb, `Inventory_Report_${month}.xlsx`);
+    } catch (err) {
+      console.error(err);
+    } finally {
+      setIsGeneratingXlsx(false);
+    }
+  };
+
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent showCloseButton={false} className="max-w-4xl sm:max-w-4xl max-h-[85vh] flex flex-col p-0 border border-gray-300 overflow-hidden bg-white print:max-w-none print:h-auto print:border-none">
@@ -120,6 +153,10 @@ export function InventoryReportModal({ open, onOpenChange, month }: InventoryRep
               Inventory Report Overview
             </DialogTitle>
             <div className="flex items-center gap-3">
+              <Button size="sm" onClick={handleDownloadXlsx} disabled={isLoading || isGeneratingXlsx || monthRecords.length === 0} className="gap-2 bg-[#004D40] text-white hover:bg-[#00382e]">
+                {isGeneratingXlsx ? <Loader2 className="w-4 h-4 animate-spin" /> : <FileSpreadsheet className="w-4 h-4" />} Download XLSX
+              </Button>
+
               <Button size="sm" onClick={handleDownloadPDF} disabled={isLoading || monthRecords.length === 0} className="gap-2 bg-[#004D40] text-white hover:bg-[#00382e]">
                 <FileDown className="w-4 h-4" /> Download PDF
               </Button>

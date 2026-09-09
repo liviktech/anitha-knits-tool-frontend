@@ -12,6 +12,7 @@ const TABS: Record<string, { id: string; label: string; icon: LucideIcon }[]> = 
     { id: 'production_summary', label: 'Production summary', icon: BarChart3 },
     { id: 'wastage_summary', label: 'Wastage Summary', icon: Trash2 },
     { id: 'sample_production', label: 'Sample production summary', icon: Layers },
+    { id: 'sample_wastage_summary', label: 'Sample Wastage Summary', icon: Trash2 },
   ],
   production: [
     { id: 'day_wise_report', label: 'Production details report', icon: CalendarDays },
@@ -59,6 +60,7 @@ export function ReportsModule() {
       case 'production_summary':
       case 'wastage_summary':
       case 'sample_production':
+      case 'sample_wastage_summary':
         return <DashboardPdfView tab={selectedTab} {...commonProps} />;
       case 'employee_directory':
       case 'attendance_report':

@@ -1,16 +1,16 @@
-import { useState } from 'react';
 import { DetailBreakdownCard, SectionSummaryCard } from './card';
 import {
-  FABRIC_COLORS,
   FABRIC_STOCK_SIZES,
   fabricStockCardTheme,
   deliveryColorClass,
   toChemicalTable,
   formatNum,
 } from './dashboard-utils';
-import { buildWastageChemicalRows } from './dashboard-data-hooks';
+import { buildWastageChemicalRows, buildSampleWastageTotals } from './dashboard-data-hooks';
 import type { DashboardDataResult, } from './dashboard-data-hooks';
 import type { ExtruderSummaryColorRow } from './dashboard-utils';
+
+export type WastageMode = 'production' | 'sample';
 
 // ─── FabricStockCard ──────────────────────────────────────────────────────────
 
@@ -158,7 +158,11 @@ type WastageTabContentProps = Pick<
   | 'sampleExtruderData' | 'sampleLoomsData' | 'sampleFabricData'
   | 'loomsWasteByColor' | 'fabricWasteByColor'
   | 'obWastage'
-> & { currentMonthStr: string };
+> & {
+  currentMonthStr: string;
+  wastageMode: WastageMode;
+  onWastageModeChange: (mode: WastageMode) => void;
+};
 
 export function WastageTabContent({
   currentMonthStr,
@@ -167,32 +171,12 @@ export function WastageTabContent({
   sampleExtruderData, sampleLoomsData, sampleFabricData,
   loomsWasteByColor, fabricWasteByColor,
   obWastage,
+  wastageMode,
+  onWastageModeChange,
 }: WastageTabContentProps) {
-  const [wastageMode, setWastageMode] = useState<'production' | 'sample'>('production');
-
-  const sampleLooseWaste = sampleExtruderData
-    .filter((r: any) => r.productionDate?.startsWith(currentMonthStr))
-    .reduce((sum: number, r: any) => sum + (r.wastages?.find((w: any) => w.wastageType?.code === 'YARN_WASTE')?.quantityKg ?? 0), 0);
-  const sampleLums = sampleExtruderData
-    .filter((r: any) => r.productionDate?.startsWith(currentMonthStr))
-    .reduce((sum: number, r: any) => sum + (r.wastages?.find((w: any) => w.wastageType?.code === 'LUMPS')?.quantityKg ?? 0), 0);
-
-  const sampleLoomsWasteByColor = FABRIC_COLORS.map((color) => ({
-    color,
-    loomsWaste: sampleLoomsData
-      .filter((r: any) => r.color?.name?.toLowerCase() === color.toLowerCase() && r.productionDate?.startsWith(currentMonthStr))
-      .reduce((sum: number, r: any) => sum + (r.wastages?.find((w: any) => w.wastageType?.code === 'LOOMS_WASTE')?.quantityKg ?? 0), 0),
-  }));
-
-  const sampleFabricWasteByColor = FABRIC_COLORS.map((color) => ({
-    color,
-    fabricWaste: sampleFabricData
-      .filter((r: any) => r.color?.name?.toLowerCase() === color.toLowerCase() && r.productionDate?.startsWith(currentMonthStr))
-      .reduce((sum: number, r: any) => sum + (r.wastages?.find((w: any) => w.wastageType?.code === 'FW')?.quantityKg ?? 0), 0),
-    bitWaste: sampleFabricData
-      .filter((r: any) => r.color?.name?.toLowerCase() === color.toLowerCase() && r.productionDate?.startsWith(currentMonthStr))
-      .reduce((sum: number, r: any) => sum + (r.wastages?.find((w: any) => w.wastageType?.code === 'BW')?.quantityKg ?? 0), 0),
-  }));
+  const { sampleLooseWaste, sampleLums, sampleLoomsWasteByColor, sampleFabricWasteByColor } = buildSampleWastageTotals(
+    sampleExtruderData, sampleLoomsData, sampleFabricData, currentMonthStr,
+  );
 
   const isProd = wastageMode === 'production';
 
@@ -205,7 +189,7 @@ export function WastageTabContent({
             <button
               key={mode}
               type="button"
-              onClick={() => setWastageMode(mode)}
+              onClick={() => onWastageModeChange(mode)}
               className={`rounded-full px-4 py-1.5 capitalize transition-all duration-200 ${
                 wastageMode === mode ? 'bg-[#004D40] text-white shadow' : 'text-gray-500 hover:text-gray-700'
               }`}

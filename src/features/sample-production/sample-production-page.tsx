@@ -175,23 +175,15 @@ export function SampleProductionPage() {
   // selected month, same source (and same shape) the Production Details report uses, just
   // scoped to type=SAMPLE so it never mixes in real Production records.
   const { dashboardData: sampleMonthlyDashboardData } = useMonthlyDashboard(monthStr, monthStr, 'SAMPLE');
-  const reportDeliveryByColor = useMemo(() => {
-    const map = new Map<string, { label: string; delivered: number }>();
+  const reportDeliveryByVariantChemical = useMemo(() => {
+    const map = new Map<string, { size: { name: string }; color: { name: string }; chemical: { name: string }; delivered: number }>();
     (sampleMonthlyDashboardData?.loadSent.items ?? []).forEach((item) => {
       const kg = item.loadSent?.fabricWeight ?? 0;
-      const entry = map.get(item.color.id) ?? { label: item.color.name, delivered: 0 };
+      const chemicalName = item.chemical?.name ?? 'Unknown';
+      const key = `${item.color.id}_${item.size.id}_${item.chemical?.id ?? 'none'}`;
+      const entry = map.get(key) ?? { size: { name: item.size.name }, color: { name: item.color.name }, chemical: { name: chemicalName }, delivered: 0 };
       entry.delivered += kg;
-      map.set(item.color.id, entry);
-    });
-    return Array.from(map.values());
-  }, [sampleMonthlyDashboardData]);
-  const reportDeliveryBySize = useMemo(() => {
-    const map = new Map<string, { label: string; delivered: number }>();
-    (sampleMonthlyDashboardData?.loadSent.items ?? []).forEach((item) => {
-      const kg = item.loadSent?.fabricWeight ?? 0;
-      const entry = map.get(item.size.id) ?? { label: item.size.name, delivered: 0 };
-      entry.delivered += kg;
-      map.set(item.size.id, entry);
+      map.set(key, entry);
     });
     return Array.from(map.values());
   }, [sampleMonthlyDashboardData]);
@@ -566,20 +558,13 @@ export function SampleProductionPage() {
         open={isReportOpen}
         onOpenChange={setIsReportOpen}
         monthStr={monthStr}
-        extruderByColor={sampleMonthlyDashboardData?.extruderProduction.byColor ?? []}
-        extruderBySize={sampleMonthlyDashboardData?.extruderProduction.bySize ?? []}
-        extruderByChemical={sampleMonthlyDashboardData?.extruderProduction.byChemical ?? []}
+        extruderByVariantChemical={sampleMonthlyDashboardData?.extruderProduction.byVariantChemical ?? []}
         extruderTotal={sampleMonthlyDashboardData?.extruderProduction.overall.production ?? 0}
-        loomsByColor={sampleMonthlyDashboardData?.loomsProduction.byColor ?? []}
-        loomsBySize={sampleMonthlyDashboardData?.loomsProduction.bySize ?? []}
-        loomsByChemical={sampleMonthlyDashboardData?.loomsProduction.byChemical ?? []}
+        loomsByVariantChemical={sampleMonthlyDashboardData?.loomsProduction.byVariantChemical ?? []}
         loomsTotal={sampleMonthlyDashboardData?.loomsProduction.overall.production ?? 0}
-        fabricByColor={sampleMonthlyDashboardData?.fabricProduction.byColor ?? []}
-        fabricBySize={sampleMonthlyDashboardData?.fabricProduction.bySize ?? []}
-        fabricByChemical={sampleMonthlyDashboardData?.fabricProduction.byChemical ?? []}
+        fabricByVariantChemical={sampleMonthlyDashboardData?.fabricProduction.byVariantChemical ?? []}
         fabricTotal={sampleMonthlyDashboardData?.fabricProduction.overall.outputKg ?? 0}
-        deliveryByColor={reportDeliveryByColor}
-        deliveryBySize={reportDeliveryBySize}
+        deliveryByVariantChemical={reportDeliveryByVariantChemical}
         deliveryTotal={sampleMonthlyDashboardData?.loadSent.totals.fabricWeightKg ?? 0}
       />
     </div>

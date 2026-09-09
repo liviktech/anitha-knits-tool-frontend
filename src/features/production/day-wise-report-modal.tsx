@@ -1,17 +1,12 @@
+import { useState } from 'react';
 import { Dialog, DialogClose, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Table, TableBody, TableCell, TableFooter, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { FileDown, X } from 'lucide-react';
+import { FileDown, FileSpreadsheet, Loader2, X } from 'lucide-react';
 import type {
-  ExtruderProductionChemicalSummary,
-  ExtruderProductionColorSummary,
-  ExtruderProductionSizeSummary,
-  FabricProductionChemicalSummary,
-  FabricProductionColorSummary,
-  FabricProductionSizeSummary,
-  LoomsProductionChemicalSummary,
-  LoomsProductionColorSummary,
-  LoomsProductionSizeSummary,
+  ExtruderProductionVariantChemicalSummary,
+  FabricProductionVariantChemicalSummary,
+  LoomsProductionVariantChemicalSummary,
 } from '@/features/dashboard/dashboard-queries';
 
 const TEAL: [number, number, number] = [0, 77, 64]; // #004D40 — this app's primary accent
@@ -27,59 +22,45 @@ function getMonthName(monthStr: string) {
   return date.toLocaleDateString('en-IN', { month: 'long', year: 'numeric' });
 }
 
-export interface DeliveryBreakdownRow {
-  label: string;
+export interface DeliveryVariantRow {
+  size: { name: string };
+  color: { name: string };
+  chemical: { name: string };
   delivered: number;
 }
 
-interface BreakdownRow {
-  label: string;
+interface ReportRow {
+  labels: string[];
   values: number[];
+}
+
+interface ReportSection {
+  title: string;
+  headers: string[]; // label headers followed by numeric headers
+  labelColCount: number;
+  rows: ReportRow[];
+  totals: number[]; // one per numeric column
 }
 
 interface DayWiseReportModalProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   monthStr: string; // YYYY-MM
-  extruderByColor: ExtruderProductionColorSummary[];
-  extruderBySize: ExtruderProductionSizeSummary[];
-  extruderByChemical: ExtruderProductionChemicalSummary[];
+  extruderByVariantChemical: ExtruderProductionVariantChemicalSummary[];
   extruderTotal: number;
-  loomsByColor: LoomsProductionColorSummary[];
-  loomsBySize: LoomsProductionSizeSummary[];
-  loomsByChemical: LoomsProductionChemicalSummary[];
+  loomsByVariantChemical: LoomsProductionVariantChemicalSummary[];
   loomsTotal: number;
-  fabricByColor: FabricProductionColorSummary[];
-  fabricBySize: FabricProductionSizeSummary[];
-  fabricByChemical: FabricProductionChemicalSummary[];
+  fabricByVariantChemical: FabricProductionVariantChemicalSummary[];
   fabricTotal: number;
-  deliveryByColor: DeliveryBreakdownRow[];
-  deliveryBySize: DeliveryBreakdownRow[];
+  deliveryByVariantChemical: DeliveryVariantRow[];
   deliveryTotal: number;
 }
 
-const EXTRUDER_COLUMNS = ['Production (kg)', 'Lums (kg)', 'Yarn Waste (kg)', 'Total (kg)'];
-const LOOMS_COLUMNS = ['Production (kg)', 'Waste (kg)', 'Total (kg)'];
-const FABRIC_COLUMNS = ['Output (kg)', 'FW Waste (kg)', 'BW Waste (kg)', 'Total (kg)'];
-const DELIVERY_COLUMNS = ['Delivered (kg)'];
-
-function extruderRows<T extends { production: number; lumsKg: number; yarnWasteKg: number; total: number }>(items: T[], labelOf: (item: T) => string): BreakdownRow[] {
-  return items.map((item) => ({ label: labelOf(item), values: [item.production, item.lumsKg, item.yarnWasteKg, item.total] }));
+function variantSort<T extends { size: { name: string }; color: { name: string }; chemical: { name: string } }>(a: T, b: T): number {
+  return a.size.name.localeCompare(b.size.name) || a.color.name.localeCompare(b.color.name) || a.chemical.name.localeCompare(b.chemical.name);
 }
 
-function loomsRows<T extends { production: number; waste: number; total: number }>(items: T[], labelOf: (item: T) => string): BreakdownRow[] {
-  return items.map((item) => ({ label: labelOf(item), values: [item.production, item.waste, item.total] }));
-}
-
-function fabricRows<T extends { production: number; fwWasteKg: number; bwWasteKg: number; total: number }>(items: T[], labelOf: (item: T) => string): BreakdownRow[] {
-  return items.map((item) => ({ label: labelOf(item), values: [item.production, item.fwWasteKg, item.bwWasteKg, item.total] }));
-}
-
-function deliveryRows(items: DeliveryBreakdownRow[]): BreakdownRow[] {
-  return items.map((item) => ({ label: item.label, values: [item.delivered] }));
-}
-
-function columnTotals(rows: BreakdownRow[], columnCount: number): number[] {
+function columnTotals(rows: { values: number[] }[], columnCount: number): number[] {
   const totals = new Array(columnCount).fill(0);
   for (const row of rows) {
     row.values.forEach((v, i) => {
@@ -89,41 +70,84 @@ function columnTotals(rows: BreakdownRow[], columnCount: number): number[] {
   return totals;
 }
 
+function buildExtruderSection(items: ExtruderProductionVariantChemicalSummary[]): ReportSection {
+  const rows: ReportRow[] = [...items].sort(variantSort).map((r) => ({
+    labels: [r.size.name, r.color.name, r.chemical.name],
+    values: [r.production, r.lumsKg, r.yarnWasteKg, r.total],
+  }));
+  return {
+    title: 'Extruder Production',
+    headers: ['Size', 'Color', 'Chemical', 'Production (kg)', 'Lums (kg)', 'Yarn Waste (kg)', 'Total (kg)'],
+    labelColCount: 3,
+    rows,
+    totals: columnTotals(rows, 4),
+  };
+}
+
+function buildLoomsSection(items: LoomsProductionVariantChemicalSummary[]): ReportSection {
+  const rows: ReportRow[] = [...items].sort(variantSort).map((r) => ({
+    labels: [r.size.name, r.color.name, r.chemical.name],
+    values: [r.production, r.waste, r.total],
+  }));
+  return {
+    title: 'Looms Production',
+    headers: ['Size', 'Color', 'Chemical', 'Production (kg)', 'Waste (kg)', 'Total (kg)'],
+    labelColCount: 3,
+    rows,
+    totals: columnTotals(rows, 3),
+  };
+}
+
+function buildFabricSection(items: FabricProductionVariantChemicalSummary[]): ReportSection {
+  const rows: ReportRow[] = [...items].sort(variantSort).map((r) => ({
+    labels: [r.size.name, r.color.name, r.chemical.name],
+    values: [r.outputKg, r.fwWasteKg, r.bwWasteKg, r.total],
+  }));
+  return {
+    title: 'Fabric Checking',
+    headers: ['Size', 'Color', 'Chemical', 'Output (kg)', 'FW Waste (kg)', 'BW Waste (kg)', 'Total (kg)'],
+    labelColCount: 3,
+    rows,
+    totals: columnTotals(rows, 4),
+  };
+}
+
+function buildFabricDeliveredSection(items: DeliveryVariantRow[]): ReportSection {
+  const rows: ReportRow[] = [...items].sort(variantSort).map((r) => ({
+    labels: [r.size.name, r.color.name, r.chemical.name],
+    values: [r.delivered],
+  }));
+  return {
+    title: 'Fabric Delivered',
+    headers: ['Size', 'Color', 'Chemical', 'Delivered (kg)'],
+    labelColCount: 3,
+    rows,
+    totals: columnTotals(rows, 1),
+  };
+}
+
 export function DayWiseReportModal({
   open,
   onOpenChange,
   monthStr,
-  extruderByColor,
-  extruderBySize,
-  extruderByChemical,
+  extruderByVariantChemical,
   extruderTotal,
-  loomsByColor,
-  loomsBySize,
-  loomsByChemical,
+  loomsByVariantChemical,
   loomsTotal,
-  fabricByColor,
-  fabricBySize,
-  fabricByChemical,
+  fabricByVariantChemical,
   fabricTotal,
-  deliveryByColor,
-  deliveryBySize,
+  deliveryByVariantChemical,
   deliveryTotal,
 }: DayWiseReportModalProps) {
-  const sections: { title: string; labelHeader: string; columns: string[]; rows: BreakdownRow[] }[] = [
-    { title: 'Extruder Production — By Color', labelHeader: 'Color', columns: EXTRUDER_COLUMNS, rows: extruderRows(extruderByColor, (i) => i.color.name) },
-    { title: 'Extruder Production — By Size', labelHeader: 'Size', columns: EXTRUDER_COLUMNS, rows: extruderRows(extruderBySize, (i) => i.size.name) },
-    { title: 'Extruder Production — By Chemical', labelHeader: 'Chemical', columns: EXTRUDER_COLUMNS, rows: extruderRows(extruderByChemical, (i) => i.chemical.name) },
-    { title: 'Looms Production — By Color', labelHeader: 'Color', columns: LOOMS_COLUMNS, rows: loomsRows(loomsByColor, (i) => i.color.name) },
-    { title: 'Looms Production — By Size', labelHeader: 'Size', columns: LOOMS_COLUMNS, rows: loomsRows(loomsBySize, (i) => i.size.name) },
-    { title: 'Looms Production — By Chemical', labelHeader: 'Chemical', columns: LOOMS_COLUMNS, rows: loomsRows(loomsByChemical, (i) => i.chemical.name) },
-    { title: 'Fabric Checking — By Color', labelHeader: 'Color', columns: FABRIC_COLUMNS, rows: fabricRows(fabricByColor, (i) => i.color.name) },
-    { title: 'Fabric Checking — By Size', labelHeader: 'Size', columns: FABRIC_COLUMNS, rows: fabricRows(fabricBySize, (i) => i.size.name) },
-    { title: 'Fabric Checking — By Chemical', labelHeader: 'Chemical', columns: FABRIC_COLUMNS, rows: fabricRows(fabricByChemical, (i) => i.chemical.name) },
-    { title: 'Delivery — By Color', labelHeader: 'Color', columns: DELIVERY_COLUMNS, rows: deliveryRows(deliveryByColor) },
-    { title: 'Delivery — By Size', labelHeader: 'Size', columns: DELIVERY_COLUMNS, rows: deliveryRows(deliveryBySize) },
+  const sections: ReportSection[] = [
+    buildExtruderSection(extruderByVariantChemical),
+    buildLoomsSection(loomsByVariantChemical),
+    buildFabricSection(fabricByVariantChemical),
+    buildFabricDeliveredSection(deliveryByVariantChemical),
   ].filter((s) => s.rows.length > 0);
 
   const hasData = sections.length > 0;
+  const [isGeneratingXlsx, setIsGeneratingXlsx] = useState(false);
 
   const handleDownloadPDF = async () => {
     if (!hasData) return;
@@ -169,9 +193,9 @@ export function DayWiseReportModal({
       autoTable(doc, {
         startY: y,
         margin: { left: 14, right: 14 },
-        head: [[section.labelHeader, ...section.columns]],
-        body: section.rows.map((row) => [row.label, ...row.values.map(formatNum)]),
-        foot: [['Total', ...columnTotals(section.rows, section.columns.length).map(formatNum)]],
+        head: [section.headers],
+        body: section.rows.map((row) => [...row.labels, ...row.values.map(formatNum)]),
+        foot: [['Total', ...Array(section.labelColCount - 1).fill(''), ...section.totals.map(formatNum)]],
         styles: { fontSize: 9, cellPadding: 3 },
         headStyles: { fillColor: TEAL, textColor: 255, fontStyle: 'bold' },
         footStyles: { fillColor: TEAL_TINT, textColor: TEAL, fontStyle: 'bold' },
@@ -186,6 +210,33 @@ export function DayWiseReportModal({
     doc.save(`Production_Details_Report_${monthStr}.pdf`);
   };
 
+  const handleDownloadXlsx = async () => {
+    if (!hasData) return;
+    setIsGeneratingXlsx(true);
+    try {
+      const { utils, writeFile } = await import('xlsx');
+      const wb = utils.book_new();
+      const wsData: any[][] = [];
+
+      for (const section of sections) {
+        wsData.push([section.title]);
+        wsData.push(section.headers);
+        section.rows.forEach((row) => wsData.push([...row.labels, ...row.values]));
+        wsData.push(['Total', ...Array(section.labelColCount - 1).fill(''), ...section.totals]);
+        wsData.push([]);
+      }
+
+      const ws = utils.aoa_to_sheet(wsData);
+      utils.book_append_sheet(wb, ws, 'Production Details');
+
+      writeFile(wb, `Production_Details_Report_${monthStr}.xlsx`);
+    } catch (err) {
+      console.error(err);
+    } finally {
+      setIsGeneratingXlsx(false);
+    }
+  };
+
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent showCloseButton={false} className="max-w-4xl sm:max-w-4xl max-h-[85vh] flex flex-col p-0 border border-gray-300 overflow-hidden bg-white print:max-w-none print:h-auto print:border-none">
@@ -198,6 +249,10 @@ export function DayWiseReportModal({
               Production Details Report Overview
             </DialogTitle>
             <div className="flex items-center gap-3">
+              <Button size="sm" onClick={handleDownloadXlsx} disabled={!hasData || isGeneratingXlsx} className="gap-2 bg-[#004D40] text-white hover:bg-[#00382e]">
+                {isGeneratingXlsx ? <Loader2 className="w-4 h-4 animate-spin" /> : <FileSpreadsheet className="w-4 h-4" />} Download XLSX
+              </Button>
+
               <Button size="sm" onClick={handleDownloadPDF} disabled={!hasData} className="gap-2 bg-[#004D40] text-white hover:bg-[#00382e]">
                 <FileDown className="w-4 h-4" /> Download PDF
               </Button>
@@ -254,58 +309,72 @@ export function DayWiseReportModal({
                   </div>
                 </div>
 
-                {sections.map((section) => {
-                  const totals = columnTotals(section.rows, section.columns.length);
-                  return (
-                    <div className="mb-4" key={section.title}>
-                      <div className="flex items-center justify-between mb-2">
-                        <h3 className="text-sm font-bold text-gray-800">{section.title}</h3>
-                        <span className="text-[13px] font-bold text-[#004D40]">
-                          Total : {formatNum(totals[totals.length - 1])} kg
-                        </span>
-                      </div>
-                      <div className="rounded-lg overflow-hidden border border-gray-200">
-                        <Table>
-                          <TableHeader>
-                            <TableRow className="bg-[#004D40] hover:bg-[#004D40]">
-                              <TableHead className="py-3 px-4 font-bold text-white whitespace-nowrap">{section.labelHeader}</TableHead>
-                              {section.columns.map((col, i) => (
-                                <TableHead key={col} className={`py-3 px-4 font-bold text-white whitespace-nowrap ${i === section.columns.length - 1 ? 'text-right' : '!text-right'}`}>
-                                  {col}
-                                </TableHead>
-                              ))}
-                            </TableRow>
-                          </TableHeader>
-                          <TableBody>
-                            {section.rows.map((row, ri) => (
-                              <TableRow key={row.label} className={ri % 2 === 0 ? 'bg-white' : 'bg-emerald-50/40'}>
-                                <TableCell className="py-3 px-4 border-b border-gray-100 text-sm font-semibold text-gray-800">{row.label}</TableCell>
-                                {row.values.map((v, ci) => (
-                                  <TableCell
-                                    key={ci}
-                                    className={`py-3 px-4 border-b border-gray-100 text-sm ${ci === row.values.length - 1 ? 'text-right font-bold text-gray-900' : '!text-right text-gray-600'}`}
-                                  >
-                                    {formatNum(v)}
-                                  </TableCell>
-                                ))}
-                              </TableRow>
+                {sections.map((section) => (
+                  <div className="mb-4" key={section.title}>
+                    <div className="flex items-center justify-between mb-2">
+                      <h3 className="text-sm font-bold text-gray-800">{section.title}</h3>
+                      <span className="text-[13px] font-bold text-[#004D40]">
+                        Total : {formatNum(section.totals[section.totals.length - 1])} kg
+                      </span>
+                    </div>
+                    <div className="rounded-lg overflow-hidden border border-gray-200">
+                      <Table>
+                        <TableHeader>
+                          <TableRow className="bg-[#004D40] hover:bg-[#004D40]">
+                            {section.headers.map((h, i) => (
+                              <TableHead
+                                key={h}
+                                className={`py-3 px-4 font-bold text-white whitespace-nowrap ${
+                                  i === 0
+                                    ? ''
+                                    : i < section.labelColCount
+                                      ? '!text-left'
+                                      : i === section.headers.length - 1
+                                        ? 'text-right'
+                                        : '!text-right'
+                                }`}
+                              >
+                                {h}
+                              </TableHead>
                             ))}
-                          </TableBody>
-                          <TableFooter>
-                            <TableRow className="border-t-2 border-[#004D40] bg-emerald-50 hover:bg-emerald-50">
-                              <TableCell className="py-3 px-4 font-bold text-[#004D40]">Total</TableCell>
-                              {totals.map((t, i) => (
-                                <TableCell key={i} className={`py-3 px-4 font-bold text-[#004D40] ${i === totals.length - 1 ? 'text-right' : '!text-right'}`}>
-                                  {formatNum(t)}
+                          </TableRow>
+                        </TableHeader>
+                        <TableBody>
+                          {section.rows.map((row, ri) => (
+                            <TableRow key={ri} className={ri % 2 === 0 ? 'bg-white' : 'bg-emerald-50/40'}>
+                              {row.labels.map((label, li) => (
+                                <TableCell
+                                  key={`l-${li}`}
+                                  className={`py-3 px-4 border-b border-gray-100 text-sm whitespace-nowrap ${li === 0 ? 'font-semibold text-gray-800' : 'text-gray-600 !text-left'}`}
+                                >
+                                  {label}
+                                </TableCell>
+                              ))}
+                              {row.values.map((v, vi) => (
+                                <TableCell
+                                  key={`v-${vi}`}
+                                  className={`py-3 px-4 border-b border-gray-100 text-sm ${vi === row.values.length - 1 ? 'text-right font-bold text-gray-900' : '!text-right text-gray-600'}`}
+                                >
+                                  {formatNum(v)}
                                 </TableCell>
                               ))}
                             </TableRow>
-                          </TableFooter>
-                        </Table>
-                      </div>
+                          ))}
+                        </TableBody>
+                        <TableFooter>
+                          <TableRow className="border-t-2 border-[#004D40] bg-emerald-50 hover:bg-emerald-50">
+                            <TableCell colSpan={section.labelColCount} className="py-3 px-4 font-bold text-[#004D40]">Total</TableCell>
+                            {section.totals.map((t, i) => (
+                              <TableCell key={i} className={`py-3 px-4 font-bold text-[#004D40] ${i === section.totals.length - 1 ? 'text-right' : '!text-right'}`}>
+                                {formatNum(t)}
+                              </TableCell>
+                            ))}
+                          </TableRow>
+                        </TableFooter>
+                      </Table>
                     </div>
-                  );
-                })}
+                  </div>
+                ))}
               </>
             )}
 
