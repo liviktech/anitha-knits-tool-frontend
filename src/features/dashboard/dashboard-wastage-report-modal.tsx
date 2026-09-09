@@ -1,7 +1,7 @@
 import { Dialog, DialogClose, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Table, TableBody, TableCell, TableFooter, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { Download, FileDown, X } from 'lucide-react';
+import { FileDown, X } from 'lucide-react';
 
 const TEAL: [number, number, number] = [0, 77, 64]; // #004D40 — this app's primary accent
 const TEAL_TINT: [number, number, number] = [232, 245, 240]; // light teal for footer/total rows
@@ -16,168 +16,105 @@ function getMonthName(monthStr: string) {
   return date.toLocaleDateString('en-IN', { month: 'long', year: 'numeric' });
 }
 
-export interface WastageExtruderRow {
+// One color's wastage, broken down by chemical and (within each chemical) by size — the raw
+// shape already built for the on-screen wastage cards (every size present, zeroed where there's
+// no record). Each report table is derived by flattening this into individual size+color+
+// chemical rows and dropping any combination with nothing recorded, so it never shows as a
+// zero row.
+export interface WastageDetailRow {
   color: string;
+  chemicals: {
+    chemical: string;
+    sizes: { size: string; lums: number; yarnWaste: number; loomsWaste: number; fabricWaste: number; bitWaste: number }[];
+  }[];
+}
+
+interface ExtruderWasteVariantRow {
+  size: string;
+  color: string;
+  chemical: string;
   lums: number;
   yarnWaste: number;
 }
 
-export interface WastageLoomsRow {
+interface LoomsWasteVariantRow {
+  size: string;
   color: string;
+  chemical: string;
   loomsWaste: number;
 }
 
-export interface WastageFabricRow {
+interface FabricWasteVariantRow {
+  size: string;
   color: string;
+  chemical: string;
   fabricWaste: number;
   bitWaste: number;
 }
 
-export interface WastageExtruderLabelRow {
-  label: string; // a size (e.g. "150cm") or a chemical name
-  lums: number;
-  yarnWaste: number;
+function sortVariants<T extends { size: string; color: string; chemical: string }>(rows: T[]): T[] {
+  return rows.sort((a, b) => a.size.localeCompare(b.size) || a.color.localeCompare(b.color) || a.chemical.localeCompare(b.chemical));
 }
 
-export interface WastageLoomsLabelRow {
-  label: string;
-  loomsWaste: number;
+function flattenExtruderWaste(rows: WastageDetailRow[]): ExtruderWasteVariantRow[] {
+  const out: ExtruderWasteVariantRow[] = [];
+  rows.forEach((row) => row.chemicals.forEach((chem) => chem.sizes.forEach((s) => {
+    if (s.lums > 0 || s.yarnWaste > 0) {
+      out.push({ size: s.size, color: row.color, chemical: chem.chemical, lums: s.lums, yarnWaste: s.yarnWaste });
+    }
+  })));
+  return sortVariants(out);
 }
 
-export interface WastageFabricLabelRow {
-  label: string;
-  fabricWaste: number;
-  bitWaste: number;
+function flattenLoomsWaste(rows: WastageDetailRow[]): LoomsWasteVariantRow[] {
+  const out: LoomsWasteVariantRow[] = [];
+  rows.forEach((row) => row.chemicals.forEach((chem) => chem.sizes.forEach((s) => {
+    if (s.loomsWaste > 0) {
+      out.push({ size: s.size, color: row.color, chemical: chem.chemical, loomsWaste: s.loomsWaste });
+    }
+  })));
+  return sortVariants(out);
+}
+
+function flattenFabricWaste(rows: WastageDetailRow[]): FabricWasteVariantRow[] {
+  const out: FabricWasteVariantRow[] = [];
+  rows.forEach((row) => row.chemicals.forEach((chem) => chem.sizes.forEach((s) => {
+    if (s.fabricWaste > 0 || s.bitWaste > 0) {
+      out.push({ size: s.size, color: row.color, chemical: chem.chemical, fabricWaste: s.fabricWaste, bitWaste: s.bitWaste });
+    }
+  })));
+  return sortVariants(out);
 }
 
 interface DashboardWastageReportModalProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  companyName: string;
   monthStr: string; // YYYY-MM
-  extruderByColor: WastageExtruderRow[];
+  extruderDetail: WastageDetailRow[];
   extruderTotal: number;
-  loomsByColor: WastageLoomsRow[];
+  loomsDetail: WastageDetailRow[];
   loomsTotal: number;
-  fabricByColor: WastageFabricRow[];
+  fabricDetail: WastageDetailRow[];
   fabricTotal: number;
-  extruderBySize: WastageExtruderLabelRow[];
-  extruderByChemical: WastageExtruderLabelRow[];
-  loomsBySize: WastageLoomsLabelRow[];
-  loomsByChemical: WastageLoomsLabelRow[];
-  fabricBySize: WastageFabricLabelRow[];
-  fabricByChemical: WastageFabricLabelRow[];
 }
 
 export function DashboardWastageReportModal({
   open,
   onOpenChange,
-  companyName,
   monthStr,
-  extruderByColor,
+  extruderDetail,
   extruderTotal,
-  loomsByColor,
+  loomsDetail,
   loomsTotal,
-  fabricByColor,
+  fabricDetail,
   fabricTotal,
-  extruderBySize,
-  extruderByChemical,
-  loomsBySize,
-  loomsByChemical,
-  fabricBySize,
-  fabricByChemical,
 }: DashboardWastageReportModalProps) {
-  const hasData = extruderTotal > 0 || loomsTotal > 0 || fabricTotal > 0;
+  const extruderRows = flattenExtruderWaste(extruderDetail);
+  const loomsRows = flattenLoomsWaste(loomsDetail);
+  const fabricRows = flattenFabricWaste(fabricDetail);
+
+  const hasData = extruderRows.length > 0 || loomsRows.length > 0 || fabricRows.length > 0;
   const grandTotal = extruderTotal + loomsTotal + fabricTotal;
-
-  const handleDownloadCSV = () => {
-    if (!hasData) return;
-
-    const rows: (string | number)[][] = [];
-    rows.push(['Wastage Summary Report']);
-    rows.push(['Company', companyName]);
-    rows.push(['Period', getMonthName(monthStr)]);
-    rows.push(['Generated On', new Date().toLocaleString('en-IN')]);
-    rows.push([]);
-
-    rows.push(['Extruder Wastage']);
-    rows.push(['Color', 'Lums (LM)', 'Loose/Yarn (LO)', 'Total']);
-    extruderByColor.forEach((row) => rows.push([row.color, row.lums, row.yarnWaste, row.lums + row.yarnWaste]));
-    rows.push(['Total', '', '', extruderTotal]);
-    rows.push([]);
-
-    if (extruderBySize.length > 0) {
-      rows.push(['Extruder Wastage — By Size']);
-      rows.push(['Size', 'Lums (LM)', 'Loose/Yarn (LO)', 'Total']);
-      extruderBySize.forEach((row) => rows.push([row.label, row.lums, row.yarnWaste, row.lums + row.yarnWaste]));
-      rows.push(['Total', '', '', extruderBySize.reduce((s, r) => s + r.lums + r.yarnWaste, 0)]);
-      rows.push([]);
-    }
-
-    if (extruderByChemical.length > 0) {
-      rows.push(['Extruder Wastage — By Chemical']);
-      rows.push(['Chemical', 'Lums (LM)', 'Loose/Yarn (LO)', 'Total']);
-      extruderByChemical.forEach((row) => rows.push([row.label, row.lums, row.yarnWaste, row.lums + row.yarnWaste]));
-      rows.push(['Total', '', '', extruderByChemical.reduce((s, r) => s + r.lums + r.yarnWaste, 0)]);
-      rows.push([]);
-    }
-
-    rows.push(['Looms Wastage']);
-    rows.push(['Color', 'Looms/Yarn Waste (LW)']);
-    loomsByColor.forEach((row) => rows.push([row.color, row.loomsWaste]));
-    rows.push(['Total', loomsTotal]);
-    rows.push([]);
-
-    if (loomsBySize.length > 0) {
-      rows.push(['Looms Wastage — By Size']);
-      rows.push(['Size', 'Looms/Yarn Waste (LW)']);
-      loomsBySize.forEach((row) => rows.push([row.label, row.loomsWaste]));
-      rows.push(['Total', loomsBySize.reduce((s, r) => s + r.loomsWaste, 0)]);
-      rows.push([]);
-    }
-
-    if (loomsByChemical.length > 0) {
-      rows.push(['Looms Wastage — By Chemical']);
-      rows.push(['Chemical', 'Looms/Yarn Waste (LW)']);
-      loomsByChemical.forEach((row) => rows.push([row.label, row.loomsWaste]));
-      rows.push(['Total', loomsByChemical.reduce((s, r) => s + r.loomsWaste, 0)]);
-      rows.push([]);
-    }
-
-    rows.push(['Fabric Checking Wastage']);
-    rows.push(['Color', 'Fabric Waste (FW)', 'Bit Waste (BW)', 'Total']);
-    fabricByColor.forEach((row) => rows.push([row.color, row.fabricWaste, row.bitWaste, row.fabricWaste + row.bitWaste]));
-    rows.push(['Total', '', '', fabricTotal]);
-    rows.push([]);
-
-    if (fabricBySize.length > 0) {
-      rows.push(['Fabric Checking Wastage — By Size']);
-      rows.push(['Size', 'Fabric Waste (FW)', 'Bit Waste (BW)', 'Total']);
-      fabricBySize.forEach((row) => rows.push([row.label, row.fabricWaste, row.bitWaste, row.fabricWaste + row.bitWaste]));
-      rows.push(['Total', '', '', fabricBySize.reduce((s, r) => s + r.fabricWaste + r.bitWaste, 0)]);
-      rows.push([]);
-    }
-
-    if (fabricByChemical.length > 0) {
-      rows.push(['Fabric Checking Wastage — By Chemical']);
-      rows.push(['Chemical', 'Fabric Waste (FW)', 'Bit Waste (BW)', 'Total']);
-      fabricByChemical.forEach((row) => rows.push([row.label, row.fabricWaste, row.bitWaste, row.fabricWaste + row.bitWaste]));
-      rows.push(['Total', '', '', fabricByChemical.reduce((s, r) => s + r.fabricWaste + r.bitWaste, 0)]);
-    }
-
-    const escapeCsvField = (value: string | number) => {
-      const str = String(value);
-      return /[",\n]/.test(str) ? `"${str.replace(/"/g, '""')}"` : str;
-    };
-    const csvContent = rows.map((r) => r.map(escapeCsvField).join(',')).join('\n');
-    const encodedUri = encodeURI('data:text/csv;charset=utf-8,' + csvContent);
-    const link = document.createElement('a');
-    link.setAttribute('href', encodedUri);
-    link.setAttribute('download', `Wastage_Summary_Report_${monthStr}.csv`);
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-  };
 
   const handleDownloadPDF = async () => {
     if (!hasData) return;
@@ -219,85 +156,44 @@ export function DashboardWastageReportModal({
         head: [head],
         body,
         foot,
-        styles: { fontSize: 9, cellPadding: 3 },
+        styles: { fontSize: 8, cellPadding: 2.5 },
         headStyles: { fillColor: TEAL, textColor: 255, fontStyle: 'bold' },
         footStyles: { fillColor: TEAL_TINT, textColor: TEAL, fontStyle: 'bold' },
       });
       y = (doc as any).lastAutoTable.finalY + 10;
+      if (y > 260) {
+        doc.addPage();
+        y = 18;
+      }
     };
 
-    section(
-      'Extruder Wastage',
-      ['Color', 'Lums (LM)', 'Loose/Yarn (LO)', 'Total'],
-      extruderByColor.map((row) => [row.color, formatNum(row.lums), formatNum(row.yarnWaste), formatNum(row.lums + row.yarnWaste)]),
-      [['Total', '', '', formatNum(extruderTotal)]],
-    );
-
-    if (extruderBySize.length > 0) {
+    if (extruderRows.length > 0) {
+      const total = extruderRows.reduce((s, r) => s + r.lums + r.yarnWaste, 0);
       section(
-        'Extruder Wastage — By Size',
-        ['Size', 'Lums (LM)', 'Loose/Yarn (LO)', 'Total'],
-        extruderBySize.map((row) => [row.label, formatNum(row.lums), formatNum(row.yarnWaste), formatNum(row.lums + row.yarnWaste)]),
-        [['Total', '', '', formatNum(extruderBySize.reduce((s, r) => s + r.lums + r.yarnWaste, 0))]],
+        'Extruder Wastage',
+        ['Size', 'Color', 'Chemical', 'Lums (LM)', 'Loose/Yarn (LO)', 'Total'],
+        extruderRows.map((r) => [r.size, r.color, r.chemical, formatNum(r.lums), formatNum(r.yarnWaste), formatNum(r.lums + r.yarnWaste)]),
+        [['Total', '', '', '', '', formatNum(total)]],
       );
     }
 
-    if (extruderByChemical.length > 0) {
+    if (loomsRows.length > 0) {
+      const total = loomsRows.reduce((s, r) => s + r.loomsWaste, 0);
       section(
-        'Extruder Wastage — By Chemical',
-        ['Chemical', 'Lums (LM)', 'Loose/Yarn (LO)', 'Total'],
-        extruderByChemical.map((row) => [row.label, formatNum(row.lums), formatNum(row.yarnWaste), formatNum(row.lums + row.yarnWaste)]),
-        [['Total', '', '', formatNum(extruderByChemical.reduce((s, r) => s + r.lums + r.yarnWaste, 0))]],
+        'Looms Wastage',
+        ['Size', 'Color', 'Chemical', 'Looms/Yarn Waste (LW)'],
+        loomsRows.map((r) => [r.size, r.color, r.chemical, formatNum(r.loomsWaste)]),
+        [['Total', '', '', formatNum(total)]],
       );
     }
 
-    section(
-      'Looms Wastage',
-      ['Color', 'Looms/Yarn Waste (LW)'],
-      loomsByColor.map((row) => [row.color, formatNum(row.loomsWaste)]),
-      [['Total', formatNum(loomsTotal)]],
-    );
-
-    if (loomsBySize.length > 0) {
+    if (fabricRows.length > 0) {
+      const total = fabricRows.reduce((s, r) => s + r.fabricWaste + r.bitWaste, 0);
       section(
-        'Looms Wastage — By Size',
-        ['Size', 'Looms/Yarn Waste (LW)'],
-        loomsBySize.map((row) => [row.label, formatNum(row.loomsWaste)]),
-        [['Total', formatNum(loomsBySize.reduce((s, r) => s + r.loomsWaste, 0))]],
-      );
-    }
-
-    if (loomsByChemical.length > 0) {
-      section(
-        'Looms Wastage — By Chemical',
-        ['Chemical', 'Looms/Yarn Waste (LW)'],
-        loomsByChemical.map((row) => [row.label, formatNum(row.loomsWaste)]),
-        [['Total', formatNum(loomsByChemical.reduce((s, r) => s + r.loomsWaste, 0))]],
-      );
-    }
-
-    section(
-      'Fabric Checking Wastage',
-      ['Color', 'Fabric Waste (FW)', 'Bit Waste (BW)', 'Total'],
-      fabricByColor.map((row) => [row.color, formatNum(row.fabricWaste), formatNum(row.bitWaste), formatNum(row.fabricWaste + row.bitWaste)]),
-      [['Total', '', '', formatNum(fabricTotal)]],
-    );
-
-    if (fabricBySize.length > 0) {
-      section(
-        'Fabric Checking Wastage — By Size',
-        ['Size', 'Fabric Waste (FW)', 'Bit Waste (BW)', 'Total'],
-        fabricBySize.map((row) => [row.label, formatNum(row.fabricWaste), formatNum(row.bitWaste), formatNum(row.fabricWaste + row.bitWaste)]),
-        [['Total', '', '', formatNum(fabricBySize.reduce((s, r) => s + r.fabricWaste + r.bitWaste, 0))]],
-      );
-    }
-
-    if (fabricByChemical.length > 0) {
-      section(
-        'Fabric Checking Wastage — By Chemical',
-        ['Chemical', 'Fabric Waste (FW)', 'Bit Waste (BW)', 'Total'],
-        fabricByChemical.map((row) => [row.label, formatNum(row.fabricWaste), formatNum(row.bitWaste), formatNum(row.fabricWaste + row.bitWaste)]),
-        [['Total', '', '', formatNum(fabricByChemical.reduce((s, r) => s + r.fabricWaste + r.bitWaste, 0))]],
+        'Fabric Checking Wastage',
+        ['Size', 'Color', 'Chemical', 'Fabric Waste (FW)', 'Bit Waste (BW)', 'Total'],
+        fabricRows.map((r) => [r.size, r.color, r.chemical, formatNum(r.fabricWaste), formatNum(r.bitWaste), formatNum(r.fabricWaste + r.bitWaste)]),
+        [['Total', '', '', '', '', formatNum(total)]],
       );
     }
 
@@ -314,17 +210,14 @@ export function DashboardWastageReportModal({
       <DialogContent showCloseButton={false} className="max-w-4xl sm:max-w-4xl max-h-[85vh] flex flex-col p-0 border border-gray-300 overflow-hidden bg-white print:max-w-none print:h-auto print:border-none">
         {/* Modal Header (Not printed) */}
         {/* Close button rendered in-flow here (not DialogContent's default absolutely-positioned
-            one) so it shares the same flex row as Download CSV/PDF and always lines up with them. */}
+            one) so it shares the same flex row as Download PDF and always lines up with it. */}
         <DialogHeader className="px-6 py-4 border-b border-gray-200 bg-[#A8DCAB] shrink-0 print:hidden">
           <div className="flex items-center justify-between">
             <DialogTitle className="text-xl font-bold text-black">
               Wastage Summary Report Overview
             </DialogTitle>
             <div className="flex items-center gap-3">
-              <Button variant="outline" size="sm" onClick={handleDownloadCSV} disabled={!hasData} className="gap-2 bg-white border-[#004D40] text-[#004D40] hover:bg-[#004D40]/10">
-                <Download className="w-4 h-4" /> Download CSV
-              </Button>
-              <Button variant="outline" size="sm" onClick={handleDownloadPDF} disabled={!hasData} className="gap-2 bg-white border-[#004D40] text-[#004D40] hover:bg-[#004D40]/10">
+              <Button size="sm" onClick={handleDownloadPDF} disabled={!hasData} className="gap-2 bg-[#004D40] text-white hover:bg-[#00382e]">
                 <FileDown className="w-4 h-4" /> Download PDF
               </Button>
 
@@ -376,57 +269,24 @@ export function DashboardWastageReportModal({
                   </div>
                 </div>
 
-                {/* Extruder Wastage */}
-                <ReportSection title="Extruder Wastage" total={`Total : ${formatNum(extruderTotal)} kg`}>
-                  <ExtruderWastageTable labelHeader="Color" rows={extruderByColor.map((r) => ({ label: r.color, lums: r.lums, yarnWaste: r.yarnWaste }))} />
-                  <p className="text-[11px] text-gray-500 italic px-4 py-2 border-t border-gray-100">LM - Lums Waste &nbsp;&nbsp; LO - Loose Waste</p>
-                </ReportSection>
-
-                {extruderBySize.length > 0 && (
-                  <ReportSection title="Extruder Wastage — By Size" total={`Total : ${formatNum(extruderBySize.reduce((s, r) => s + r.lums + r.yarnWaste, 0))} kg`}>
-                    <ExtruderWastageTable labelHeader="Size" rows={extruderBySize} />
+                {extruderRows.length > 0 && (
+                  <ReportSection title="Extruder Wastage" total={`Total : ${formatNum(extruderRows.reduce((s, r) => s + r.lums + r.yarnWaste, 0))} kg`}>
+                    <ExtruderWastageTable rows={extruderRows} />
+                    <p className="text-[11px] text-gray-500 italic px-4 py-2 border-t border-gray-100">LM - Lums Waste &nbsp;&nbsp; LO - Loose Waste</p>
                   </ReportSection>
                 )}
 
-                {extruderByChemical.length > 0 && (
-                  <ReportSection title="Extruder Wastage — By Chemical" total={`Total : ${formatNum(extruderByChemical.reduce((s, r) => s + r.lums + r.yarnWaste, 0))} kg`}>
-                    <ExtruderWastageTable labelHeader="Chemical" rows={extruderByChemical} />
+                {loomsRows.length > 0 && (
+                  <ReportSection title="Looms Wastage" total={`Total : ${formatNum(loomsRows.reduce((s, r) => s + r.loomsWaste, 0))} kg`}>
+                    <LoomsWastageTable rows={loomsRows} />
+                    <p className="text-[11px] text-gray-500 italic px-4 py-2 border-t border-gray-100">LW - Looms/Yarn Waste</p>
                   </ReportSection>
                 )}
 
-                {/* Looms Wastage */}
-                <ReportSection title="Looms Wastage" total={`Total : ${formatNum(loomsTotal)} kg`}>
-                  <LoomsWastageTable labelHeader="Color" rows={loomsByColor.map((r) => ({ label: r.color, loomsWaste: r.loomsWaste }))} />
-                  <p className="text-[11px] text-gray-500 italic px-4 py-2 border-t border-gray-100">LW - Looms/Yarn Waste</p>
-                </ReportSection>
-
-                {loomsBySize.length > 0 && (
-                  <ReportSection title="Looms Wastage — By Size" total={`Total : ${formatNum(loomsBySize.reduce((s, r) => s + r.loomsWaste, 0))} kg`}>
-                    <LoomsWastageTable labelHeader="Size" rows={loomsBySize} />
-                  </ReportSection>
-                )}
-
-                {loomsByChemical.length > 0 && (
-                  <ReportSection title="Looms Wastage — By Chemical" total={`Total : ${formatNum(loomsByChemical.reduce((s, r) => s + r.loomsWaste, 0))} kg`}>
-                    <LoomsWastageTable labelHeader="Chemical" rows={loomsByChemical} />
-                  </ReportSection>
-                )}
-
-                {/* Fabric Checking Wastage */}
-                <ReportSection title="Fabric Checking Wastage" total={`Total : ${formatNum(fabricTotal)} kg`}>
-                  <FabricWastageTable labelHeader="Color" rows={fabricByColor.map((r) => ({ label: r.color, fabricWaste: r.fabricWaste, bitWaste: r.bitWaste }))} />
-                  <p className="text-[11px] text-gray-500 italic px-4 py-2 border-t border-gray-100">FW - Fabric Waste &nbsp;&nbsp; BW - Bit Waste</p>
-                </ReportSection>
-
-                {fabricBySize.length > 0 && (
-                  <ReportSection title="Fabric Checking Wastage — By Size" total={`Total : ${formatNum(fabricBySize.reduce((s, r) => s + r.fabricWaste + r.bitWaste, 0))} kg`}>
-                    <FabricWastageTable labelHeader="Size" rows={fabricBySize} />
-                  </ReportSection>
-                )}
-
-                {fabricByChemical.length > 0 && (
-                  <ReportSection title="Fabric Checking Wastage — By Chemical" total={`Total : ${formatNum(fabricByChemical.reduce((s, r) => s + r.fabricWaste + r.bitWaste, 0))} kg`}>
-                    <FabricWastageTable labelHeader="Chemical" rows={fabricByChemical} />
+                {fabricRows.length > 0 && (
+                  <ReportSection title="Fabric Checking Wastage" total={`Total : ${formatNum(fabricRows.reduce((s, r) => s + r.fabricWaste + r.bitWaste, 0))} kg`}>
+                    <FabricWastageTable rows={fabricRows} />
+                    <p className="text-[11px] text-gray-500 italic px-4 py-2 border-t border-gray-100">FW - Fabric Waste &nbsp;&nbsp; BW - Bit Waste</p>
                   </ReportSection>
                 )}
 
@@ -462,13 +322,15 @@ function ReportSection({ title, total, children }: { title: string; total: strin
   );
 }
 
-function ExtruderWastageTable({ labelHeader, rows }: { labelHeader: string; rows: WastageExtruderLabelRow[] }) {
+function ExtruderWastageTable({ rows }: { rows: ExtruderWasteVariantRow[] }) {
   const total = rows.reduce((s, r) => s + r.lums + r.yarnWaste, 0);
   return (
     <Table>
       <TableHeader>
         <TableRow className="bg-[#004D40] hover:bg-[#004D40]">
-          <TableHead className="py-3 px-4 font-bold text-white whitespace-nowrap">{labelHeader}</TableHead>
+          <TableHead className="py-3 px-4 font-bold text-white whitespace-nowrap">Size</TableHead>
+          <TableHead className="py-3 px-4 font-bold text-white whitespace-nowrap !text-left">Color</TableHead>
+          <TableHead className="py-3 px-4 font-bold text-white whitespace-nowrap !text-left">Chemical</TableHead>
           <TableHead className="py-3 px-4 font-bold text-white whitespace-nowrap !text-right">Lums (LM)</TableHead>
           <TableHead className="py-3 px-4 font-bold text-white whitespace-nowrap !text-right">Loose/Yarn (LO)</TableHead>
           <TableHead className="py-3 px-4 font-bold text-white text-right whitespace-nowrap">Total</TableHead>
@@ -476,8 +338,10 @@ function ExtruderWastageTable({ labelHeader, rows }: { labelHeader: string; rows
       </TableHeader>
       <TableBody>
         {rows.map((row, i) => (
-          <TableRow key={row.label} className={i % 2 === 0 ? 'bg-white' : 'bg-emerald-50/40'}>
-            <TableCell className="py-3 px-4 border-b border-gray-100 text-sm font-semibold text-gray-800">{row.label}</TableCell>
+          <TableRow key={`${row.size}-${row.color}-${row.chemical}`} className={i % 2 === 0 ? 'bg-white' : 'bg-emerald-50/40'}>
+            <TableCell className="py-3 px-4 border-b border-gray-100 text-sm font-semibold text-gray-800">{row.size}</TableCell>
+            <TableCell className="py-3 px-4 border-b border-gray-100 text-sm text-gray-600 !text-left">{row.color}</TableCell>
+            <TableCell className="py-3 px-4 border-b border-gray-100 text-sm text-gray-600 !text-left">{row.chemical}</TableCell>
             <TableCell className="py-3 px-4 border-b border-gray-100 text-sm text-gray-600 !text-right">{formatNum(row.lums)}</TableCell>
             <TableCell className="py-3 px-4 border-b border-gray-100 text-sm text-gray-600 !text-right">{formatNum(row.yarnWaste)}</TableCell>
             <TableCell className="py-3 px-4 border-b border-gray-100 text-sm text-right font-bold text-gray-900">{formatNum(row.lums + row.yarnWaste)}</TableCell>
@@ -486,9 +350,7 @@ function ExtruderWastageTable({ labelHeader, rows }: { labelHeader: string; rows
       </TableBody>
       <TableFooter>
         <TableRow className="border-t-2 border-[#004D40] bg-emerald-50 hover:bg-emerald-50">
-          <TableCell className="py-3 px-4 font-bold text-[#004D40]">Total</TableCell>
-          <TableCell className="py-3 px-4"></TableCell>
-          <TableCell className="py-3 px-4"></TableCell>
+          <TableCell colSpan={5} className="py-3 px-4 font-bold text-[#004D40]">Total</TableCell>
           <TableCell className="py-3 px-4 font-bold text-[#004D40] text-right">{formatNum(total)}</TableCell>
         </TableRow>
       </TableFooter>
@@ -496,27 +358,31 @@ function ExtruderWastageTable({ labelHeader, rows }: { labelHeader: string; rows
   );
 }
 
-function LoomsWastageTable({ labelHeader, rows }: { labelHeader: string; rows: WastageLoomsLabelRow[] }) {
+function LoomsWastageTable({ rows }: { rows: LoomsWasteVariantRow[] }) {
   const total = rows.reduce((s, r) => s + r.loomsWaste, 0);
   return (
     <Table>
       <TableHeader>
         <TableRow className="bg-[#004D40] hover:bg-[#004D40]">
-          <TableHead className="py-3 px-4 font-bold text-white whitespace-nowrap">{labelHeader}</TableHead>
+          <TableHead className="py-3 px-4 font-bold text-white whitespace-nowrap">Size</TableHead>
+          <TableHead className="py-3 px-4 font-bold text-white whitespace-nowrap !text-left">Color</TableHead>
+          <TableHead className="py-3 px-4 font-bold text-white whitespace-nowrap !text-left">Chemical</TableHead>
           <TableHead className="py-3 px-4 font-bold text-white text-right whitespace-nowrap">Looms/Yarn Waste (LW)</TableHead>
         </TableRow>
       </TableHeader>
       <TableBody>
         {rows.map((row, i) => (
-          <TableRow key={row.label} className={i % 2 === 0 ? 'bg-white' : 'bg-emerald-50/40'}>
-            <TableCell className="py-3 px-4 border-b border-gray-100 text-sm font-semibold text-gray-800">{row.label}</TableCell>
+          <TableRow key={`${row.size}-${row.color}-${row.chemical}`} className={i % 2 === 0 ? 'bg-white' : 'bg-emerald-50/40'}>
+            <TableCell className="py-3 px-4 border-b border-gray-100 text-sm font-semibold text-gray-800">{row.size}</TableCell>
+            <TableCell className="py-3 px-4 border-b border-gray-100 text-sm text-gray-600 !text-left">{row.color}</TableCell>
+            <TableCell className="py-3 px-4 border-b border-gray-100 text-sm text-gray-600 !text-left">{row.chemical}</TableCell>
             <TableCell className="py-3 px-4 border-b border-gray-100 text-sm text-right font-bold text-gray-900">{formatNum(row.loomsWaste)}</TableCell>
           </TableRow>
         ))}
       </TableBody>
       <TableFooter>
         <TableRow className="border-t-2 border-[#004D40] bg-emerald-50 hover:bg-emerald-50">
-          <TableCell className="py-3 px-4 font-bold text-[#004D40]">Total</TableCell>
+          <TableCell colSpan={3} className="py-3 px-4 font-bold text-[#004D40]">Total</TableCell>
           <TableCell className="py-3 px-4 font-bold text-[#004D40] text-right">{formatNum(total)}</TableCell>
         </TableRow>
       </TableFooter>
@@ -524,13 +390,15 @@ function LoomsWastageTable({ labelHeader, rows }: { labelHeader: string; rows: W
   );
 }
 
-function FabricWastageTable({ labelHeader, rows }: { labelHeader: string; rows: WastageFabricLabelRow[] }) {
+function FabricWastageTable({ rows }: { rows: FabricWasteVariantRow[] }) {
   const total = rows.reduce((s, r) => s + r.fabricWaste + r.bitWaste, 0);
   return (
     <Table>
       <TableHeader>
         <TableRow className="bg-[#004D40] hover:bg-[#004D40]">
-          <TableHead className="py-3 px-4 font-bold text-white whitespace-nowrap">{labelHeader}</TableHead>
+          <TableHead className="py-3 px-4 font-bold text-white whitespace-nowrap">Size</TableHead>
+          <TableHead className="py-3 px-4 font-bold text-white whitespace-nowrap !text-left">Color</TableHead>
+          <TableHead className="py-3 px-4 font-bold text-white whitespace-nowrap !text-left">Chemical</TableHead>
           <TableHead className="py-3 px-4 font-bold text-white whitespace-nowrap !text-right">Fabric Waste (FW)</TableHead>
           <TableHead className="py-3 px-4 font-bold text-white whitespace-nowrap !text-right">Bit Waste (BW)</TableHead>
           <TableHead className="py-3 px-4 font-bold text-white text-right whitespace-nowrap">Total</TableHead>
@@ -538,8 +406,10 @@ function FabricWastageTable({ labelHeader, rows }: { labelHeader: string; rows: 
       </TableHeader>
       <TableBody>
         {rows.map((row, i) => (
-          <TableRow key={row.label} className={i % 2 === 0 ? 'bg-white' : 'bg-emerald-50/40'}>
-            <TableCell className="py-3 px-4 border-b border-gray-100 text-sm font-semibold text-gray-800">{row.label}</TableCell>
+          <TableRow key={`${row.size}-${row.color}-${row.chemical}`} className={i % 2 === 0 ? 'bg-white' : 'bg-emerald-50/40'}>
+            <TableCell className="py-3 px-4 border-b border-gray-100 text-sm font-semibold text-gray-800">{row.size}</TableCell>
+            <TableCell className="py-3 px-4 border-b border-gray-100 text-sm text-gray-600 !text-left">{row.color}</TableCell>
+            <TableCell className="py-3 px-4 border-b border-gray-100 text-sm text-gray-600 !text-left">{row.chemical}</TableCell>
             <TableCell className="py-3 px-4 border-b border-gray-100 text-sm text-gray-600 !text-right">{formatNum(row.fabricWaste)}</TableCell>
             <TableCell className="py-3 px-4 border-b border-gray-100 text-sm text-gray-600 !text-right">{formatNum(row.bitWaste)}</TableCell>
             <TableCell className="py-3 px-4 border-b border-gray-100 text-sm text-right font-bold text-gray-900">{formatNum(row.fabricWaste + row.bitWaste)}</TableCell>
@@ -548,9 +418,7 @@ function FabricWastageTable({ labelHeader, rows }: { labelHeader: string; rows: 
       </TableBody>
       <TableFooter>
         <TableRow className="border-t-2 border-[#004D40] bg-emerald-50 hover:bg-emerald-50">
-          <TableCell className="py-3 px-4 font-bold text-[#004D40]">Total</TableCell>
-          <TableCell className="py-3 px-4"></TableCell>
-          <TableCell className="py-3 px-4"></TableCell>
+          <TableCell colSpan={5} className="py-3 px-4 font-bold text-[#004D40]">Total</TableCell>
           <TableCell className="py-3 px-4 font-bold text-[#004D40] text-right">{formatNum(total)}</TableCell>
         </TableRow>
       </TableFooter>

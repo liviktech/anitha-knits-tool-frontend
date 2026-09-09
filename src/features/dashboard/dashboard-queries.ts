@@ -18,6 +18,16 @@ export interface ExtruderProductionVariantSummary {
   total: number;
 }
 
+export interface ExtruderProductionVariantChemicalSummary {
+  color: { id: string; name: string };
+  size: { id: string; name: string };
+  chemical: { id: string; name: string };
+  production: number;
+  lumsKg: number;
+  yarnWasteKg: number;
+  total: number;
+}
+
 export interface ExtruderProductionColorSummary {
   color: { id: string; name: string };
   production: number;
@@ -48,6 +58,15 @@ export interface ExtruderProductionChemicalSummary {
 export interface LoomsProductionVariantSummary {
   color: { id: string; name: string };
   size: { id: string; name: string };
+  production: number;
+  waste: number;
+  total: number;
+}
+
+export interface LoomsProductionVariantChemicalSummary {
+  color: { id: string; name: string };
+  size: { id: string; name: string };
+  chemical: { id: string; name: string };
   production: number;
   waste: number;
   total: number;
@@ -84,6 +103,17 @@ export interface FabricProductionVariantSummary {
   total: number;
 }
 
+export interface FabricProductionVariantChemicalSummary {
+  color: { id: string; name: string };
+  size: { id: string; name: string };
+  chemical: { id: string; name: string };
+  fabricInputKg: number;
+  outputKg: number;
+  fwWasteKg: number;
+  bwWasteKg: number;
+  total: number;
+}
+
 export interface FabricProductionColorSummary {
   color: { id: string; name: string };
   production: number;
@@ -95,6 +125,7 @@ export interface FabricProductionColorSummary {
 export interface FabricProductionSizeSummary {
   size: { id: string; name: string };
   production: number;
+  fabricInputKg: number;
   fwWasteKg: number;
   bwWasteKg: number;
   total: number;
@@ -103,6 +134,7 @@ export interface FabricProductionSizeSummary {
 export interface FabricProductionChemicalSummary {
   chemical: { id: string; name: string };
   production: number;
+  fabricInputKg: number;
   fwWasteKg: number;
   bwWasteKg: number;
   total: number;
@@ -145,6 +177,7 @@ export interface DashboardResponse {
     };
     fabricProduction: {
       byVariant: FabricProductionVariantSummary[];
+      byVariantChemical: FabricProductionVariantChemicalSummary[];
       byColor: FabricProductionColorSummary[];
       bySize: FabricProductionSizeSummary[];
       byChemical: FabricProductionChemicalSummary[];
@@ -161,6 +194,7 @@ export interface DashboardResponse {
     };
     extruderProduction: {
       byVariant: ExtruderProductionVariantSummary[];
+      byVariantChemical: ExtruderProductionVariantChemicalSummary[];
       byColor: ExtruderProductionColorSummary[];
       bySize: ExtruderProductionSizeSummary[];
       byChemical: ExtruderProductionChemicalSummary[];
@@ -168,6 +202,7 @@ export interface DashboardResponse {
     };
     loomsProduction: {
       byVariant: LoomsProductionVariantSummary[];
+      byVariantChemical: LoomsProductionVariantChemicalSummary[];
       byColor: LoomsProductionColorSummary[];
       bySize: LoomsProductionSizeSummary[];
       byChemical: LoomsProductionChemicalSummary[];

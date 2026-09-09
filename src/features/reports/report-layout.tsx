@@ -157,8 +157,7 @@ export function ReportLayout({
               <Button
                 onClick={onDownloadXlsx}
                 disabled={isGeneratingXlsx || isLoading}
-                variant="outline"
-                className="flex items-center justify-center gap-2 border-[#004D40] font-hanken text-[#004D40] hover:bg-[#E0F2F1] rounded-md px-4 py-2 h-auto text-[13px] font-bold tracking-wide transition-colors shadow-sm"
+                className="flex items-center justify-center gap-2 bg-[#004D40] font-hanken hover:bg-[#00382e] text-white rounded-md px-4 py-2 h-auto text-[13px] font-bold tracking-wide transition-colors shadow-sm"
               >
                 {isGeneratingXlsx ? <Loader className="w-4 h-4 animate-spin" /> : <Download className="w-4 h-4" />}
                 Download XLSX

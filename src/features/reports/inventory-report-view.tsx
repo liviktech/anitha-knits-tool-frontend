@@ -113,6 +113,11 @@ export function InventoryReportView({ allReports, selectedReport, onReportChange
         headStyles: { fillColor: TEAL, textColor: 255, fontStyle: 'bold' },
         footStyles: { fillColor: TEAL_TINT, textColor: TEAL, fontStyle: 'bold' },
         columnStyles: { 3: { halign: 'right' }, 4: { halign: 'right' } },
+        didParseCell: (data) => {
+          if (data.section === 'head' && (data.column.index === 3 || data.column.index === 4)) {
+            data.cell.styles.halign = 'right';
+          }
+        },
       });
 
       const pageHeight = doc.internal.pageSize.getHeight();

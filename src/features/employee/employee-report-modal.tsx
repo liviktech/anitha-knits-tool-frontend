@@ -1,7 +1,7 @@
 import { Dialog, DialogClose, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { Download, FileDown, X } from 'lucide-react';
+import { FileDown, X } from 'lucide-react';
 import { Loader } from '@/components/shared/loader';
 import { useEmployees, getEmployeeDisplayId } from './employee-queries';
 
@@ -25,38 +25,6 @@ export function EmployeeReportModal({ open, onOpenChange }: EmployeeReportModalP
   const { data: employees = [], isLoading, isError, refetch } = useEmployees();
 
   const activeCount = employees.filter((e) => e.isActive).length;
-
-  const handleDownloadCSV = () => {
-    if (employees.length === 0) return;
-
-    const headers = ['Employee ID', 'Name', 'Designation', 'Mobile Number', 'Aadhar Card', 'Date of Joining', 'Address', 'Gender', 'Status'];
-    const csvRows = [headers.join(',')];
-
-    const escapeCsvField = (value: string) => `"${value.replace(/"/g, '""')}"`;
-
-    for (const emp of employees) {
-      csvRows.push([
-        escapeCsvField(getEmployeeDisplayId(emp)),
-        escapeCsvField(emp.name || ''),
-        escapeCsvField(emp.employeeDetails?.designation || ''),
-        escapeCsvField(emp.mobile),
-        escapeCsvField(emp.employeeDetails?.aadhaarNumber || ''),
-        escapeCsvField(emp.employeeDetails?.joiningDate ? emp.employeeDetails.joiningDate.slice(0, 10) : ''),
-        escapeCsvField(emp.employeeDetails?.address || ''),
-        escapeCsvField(emp.employeeDetails?.gender || ''),
-        escapeCsvField(emp.isActive ? 'Active' : 'Inactive'),
-      ].join(','));
-    }
-
-    const csvContent = 'data:text/csv;charset=utf-8,' + csvRows.join('\n');
-    const encodedUri = encodeURI(csvContent);
-    const link = document.createElement('a');
-    link.setAttribute('href', encodedUri);
-    link.setAttribute('download', `Employee_Directory_Report_${new Date().toISOString().slice(0, 10)}.csv`);
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-  };
 
   const handleDownloadPDF = async () => {
     if (employees.length === 0) return;
@@ -104,6 +72,11 @@ export function EmployeeReportModal({ open, onOpenChange }: EmployeeReportModalP
       headStyles: { fillColor: TEAL, textColor: 255, fontStyle: 'bold' },
       alternateRowStyles: { fillColor: TEAL_TINT },
       columnStyles: { 8: { halign: 'right' } },
+      didParseCell: (data) => {
+        if (data.section === 'head' && data.column.index === 8) {
+          data.cell.styles.halign = 'right';
+        }
+      },
     });
 
     const pageHeight = doc.internal.pageSize.getHeight();
@@ -124,17 +97,14 @@ export function EmployeeReportModal({ open, onOpenChange }: EmployeeReportModalP
       <DialogContent showCloseButton={false} className="max-w-4xl sm:max-w-4xl max-h-[85vh] flex flex-col p-0 border border-gray-300 overflow-hidden bg-white print:max-w-none print:h-auto print:border-none">
         {/* Modal Header (Not printed) */}
         {/* Close button rendered in-flow here (not DialogContent's default absolutely-positioned
-            one) so it shares the same flex row as Download CSV/PDF and always lines up with them. */}
+            one) so it shares the same flex row as Download PDF and always lines up with it. */}
         <DialogHeader className="px-6 py-4 border-b border-gray-200 bg-[#A8DCAB] shrink-0 print:hidden">
           <div className="flex items-center justify-between">
             <DialogTitle className="text-xl font-bold text-black">
               Employee Directory Report Overview
             </DialogTitle>
             <div className="flex items-center gap-3">
-              <Button variant="outline" size="sm" onClick={handleDownloadCSV} disabled={isLoading || employees.length === 0} className="gap-2 bg-white border-[#004D40] text-[#004D40] hover:bg-[#004D40]/10">
-                <Download className="w-4 h-4" /> Download CSV
-              </Button>
-              <Button variant="outline" size="sm" onClick={handleDownloadPDF} disabled={isLoading || employees.length === 0} className="gap-2 bg-white border-[#004D40] text-[#004D40] hover:bg-[#004D40]/10">
+              <Button size="sm" onClick={handleDownloadPDF} disabled={isLoading || employees.length === 0} className="gap-2 bg-[#004D40] text-white hover:bg-[#00382e]">
                 <FileDown className="w-4 h-4" /> Download PDF
               </Button>
 

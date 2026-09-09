@@ -1,7 +1,7 @@
 import { Dialog, DialogClose, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Table, TableBody, TableCell, TableFooter, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { Download, FileDown, X } from 'lucide-react';
+import { FileDown, X } from 'lucide-react';
 
 const TEAL: [number, number, number] = [0, 77, 64]; // #004D40 — this app's primary accent
 const TEAL_TINT: [number, number, number] = [232, 245, 240]; // light teal for footer/total rows
@@ -16,211 +16,81 @@ function getMonthName(monthStr: string) {
   return date.toLocaleDateString('en-IN', { month: 'long', year: 'numeric' });
 }
 
-export interface DashboardReportColorRow {
+// One color's value, broken down by chemical and (within each chemical) by size — the raw shape
+// already built for the on-screen detail cards. Every section's table is derived by flattening
+// this into individual size+color+chemical rows, so a combination with no recorded value never
+// shows up as a zero row — it's simply absent.
+export interface DashboardReportDetailRow {
   color: string;
-  production: number;
+  chemicals: { chemical: string; production: number; sizes: { size: string; production: number }[] }[];
 }
 
-export interface DashboardReportLabelRow {
-  label: string; // a size (e.g. "150cm") or a chemical name
-  production: number;
-}
-
-interface MergedLabelRow {
-  label: string;
-  extruder: number;
-  looms: number;
-  fabric: number;
-  total: number;
-}
-
-// Merges per-stage size/chemical rows into one combined table by label — mirrors "Production
-// by Color", just keyed by size/chemical instead of color. Unlike colors (a fixed 3-item list
-// every stage shares), sizes/chemicals vary per stage, so this merges by label rather than
-// assuming the three arrays line up index-for-index.
-function mergeByLabel(extruder: DashboardReportLabelRow[], looms: DashboardReportLabelRow[], fabric: DashboardReportLabelRow[]): MergedLabelRow[] {
-  const labels = new Set<string>();
-  extruder.forEach((r) => labels.add(r.label));
-  looms.forEach((r) => labels.add(r.label));
-  fabric.forEach((r) => labels.add(r.label));
-  const exMap = new Map(extruder.map((r) => [r.label, r.production]));
-  const loMap = new Map(looms.map((r) => [r.label, r.production]));
-  const faMap = new Map(fabric.map((r) => [r.label, r.production]));
-  return Array.from(labels)
-    .sort((a, b) => a.localeCompare(b))
-    .map((label) => {
-      const e = exMap.get(label) ?? 0;
-      const l = loMap.get(label) ?? 0;
-      const f = faMap.get(label) ?? 0;
-      return { label, extruder: e, looms: l, fabric: f, total: e + l + f };
-    });
-}
-
-export interface DashboardReportBalanceRow {
-  color: string;
-  balance: number;
-}
-
-export interface DashboardReportStockRow {
-  color: string;
-  stockBySize: Record<string, number>;
-}
-
-export interface DashboardReportDelivery {
-  id: string;
-  date: string;
+interface VariantRow {
   size: string;
-  kg: number;
+  color: string;
+  chemical: string;
+  weight: number;
 }
 
-export interface DashboardReportDeliveryRow {
-  color: string;
-  deliveries: DashboardReportDelivery[];
-  total: number;
+function flattenToVariantRows(rows: DashboardReportDetailRow[]): VariantRow[] {
+  const out: VariantRow[] = [];
+  rows.forEach((row) => {
+    row.chemicals.forEach((chem) => {
+      chem.sizes.forEach((s) => {
+        if (s.production > 0) {
+          out.push({ size: s.size, color: row.color, chemical: chem.chemical, weight: s.production });
+        }
+      });
+    });
+  });
+  return out.sort((a, b) =>
+    a.size.localeCompare(b.size) || a.color.localeCompare(b.color) || a.chemical.localeCompare(b.chemical),
+  );
 }
 
 interface DashboardReportModalProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   reportTitle: string; // "Production Summary Report" | "Sample Production Report"
-  companyName: string;
   monthStr: string; // YYYY-MM
-  extruderByColor: DashboardReportColorRow[];
+  extruderDetail: DashboardReportDetailRow[];
   extruderTotal: number;
-  loomsByColor: DashboardReportColorRow[];
+  loomsDetail: DashboardReportDetailRow[];
   loomsTotal: number;
-  fabricByColor: DashboardReportColorRow[];
+  fabricDetail: DashboardReportDetailRow[];
   fabricTotal: number;
-  extruderBySize: DashboardReportLabelRow[];
-  loomsBySize: DashboardReportLabelRow[];
-  fabricBySize: DashboardReportLabelRow[];
-  extruderByChemical: DashboardReportLabelRow[];
-  loomsByChemical: DashboardReportLabelRow[];
-  fabricByChemical: DashboardReportLabelRow[];
-  yarnBalanceByColor: DashboardReportBalanceRow[];
-  koraBalanceByColor: DashboardReportBalanceRow[];
-  fabricStockByColor: DashboardReportStockRow[];
-  totalFabricStock: number;
-  deliveriesByColor: DashboardReportDeliveryRow[];
-  totalDelivered: number;
+  yarnBalanceDetail: DashboardReportDetailRow[];
+  koraBalanceDetail: DashboardReportDetailRow[];
+  fabricStockDetail: DashboardReportDetailRow[];
+  fabricDeliveredDetail: DashboardReportDetailRow[];
 }
 
 export function DashboardReportModal({
   open,
   onOpenChange,
   reportTitle,
-  companyName,
   monthStr,
-  extruderByColor,
+  extruderDetail,
   extruderTotal,
-  loomsByColor,
+  loomsDetail,
   loomsTotal,
-  fabricByColor,
+  fabricDetail,
   fabricTotal,
-  extruderBySize,
-  loomsBySize,
-  fabricBySize,
-  extruderByChemical,
-  loomsByChemical,
-  fabricByChemical,
-  yarnBalanceByColor,
-  koraBalanceByColor,
-  fabricStockByColor,
-  totalFabricStock,
-  deliveriesByColor,
-  totalDelivered,
+  yarnBalanceDetail,
+  koraBalanceDetail,
+  fabricStockDetail,
+  fabricDeliveredDetail,
 }: DashboardReportModalProps) {
-  const grandTotalProduction = extruderTotal + loomsTotal + fabricTotal;
-  const hasData = extruderTotal > 0 || loomsTotal > 0 || fabricTotal > 0 || totalFabricStock > 0 || totalDelivered > 0;
-  const bySizeRows = mergeByLabel(extruderBySize, loomsBySize, fabricBySize);
-  const byChemicalRows = mergeByLabel(extruderByChemical, loomsByChemical, fabricByChemical);
+  const extruderRows = flattenToVariantRows(extruderDetail);
+  const loomsRows = flattenToVariantRows(loomsDetail);
+  const fabricRows = flattenToVariantRows(fabricDetail);
+  const yarnBalanceRows = flattenToVariantRows(yarnBalanceDetail);
+  const koraBalanceRows = flattenToVariantRows(koraBalanceDetail);
+  const fabricStockRows = flattenToVariantRows(fabricStockDetail);
+  const fabricDeliveredRows = flattenToVariantRows(fabricDeliveredDetail);
 
-  const handleDownloadCSV = () => {
-    if (!hasData) return;
-
-    const rows: (string | number)[][] = [];
-    rows.push([reportTitle]);
-    rows.push(['Company', companyName]);
-    rows.push(['Period', getMonthName(monthStr)]);
-    rows.push(['Generated On', new Date().toLocaleString('en-IN')]);
-    rows.push([]);
-
-    rows.push(['Production by Color']);
-    rows.push(['Color', 'Extruder', 'Looms', 'Fabric Checking', 'Total']);
-    extruderByColor.forEach((row, i) => {
-      const loomsVal = loomsByColor[i]?.production ?? 0;
-      const fabricVal = fabricByColor[i]?.production ?? 0;
-      rows.push([row.color, row.production, loomsVal, fabricVal, row.production + loomsVal + fabricVal]);
-    });
-    rows.push(['Total', extruderTotal, loomsTotal, fabricTotal, grandTotalProduction]);
-    rows.push([]);
-
-    if (bySizeRows.length > 0) {
-      rows.push(['Production by Size']);
-      rows.push(['Size', 'Extruder', 'Looms', 'Fabric Checking', 'Total']);
-      bySizeRows.forEach((r) => rows.push([r.label, r.extruder, r.looms, r.fabric, r.total]));
-      rows.push(['Total',
-        bySizeRows.reduce((s, r) => s + r.extruder, 0),
-        bySizeRows.reduce((s, r) => s + r.looms, 0),
-        bySizeRows.reduce((s, r) => s + r.fabric, 0),
-        bySizeRows.reduce((s, r) => s + r.total, 0),
-      ]);
-      rows.push([]);
-    }
-
-    if (byChemicalRows.length > 0) {
-      rows.push(['Production by Chemical']);
-      rows.push(['Chemical', 'Extruder', 'Looms', 'Fabric Checking', 'Total']);
-      byChemicalRows.forEach((r) => rows.push([r.label, r.extruder, r.looms, r.fabric, r.total]));
-      rows.push(['Total',
-        byChemicalRows.reduce((s, r) => s + r.extruder, 0),
-        byChemicalRows.reduce((s, r) => s + r.looms, 0),
-        byChemicalRows.reduce((s, r) => s + r.fabric, 0),
-        byChemicalRows.reduce((s, r) => s + r.total, 0),
-      ]);
-      rows.push([]);
-    }
-
-    rows.push(['Yarn Balance']);
-    rows.push(['Color', 'Balance (kg)']);
-    yarnBalanceByColor.forEach((row) => rows.push([row.color, row.balance]));
-    rows.push([]);
-
-    rows.push(['Kora Balance']);
-    rows.push(['Color', 'Balance (kg)']);
-    koraBalanceByColor.forEach((row) => rows.push([row.color, row.balance]));
-    rows.push([]);
-
-    rows.push(['Fabric Stock']);
-    rows.push(['Color', 'Size', 'Stock (kg)']);
-    fabricStockByColor.forEach((row) => {
-      Object.entries(row.stockBySize).forEach(([size, stock]) => {
-        if ((stock || 0) > 0) rows.push([row.color, size, stock]);
-      });
-    });
-    rows.push(['Total Fabric Stock', '', totalFabricStock]);
-    rows.push([]);
-
-    rows.push(['Fabric Delivered']);
-    rows.push(['Date', 'Color', 'Size', 'Weight (kg)']);
-    deliveriesByColor.forEach((colorRow) => {
-      colorRow.deliveries.forEach((d) => rows.push([new Date(d.date).toLocaleDateString('en-IN'), colorRow.color, d.size, d.kg]));
-    });
-    rows.push(['Total Fabric Delivered', '', '', totalDelivered]);
-
-    const escapeCsvField = (value: string | number) => {
-      const str = String(value);
-      return /[",\n]/.test(str) ? `"${str.replace(/"/g, '""')}"` : str;
-    };
-    const csvContent = rows.map((r) => r.map(escapeCsvField).join(',')).join('\n');
-    const encodedUri = encodeURI('data:text/csv;charset=utf-8,' + csvContent);
-    const link = document.createElement('a');
-    link.setAttribute('href', encodedUri);
-    link.setAttribute('download', `${reportTitle.replace(/\s+/g, '_')}_${monthStr}.csv`);
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-  };
+  const hasData = extruderRows.length > 0 || loomsRows.length > 0 || fabricRows.length > 0
+    || yarnBalanceRows.length > 0 || koraBalanceRows.length > 0 || fabricStockRows.length > 0 || fabricDeliveredRows.length > 0;
 
   const handleDownloadPDF = async () => {
     if (!hasData) return;
@@ -273,63 +143,24 @@ export function DashboardReportModal({
       }
     };
 
-    section(
-      'Production by Color',
-      ['Color', 'Extruder', 'Looms', 'Fabric Checking', 'Total'],
-      extruderByColor.map((row, i) => {
-        const loomsVal = loomsByColor[i]?.production ?? 0;
-        const fabricVal = fabricByColor[i]?.production ?? 0;
-        return [row.color, formatNum(row.production), formatNum(loomsVal), formatNum(fabricVal), formatNum(row.production + loomsVal + fabricVal)];
-      }),
-      [['Total', formatNum(extruderTotal), formatNum(loomsTotal), formatNum(fabricTotal), formatNum(grandTotalProduction)]],
-    );
-
-    if (bySizeRows.length > 0) {
+    const variantSection = (title: string, rows: VariantRow[], valueHeader: string) => {
+      if (rows.length === 0) return;
+      const total = rows.reduce((s, r) => s + r.weight, 0);
       section(
-        'Production by Size',
-        ['Size', 'Extruder', 'Looms', 'Fabric Checking', 'Total'],
-        bySizeRows.map((r) => [r.label, formatNum(r.extruder), formatNum(r.looms), formatNum(r.fabric), formatNum(r.total)]),
-        [['Total',
-          formatNum(bySizeRows.reduce((s, r) => s + r.extruder, 0)),
-          formatNum(bySizeRows.reduce((s, r) => s + r.looms, 0)),
-          formatNum(bySizeRows.reduce((s, r) => s + r.fabric, 0)),
-          formatNum(bySizeRows.reduce((s, r) => s + r.total, 0)),
-        ]],
+        title,
+        ['Size', 'Color', 'Chemical', valueHeader],
+        rows.map((r) => [r.size, r.color, r.chemical, formatNum(r.weight)]),
+        [['Total', '', '', formatNum(total)]],
       );
-    }
+    };
 
-    if (byChemicalRows.length > 0) {
-      section(
-        'Production by Chemical',
-        ['Chemical', 'Extruder', 'Looms', 'Fabric Checking', 'Total'],
-        byChemicalRows.map((r) => [r.label, formatNum(r.extruder), formatNum(r.looms), formatNum(r.fabric), formatNum(r.total)]),
-        [['Total',
-          formatNum(byChemicalRows.reduce((s, r) => s + r.extruder, 0)),
-          formatNum(byChemicalRows.reduce((s, r) => s + r.looms, 0)),
-          formatNum(byChemicalRows.reduce((s, r) => s + r.fabric, 0)),
-          formatNum(byChemicalRows.reduce((s, r) => s + r.total, 0)),
-        ]],
-      );
-    }
-
-    section('Yarn Balance', ['Color', 'Balance (kg)'], yarnBalanceByColor.map((row) => [row.color, formatNum(row.balance)]));
-    section('Kora Balance', ['Color', 'Balance (kg)'], koraBalanceByColor.map((row) => [row.color, formatNum(row.balance)]));
-
-    const fabricStockBody: (string | number)[][] = [];
-    fabricStockByColor.forEach((row) => {
-      Object.entries(row.stockBySize).forEach(([size, stock]) => {
-        if ((stock || 0) > 0) fabricStockBody.push([row.color, size, formatNum(stock)]);
-      });
-    });
-    if (fabricStockBody.length > 0) {
-      section('Fabric Stock', ['Color', 'Size', 'Stock (kg)'], fabricStockBody, [['Total Fabric Stock', '', formatNum(totalFabricStock)]]);
-    }
-
-    const deliveredBody: (string | number)[][] = [];
-    deliveriesByColor.forEach((colorRow) => {
-      colorRow.deliveries.forEach((d) => deliveredBody.push([new Date(d.date).toLocaleDateString('en-IN'), colorRow.color, d.size, formatNum(d.kg)]));
-    });
-    section('Fabric Delivered', ['Date', 'Color', 'Size', 'Weight (kg)'], deliveredBody, [['Total Fabric Delivered', '', '', formatNum(totalDelivered)]]);
+    variantSection('Extruder Production', extruderRows, 'Weight (kg)');
+    variantSection('Looms Production', loomsRows, 'Weight (kg)');
+    variantSection('Fabric Checking', fabricRows, 'Weight (kg)');
+    variantSection('Yarn Balance', yarnBalanceRows, 'Balance (kg)');
+    variantSection('Kora Balance', koraBalanceRows, 'Balance (kg)');
+    variantSection('Fabric Stock', fabricStockRows, 'Stock (kg)');
+    variantSection('Fabric Delivered', fabricDeliveredRows, 'Weight (kg)');
 
     const pageHeight = doc.internal.pageSize.getHeight();
     doc.setFontSize(8);
@@ -344,17 +175,14 @@ export function DashboardReportModal({
       <DialogContent showCloseButton={false} className="max-w-5xl sm:max-w-5xl max-h-[85vh] flex flex-col p-0 border border-gray-300 overflow-hidden bg-white print:max-w-none print:h-auto print:border-none">
         {/* Modal Header (Not printed) */}
         {/* Close button rendered in-flow here (not DialogContent's default absolutely-positioned
-            one) so it shares the same flex row as Download CSV/PDF and always lines up with them. */}
+            one) so it shares the same flex row as Download PDF and always lines up with it. */}
         <DialogHeader className="px-6 py-4 border-b border-gray-200 bg-[#A8DCAB] shrink-0 print:hidden">
           <div className="flex items-center justify-between">
             <DialogTitle className="text-xl font-bold text-black">
               {reportTitle} Overview
             </DialogTitle>
             <div className="flex items-center gap-3">
-              <Button variant="outline" size="sm" onClick={handleDownloadCSV} disabled={!hasData} className="gap-2 bg-white border-[#004D40] text-[#004D40] hover:bg-[#004D40]/10">
-                <Download className="w-4 h-4" /> Download CSV
-              </Button>
-              <Button variant="outline" size="sm" onClick={handleDownloadPDF} disabled={!hasData} className="gap-2 bg-white border-[#004D40] text-[#004D40] hover:bg-[#004D40]/10">
+              <Button size="sm" onClick={handleDownloadPDF} disabled={!hasData} className="gap-2 bg-[#004D40] text-white hover:bg-[#00382e]">
                 <FileDown className="w-4 h-4" /> Download PDF
               </Button>
 
@@ -406,131 +234,47 @@ export function DashboardReportModal({
                   </div>
                 </div>
 
-                {/* Production by Color */}
-                <ReportSection title="Production by Color" total={`Total : ${formatNum(grandTotalProduction)} kg`}>
-                  <Table>
-                    <TableHeader>
-                      <TableRow className="bg-[#004D40] hover:bg-[#004D40]">
-                        <TableHead className="py-3 px-4 font-bold text-white whitespace-nowrap">Color</TableHead>
-                        <TableHead className="py-3 px-4 font-bold text-white whitespace-nowrap !text-right">Extruder</TableHead>
-                        <TableHead className="py-3 px-4 font-bold text-white whitespace-nowrap !text-right">Looms</TableHead>
-                        <TableHead className="py-3 px-4 font-bold text-white whitespace-nowrap !text-right">Fabric Checking</TableHead>
-                        <TableHead className="py-3 px-4 font-bold text-white text-right whitespace-nowrap">Total</TableHead>
-                      </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                      {extruderByColor.map((row, i) => {
-                        const loomsVal = loomsByColor[i]?.production ?? 0;
-                        const fabricVal = fabricByColor[i]?.production ?? 0;
-                        return (
-                          <TableRow key={row.color} className={i % 2 === 0 ? 'bg-white' : 'bg-emerald-50/40'}>
-                            <TableCell className="py-3 px-4 border-b border-gray-100 text-sm font-semibold text-gray-800">{row.color}</TableCell>
-                            <TableCell className="py-3 px-4 border-b border-gray-100 text-sm text-gray-600 !text-right">{formatNum(row.production)}</TableCell>
-                            <TableCell className="py-3 px-4 border-b border-gray-100 text-sm text-gray-600 !text-right">{formatNum(loomsVal)}</TableCell>
-                            <TableCell className="py-3 px-4 border-b border-gray-100 text-sm text-gray-600 !text-right">{formatNum(fabricVal)}</TableCell>
-                            <TableCell className="py-3 px-4 border-b border-gray-100 text-sm font-bold text-gray-900 text-right">{formatNum(row.production + loomsVal + fabricVal)}</TableCell>
-                          </TableRow>
-                        );
-                      })}
-                    </TableBody>
-                    <TableFooter>
-                      <TableRow className="border-t-2 border-[#004D40] bg-emerald-50 hover:bg-emerald-50">
-                        <TableCell className="py-3 px-4 font-bold text-[#004D40]">Total</TableCell>
-                        <TableCell className="py-3 px-4 font-bold text-[#004D40] !text-right">{formatNum(extruderTotal)}</TableCell>
-                        <TableCell className="py-3 px-4 font-bold text-[#004D40] !text-right">{formatNum(loomsTotal)}</TableCell>
-                        <TableCell className="py-3 px-4 font-bold text-[#004D40] !text-right">{formatNum(fabricTotal)}</TableCell>
-                        <TableCell className="py-3 px-4 font-bold text-[#004D40] text-right">{formatNum(grandTotalProduction)}</TableCell>
-                      </TableRow>
-                    </TableFooter>
-                  </Table>
-                </ReportSection>
-
-                {bySizeRows.length > 0 && (
-                  <ReportSection title="Production by Size" total={`Total : ${formatNum(bySizeRows.reduce((s, r) => s + r.total, 0))} kg`}>
-                    <MergedLabelTable rows={bySizeRows} labelHeader="Size" />
+                {extruderRows.length > 0 && (
+                  <ReportSection title="Extruder Production" total={`Total : ${formatNum(extruderRows.reduce((s, r) => s + r.weight, 0))} kg`}>
+                    <VariantTable rows={extruderRows} valueHeader="Weight (kg)" />
                   </ReportSection>
                 )}
 
-                {byChemicalRows.length > 0 && (
-                  <ReportSection title="Production by Chemical" total={`Total : ${formatNum(byChemicalRows.reduce((s, r) => s + r.total, 0))} kg`}>
-                    <MergedLabelTable rows={byChemicalRows} labelHeader="Chemical" />
+                {loomsRows.length > 0 && (
+                  <ReportSection title="Looms Production" total={`Total : ${formatNum(loomsRows.reduce((s, r) => s + r.weight, 0))} kg`}>
+                    <VariantTable rows={loomsRows} valueHeader="Weight (kg)" />
                   </ReportSection>
                 )}
 
-                <ReportSection title="Yarn Balance" total={`Total : ${formatNum(yarnBalanceByColor.reduce((s, r) => s + r.balance, 0))} kg`}>
-                  <BalanceTable rows={yarnBalanceByColor} />
-                </ReportSection>
+                {fabricRows.length > 0 && (
+                  <ReportSection title="Fabric Checking" total={`Total : ${formatNum(fabricRows.reduce((s, r) => s + r.weight, 0))} kg`}>
+                    <VariantTable rows={fabricRows} valueHeader="Weight (kg)" />
+                  </ReportSection>
+                )}
 
-                <ReportSection title="Kora Balance" total={`Total : ${formatNum(koraBalanceByColor.reduce((s, r) => s + r.balance, 0))} kg`}>
-                  <BalanceTable rows={koraBalanceByColor} />
-                </ReportSection>
+                {yarnBalanceRows.length > 0 && (
+                  <ReportSection title="Yarn Balance" total={`Total : ${formatNum(yarnBalanceRows.reduce((s, r) => s + r.weight, 0))} kg`}>
+                    <VariantTable rows={yarnBalanceRows} valueHeader="Balance (kg)" />
+                  </ReportSection>
+                )}
 
-                <ReportSection title="Fabric Stock" total={`Total : ${formatNum(totalFabricStock)} kg`}>
-                  <Table>
-                    <TableHeader>
-                      <TableRow className="bg-[#004D40] hover:bg-[#004D40]">
-                        <TableHead className="py-3 px-4 font-bold text-white whitespace-nowrap">Color</TableHead>
-                        <TableHead className="py-3 px-4 font-bold text-white whitespace-nowrap !text-left">Size</TableHead>
-                        <TableHead className="py-3 px-4 font-bold text-white text-right whitespace-nowrap">Stock (kg)</TableHead>
-                      </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                      {fabricStockByColor.flatMap((row) =>
-                        Object.entries(row.stockBySize)
-                          .filter(([, stock]) => (stock || 0) > 0)
-                          .map(([size, stock]) => (
-                            <TableRow key={`${row.color}-${size}`}>
-                              <TableCell className="py-3 px-4 border-b border-gray-100 text-sm font-semibold text-gray-800">{row.color}</TableCell>
-                              <TableCell className="py-3 px-4 border-b border-gray-100 text-sm text-gray-600 !text-left">{size}</TableCell>
-                              <TableCell className="py-3 px-4 border-b border-gray-100 text-sm text-right text-gray-900">{formatNum(stock)}</TableCell>
-                            </TableRow>
-                          )),
-                      )}
-                    </TableBody>
-                    <TableFooter>
-                      <TableRow className="border-t-2 border-[#004D40] bg-emerald-50 hover:bg-emerald-50">
-                        <TableCell colSpan={2} className="py-3 px-4 font-bold text-[#004D40]">Total Fabric Stock</TableCell>
-                        <TableCell className="py-3 px-4 font-bold text-[#004D40] text-right">{formatNum(totalFabricStock)}</TableCell>
-                      </TableRow>
-                    </TableFooter>
-                  </Table>
-                </ReportSection>
+                {koraBalanceRows.length > 0 && (
+                  <ReportSection title="Kora Balance" total={`Total : ${formatNum(koraBalanceRows.reduce((s, r) => s + r.weight, 0))} kg`}>
+                    <VariantTable rows={koraBalanceRows} valueHeader="Balance (kg)" />
+                  </ReportSection>
+                )}
 
-                <ReportSection title="Fabric Delivered" total={`Total : ${formatNum(totalDelivered)} kg`}>
-                  <Table>
-                    <TableHeader>
-                      <TableRow className="bg-[#004D40] hover:bg-[#004D40]">
-                        <TableHead className="py-3 px-4 font-bold text-white whitespace-nowrap">Date</TableHead>
-                        <TableHead className="py-3 px-4 font-bold text-white whitespace-nowrap !text-left">Color</TableHead>
-                        <TableHead className="py-3 px-4 font-bold text-white whitespace-nowrap !text-left">Size</TableHead>
-                        <TableHead className="py-3 px-4 font-bold text-white text-right whitespace-nowrap">Weight (kg)</TableHead>
-                      </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                      {deliveriesByColor.flatMap((colorRow) =>
-                        colorRow.deliveries.map((d) => (
-                          <TableRow key={d.id}>
-                            <TableCell className="py-3 px-4 border-b border-gray-100 text-sm text-gray-600">{new Date(d.date).toLocaleDateString('en-IN')}</TableCell>
-                            <TableCell className="py-3 px-4 border-b border-gray-100 text-sm font-semibold text-gray-800 !text-left">{colorRow.color}</TableCell>
-                            <TableCell className="py-3 px-4 border-b border-gray-100 text-sm text-gray-600 !text-left">{d.size}</TableCell>
-                            <TableCell className="py-3 px-4 border-b border-gray-100 text-sm text-right text-gray-900">{formatNum(d.kg)}</TableCell>
-                          </TableRow>
-                        )),
-                      )}
-                      {deliveriesByColor.every((c) => c.deliveries.length === 0) && (
-                        <TableRow>
-                          <TableCell colSpan={4} className="!text-center py-8 text-gray-500">No deliveries recorded for this period.</TableCell>
-                        </TableRow>
-                      )}
-                    </TableBody>
-                    <TableFooter>
-                      <TableRow className="border-t-2 border-[#004D40] bg-emerald-50 hover:bg-emerald-50">
-                        <TableCell colSpan={3} className="py-3 px-4 font-bold text-[#004D40]">Total Fabric Delivered</TableCell>
-                        <TableCell className="py-3 px-4 font-bold text-[#004D40] text-right">{formatNum(totalDelivered)}</TableCell>
-                      </TableRow>
-                    </TableFooter>
-                  </Table>
-                </ReportSection>
+                {fabricStockRows.length > 0 && (
+                  <ReportSection title="Fabric Stock" total={`Total : ${formatNum(fabricStockRows.reduce((s, r) => s + r.weight, 0))} kg`}>
+                    <VariantTable rows={fabricStockRows} valueHeader="Stock (kg)" />
+                  </ReportSection>
+                )}
+
+                {fabricDeliveredRows.length > 0 && (
+                  <ReportSection title="Fabric Delivered" total={`Total : ${formatNum(fabricDeliveredRows.reduce((s, r) => s + r.weight, 0))} kg`}>
+                    <VariantTable rows={fabricDeliveredRows} valueHeader="Weight (kg)" />
+                  </ReportSection>
+                )}
               </>
             )}
 
@@ -559,67 +303,31 @@ function ReportSection({ title, total, children }: { title: string; total: strin
   );
 }
 
-function MergedLabelTable({ rows, labelHeader }: { rows: MergedLabelRow[]; labelHeader: string }) {
-  const totals = rows.reduce(
-    (acc, r) => ({ extruder: acc.extruder + r.extruder, looms: acc.looms + r.looms, fabric: acc.fabric + r.fabric, total: acc.total + r.total }),
-    { extruder: 0, looms: 0, fabric: 0, total: 0 },
-  );
+function VariantTable({ rows, valueHeader }: { rows: VariantRow[]; valueHeader: string }) {
+  const total = rows.reduce((sum, r) => sum + r.weight, 0);
   return (
     <Table>
       <TableHeader>
         <TableRow className="bg-[#004D40] hover:bg-[#004D40]">
-          <TableHead className="py-3 px-4 font-bold text-white whitespace-nowrap">{labelHeader}</TableHead>
-          <TableHead className="py-3 px-4 font-bold text-white whitespace-nowrap !text-right">Extruder</TableHead>
-          <TableHead className="py-3 px-4 font-bold text-white whitespace-nowrap !text-right">Looms</TableHead>
-          <TableHead className="py-3 px-4 font-bold text-white whitespace-nowrap !text-right">Fabric Checking</TableHead>
-          <TableHead className="py-3 px-4 font-bold text-white text-right whitespace-nowrap">Total</TableHead>
+          <TableHead className="py-3 px-4 font-bold text-white whitespace-nowrap">Size</TableHead>
+          <TableHead className="py-3 px-4 font-bold text-white whitespace-nowrap !text-left">Color</TableHead>
+          <TableHead className="py-3 px-4 font-bold text-white whitespace-nowrap !text-left">Chemical</TableHead>
+          <TableHead className="py-3 px-4 font-bold text-white text-right whitespace-nowrap">{valueHeader}</TableHead>
         </TableRow>
       </TableHeader>
       <TableBody>
         {rows.map((row, i) => (
-          <TableRow key={row.label} className={i % 2 === 0 ? 'bg-white' : 'bg-emerald-50/40'}>
-            <TableCell className="py-3 px-4 border-b border-gray-100 text-sm font-semibold text-gray-800">{row.label}</TableCell>
-            <TableCell className="py-3 px-4 border-b border-gray-100 text-sm text-gray-600 !text-right">{formatNum(row.extruder)}</TableCell>
-            <TableCell className="py-3 px-4 border-b border-gray-100 text-sm text-gray-600 !text-right">{formatNum(row.looms)}</TableCell>
-            <TableCell className="py-3 px-4 border-b border-gray-100 text-sm text-gray-600 !text-right">{formatNum(row.fabric)}</TableCell>
-            <TableCell className="py-3 px-4 border-b border-gray-100 text-sm font-bold text-gray-900 text-right">{formatNum(row.total)}</TableCell>
+          <TableRow key={`${row.size}-${row.color}-${row.chemical}`} className={i % 2 === 0 ? 'bg-white' : 'bg-emerald-50/40'}>
+            <TableCell className="py-3 px-4 border-b border-gray-100 text-sm font-semibold text-gray-800">{row.size}</TableCell>
+            <TableCell className="py-3 px-4 border-b border-gray-100 text-sm text-gray-600 !text-left">{row.color}</TableCell>
+            <TableCell className="py-3 px-4 border-b border-gray-100 text-sm text-gray-600 !text-left">{row.chemical}</TableCell>
+            <TableCell className="py-3 px-4 border-b border-gray-100 text-sm font-bold text-gray-900 text-right">{formatNum(row.weight)}</TableCell>
           </TableRow>
         ))}
       </TableBody>
       <TableFooter>
         <TableRow className="border-t-2 border-[#004D40] bg-emerald-50 hover:bg-emerald-50">
-          <TableCell className="py-3 px-4 font-bold text-[#004D40]">Total</TableCell>
-          <TableCell className="py-3 px-4 font-bold text-[#004D40] !text-right">{formatNum(totals.extruder)}</TableCell>
-          <TableCell className="py-3 px-4 font-bold text-[#004D40] !text-right">{formatNum(totals.looms)}</TableCell>
-          <TableCell className="py-3 px-4 font-bold text-[#004D40] !text-right">{formatNum(totals.fabric)}</TableCell>
-          <TableCell className="py-3 px-4 font-bold text-[#004D40] text-right">{formatNum(totals.total)}</TableCell>
-        </TableRow>
-      </TableFooter>
-    </Table>
-  );
-}
-
-function BalanceTable({ rows }: { rows: DashboardReportBalanceRow[] }) {
-  const total = rows.reduce((sum, r) => sum + r.balance, 0);
-  return (
-    <Table>
-      <TableHeader>
-        <TableRow className="bg-[#004D40] hover:bg-[#004D40]">
-          <TableHead className="py-3 px-4 font-bold text-white whitespace-nowrap">Color</TableHead>
-          <TableHead className="py-3 px-4 font-bold text-white text-right whitespace-nowrap">Balance (kg)</TableHead>
-        </TableRow>
-      </TableHeader>
-      <TableBody>
-        {rows.map((row, i) => (
-          <TableRow key={row.color} className={i % 2 === 0 ? 'bg-white' : 'bg-emerald-50/40'}>
-            <TableCell className="py-3 px-4 border-b border-gray-100 text-sm font-semibold text-gray-800">{row.color}</TableCell>
-            <TableCell className="py-3 px-4 border-b border-gray-100 text-sm text-right text-gray-900">{formatNum(row.balance)}</TableCell>
-          </TableRow>
-        ))}
-      </TableBody>
-      <TableFooter>
-        <TableRow className="border-t-2 border-[#004D40] bg-emerald-50 hover:bg-emerald-50">
-          <TableCell className="py-3 px-4 font-bold text-[#004D40]">Total</TableCell>
+          <TableCell colSpan={3} className="py-3 px-4 font-bold text-[#004D40]">Total</TableCell>
           <TableCell className="py-3 px-4 font-bold text-[#004D40] text-right">{formatNum(total)}</TableCell>
         </TableRow>
       </TableFooter>

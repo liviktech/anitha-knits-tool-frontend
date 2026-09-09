@@ -123,6 +123,11 @@ export function EmployeePdfView({ tab, allReports, selectedReport, onReportChang
           headStyles: { fillColor: TEAL, textColor: 255, fontStyle: 'bold' },
           alternateRowStyles: { fillColor: TEAL_TINT },
           columnStyles: { 8: { halign: 'right' } },
+          didParseCell: (data) => {
+            if (data.section === 'head' && data.column.index === 8) {
+              data.cell.styles.halign = 'right';
+            }
+          },
         });
 
       } else if (tab === 'attendance_report') {
@@ -147,6 +152,11 @@ export function EmployeePdfView({ tab, allReports, selectedReport, onReportChang
           headStyles: { fillColor: TEAL, textColor: 255, fontStyle: 'bold' },
           alternateRowStyles: { fillColor: TEAL_TINT },
           columnStyles: { 3: { halign: 'right' }, 4: { halign: 'right' }, 5: { halign: 'right' } },
+          didParseCell: (data) => {
+            if (data.section === 'head' && [3, 4, 5].includes(data.column.index)) {
+              data.cell.styles.halign = 'right';
+            }
+          },
         });
 
       } else if (tab === 'payroll_report') {
@@ -179,6 +189,11 @@ export function EmployeePdfView({ tab, allReports, selectedReport, onReportChang
             2: { halign: 'right' }, 3: { halign: 'right' }, 4: { halign: 'right' },
             5: { halign: 'right' }, 6: { halign: 'right' }, 7: { halign: 'right' },
             8: { halign: 'right' }, 9: { halign: 'right' },
+          },
+          didParseCell: (data) => {
+            if (data.section === 'head' && data.column.index >= 2 && data.column.index <= 9) {
+              data.cell.styles.halign = 'right';
+            }
           },
         });
       }

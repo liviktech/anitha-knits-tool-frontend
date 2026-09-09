@@ -11,7 +11,7 @@ import { currentMonthStr as todayMonthStr } from '@/lib/date-utils';
 import { RawMaterialsSection, RawMaterialCard } from './card';
 import { DashboardReportModal } from './dashboard-report-modal';
 import { DashboardWastageReportModal } from './dashboard-wastage-report-modal';
-import { useDashboardData } from './dashboard-data-hooks';
+import { useDashboardData, buildWastageChemicalRows } from './dashboard-data-hooks';
 import { ProductionSummaryTab } from './production-summary-tab';
 import { SampleProductionTab } from './sample-production-tab';
 import { WastageTabContent } from './wastage-summary-tab';
@@ -200,46 +200,30 @@ export function DashboardDesign() {
         <DashboardWastageReportModal
           open={isReportModalOpen}
           onOpenChange={setIsReportModalOpen}
-          companyName={companyName}
           monthStr={currentMonthStr}
-          extruderByColor={data.extruderWasteSummaryByColor}
+          extruderDetail={buildWastageChemicalRows(data.extruderProductionsData, 'extruder', currentMonthStr)}
           extruderTotal={data.lumsWasteKg + data.looseWasteKg}
-          loomsByColor={data.loomsWasteByColor}
+          loomsDetail={buildWastageChemicalRows(data.loomsProductionsData, 'looms', currentMonthStr)}
           loomsTotal={data.loomsWasteByColor.reduce((sum, r) => sum + r.loomsWaste, 0)}
-          fabricByColor={data.fabricWasteByColor}
+          fabricDetail={buildWastageChemicalRows(data.fabricCheckingData, 'fabric', currentMonthStr)}
           fabricTotal={data.fabricWasteByColor.reduce((sum, r) => sum + r.fabricWaste + r.bitWaste, 0)}
-          extruderBySize={data.extruderWasteBySize}
-          extruderByChemical={data.extruderWasteByChemical}
-          loomsBySize={data.loomsWasteBySize}
-          loomsByChemical={data.loomsWasteByChemical}
-          fabricBySize={data.fabricWasteBySize}
-          fabricByChemical={data.fabricWasteByChemical}
         />
       ) : (
         <DashboardReportModal
           open={isReportModalOpen}
           onOpenChange={setIsReportModalOpen}
           reportTitle={activeTab === 'sample' ? 'Sample Production Report' : 'Production Summary Report'}
-          companyName={companyName}
           monthStr={currentMonthStr}
-          extruderByColor={activeTab === 'sample' ? data.sampleExtruderColorRows : data.extruderColorRows}
+          extruderDetail={activeTab === 'sample' ? data.sampleExtruderColorRows : data.extruderColorRows}
           extruderTotal={activeTab === 'sample' ? data.sampleExtruderGrandTotal : data.extruderGrandTotal}
-          loomsByColor={activeTab === 'sample' ? data.sampleLoomsColorRows : data.loomsColorRows}
+          loomsDetail={activeTab === 'sample' ? data.sampleLoomsColorRows : data.loomsColorRows}
           loomsTotal={activeTab === 'sample' ? data.sampleLoomsGrandTotal : data.loomsGrandTotal}
-          fabricByColor={activeTab === 'sample' ? data.sampleFabricColorRows : data.fabricColorRows}
+          fabricDetail={activeTab === 'sample' ? data.sampleFabricColorRows : data.fabricColorRows}
           fabricTotal={activeTab === 'sample' ? data.sampleFabricGrandTotal : data.fabricGrandTotal}
-          extruderBySize={activeTab === 'sample' ? data.sampleExtruderBySizeRows : data.extruderBySizeRows}
-          loomsBySize={activeTab === 'sample' ? data.sampleLoomsBySizeRows : data.loomsBySizeRows}
-          fabricBySize={activeTab === 'sample' ? data.sampleFabricBySizeRows : data.fabricBySizeRows}
-          extruderByChemical={activeTab === 'sample' ? data.sampleExtruderByChemicalRows : data.extruderByChemicalRows}
-          loomsByChemical={activeTab === 'sample' ? data.sampleLoomsByChemicalRows : data.loomsByChemicalRows}
-          fabricByChemical={activeTab === 'sample' ? data.sampleFabricByChemicalRows : data.fabricByChemicalRows}
-          yarnBalanceByColor={activeTab === 'sample' ? data.sampleYarnBalanceByColor : data.yarnBalanceByColor}
-          koraBalanceByColor={activeTab === 'sample' ? data.sampleKoraBalanceByColor : data.koraBalanceByColor}
-          fabricStockByColor={activeTab === 'sample' ? data.sampleFabricStockByColor : data.fabricStockByColor}
-          totalFabricStock={activeTab === 'sample' ? data.sampleTotalFabricStockKg : data.totalFabricStockKg}
-          deliveriesByColor={activeTab === 'sample' ? data.sampleDeliveriesByColor : data.monthDeliveriesByColor}
-          totalDelivered={activeTab === 'sample' ? data.sampleSelectedMonthDeliveryTotal : data.selectedMonthDeliveryTotal}
+          yarnBalanceDetail={activeTab === 'sample' ? data.sampleYarnBalanceColorRows : data.yarnBalanceColorRows}
+          koraBalanceDetail={activeTab === 'sample' ? data.sampleKoraBalanceColorRows : data.koraBalanceColorRows}
+          fabricStockDetail={activeTab === 'sample' ? data.sampleFabricStockColorRows : data.fabricStockColorRows}
+          fabricDeliveredDetail={activeTab === 'sample' ? data.sampleFabricDeliveredColorRows : data.fabricDeliveredColorRows}
         />
       )}
     </div>
