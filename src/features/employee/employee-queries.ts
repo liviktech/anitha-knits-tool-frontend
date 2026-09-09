@@ -555,12 +555,12 @@ export function buildPayrollRows(
       customUserId: emp.employeeDetails?.customUserId,
       baseSalary: saved ? Number(saved.baseSalary) : (summary?.baseSalary || emp.employeeDetails?.salary || 0),
       daysWorked: saved ? Number(saved.daysWorked) : (summary?.daysWorked || 0),
-      grossSalary: saved ? Number(saved.grossSalary) : 0,
+      grossSalary: saved ? Number(saved.grossSalary) : (summary?.grossSalary || 0),
       advanceDeduction: saved ? Number(saved.advanceDeduction) : (summary?.advanceDeduction || 0),
-      marketValueBonus: saved ? Number(saved.marketValueBonus) : ((marketValueAllocations ?? {})[emp.id] || 0),
+      marketValueBonus: saved ? Number(saved.marketValueBonus) : ((marketValueAllocations ?? {})[emp.id] || summary?.marketValueBonus || 0),
       marketValueDeduction: saved ? Number(saved.marketValueDeduction) : (summary?.marketValueDeduction || 0),
       otherDeduction: saved ? Number(saved.otherDeduction || 0) : (summary?.otherDeduction || 0),
-      netSalary: saved ? Number(saved.netSalary) : 0,
+      netSalary: saved ? Number(saved.netSalary) : (summary?.netSalary || 0),
       status: saved?.status || 'Pending',
     };
   });

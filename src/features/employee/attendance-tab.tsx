@@ -23,6 +23,7 @@ export interface AttendanceRecord {
   id: string;
   date: string;
   employeeId: string;
+  customUserId?: string;
   employeeName: string;
   role: string;
   checkIn: string;
@@ -47,8 +48,8 @@ export const AttendanceTab = forwardRef<AttendanceTabRef>((_props, ref) => {
   const [selectedEmployee, setSelectedEmployee] = useState<{ id: string; name: string } | null>(null);
   const [selectedRecord, setSelectedRecord] = useState<AttendanceRecord | null>(null);
 
-  const openDetailsModal = (row: { employeeId: string; employeeName: string }) => {
-    setSelectedEmployee({ id: row.employeeId, name: row.employeeName });
+  const openDetailsModal = (row: { employeeId: string; rawId: string; employeeName: string }) => {
+    setSelectedEmployee({ id: row.rawId, name: row.employeeName });
     setIsDetailsModalOpen(true);
   };
 
@@ -107,7 +108,8 @@ export const AttendanceTab = forwardRef<AttendanceTabRef>((_props, ref) => {
       return {
         id: att.id,
         date: att.date,
-        employeeId: att.employee?.employeeDetails?.customUserId || att.employeeId,
+        employeeId: att.employeeId,
+        customUserId: att.employee?.employeeDetails?.customUserId || att.employeeId,
         employeeName: att.employee?.name || 'Unknown',
         role: att.employee?.employeeDetails?.designation || 'Employee',
         checkIn: '', // No longer used in schema
@@ -367,6 +369,7 @@ export const AttendanceTab = forwardRef<AttendanceTabRef>((_props, ref) => {
         isOpen={isModalOpen}
         onClose={() => { setIsModalOpen(false); setSelectedRecord(null); }}
         onSave={(date, entries) => {
+          const formattedDate = date.split('T')[0];
           const apiEntries = entries.map((e) => {
             const apiStatusMap: Record<string, 'DAY_SHIFT' | 'NIGHT_SHIFT' | 'ABSENT' | 'HALF_DAY' | 'COMPANY_HOLIDAY'> = {
               'Day shift': 'DAY_SHIFT',
@@ -381,7 +384,7 @@ export const AttendanceTab = forwardRef<AttendanceTabRef>((_props, ref) => {
               remarks: e.remarks,
             };
           });
-          upsertMutation.mutate({ date, records: apiEntries });
+          upsertMutation.mutate({ date: formattedDate, records: apiEntries });
         }}
         employees={employeeOptions}
         defaultDate={selectedRecord?.date}
@@ -417,7 +420,7 @@ export const AttendanceTab = forwardRef<AttendanceTabRef>((_props, ref) => {
               'Leave': 'COMPANY_HOLIDAY'
             };
             return upsertMutation.mutateAsync({
-              date: update.date,
+              date: update.date.split('T')[0],
               records: [{
                 employeeId: update.employeeId,
                 status: apiStatusMap[update.status] || 'DAY_SHIFT',

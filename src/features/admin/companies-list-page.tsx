@@ -1,6 +1,6 @@
 import { useState, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Plus, Pencil, Trash2, Search, AlertTriangle, SearchX } from 'lucide-react';
+import { Plus, Pencil, Trash2, Search, AlertTriangle, SearchX, PowerOff, Power } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -9,7 +9,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Loader } from '@/components/shared/loader';
 import { TablePaginationControls, RowsPerPageSelect } from '@/components/shared/table-pagination-controls';
-import { useCompanies, useDeleteCompany, formatCompanyDate, type Company } from './companies-queries';
+import { useCompanies, useDeleteCompany, useUpdateCompany, formatCompanyDate, type Company } from './companies-queries';
 import { CompanyFormDialog } from './company-form-dialog';
 
 /**
@@ -29,6 +29,7 @@ export function CompaniesListPage() {
   const [companyToDelete, setCompanyToDelete] = useState<Company | null>(null);
   const [deleteError, setDeleteError] = useState<string | null>(null);
   const deleteCompany = useDeleteCompany();
+  const updateCompany = useUpdateCompany();
 
   const filteredCompanies = useMemo(() => {
     let items = (data?.data ?? []).slice();
@@ -146,23 +147,33 @@ export function CompaniesListPage() {
                   </TableRow>
                 ) : (
                   pagedCompanies.map((company) => (
-                    <TableRow key={company.id} className="border-b border-gray-400 last:border-b-0 even:bg-[#FAF8F2] hover:bg-green-50 transition-colors">
+                    <TableRow
+                      key={company.id}
+                      className={`border-b border-gray-400 last:border-b-0 transition-colors ${company.isActive
+                          ? 'even:bg-[#FAF8F2] hover:bg-green-50'
+                          : 'bg-gray-100 opacity-60 hover:opacity-80'
+                        }`}
+                    >
                       <TableCell className="pl-5 py-3.5 text-left">
                         <button
                           type="button"
-                          className="text-left font-semibold text-green-600 hover:text-[#4C7A50] hover:underline text-[13px] cursor-pointer"
+                          className={`text-left font-semibold hover:underline text-[13px] cursor-pointer ${company.isActive ? 'text-green-600 hover:text-[#4C7A50]' : 'text-gray-400 line-through'
+                            }`}
                           onClick={() => navigate(`/admin/companies/${company.id}`)}
                         >
                           {company.companyCode}
                         </button>
                       </TableCell>
                       <TableCell>
-                        <div className="flex items-center justify-center gap-2.5 font-semibold text-gray-900 text-[13px]">
+                        <div className={`flex items-center justify-center gap-2.5 font-semibold text-[13px] ${company.isActive ? 'text-gray-900' : 'text-gray-400 line-through'
+                          }`}>
                           {company.name}
                         </div>
                       </TableCell>
-                      <TableCell className="text-gray-700 text-[13px] text-center">{company.gst ?? '—'}</TableCell>
-                      <TableCell className="text-gray-700 text-[13px] text-center">{company.adminMobile}</TableCell>
+                      <TableCell className={`text-[13px] text-center ${company.isActive ? 'text-gray-700' : 'text-gray-400'
+                        }`}>{company.gst ?? '—'}</TableCell>
+                      <TableCell className={`text-[13px] text-center ${company.isActive ? 'text-gray-700' : 'text-gray-400'
+                        }`}>{company.adminMobile}</TableCell>
                       <TableCell className="text-center">
                         <span
                           className={`inline-flex items-center justify-center gap-1.5 rounded-full px-2.5 py-0.5 text-[12px] font-semibold ${company.isActive ? 'bg-[#EAF3E6] text-[#4C7A50]' : 'bg-gray-100 text-gray-500'
@@ -171,9 +182,27 @@ export function CompaniesListPage() {
                           {company.isActive ? 'Active' : 'Inactive'}
                         </span>
                       </TableCell>
-                      <TableCell className="text-gray-500 text-[13px] text-center">{formatCompanyDate(company.updatedAt)}</TableCell>
+                      <TableCell className={`text-[13px] text-center ${company.isActive ? 'text-gray-500' : 'text-gray-400'
+                        }`}>{formatCompanyDate(company.updatedAt)}</TableCell>
                       <TableCell className="pr-3">
                         <div className="flex items-center justify-end gap-2">
+                          {/* Toggle Active/Inactive */}
+                          <Button
+                            variant="outline"
+                            size="icon"
+                            disabled={updateCompany.isPending}
+                            className={`h-8 w-8 border-gray-300 bg-white cursor-pointer ${company.isActive
+                                ? 'hover:bg-orange-50 text-orange-600'
+                                : 'hover:bg-green-50 text-green-600'
+                              }`}
+                            title={company.isActive ? 'Deactivate' : 'Activate'}
+                            aria-label={company.isActive ? `Deactivate ${company.name}` : `Activate ${company.name}`}
+                            onClick={() => updateCompany.mutate({ id: company.id, payload: { isActive: !company.isActive } })}
+                          >
+                            {company.isActive
+                              ? <PowerOff className="w-3.5 h-3.5" />
+                              : <Power className="w-3.5 h-3.5" />}
+                          </Button>
                           <Button
                             variant="outline"
                             size="icon"

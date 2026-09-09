@@ -114,17 +114,23 @@ export function GeneratePayrollModal({ open, onOpenChange, month, year, onMonthY
                   const isSunday = currentDate.getDay() === 0;
                   const status = attendanceMap.get(dateStr);
 
-                  if (status === 'DAY_SHIFT' || status === 'NIGHT_SHIFT' || status === 'HALF_DAY') {
-                    presentDays += (status === 'HALF_DAY' ? 0.5 : 1);
-                  } else if (status === 'COMPANY_HOLIDAY') {
-                    companyHolidays += 1;
-                  }
-
-                  if (isSunday && (status === 'DAY_SHIFT' || status === 'NIGHT_SHIFT')) {
-                    sundayBonuses += (3 * oneDaySalary);
-                    sundayBonusDays += 1;
-                  } else if (!isSunday && status === 'ABSENT') {
-                    absentDays++;
+                  if (isSunday) {
+                    if (status === 'DAY_SHIFT' || status === 'NIGHT_SHIFT') {
+                      sundayBonuses += (3 * oneDaySalary);
+                      sundayBonusDays += 1;
+                      presentDays += 1;
+                    }
+                  } else {
+                    if (status === 'DAY_SHIFT' || status === 'NIGHT_SHIFT') {
+                      presentDays += 1;
+                    } else if (status === 'HALF_DAY') {
+                      presentDays += 0.5;
+                      absentDays += 0.5;
+                    } else if (status === 'COMPANY_HOLIDAY') {
+                      companyHolidays += 1;
+                    } else {
+                      absentDays += 1;
+                    }
                   }
                 }
 

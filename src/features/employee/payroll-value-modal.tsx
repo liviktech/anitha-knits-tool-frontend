@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Wallet, Calendar, MinusCircle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -68,37 +68,41 @@ export function PayrollValueModal({ open, onOpenChange, month, year }: PayrollVa
     setOtherDeductionNames({});
   };
 
-  // Pre-fill modal with current month's existing values when opening
-  const handleOpenChange = (nextOpen: boolean) => {
-    if (nextOpen) {
+  // Pre-fill modal with current month's existing values when open or query data updates
+  useEffect(() => {
+    if (open) {
       // Machine Value: pre-fill from marketValueAllocations (API data for current month)
       const prefillAllocations: Record<string, number> = {};
-      for (const [empId, val] of Object.entries(marketValueAllocations)) {
-        if (val > 0) prefillAllocations[empId] = val;
+      if (marketValueAllocations) {
+        for (const [empId, val] of Object.entries(marketValueAllocations)) {
+          if (val > 0) prefillAllocations[empId] = val;
+        }
       }
       setAllocations(prefillAllocations);
 
-      // Market Value Deduction: pre-fill from payrollSummary
+      // Market Value & Other Deductions: pre-fill from payrollSummary
       const prefillMarket: Record<string, number> = {};
-      for (const s of payrollSummary) {
-        if (s.marketValueDeduction > 0) prefillMarket[s.id] = s.marketValueDeduction;
-      }
-      setMarketDeductions(prefillMarket);
-
-      // Other Deductions: pre-fill amount + a representative name from payrollSummary. An
-      // employee can have several differently-named deductions in one month, so the name is
-      // best-effort (the backend's most-recently-created one) — still editable per row here.
       const prefillOther: Record<string, number> = {};
       const prefillOtherNames: Record<string, string> = {};
-      for (const s of payrollSummary) {
-        if (s.otherDeduction > 0) {
-          prefillOther[s.id] = s.otherDeduction;
-          if (s.otherDeductionName) prefillOtherNames[s.id] = s.otherDeductionName;
+      if (payrollSummary && Array.isArray(payrollSummary)) {
+        for (const s of payrollSummary) {
+          if (s.marketValueDeduction > 0) prefillMarket[s.id] = s.marketValueDeduction;
+          if (s.otherDeduction > 0) {
+            prefillOther[s.id] = s.otherDeduction;
+            if (s.otherDeductionName) prefillOtherNames[s.id] = s.otherDeductionName;
+          }
         }
       }
+      setMarketDeductions(prefillMarket);
       setOtherDeductions(prefillOther);
       setOtherDeductionNames(prefillOtherNames);
     } else {
+      resetValueModalState();
+    }
+  }, [open, marketValueAllocations, payrollSummary]);
+
+  const handleOpenChange = (nextOpen: boolean) => {
+    if (!nextOpen) {
       resetValueModalState();
     }
     onOpenChange(nextOpen);
@@ -143,7 +147,6 @@ export function PayrollValueModal({ open, onOpenChange, month, year }: PayrollVa
           grantMarketValueDeduction({ employeeId, amount, effectiveDate: valueModalEffectiveDate }),
         ),
       );
-      handleOpenChange(false);
     } catch (err) {
       console.error('Failed to grant deductions:', err);
     } finally {
@@ -185,7 +188,6 @@ export function PayrollValueModal({ open, onOpenChange, month, year }: PayrollVa
           }),
         ),
       );
-      handleOpenChange(false);
     } catch (err) {
       console.error('Failed to grant other deductions:', err);
     } finally {
@@ -349,7 +351,7 @@ export function PayrollValueModal({ open, onOpenChange, month, year }: PayrollVa
           </Tabs>
 
           <DialogFooter className="border-t border-gray-200 bg-white pt-2">
-            <Button variant="outline" size="sm" onClick={() => handleOpenChange(false)} className="h-8 text-xs">Cancel</Button>
+            <Button variant="outline" size="sm" onClick={() => handleOpenChange(false)} className="h-8 text-xs">Close</Button>
             {valueModalTab === 'machine' ? (
               <Button
                 size="sm"
@@ -389,20 +391,20 @@ export function PayrollValueModal({ open, onOpenChange, month, year }: PayrollVa
         isPending={isDistributing || isSavingMarketDeductions || isSavingOtherDeductions}
         title={
           pendingValueConfirm === 'machine' ? 'Apply Machine Value?' :
-          pendingValueConfirm === 'market' ? 'Grant Market Value Deductions?' :
-          'Grant Other Deductions?'
+            pendingValueConfirm === 'market' ? 'Grant Market Value Deductions?' :
+              'Grant Other Deductions?'
         }
         description={
           pendingValueConfirm === 'machine'
             ? `Distribute ₹${currentAllocated.toLocaleString()} machine value across employees for ${new Date(year, month - 1).toLocaleString('default', { month: 'long', year: 'numeric' })}. This will overwrite any existing allocations.`
             : pendingValueConfirm === 'market'
-            ? `Grant market value deductions totalling ₹${totalDeductions.toLocaleString()} for ${new Date(year, month - 1).toLocaleString('default', { month: 'long', year: 'numeric' })}.`
-            : `Grant other deductions totalling ₹${totalOtherDeductions.toLocaleString()} for ${new Date(year, month - 1).toLocaleString('default', { month: 'long', year: 'numeric' })}.`
+              ? `Grant market value deductions totalling ₹${totalDeductions.toLocaleString()} for ${new Date(year, month - 1).toLocaleString('default', { month: 'long', year: 'numeric' })}.`
+              : `Grant other deductions totalling ₹${totalOtherDeductions.toLocaleString()} for ${new Date(year, month - 1).toLocaleString('default', { month: 'long', year: 'numeric' })}.`
         }
         confirmLabel={
           pendingValueConfirm === 'machine' ? 'Apply & Distribute' :
-          pendingValueConfirm === 'market' ? 'Grant Deductions' :
-          'Grant Other Deductions'
+            pendingValueConfirm === 'market' ? 'Grant Deductions' :
+              'Grant Other Deductions'
         }
         confirmingLabel="Processing..."
         onConfirm={() => {
@@ -414,7 +416,6 @@ export function PayrollValueModal({ open, onOpenChange, month, year }: PayrollVa
             }, {
               onSuccess: () => {
                 setPendingValueConfirm(null);
-                handleOpenChange(false);
               },
               onError: (err) => {
                 setPendingValueConfirm(null);
