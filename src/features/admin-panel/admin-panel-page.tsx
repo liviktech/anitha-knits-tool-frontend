@@ -31,9 +31,9 @@ export function AdminPanelPage() {
       <Tabs
         value={activeTab}
         onValueChange={(value) => setActiveTab(value as AdminPanelTab)}
-        className="flex-1 overflow-y-auto px-2 pb-1 gap-1"
+        className="flex-1 flex flex-col min-h-0 overflow-hidden px-2 pb-1 gap-1"
       >
-        <div >
+        <div>
           <TabsList variant="notch-flip">
             <TabsTrigger value="production-config">
               <span className="flex items-center gap-1">
@@ -62,19 +62,19 @@ export function AdminPanelPage() {
           </TabsList>
         </div>
 
-        <TabsContent value="production-config" className="mt-0 animate-in fade-in-0 duration-300 py-6 max-w-full">
+        <TabsContent value="production-config" className="mt-0 animate-in fade-in-0 duration-300 py-6 max-w-full overflow-y-auto flex-1">
           <ProductionConfigTab />
         </TabsContent>
 
-        <TabsContent value="opening-balance" className="mt-0 animate-in fade-in-0 duration-300 py-6 max-w-full">
+        <TabsContent value="opening-balance" className="mt-0 animate-in fade-in-0 duration-300 py-6 max-w-full overflow-y-auto flex-1">
           <OpeningBalanceTab />
         </TabsContent>
 
-        <TabsContent value="raw-materials" className="mt-0 animate-in fade-in-0 duration-300 py-6 max-w-full">
+        <TabsContent value="raw-materials" className="mt-0 animate-in fade-in-0 duration-300 py-6 max-w-full overflow-y-auto flex-1">
           <RawMaterialsTab />
         </TabsContent>
 
-        <TabsContent value="roles" className="mt-0 animate-in fade-in-0 duration-300 py-6 max-w-full">
+        <TabsContent value="roles" className="mt-0 animate-in fade-in-0 duration-300 py-2 max-w-full flex-1 flex flex-col min-h-0">
           <RolesTab />
         </TabsContent>
       </Tabs>

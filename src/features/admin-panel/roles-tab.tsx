@@ -103,8 +103,8 @@ export function RolesTab() {
   }
 
   return (
-    <div className="flex flex-col gap-4 overflow-hidden py-1 px-3">
-      <div className="border-b border-gray-200">
+    <div className="flex flex-col gap-3 overflow-hidden py-1 px-3 flex-1 min-h-0">
+      <div className="border-b border-gray-200 shrink-0">
         <nav className="-mb-px flex items-center gap-5">
           {(['roles', 'rights'] as const).map((tab) => (
             <button
@@ -127,7 +127,7 @@ export function RolesTab() {
         </nav>
       </div>
 
-      <div className="grid grid-cols-2 gap-2.5 lg:grid-cols-4">
+      <div className="grid grid-cols-2 gap-2.5 lg:grid-cols-4 shrink-0">
         <div className="flex min-h-[72px] items-center gap-3 rounded-lg border border-gray-200 bg-white px-3 py-2.5">
           <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-gray-100 text-gray-700">
             <Users className="h-5 w-5" />

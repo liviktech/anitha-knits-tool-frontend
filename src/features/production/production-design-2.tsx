@@ -296,16 +296,16 @@ export function DayDetailView({
           <Calendar className="w-[18px] h-[18px] text-[#004D40]" />
           <span className="text-[15px] font-bold text-[#004D40]">{formattedDate}</span>
         </div>
-        {canEditDay && (
-          <Button
-            variant="outline"
-            size="sm"
-            className="h-[34px] px-4 text-[#00897B] border-[#00897B]/20 font-bold uppercase tracking-wider text-[11px] gap-2 hover:bg-[#00897B]/5 bg-white"
-            onClick={onEditClick}
-          >
-            <Edit className="w-3.5 h-3.5" /> EDIT ENTRY
-          </Button>
-        )}
+        <Button
+          variant="outline"
+          size="sm"
+          className="h-[34px] px-4 text-[#00897B] border-[#00897B]/20 font-bold uppercase tracking-wider text-[11px] gap-2 hover:bg-[#00897B]/5 bg-white disabled:opacity-50 disabled:cursor-not-allowed"
+          disabled={!canEditDay}
+          title={canEditDay ? undefined : 'You do not have permission to edit production entries'}
+          onClick={onEditClick}
+        >
+          <Edit className="w-3.5 h-3.5" /> EDIT ENTRY
+        </Button>
       </div>
     );
     return () => setHeaderRight(null);
@@ -727,15 +727,15 @@ export function ProductionDesign2() {
             <Download className="w-3 h-3" />
             REPORT
           </Button>
-          {canCreateProductionRecord(user) && (
-            <Button
-              className="flex items-center gap-2 bg-[#004D40] hover:bg-[#00382e] text-white rounded-md px-3 py-2 h-auto text-[12px] font-bold tracking-wide shadow-[0_1px_2px_rgba(0,45,35,0.2)] cursor-pointer"
-              onClick={() => navigate('/production/new-entry')}
-            >
-              <Plus className="w-3 h-3" />
-              ADD NEW ENTRY
-            </Button>
-          )}
+          <Button
+            className="flex items-center gap-2 bg-[#004D40] hover:bg-[#00382e] text-white rounded-md px-3 py-2 h-auto text-[12px] font-bold tracking-wide shadow-[0_1px_2px_rgba(0,45,35,0.2)] disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:bg-[#004D40]"
+            disabled={!canCreateProductionRecord(user)}
+            title={canCreateProductionRecord(user) ? undefined : 'You do not have permission to add production entries'}
+            onClick={() => navigate('/production/new-entry')}
+          >
+            <Plus className="w-3 h-3" />
+            ADD NEW ENTRY
+          </Button>
         </>
       );
     }
