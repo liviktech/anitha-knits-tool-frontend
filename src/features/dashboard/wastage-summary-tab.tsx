@@ -157,6 +157,7 @@ type WastageTabContentProps = Pick<
   | 'extruderProductionsData' | 'loomsProductionsData' | 'fabricCheckingData'
   | 'sampleExtruderData' | 'sampleLoomsData' | 'sampleFabricData'
   | 'loomsWasteByColor' | 'fabricWasteByColor'
+  | 'obWastage'
 > & { currentMonthStr: string };
 
 export function WastageTabContent({
@@ -165,6 +166,7 @@ export function WastageTabContent({
   extruderProductionsData, loomsProductionsData, fabricCheckingData,
   sampleExtruderData, sampleLoomsData, sampleFabricData,
   loomsWasteByColor, fabricWasteByColor,
+  obWastage,
 }: WastageTabContentProps) {
   const [wastageMode, setWastageMode] = useState<'production' | 'sample'>('production');
 
@@ -217,11 +219,11 @@ export function WastageTabContent({
       <WastageCard
         looseWaste={isProd ? looseWasteKg : sampleLooseWaste}
         lums={isProd ? lumsWasteKg : sampleLums}
-        extruderWasteByChemical={buildWastageChemicalRows(isProd ? extruderProductionsData : sampleExtruderData, 'extruder', currentMonthStr)}
+        extruderWasteByChemical={buildWastageChemicalRows(isProd ? extruderProductionsData : sampleExtruderData, 'extruder', currentMonthStr, isProd ? obWastage : [])}
         loomsWasteByColor={isProd ? loomsWasteByColor : sampleLoomsWasteByColor}
-        loomsWasteByChemical={buildWastageChemicalRows(isProd ? loomsProductionsData : sampleLoomsData, 'looms', currentMonthStr)}
+        loomsWasteByChemical={buildWastageChemicalRows(isProd ? loomsProductionsData : sampleLoomsData, 'looms', currentMonthStr, isProd ? obWastage : [])}
         fabricWasteByColor={isProd ? fabricWasteByColor : sampleFabricWasteByColor}
-        fabricWasteByChemical={buildWastageChemicalRows(isProd ? fabricCheckingData : sampleFabricData, 'fabric', currentMonthStr)}
+        fabricWasteByChemical={buildWastageChemicalRows(isProd ? fabricCheckingData : sampleFabricData, 'fabric', currentMonthStr, isProd ? obWastage : [])}
       />
     </div>
   );

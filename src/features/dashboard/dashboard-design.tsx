@@ -184,6 +184,7 @@ export function DashboardDesign() {
                       sampleFabricData={data.sampleFabricData}
                       loomsWasteByColor={data.loomsWasteByColor}
                       fabricWasteByColor={data.fabricWasteByColor}
+                      obWastage={data.obWastage}
                     />
                   </TabsContent>
                 </div>
