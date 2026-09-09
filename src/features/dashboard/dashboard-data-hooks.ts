@@ -277,8 +277,8 @@ export interface DashboardDataResult {
 // ─── Main hook ────────────────────────────────────────────────────────────────
 
 export function useDashboardData(currentMonthStr: string): DashboardDataResult {
-  const { dashboardData, isLoading: loadingDashboard } = useMonthlyDashboard(currentMonthStr);
-  const { dashboardData: sampleDashboardData, isLoading: loadingSampleDashboard } = useMonthlyDashboard(currentMonthStr, 'SAMPLE');
+  const { dashboardData, isLoading: loadingDashboard } = useMonthlyDashboard(currentMonthStr, currentMonthStr, 'PRODUCTION');
+  const { dashboardData: sampleDashboardData, isLoading: loadingSampleDashboard } = useMonthlyDashboard(currentMonthStr, currentMonthStr, 'SAMPLE');
 
   const { data: extruderProductionsRes } = useExtruderProductions('?limit=100&type=PRODUCTION');
   const { data: sampleExtruderProductionsRes } = useExtruderProductions('?limit=100&type=SAMPLE');

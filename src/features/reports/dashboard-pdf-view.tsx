@@ -16,32 +16,10 @@ function getMonthName(monthStr: string) {
   return date.toLocaleDateString('en-IN', { month: 'long', year: 'numeric' });
 }
 
-function mergeProductionByLabel(
-  extruder: { label: string; production: number }[],
-  looms: { label: string; production: number }[],
-  fabric: { label: string; production: number }[],
-): { label: string; extruder: number; looms: number; fabric: number; total: number }[] {
-  const labels = new Set<string>();
-  extruder.forEach((r) => labels.add(r.label));
-  looms.forEach((r) => labels.add(r.label));
-  fabric.forEach((r) => labels.add(r.label));
-  const exMap = new Map(extruder.map((r) => [r.label, r.production]));
-  const loMap = new Map(looms.map((r) => [r.label, r.production]));
-  const faMap = new Map(fabric.map((r) => [r.label, r.production]));
-  return Array.from(labels)
-    .sort((a, b) => a.localeCompare(b))
-    .map((label) => {
-      const e = exMap.get(label) ?? 0;
-      const l = loMap.get(label) ?? 0;
-      const f = faMap.get(label) ?? 0;
-      return { label, extruder: e, looms: l, fabric: f, total: e + l + f };
-    });
-}
-
 type SectionKey =
-  | 'productionByColor'
-  | 'productionBySize'
-  | 'productionByChemical'
+  | 'extruderProduction'
+  | 'loomsProduction'
+  | 'fabricChecking'
   | 'yarnBalance'
   | 'koraBalance'
   | 'fabricStock'
@@ -51,9 +29,9 @@ type SectionKey =
   | 'fabricWastage';
 
 const PRODUCTION_SECTIONS: { key: SectionKey; label: string }[] = [
-  { key: 'productionByColor', label: 'Production by Color' },
-  { key: 'productionBySize', label: 'Production by Size' },
-  { key: 'productionByChemical', label: 'Production by Chemical' },
+  { key: 'extruderProduction', label: 'Extruder Production' },
+  { key: 'loomsProduction', label: 'Looms Production' },
+  { key: 'fabricChecking', label: 'Fabric Checking' },
   { key: 'yarnBalance', label: 'Yarn Balance' },
   { key: 'koraBalance', label: 'Kora Balance' },
   { key: 'fabricStock', label: 'Fabric Stock' },
@@ -165,107 +143,95 @@ export function DashboardPdfView({ tab, allReports, selectedReport, onReportChan
       };
 
       if (tab === 'production_summary' || tab === 'sample_production') {
-        const grandTotalProduction = data.extruderTotal + data.loomsTotal + data.fabricTotal;
-
-        if (visibleSections.productionByColor) {
+        if (visibleSections.extruderProduction && data.extruderVariantRows.length > 0) {
           section(
-            'Production by Color',
-            ['Color', 'Extruder', 'Looms', 'Fabric Checking', 'Total'],
-            data.extruderByColor.map((row, i) => {
-              const lv = data.loomsByColor[i]?.production ?? 0;
-              const fv = data.fabricByColor[i]?.production ?? 0;
-              return [row.color, formatNum(row.production), formatNum(lv), formatNum(fv), formatNum(row.production + lv + fv)];
-            }),
-            [['Total', formatNum(data.extruderTotal), formatNum(data.loomsTotal), formatNum(data.fabricTotal), formatNum(grandTotalProduction)]],
+            'Extruder Production',
+            ['Size', 'Color', 'Chemical', 'Weight (kg)'],
+            data.extruderVariantRows.map((r) => [r.size, r.color, r.chemical, formatNum(r.value)]),
+            [['Total', '', '', formatNum(data.extruderTotal)]],
           );
         }
 
-        if (visibleSections.productionBySize) {
-          const bySizeRows = mergeProductionByLabel(
-            data.extruderBySize.map((r) => ({ label: r.size, production: r.production })),
-            data.loomsBySize.map((r) => ({ label: r.size, production: r.production })),
-            data.fabricBySize.map((r) => ({ label: r.size, production: r.production })),
+        if (visibleSections.loomsProduction && data.loomsVariantRows.length > 0) {
+          section(
+            'Looms Production',
+            ['Size', 'Color', 'Chemical', 'Weight (kg)'],
+            data.loomsVariantRows.map((r) => [r.size, r.color, r.chemical, formatNum(r.value)]),
+            [['Total', '', '', formatNum(data.loomsTotal)]],
           );
-          if (bySizeRows.length > 0) {
-            section(
-              'Production by Size',
-              ['Size', 'Extruder', 'Looms', 'Fabric Checking', 'Total'],
-              bySizeRows.map((r) => [r.label, formatNum(r.extruder), formatNum(r.looms), formatNum(r.fabric), formatNum(r.total)]),
-              [['Total', formatNum(bySizeRows.reduce((s, r) => s + r.extruder, 0)), formatNum(bySizeRows.reduce((s, r) => s + r.looms, 0)), formatNum(bySizeRows.reduce((s, r) => s + r.fabric, 0)), formatNum(bySizeRows.reduce((s, r) => s + r.total, 0))]],
-            );
-          }
         }
 
-        if (visibleSections.productionByChemical) {
-          const byChemicalRows = mergeProductionByLabel(
-            data.extruderByChemical.map((r) => ({ label: r.chemical, production: r.production })),
-            data.loomsByChemical.map((r) => ({ label: r.chemical, production: r.production })),
-            data.fabricByChemical.map((r) => ({ label: r.chemical, production: r.production })),
+        if (visibleSections.fabricChecking && data.fabricVariantRows.length > 0) {
+          section(
+            'Fabric Checking',
+            ['Size', 'Color', 'Chemical', 'Weight (kg)'],
+            data.fabricVariantRows.map((r) => [r.size, r.color, r.chemical, formatNum(r.value)]),
+            [['Total', '', '', formatNum(data.fabricTotal)]],
           );
-          if (byChemicalRows.length > 0) {
-            section(
-              'Production by Chemical',
-              ['Chemical', 'Extruder', 'Looms', 'Fabric Checking', 'Total'],
-              byChemicalRows.map((r) => [r.label, formatNum(r.extruder), formatNum(r.looms), formatNum(r.fabric), formatNum(r.total)]),
-              [['Total', formatNum(byChemicalRows.reduce((s, r) => s + r.extruder, 0)), formatNum(byChemicalRows.reduce((s, r) => s + r.looms, 0)), formatNum(byChemicalRows.reduce((s, r) => s + r.fabric, 0)), formatNum(byChemicalRows.reduce((s, r) => s + r.total, 0))]],
-            );
-          }
         }
 
-        if (visibleSections.yarnBalance) section('Yarn Balance', ['Color', 'Balance (kg)'], data.yarnBalanceByColor.map((row) => [row.color, formatNum(row.balance)]));
-        if (visibleSections.koraBalance) section('Kora Balance', ['Color', 'Balance (kg)'], data.koraBalanceByColor.map((row) => [row.color, formatNum(row.balance)]));
-
-        if (visibleSections.fabricStock) {
-          const fabricStockBody: (string | number)[][] = [];
-          data.fabricStockByColor.forEach((row) => {
-            Object.entries(row.stockBySize).forEach(([size, stock]) => {
-              if ((stock || 0) > 0) fabricStockBody.push([row.color, size, formatNum(stock)]);
-            });
-          });
-          if (fabricStockBody.length > 0) {
-            section('Fabric Stock', ['Color', 'Size', 'Stock (kg)'], fabricStockBody, [['Total Fabric Stock', '', formatNum(data.totalFabricStock)]]);
-          }
+        if (visibleSections.yarnBalance && data.yarnBalanceVariantRows.length > 0) {
+          section(
+            'Yarn Balance',
+            ['Size', 'Color', 'Chemical', 'Balance (kg)'],
+            data.yarnBalanceVariantRows.map((r) => [r.size, r.color, r.chemical, formatNum(r.value)]),
+            [['Total', '', '', formatNum(data.yarnBalanceVariantRows.reduce((s, r) => s + r.value, 0))]],
+          );
         }
 
-        if (visibleSections.fabricDelivered) {
-          const deliveredBody: (string | number)[][] = [];
-          data.deliveriesByColor.forEach((colorRow) => {
-            colorRow.deliveries.forEach((d) => deliveredBody.push([new Date(d.date).toLocaleDateString('en-IN'), colorRow.color, d.size, formatNum(d.kg)]));
-          });
-          section('Fabric Delivered', ['Date', 'Color', 'Size', 'Weight (kg)'], deliveredBody, [['Total Fabric Delivered', '', '', formatNum(data.totalDelivered)]]);
+        if (visibleSections.koraBalance && data.koraBalanceVariantRows.length > 0) {
+          section(
+            'Kora Balance',
+            ['Size', 'Color', 'Chemical', 'Balance (kg)'],
+            data.koraBalanceVariantRows.map((r) => [r.size, r.color, r.chemical, formatNum(r.value)]),
+            [['Total', '', '', formatNum(data.koraBalanceVariantRows.reduce((s, r) => s + r.value, 0))]],
+          );
+        }
+
+        if (visibleSections.fabricStock && data.fabricStockVariantRows.length > 0) {
+          section(
+            'Fabric Stock',
+            ['Size', 'Color', 'Chemical', 'Stock (kg)'],
+            data.fabricStockVariantRows.map((r) => [r.size, r.color, r.chemical, formatNum(r.value)]),
+            [['Total', '', '', formatNum(data.totalFabricStock)]],
+          );
+        }
+
+        if (visibleSections.fabricDelivered && data.fabricDeliveredVariantRows.length > 0) {
+          section(
+            'Fabric Delivered',
+            ['Size', 'Color', 'Chemical', 'Weight (kg)'],
+            data.fabricDeliveredVariantRows.map((r) => [r.size, r.color, r.chemical, formatNum(r.value)]),
+            [['Total', '', '', formatNum(data.totalDelivered)]],
+          );
         }
 
       } else if (tab === 'wastage_summary') {
-        const extTotal = data.extruderWasteByVariant.reduce((sum, r) => sum + r.sizes.reduce((s, x) => s + x.lums + x.yarnWaste, 0), 0);
-        const loomsTotal = data.loomsWasteByVariant.reduce((sum, r) => sum + r.sizes.reduce((s, x) => s + x.loomsWaste, 0), 0);
-        const fabricTotal = data.fabricWasteByVariant.reduce((sum, r) => sum + r.sizes.reduce((s, x) => s + x.fabricWaste + x.bitWaste, 0), 0);
-
-        if (visibleSections.extruderWastage) {
-          const extruderWastageBody: (string | number)[][] = [];
-          data.extruderWasteByVariant.forEach(row => {
-            const lums = row.sizes.reduce((s, x) => s + x.lums, 0);
-            const yarn = row.sizes.reduce((s, x) => s + x.yarnWaste, 0);
-            extruderWastageBody.push([row.color, formatNum(lums), formatNum(yarn), formatNum(lums + yarn)]);
-          });
-          section('Extruder Wastage', ['Color', 'Lums (LM)', 'Loose/Yarn (LO)', 'Total'], extruderWastageBody, [['Total', '', '', formatNum(extTotal)]]);
-          if (data.extruderBySize.length > 0) section('Extruder Wastage — By Size', ['Size', 'Lums (LM)', 'Loose/Yarn (LO)', 'Total'], data.extruderBySize.map((r) => [r.size, formatNum(r.lums), formatNum(r.yarnWaste), formatNum(r.lums + r.yarnWaste)]), [['Total', '', '', formatNum(data.extruderBySize.reduce((s, r) => s + r.lums + r.yarnWaste, 0))]]);
-          if (data.extruderByChemical.length > 0) section('Extruder Wastage — By Chemical', ['Chemical', 'Lums (LM)', 'Loose/Yarn (LO)', 'Total'], data.extruderByChemical.map((r) => [r.chemical, formatNum(r.lums), formatNum(r.yarnWaste), formatNum(r.lums + r.yarnWaste)]), [['Total', '', '', formatNum(data.extruderByChemical.reduce((s, r) => s + r.lums + r.yarnWaste, 0))]]);
+        if (visibleSections.extruderWastage && data.extruderWasteVariantRows.length > 0) {
+          section(
+            'Extruder Wastage',
+            ['Size', 'Color', 'Chemical', 'Lums (LM)', 'Loose/Yarn (LO)', 'Total'],
+            data.extruderWasteVariantRows.map((r) => [r.size, r.color, r.chemical, formatNum(r.lums), formatNum(r.yarnWaste), formatNum(r.lums + r.yarnWaste)]),
+            [['Total', '', '', '', '', formatNum(data.extruderWasteTotal)]],
+          );
         }
 
-        if (visibleSections.loomsWastage) {
-          const loomsWastageBody: (string | number)[][] = [];
-          data.loomsWasteByVariant.forEach(row => { const lw = row.sizes.reduce((s, x) => s + x.loomsWaste, 0); loomsWastageBody.push([row.color, formatNum(lw)]); });
-          section('Looms Wastage', ['Color', 'Looms/Yarn Waste (LW)'], loomsWastageBody, [['Total', formatNum(loomsTotal)]]);
-          if (data.loomsBySize.length > 0) section('Looms Wastage — By Size', ['Size', 'Looms/Yarn Waste (LW)'], data.loomsBySize.map((r) => [r.size, formatNum(r.waste)]), [['Total', formatNum(data.loomsBySize.reduce((s, r) => s + r.waste, 0))]]);
-          if (data.loomsByChemical.length > 0) section('Looms Wastage — By Chemical', ['Chemical', 'Looms/Yarn Waste (LW)'], data.loomsByChemical.map((r) => [r.chemical, formatNum(r.waste)]), [['Total', formatNum(data.loomsByChemical.reduce((s, r) => s + r.waste, 0))]]);
+        if (visibleSections.loomsWastage && data.loomsWasteVariantRows.length > 0) {
+          section(
+            'Looms Wastage',
+            ['Size', 'Color', 'Chemical', 'Looms/Yarn Waste (LW)'],
+            data.loomsWasteVariantRows.map((r) => [r.size, r.color, r.chemical, formatNum(r.loomsWaste)]),
+            [['Total', '', '', formatNum(data.loomsWasteTotal)]],
+          );
         }
 
-        if (visibleSections.fabricWastage) {
-          const fabricWastageBody: (string | number)[][] = [];
-          data.fabricWasteByVariant.forEach(row => { const fw = row.sizes.reduce((s, x) => s + x.fabricWaste, 0); const bw = row.sizes.reduce((s, x) => s + x.bitWaste, 0); fabricWastageBody.push([row.color, formatNum(fw), formatNum(bw), formatNum(fw + bw)]); });
-          section('Fabric Checking Wastage', ['Color', 'Fabric Waste (FW)', 'Bit Waste (BW)', 'Total'], fabricWastageBody, [['Total', '', '', formatNum(fabricTotal)]]);
-          if (data.fabricBySize.length > 0) section('Fabric Checking Wastage — By Size', ['Size', 'Fabric Waste (FW)', 'Bit Waste (BW)', 'Total'], data.fabricBySize.map((r) => [r.size, formatNum(r.fwWaste), formatNum(r.bwWaste), formatNum(r.fwWaste + r.bwWaste)]), [['Total', '', '', formatNum(data.fabricBySize.reduce((s, r) => s + r.fwWaste + r.bwWaste, 0))]]);
-          if (data.fabricByChemical.length > 0) section('Fabric Checking Wastage — By Chemical', ['Chemical', 'Fabric Waste (FW)', 'Bit Waste (BW)', 'Total'], data.fabricByChemical.map((r) => [r.chemical, formatNum(r.fwWaste), formatNum(r.bwWaste), formatNum(r.fwWaste + r.bwWaste)]), [['Total', '', '', formatNum(data.fabricByChemical.reduce((s, r) => s + r.fwWaste + r.bwWaste, 0))]]);
+        if (visibleSections.fabricWastage && data.fabricWasteVariantRows.length > 0) {
+          section(
+            'Fabric Checking Wastage',
+            ['Size', 'Color', 'Chemical', 'Fabric Waste (FW)', 'Bit Waste (BW)', 'Total'],
+            data.fabricWasteVariantRows.map((r) => [r.size, r.color, r.chemical, formatNum(r.fabricWaste), formatNum(r.bitWaste), formatNum(r.fabricWaste + r.bitWaste)]),
+            [['Total', '', '', '', '', formatNum(data.fabricWasteTotal)]],
+          );
         }
       }
 
@@ -301,107 +267,95 @@ export function DashboardPdfView({ tab, allReports, selectedReport, onReportChan
       };
 
       if (tab === 'production_summary' || tab === 'sample_production') {
-        const grandTotalProduction = data.extruderTotal + data.loomsTotal + data.fabricTotal;
-
-        if (visibleSections.productionByColor) {
+        if (visibleSections.extruderProduction && data.extruderVariantRows.length > 0) {
           section(
-            'Production by Color',
-            ['Color', 'Extruder', 'Looms', 'Fabric Checking', 'Total'],
-            data.extruderByColor.map((row, i) => {
-              const lv = data.loomsByColor[i]?.production ?? 0;
-              const fv = data.fabricByColor[i]?.production ?? 0;
-              return [row.color, formatNum(row.production), formatNum(lv), formatNum(fv), formatNum(row.production + lv + fv)];
-            }),
-            [['Total', formatNum(data.extruderTotal), formatNum(data.loomsTotal), formatNum(data.fabricTotal), formatNum(grandTotalProduction)]],
+            'Extruder Production',
+            ['Size', 'Color', 'Chemical', 'Weight (kg)'],
+            data.extruderVariantRows.map((r) => [r.size, r.color, r.chemical, formatNum(r.value)]),
+            [['Total', '', '', formatNum(data.extruderTotal)]],
           );
         }
 
-        if (visibleSections.productionBySize) {
-          const bySizeRows = mergeProductionByLabel(
-            data.extruderBySize.map((r) => ({ label: r.size, production: r.production })),
-            data.loomsBySize.map((r) => ({ label: r.size, production: r.production })),
-            data.fabricBySize.map((r) => ({ label: r.size, production: r.production })),
+        if (visibleSections.loomsProduction && data.loomsVariantRows.length > 0) {
+          section(
+            'Looms Production',
+            ['Size', 'Color', 'Chemical', 'Weight (kg)'],
+            data.loomsVariantRows.map((r) => [r.size, r.color, r.chemical, formatNum(r.value)]),
+            [['Total', '', '', formatNum(data.loomsTotal)]],
           );
-          if (bySizeRows.length > 0) {
-            section(
-              'Production by Size',
-              ['Size', 'Extruder', 'Looms', 'Fabric Checking', 'Total'],
-              bySizeRows.map((r) => [r.label, formatNum(r.extruder), formatNum(r.looms), formatNum(r.fabric), formatNum(r.total)]),
-              [['Total', formatNum(bySizeRows.reduce((s, r) => s + r.extruder, 0)), formatNum(bySizeRows.reduce((s, r) => s + r.looms, 0)), formatNum(bySizeRows.reduce((s, r) => s + r.fabric, 0)), formatNum(bySizeRows.reduce((s, r) => s + r.total, 0))]],
-            );
-          }
         }
 
-        if (visibleSections.productionByChemical) {
-          const byChemicalRows = mergeProductionByLabel(
-            data.extruderByChemical.map((r) => ({ label: r.chemical, production: r.production })),
-            data.loomsByChemical.map((r) => ({ label: r.chemical, production: r.production })),
-            data.fabricByChemical.map((r) => ({ label: r.chemical, production: r.production })),
+        if (visibleSections.fabricChecking && data.fabricVariantRows.length > 0) {
+          section(
+            'Fabric Checking',
+            ['Size', 'Color', 'Chemical', 'Weight (kg)'],
+            data.fabricVariantRows.map((r) => [r.size, r.color, r.chemical, formatNum(r.value)]),
+            [['Total', '', '', formatNum(data.fabricTotal)]],
           );
-          if (byChemicalRows.length > 0) {
-            section(
-              'Production by Chemical',
-              ['Chemical', 'Extruder', 'Looms', 'Fabric Checking', 'Total'],
-              byChemicalRows.map((r) => [r.label, formatNum(r.extruder), formatNum(r.looms), formatNum(r.fabric), formatNum(r.total)]),
-              [['Total', formatNum(byChemicalRows.reduce((s, r) => s + r.extruder, 0)), formatNum(byChemicalRows.reduce((s, r) => s + r.looms, 0)), formatNum(byChemicalRows.reduce((s, r) => s + r.fabric, 0)), formatNum(byChemicalRows.reduce((s, r) => s + r.total, 0))]],
-            );
-          }
         }
 
-        if (visibleSections.yarnBalance) section('Yarn Balance', ['Color', 'Balance (kg)'], data.yarnBalanceByColor.map((row) => [row.color, formatNum(row.balance)]));
-        if (visibleSections.koraBalance) section('Kora Balance', ['Color', 'Balance (kg)'], data.koraBalanceByColor.map((row) => [row.color, formatNum(row.balance)]));
-
-        if (visibleSections.fabricStock) {
-          const fabricStockBody: (string | number)[][] = [];
-          data.fabricStockByColor.forEach((row) => {
-            Object.entries(row.stockBySize).forEach(([size, stock]) => {
-              if ((stock || 0) > 0) fabricStockBody.push([row.color, size, formatNum(stock)]);
-            });
-          });
-          if (fabricStockBody.length > 0) {
-            section('Fabric Stock', ['Color', 'Size', 'Stock (kg)'], fabricStockBody, [['Total Fabric Stock', '', formatNum(data.totalFabricStock)]]);
-          }
+        if (visibleSections.yarnBalance && data.yarnBalanceVariantRows.length > 0) {
+          section(
+            'Yarn Balance',
+            ['Size', 'Color', 'Chemical', 'Balance (kg)'],
+            data.yarnBalanceVariantRows.map((r) => [r.size, r.color, r.chemical, formatNum(r.value)]),
+            [['Total', '', '', formatNum(data.yarnBalanceVariantRows.reduce((s, r) => s + r.value, 0))]],
+          );
         }
 
-        if (visibleSections.fabricDelivered) {
-          const deliveredBody: (string | number)[][] = [];
-          data.deliveriesByColor.forEach((colorRow) => {
-            colorRow.deliveries.forEach((d) => deliveredBody.push([new Date(d.date).toLocaleDateString('en-IN'), colorRow.color, d.size, formatNum(d.kg)]));
-          });
-          section('Fabric Delivered', ['Date', 'Color', 'Size', 'Weight (kg)'], deliveredBody, [['Total Fabric Delivered', '', '', formatNum(data.totalDelivered)]]);
+        if (visibleSections.koraBalance && data.koraBalanceVariantRows.length > 0) {
+          section(
+            'Kora Balance',
+            ['Size', 'Color', 'Chemical', 'Balance (kg)'],
+            data.koraBalanceVariantRows.map((r) => [r.size, r.color, r.chemical, formatNum(r.value)]),
+            [['Total', '', '', formatNum(data.koraBalanceVariantRows.reduce((s, r) => s + r.value, 0))]],
+          );
+        }
+
+        if (visibleSections.fabricStock && data.fabricStockVariantRows.length > 0) {
+          section(
+            'Fabric Stock',
+            ['Size', 'Color', 'Chemical', 'Stock (kg)'],
+            data.fabricStockVariantRows.map((r) => [r.size, r.color, r.chemical, formatNum(r.value)]),
+            [['Total', '', '', formatNum(data.totalFabricStock)]],
+          );
+        }
+
+        if (visibleSections.fabricDelivered && data.fabricDeliveredVariantRows.length > 0) {
+          section(
+            'Fabric Delivered',
+            ['Size', 'Color', 'Chemical', 'Weight (kg)'],
+            data.fabricDeliveredVariantRows.map((r) => [r.size, r.color, r.chemical, formatNum(r.value)]),
+            [['Total', '', '', formatNum(data.totalDelivered)]],
+          );
         }
 
       } else if (tab === 'wastage_summary') {
-        const extTotal = data.extruderWasteByVariant.reduce((sum, r) => sum + r.sizes.reduce((s, x) => s + x.lums + x.yarnWaste, 0), 0);
-        const loomsTotal = data.loomsWasteByVariant.reduce((sum, r) => sum + r.sizes.reduce((s, x) => s + x.loomsWaste, 0), 0);
-        const fabricTotal = data.fabricWasteByVariant.reduce((sum, r) => sum + r.sizes.reduce((s, x) => s + x.fabricWaste + x.bitWaste, 0), 0);
-
-        if (visibleSections.extruderWastage) {
-          const extruderWastageBody: (string | number)[][] = [];
-          data.extruderWasteByVariant.forEach(row => {
-            const lums = row.sizes.reduce((s, x) => s + x.lums, 0);
-            const yarn = row.sizes.reduce((s, x) => s + x.yarnWaste, 0);
-            extruderWastageBody.push([row.color, formatNum(lums), formatNum(yarn), formatNum(lums + yarn)]);
-          });
-          section('Extruder Wastage', ['Color', 'Lums (LM)', 'Loose/Yarn (LO)', 'Total'], extruderWastageBody, [['Total', '', '', formatNum(extTotal)]]);
-          if (data.extruderBySize.length > 0) section('Extruder Wastage — By Size', ['Size', 'Lums (LM)', 'Loose/Yarn (LO)', 'Total'], data.extruderBySize.map((r) => [r.size, formatNum(r.lums), formatNum(r.yarnWaste), formatNum(r.lums + r.yarnWaste)]), [['Total', '', '', formatNum(data.extruderBySize.reduce((s, r) => s + r.lums + r.yarnWaste, 0))]]);
-          if (data.extruderByChemical.length > 0) section('Extruder Wastage — By Chemical', ['Chemical', 'Lums (LM)', 'Loose/Yarn (LO)', 'Total'], data.extruderByChemical.map((r) => [r.chemical, formatNum(r.lums), formatNum(r.yarnWaste), formatNum(r.lums + r.yarnWaste)]), [['Total', '', '', formatNum(data.extruderByChemical.reduce((s, r) => s + r.lums + r.yarnWaste, 0))]]);
+        if (visibleSections.extruderWastage && data.extruderWasteVariantRows.length > 0) {
+          section(
+            'Extruder Wastage',
+            ['Size', 'Color', 'Chemical', 'Lums (LM)', 'Loose/Yarn (LO)', 'Total'],
+            data.extruderWasteVariantRows.map((r) => [r.size, r.color, r.chemical, formatNum(r.lums), formatNum(r.yarnWaste), formatNum(r.lums + r.yarnWaste)]),
+            [['Total', '', '', '', '', formatNum(data.extruderWasteTotal)]],
+          );
         }
 
-        if (visibleSections.loomsWastage) {
-          const loomsWastageBody: (string | number)[][] = [];
-          data.loomsWasteByVariant.forEach(row => { const lw = row.sizes.reduce((s, x) => s + x.loomsWaste, 0); loomsWastageBody.push([row.color, formatNum(lw)]); });
-          section('Looms Wastage', ['Color', 'Looms/Yarn Waste (LW)'], loomsWastageBody, [['Total', formatNum(loomsTotal)]]);
-          if (data.loomsBySize.length > 0) section('Looms Wastage — By Size', ['Size', 'Looms/Yarn Waste (LW)'], data.loomsBySize.map((r) => [r.size, formatNum(r.waste)]), [['Total', formatNum(data.loomsBySize.reduce((s, r) => s + r.waste, 0))]]);
-          if (data.loomsByChemical.length > 0) section('Looms Wastage — By Chemical', ['Chemical', 'Looms/Yarn Waste (LW)'], data.loomsByChemical.map((r) => [r.chemical, formatNum(r.waste)]), [['Total', formatNum(data.loomsByChemical.reduce((s, r) => s + r.waste, 0))]]);
+        if (visibleSections.loomsWastage && data.loomsWasteVariantRows.length > 0) {
+          section(
+            'Looms Wastage',
+            ['Size', 'Color', 'Chemical', 'Looms/Yarn Waste (LW)'],
+            data.loomsWasteVariantRows.map((r) => [r.size, r.color, r.chemical, formatNum(r.loomsWaste)]),
+            [['Total', '', '', formatNum(data.loomsWasteTotal)]],
+          );
         }
 
-        if (visibleSections.fabricWastage) {
-          const fabricWastageBody: (string | number)[][] = [];
-          data.fabricWasteByVariant.forEach(row => { const fw = row.sizes.reduce((s, x) => s + x.fabricWaste, 0); const bw = row.sizes.reduce((s, x) => s + x.bitWaste, 0); fabricWastageBody.push([row.color, formatNum(fw), formatNum(bw), formatNum(fw + bw)]); });
-          section('Fabric Checking Wastage', ['Color', 'Fabric Waste (FW)', 'Bit Waste (BW)', 'Total'], fabricWastageBody, [['Total', '', '', formatNum(fabricTotal)]]);
-          if (data.fabricBySize.length > 0) section('Fabric Checking Wastage — By Size', ['Size', 'Fabric Waste (FW)', 'Bit Waste (BW)', 'Total'], data.fabricBySize.map((r) => [r.size, formatNum(r.fwWaste), formatNum(r.bwWaste), formatNum(r.fwWaste + r.bwWaste)]), [['Total', '', '', formatNum(data.fabricBySize.reduce((s, r) => s + r.fwWaste + r.bwWaste, 0))]]);
-          if (data.fabricByChemical.length > 0) section('Fabric Checking Wastage — By Chemical', ['Chemical', 'Fabric Waste (FW)', 'Bit Waste (BW)', 'Total'], data.fabricByChemical.map((r) => [r.chemical, formatNum(r.fwWaste), formatNum(r.bwWaste), formatNum(r.fwWaste + r.bwWaste)]), [['Total', '', '', formatNum(data.fabricByChemical.reduce((s, r) => s + r.fwWaste + r.bwWaste, 0))]]);
+        if (visibleSections.fabricWastage && data.fabricWasteVariantRows.length > 0) {
+          section(
+            'Fabric Checking Wastage',
+            ['Size', 'Color', 'Chemical', 'Fabric Waste (FW)', 'Bit Waste (BW)', 'Total'],
+            data.fabricWasteVariantRows.map((r) => [r.size, r.color, r.chemical, formatNum(r.fabricWaste), formatNum(r.bitWaste), formatNum(r.fabricWaste + r.bitWaste)]),
+            [['Total', '', '', '', '', formatNum(data.fabricWasteTotal)]],
+          );
         }
       }
 
@@ -412,7 +366,7 @@ export function DashboardPdfView({ tab, allReports, selectedReport, onReportChan
 
       const ws = utils.aoa_to_sheet(wsData);
       utils.book_append_sheet(wb, ws, displayTitle.substring(0, 31));
-      
+
       const period = fromMonthStr === toMonthStr ? fromMonthStr : `${fromMonthStr}_to_${toMonthStr}`;
       writeFile(wb, `${tab}_report_${period}.xlsx`);
     } catch (err) {

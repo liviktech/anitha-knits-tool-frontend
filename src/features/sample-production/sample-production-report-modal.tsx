@@ -1,7 +1,7 @@
 import { Dialog, DialogClose, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Table, TableBody, TableCell, TableFooter, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { Download, FileDown, X } from 'lucide-react';
+import { FileDown, X } from 'lucide-react';
 import type {
   ExtruderProductionChemicalSummary,
   ExtruderProductionColorSummary,
@@ -40,7 +40,6 @@ interface BreakdownRow {
 interface SampleProductionReportModalProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  companyName: string;
   monthStr: string; // YYYY-MM
   extruderByColor: ExtruderProductionColorSummary[];
   extruderBySize: ExtruderProductionSizeSummary[];
@@ -93,7 +92,6 @@ function columnTotals(rows: BreakdownRow[], columnCount: number): number[] {
 export function SampleProductionReportModal({
   open,
   onOpenChange,
-  companyName,
   monthStr,
   extruderByColor,
   extruderBySize,
@@ -126,39 +124,6 @@ export function SampleProductionReportModal({
   ].filter((s) => s.rows.length > 0);
 
   const hasData = sections.length > 0;
-
-  const handleDownloadCSV = () => {
-    if (!hasData) return;
-
-    const escapeCsvField = (value: string | number) => {
-      const str = String(value);
-      return /[",\n]/.test(str) ? `"${str.replace(/"/g, '""')}"` : str;
-    };
-
-    const csvRows: (string | number)[][] = [];
-    csvRows.push(['Sample Production Report']);
-    csvRows.push(['Company', companyName]);
-    csvRows.push(['Period', getMonthName(monthStr)]);
-    csvRows.push(['Generated On', new Date().toLocaleString('en-IN')]);
-    csvRows.push([]);
-
-    for (const section of sections) {
-      csvRows.push([section.title]);
-      csvRows.push([section.labelHeader, ...section.columns]);
-      section.rows.forEach((row) => csvRows.push([row.label, ...row.values]));
-      csvRows.push(['Total', ...columnTotals(section.rows, section.columns.length)]);
-      csvRows.push([]);
-    }
-
-    const csvContent = csvRows.map((r) => r.map(escapeCsvField).join(',')).join('\n');
-    const encodedUri = encodeURI('data:text/csv;charset=utf-8,' + csvContent);
-    const link = document.createElement('a');
-    link.setAttribute('href', encodedUri);
-    link.setAttribute('download', `Sample_Production_Report_${monthStr}.csv`);
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-  };
 
   const handleDownloadPDF = async () => {
     if (!hasData) return;
@@ -226,17 +191,14 @@ export function SampleProductionReportModal({
       <DialogContent showCloseButton={false} className="max-w-4xl sm:max-w-4xl max-h-[85vh] flex flex-col p-0 border border-gray-300 overflow-hidden bg-white print:max-w-none print:h-auto print:border-none">
         {/* Modal Header (Not printed) */}
         {/* Close button rendered in-flow here (not DialogContent's default absolutely-positioned
-            one) so it shares the same flex row as Download CSV/PDF and always lines up with them. */}
+            one) so it shares the same flex row as Download PDF and always lines up with it. */}
         <DialogHeader className="px-6 py-4 border-b border-gray-200 bg-[#A8DCAB] shrink-0 print:hidden">
           <div className="flex items-center justify-between">
             <DialogTitle className="text-xl font-bold text-black">
               Sample Production Report Overview
             </DialogTitle>
             <div className="flex items-center gap-3">
-              <Button variant="outline" size="sm" onClick={handleDownloadCSV} disabled={!hasData} className="gap-2 bg-white border-[#004D40] text-[#004D40] hover:bg-[#004D40]/10">
-                <Download className="w-4 h-4" /> Download CSV
-              </Button>
-              <Button variant="outline" size="sm" onClick={handleDownloadPDF} disabled={!hasData} className="gap-2 bg-white border-[#004D40] text-[#004D40] hover:bg-[#004D40]/10">
+              <Button size="sm" onClick={handleDownloadPDF} disabled={!hasData} className="gap-2 bg-[#004D40] text-white hover:bg-[#00382e]">
                 <FileDown className="w-4 h-4" /> Download PDF
               </Button>
 

@@ -174,7 +174,6 @@ export function SampleProductionPage() {
   // Feeds the Sample Production report modal — color/size/chemical-wise breakdowns for the
   // selected month, same source (and same shape) the Production Details report uses, just
   // scoped to type=SAMPLE so it never mixes in real Production records.
-  const companyName = user?.kind === 'company-user' ? user.company.name : 'LK Knits';
   const { dashboardData: sampleMonthlyDashboardData } = useMonthlyDashboard(monthStr, monthStr, 'SAMPLE');
   const reportDeliveryByColor = useMemo(() => {
     const map = new Map<string, { label: string; delivered: number }>();
@@ -566,7 +565,6 @@ export function SampleProductionPage() {
       <SampleProductionReportModal
         open={isReportOpen}
         onOpenChange={setIsReportOpen}
-        companyName={companyName}
         monthStr={monthStr}
         extruderByColor={sampleMonthlyDashboardData?.extruderProduction.byColor ?? []}
         extruderBySize={sampleMonthlyDashboardData?.extruderProduction.bySize ?? []}
