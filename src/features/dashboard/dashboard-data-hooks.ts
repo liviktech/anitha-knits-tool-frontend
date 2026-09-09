@@ -478,7 +478,7 @@ export function useDashboardData(currentMonthStr: string): DashboardDataResult {
       const s = r.size?.name; const ch = r.chemical?.name || 'Unknown';
       if (!c || !s) return;
       const k = toKey(c, s, ch);
-      yarnBalanceMap.set(k, { balance: (yarnBalanceMap.get(k)?.balance || 0) - ((r.loom?.fabricOutputKg || 0) + (r.wastage?.totalWasteKg || 0)) });
+      yarnBalanceMap.set(k, { balance: (yarnBalanceMap.get(k)?.balance || 0) - (r.loom?.yarnInputKg || 0) });
     });
 
     const koraBalanceMap = new Map<string, any>();
@@ -489,19 +489,20 @@ export function useDashboardData(currentMonthStr: string): DashboardDataResult {
       const k = toKey(c, s, ch);
       koraBalanceMap.set(k, { balance: (koraBalanceMap.get(k)?.balance || 0) + (r.koraBalanceKg || 0) });
     });
-    loomsProductionsRes?.data?.forEach((r: any) => {
+    // Use monthly dashboard summary (byVariantChemical) so detail rows match the totals.
+    (dashboardData?.loomsProduction?.byVariantChemical ?? []).forEach((r: any) => {
       const c = normalizeColor(r.color?.name ?? '');
       const s = r.size?.name; const ch = r.chemical?.name || 'Unknown';
       if (!c || !s) return;
       const k = toKey(c, s, ch);
-      koraBalanceMap.set(k, { balance: (koraBalanceMap.get(k)?.balance || 0) + (r.loom?.fabricOutputKg || 0) });
+      koraBalanceMap.set(k, { balance: (koraBalanceMap.get(k)?.balance || 0) + (r.production || 0) });
     });
-    fabricCheckingRes?.data?.forEach((r: any) => {
+    (dashboardData?.fabricProduction?.byVariantChemical ?? []).forEach((r: any) => {
       const c = normalizeColor(r.color?.name ?? '');
       const s = r.size?.name; const ch = r.chemical?.name || 'Unknown';
       if (!c || !s) return;
       const k = toKey(c, s, ch);
-      koraBalanceMap.set(k, { balance: (koraBalanceMap.get(k)?.balance || 0) - (r.fabricCheck?.outputKg || 0) });
+      koraBalanceMap.set(k, { balance: (koraBalanceMap.get(k)?.balance || 0) - (r.fabricInputKg || 0) });
     });
 
     const fabricStockMap = new Map<string, any>();
@@ -537,7 +538,7 @@ export function useDashboardData(currentMonthStr: string): DashboardDataResult {
     const yarnBalanceByColor: BalanceColorRow[] = FABRIC_COLORS.map((color) => {
       const yarnProduced = extruderByColorMap.get(color)?.production ?? 0;
       const loomsRow = loomsByColorMap.get(color);
-      return { color, balance: Math.max(0, yarnProduced - ((loomsRow?.production ?? 0) + (loomsRow?.waste ?? 0))) };
+      return { color, balance: Math.max(0, yarnProduced - (loomsRow?.production ?? 0)) };
     });
     const yarnBalanceByVariant: BalanceVariantRow[] = FABRIC_COLORS.map((color) => ({
       color,
@@ -545,7 +546,7 @@ export function useDashboardData(currentMonthStr: string): DashboardDataResult {
         const key = `${color}_${size}`;
         const yarnProduced = extruderByVariantMap.get(key)?.production ?? 0;
         const loomsRow = loomsByVariantMap.get(key);
-        return { size, balance: Math.max(0, yarnProduced - ((loomsRow?.production ?? 0) + (loomsRow?.waste ?? 0))) };
+        return { size, balance: Math.max(0, yarnProduced - (loomsRow?.production ?? 0)) };
       }),
     }));
 
@@ -645,7 +646,7 @@ export function useDashboardData(currentMonthStr: string): DashboardDataResult {
     const sampleYarnBalanceByColor: BalanceColorRow[] = FABRIC_COLORS.map((color) => {
       const yarnProduced = sampleExtruderByColorMap.get(color)?.production ?? 0;
       const loomsRow = sampleLoomsByColorMap.get(color);
-      return { color, balance: Math.max(0, yarnProduced - ((loomsRow?.production ?? 0) + (loomsRow?.waste ?? 0))) };
+      return { color, balance: Math.max(0, yarnProduced - (loomsRow?.production ?? 0)) };
     });
     const sampleYarnBalanceByVariant: BalanceVariantRow[] = FABRIC_COLORS.map((color) => ({
       color,
@@ -653,7 +654,7 @@ export function useDashboardData(currentMonthStr: string): DashboardDataResult {
         const key = `${color}_${size}`;
         const yarnProduced = sampleExtruderByVariantMap.get(key)?.production ?? 0;
         const loomsRow = sampleLoomsByVariantMap.get(key);
-        return { size, balance: Math.max(0, yarnProduced - ((loomsRow?.production ?? 0) + (loomsRow?.waste ?? 0))) };
+        return { size, balance: Math.max(0, yarnProduced - (loomsRow?.production ?? 0)) };
       }),
     }));
 
@@ -682,21 +683,22 @@ export function useDashboardData(currentMonthStr: string): DashboardDataResult {
       const c = normalizeColor(r.color?.name ?? ''); const s = r.size?.name; const ch = r.chemical?.name || 'Unknown';
       if (!c || !s) return;
       const k = toKey(c, s, ch);
-      sampleYarnBalanceMap.set(k, { balance: (sampleYarnBalanceMap.get(k)?.balance || 0) - ((r.loom?.fabricOutputKg || 0) + (r.wastage?.totalWasteKg || 0)) });
+      sampleYarnBalanceMap.set(k, { balance: (sampleYarnBalanceMap.get(k)?.balance || 0) - (r.loom?.yarnInputKg || 0) });
     });
 
     const sampleKoraBalanceMap = new Map<string, any>();
-    sampleLoomsProductionsRes?.data?.forEach((r: any) => {
+    // Use monthly dashboard summary (byVariantChemical) so detail rows match the totals.
+    (sampleDashboardData?.loomsProduction?.byVariantChemical ?? []).forEach((r: any) => {
       const c = normalizeColor(r.color?.name ?? ''); const s = r.size?.name; const ch = r.chemical?.name || 'Unknown';
       if (!c || !s) return;
       const k = toKey(c, s, ch);
-      sampleKoraBalanceMap.set(k, { balance: (sampleKoraBalanceMap.get(k)?.balance || 0) + (r.loom?.fabricOutputKg || 0) });
+      sampleKoraBalanceMap.set(k, { balance: (sampleKoraBalanceMap.get(k)?.balance || 0) + (r.production || 0) });
     });
-    sampleFabricCheckingRes?.data?.forEach((r: any) => {
+    (sampleDashboardData?.fabricProduction?.byVariantChemical ?? []).forEach((r: any) => {
       const c = normalizeColor(r.color?.name ?? ''); const s = r.size?.name; const ch = r.chemical?.name || 'Unknown';
       if (!c || !s) return;
       const k = toKey(c, s, ch);
-      sampleKoraBalanceMap.set(k, { balance: (sampleKoraBalanceMap.get(k)?.balance || 0) - (r.fabricCheck?.outputKg || 0) });
+      sampleKoraBalanceMap.set(k, { balance: (sampleKoraBalanceMap.get(k)?.balance || 0) - (r.fabricInputKg || 0) });
     });
 
     const sampleFabricStockMap = new Map<string, any>();

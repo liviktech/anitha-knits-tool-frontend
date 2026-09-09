@@ -78,7 +78,7 @@ function buildFabricWasteVariantRows(rows: FabricProductionVariantChemicalSummar
   return sortVariants(out);
 }
 
-/** Yarn Balance: extruder yarn produced minus looms yarn consumed (production + waste), per size+color+chemical. */
+/** Yarn Balance: extruder yarn produced minus looms yarn consumed (yarnInputKg only — wastage is NOT subtracted), per size+color+chemical. */
 function buildYarnBalanceVariantRows(
   extruderRows: ExtruderProductionVariantChemicalSummary[],
   loomsRows: LoomsProductionVariantChemicalSummary[],
@@ -91,7 +91,10 @@ function buildYarnBalanceVariantRows(
     map.set(key, entry);
   };
   extruderRows.forEach((r) => bump(r.size.name, r.color.name, r.chemical.name, r.production));
-  loomsRows.forEach((r) => bump(r.size.name, r.color.name, r.chemical.name, -(r.production + r.waste)));
+  // Yarn Balance = Extruder yarn produced minus Looms yarn consumed (yarnInputKg only).
+  // Wastage is NOT subtracted — waste is a separate tracking concern and does not
+  // reduce the available yarn balance (matches the backend's YARN_INPUT_EXCEEDS_AVAILABLE logic).
+  loomsRows.forEach((r) => bump(r.size.name, r.color.name, r.chemical.name, -(r.production)));
 
   const out = Array.from(map.values())
     .map((r) => ({ ...r, value: Math.max(0, r.value) }))
