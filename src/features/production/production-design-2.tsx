@@ -296,16 +296,16 @@ export function DayDetailView({
           <Calendar className="w-[18px] h-[18px] text-[#004D40]" />
           <span className="text-[15px] font-bold text-[#004D40]">{formattedDate}</span>
         </div>
-        {canEditDay && (
-          <Button
-            variant="outline"
-            size="sm"
-            className="h-[34px] px-4 text-[#00897B] border-[#00897B]/20 font-bold uppercase tracking-wider text-[11px] gap-2 hover:bg-[#00897B]/5 bg-white"
-            onClick={onEditClick}
-          >
-            <Edit className="w-3.5 h-3.5" /> EDIT ENTRY
-          </Button>
-        )}
+        <Button
+          variant="outline"
+          size="sm"
+          className="h-[34px] px-4 text-[#00897B] border-[#00897B]/20 font-bold uppercase tracking-wider text-[11px] gap-2 hover:bg-[#00897B]/5 bg-white disabled:opacity-50 disabled:cursor-not-allowed"
+          disabled={!canEditDay}
+          title={canEditDay ? undefined : 'You do not have permission to edit production entries'}
+          onClick={onEditClick}
+        >
+          <Edit className="w-3.5 h-3.5" /> EDIT ENTRY
+        </Button>
       </div>
     );
     return () => setHeaderRight(null);
@@ -595,23 +595,15 @@ export function ProductionDesign2() {
   // selected month (extruder/looms/fabric) come from the same monthly-dashboard endpoint the
   // Dashboard reports already use, so the report's numbers stay consistent with the dashboard.
   const { dashboardData: monthlyDashboardData } = useMonthlyDashboard(monthStr, monthStr, 'PRODUCTION');
-  const reportDeliveryByColor = useMemo(() => {
-    const map = new Map<string, { label: string; delivered: number }>();
+  const reportDeliveryByVariantChemical = useMemo(() => {
+    const map = new Map<string, { size: { name: string }; color: { name: string }; chemical: { name: string }; delivered: number }>();
     (monthlyDashboardData?.loadSent.items ?? []).forEach((item) => {
       const kg = item.loadSent?.fabricWeight ?? 0;
-      const entry = map.get(item.color.id) ?? { label: item.color.name, delivered: 0 };
+      const chemicalName = item.chemical?.name ?? 'Unknown';
+      const key = `${item.color.id}_${item.size.id}_${item.chemical?.id ?? 'none'}`;
+      const entry = map.get(key) ?? { size: { name: item.size.name }, color: { name: item.color.name }, chemical: { name: chemicalName }, delivered: 0 };
       entry.delivered += kg;
-      map.set(item.color.id, entry);
-    });
-    return Array.from(map.values());
-  }, [monthlyDashboardData]);
-  const reportDeliveryBySize = useMemo(() => {
-    const map = new Map<string, { label: string; delivered: number }>();
-    (monthlyDashboardData?.loadSent.items ?? []).forEach((item) => {
-      const kg = item.loadSent?.fabricWeight ?? 0;
-      const entry = map.get(item.size.id) ?? { label: item.size.name, delivered: 0 };
-      entry.delivered += kg;
-      map.set(item.size.id, entry);
+      map.set(key, entry);
     });
     return Array.from(map.values());
   }, [monthlyDashboardData]);
@@ -735,15 +727,15 @@ export function ProductionDesign2() {
             <Download className="w-3 h-3" />
             REPORT
           </Button>
-          {canCreateProductionRecord(user) && (
-            <Button
-              className="flex items-center gap-2 bg-[#004D40] hover:bg-[#00382e] text-white rounded-md px-3 py-2 h-auto text-[12px] font-bold tracking-wide shadow-[0_1px_2px_rgba(0,45,35,0.2)] cursor-pointer"
-              onClick={() => navigate('/production/new-entry')}
-            >
-              <Plus className="w-3 h-3" />
-              ADD NEW ENTRY
-            </Button>
-          )}
+          <Button
+            className="flex items-center gap-2 bg-[#004D40] hover:bg-[#00382e] text-white rounded-md px-3 py-2 h-auto text-[12px] font-bold tracking-wide shadow-[0_1px_2px_rgba(0,45,35,0.2)] disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:bg-[#004D40]"
+            disabled={!canCreateProductionRecord(user)}
+            title={canCreateProductionRecord(user) ? undefined : 'You do not have permission to add production entries'}
+            onClick={() => navigate('/production/new-entry')}
+          >
+            <Plus className="w-3 h-3" />
+            ADD NEW ENTRY
+          </Button>
         </>
       );
     }
@@ -1133,20 +1125,13 @@ export function ProductionDesign2() {
         open={isReportOpen}
         onOpenChange={setIsReportOpen}
         monthStr={monthStr}
-        extruderByColor={monthlyDashboardData?.extruderProduction.byColor ?? []}
-        extruderBySize={monthlyDashboardData?.extruderProduction.bySize ?? []}
-        extruderByChemical={monthlyDashboardData?.extruderProduction.byChemical ?? []}
+        extruderByVariantChemical={monthlyDashboardData?.extruderProduction.byVariantChemical ?? []}
         extruderTotal={monthlyDashboardData?.extruderProduction.overall.production ?? 0}
-        loomsByColor={monthlyDashboardData?.loomsProduction.byColor ?? []}
-        loomsBySize={monthlyDashboardData?.loomsProduction.bySize ?? []}
-        loomsByChemical={monthlyDashboardData?.loomsProduction.byChemical ?? []}
+        loomsByVariantChemical={monthlyDashboardData?.loomsProduction.byVariantChemical ?? []}
         loomsTotal={monthlyDashboardData?.loomsProduction.overall.production ?? 0}
-        fabricByColor={monthlyDashboardData?.fabricProduction.byColor ?? []}
-        fabricBySize={monthlyDashboardData?.fabricProduction.bySize ?? []}
-        fabricByChemical={monthlyDashboardData?.fabricProduction.byChemical ?? []}
+        fabricByVariantChemical={monthlyDashboardData?.fabricProduction.byVariantChemical ?? []}
         fabricTotal={monthlyDashboardData?.fabricProduction.overall.outputKg ?? 0}
-        deliveryByColor={reportDeliveryByColor}
-        deliveryBySize={reportDeliveryBySize}
+        deliveryByVariantChemical={reportDeliveryByVariantChemical}
         deliveryTotal={monthlyDashboardData?.loadSent.totals.fabricWeightKg ?? 0}
       />
       <DeleteConfirmDialog

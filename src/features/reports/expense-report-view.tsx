@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { apiFetch } from "@/lib/api-client";
 import { ReportLayout } from "./report-layout";
+import { useReportPeriod } from "./report-period";
 
 const TEAL: [number, number, number] = [0, 77, 64];
 const TEAL_TINT: [number, number, number] = [232, 245, 240];
@@ -24,13 +25,6 @@ function formatDateDisplay(isoDate: string) {
   });
 }
 
-function getMonthName(monthStr: string) {
-  if (!monthStr) return "";
-  const [year, month] = monthStr.split("-").map(Number);
-  const date = new Date(year, month - 1, 1);
-  return date.toLocaleDateString("en-IN", { month: "long", year: "numeric" });
-}
-
 interface ExpenseReportViewProps {
   allReports?: { id: string; label: string; moduleId: string }[];
   selectedReport?: string;
@@ -38,14 +32,7 @@ interface ExpenseReportViewProps {
 }
 
 export function ExpenseReportView({ allReports, selectedReport, onReportChange }: ExpenseReportViewProps) {
-  const [fromMonthStr, setFromMonthStr] = useState(() => {
-    const d = new Date();
-    return `${d.getFullYear()}-${(d.getMonth() + 1).toString().padStart(2, '0')}`;
-  });
-  const [toMonthStr, setToMonthStr] = useState(() => {
-    const d = new Date();
-    return `${d.getFullYear()}-${(d.getMonth() + 1).toString().padStart(2, '0')}`;
-  });
+  const period = useReportPeriod();
 
   const [reportData, setReportData] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(false);
@@ -55,17 +42,14 @@ export function ExpenseReportView({ allReports, selectedReport, onReportChange }
   const totalAmount = reportData.reduce((sum, item) => sum + item.amount, 0);
 
   useEffect(() => {
-    if (fromMonthStr && toMonthStr) {
-      fetchReportData();
-    }
-  }, [fromMonthStr, toMonthStr]);
+    fetchReportData();
+  }, [period.effectiveFrom, period.effectiveTo]);
 
   const fetchReportData = async () => {
     setIsLoading(true);
     try {
-      const from = `${fromMonthStr}-01`;
-      const [yearStr, monthStrPart] = toMonthStr.split('-');
-      const to = `${toMonthStr}-${new Date(parseInt(yearStr), parseInt(monthStrPart), 0).getDate()}`;
+      const from = period.effectiveFrom;
+      const to = period.effectiveTo;
       let allData: any[] = [];
       let page = 1;
       let totalPages = 1;
@@ -115,8 +99,7 @@ export function ExpenseReportView({ allReports, selectedReport, onReportChange }
       doc.setTextColor(90, 90, 90);
       doc.text('EXPENSES SUMMARY REPORT', 105, y, { align: 'center' });
       y += 7;
-      const periodText = fromMonthStr === toMonthStr ? getMonthName(fromMonthStr) : `${getMonthName(fromMonthStr)} - ${getMonthName(toMonthStr)}`;
-      doc.text(`Period: ${periodText}`, 105, y, { align: 'center' });
+      doc.text(`Period: ${period.label}`, 105, y, { align: 'center' });
       y += 5;
       doc.setDrawColor(...TEAL);
       doc.setLineWidth(0.6);
@@ -170,7 +153,7 @@ export function ExpenseReportView({ allReports, selectedReport, onReportChange }
     return () => {
       isCancelled = true;
     };
-  }, [reportData, isLoading, fromMonthStr, toMonthStr, totalAmount]);
+  }, [reportData, isLoading, period.label, totalAmount]);
 
   const handleDownloadXlsx = async () => {
     if (isLoading) return;
@@ -181,8 +164,7 @@ export function ExpenseReportView({ allReports, selectedReport, onReportChange }
       const wsData: any[][] = [];
 
       wsData.push(['EXPENSES SUMMARY REPORT']);
-      const periodText = fromMonthStr === toMonthStr ? getMonthName(fromMonthStr) : `${getMonthName(fromMonthStr)} - ${getMonthName(toMonthStr)}`;
-      wsData.push([`Period: ${periodText}`]);
+      wsData.push([`Period: ${period.label}`]);
       wsData.push([]);
       
       wsData.push([`Total Expenses: ${formatCurrency(totalAmount)}`, '', '', `Total Entries: ${reportData.length}`]);
@@ -202,8 +184,7 @@ export function ExpenseReportView({ allReports, selectedReport, onReportChange }
       const ws = utils.aoa_to_sheet(wsData);
       utils.book_append_sheet(wb, ws, 'Expenses');
 
-      const period = fromMonthStr === toMonthStr ? fromMonthStr : `${fromMonthStr}_to_${toMonthStr}`;
-      writeFile(wb, `Anitha_Knits_Expenses_Report_${period}.xlsx`);
+      writeFile(wb, `Anitha_Knits_Expenses_Report_${period.fileSuffix}.xlsx`);
     } catch (err) {
       console.error(err);
     } finally {
@@ -215,8 +196,7 @@ export function ExpenseReportView({ allReports, selectedReport, onReportChange }
     if (pdfBlobUrl) {
       const a = document.createElement('a');
       a.href = pdfBlobUrl;
-      const period = fromMonthStr === toMonthStr ? fromMonthStr : `${fromMonthStr}_to_${toMonthStr}`;
-      a.download = `Anitha_Knits_Expenses_Report_${period}.pdf`;
+      a.download = `Anitha_Knits_Expenses_Report_${period.fileSuffix}.pdf`;
       document.body.appendChild(a);
       a.click();
       document.body.removeChild(a);
@@ -229,11 +209,8 @@ export function ExpenseReportView({ allReports, selectedReport, onReportChange }
       allReports={allReports}
       selectedReport={selectedReport}
       onReportChange={onReportChange}
-      fromMonthStr={fromMonthStr}
-      toMonthStr={toMonthStr}
-      onFromMonthChange={setFromMonthStr}
-      onToMonthChange={setToMonthStr}
-      showMonthPicker={true}
+      period={period}
+      showPeriodPicker={true}
       pdfBlobUrl={pdfBlobUrl}
       isGenerating={isGenerating}
       isGeneratingXlsx={isGeneratingXlsx}

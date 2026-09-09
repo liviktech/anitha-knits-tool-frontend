@@ -3,16 +3,10 @@ import { useInventoryRecords, inventoryTypeLabels, type InventoryType } from '@/
 import { useOpeningBalanceRawMaterials } from '@/features/admin-panel/opening-balance-queries';
 import { formatDateDisplay } from '@/features/inventory/inventory-utils';
 import { ReportLayout } from './report-layout';
+import { useReportPeriod } from './report-period';
 
 const TEAL: [number, number, number] = [0, 77, 64];
 const TEAL_TINT: [number, number, number] = [232, 245, 240];
-
-function getMonthName(monthStr: string) {
-  if (!monthStr) return "";
-  const [year, month] = monthStr.split('-').map(Number);
-  const date = new Date(year, month - 1, 1);
-  return date.toLocaleDateString('en-IN', { month: 'long', year: 'numeric' });
-}
 
 interface InventoryReportViewProps {
   allReports?: { id: string; label: string; moduleId: string }[];
@@ -21,14 +15,7 @@ interface InventoryReportViewProps {
 }
 
 export function InventoryReportView({ allReports, selectedReport, onReportChange }: InventoryReportViewProps) {
-  const [fromMonthStr, setFromMonthStr] = useState(() => {
-    const d = new Date();
-    return `${d.getFullYear()}-${(d.getMonth() + 1).toString().padStart(2, '0')}`;
-  });
-  const [toMonthStr, setToMonthStr] = useState(() => {
-    const d = new Date();
-    return `${d.getFullYear()}-${(d.getMonth() + 1).toString().padStart(2, '0')}`;
-  });
+  const period = useReportPeriod();
 
   const { data, isLoading } = useInventoryRecords('?limit=100');
   const { data: obRes } = useOpeningBalanceRawMaterials('?limit=100');
@@ -39,12 +26,12 @@ export function InventoryReportView({ allReports, selectedReport, onReportChange
       if (!data?.data) return [];
       return data.data
         .filter((r) => {
-          const m = r.date.substring(0, 7);
-          return m >= fromMonthStr && m <= toMonthStr;
+          const d = r.date.slice(0, 10);
+          return d >= period.effectiveFrom && d <= period.effectiveTo;
         })
         .sort((a, b) => b.date.localeCompare(a.date));
     },
-    [data, fromMonthStr, toMonthStr],
+    [data, period.effectiveFrom, period.effectiveTo],
   );
 
   const categoryTotal = (type: InventoryType) => {
@@ -84,8 +71,7 @@ export function InventoryReportView({ allReports, selectedReport, onReportChange
       doc.setFont('helvetica', 'normal');
       doc.setTextColor(90, 90, 90);
       doc.text('INVENTORY STOCK REPORT', 105, 26, { align: 'center' });
-      const periodText = fromMonthStr === toMonthStr ? getMonthName(fromMonthStr) : `${getMonthName(fromMonthStr)} - ${getMonthName(toMonthStr)}`;
-      doc.text(`Period: ${periodText}`, 105, 33, { align: 'center' });
+      doc.text(`Period: ${period.label}`, 105, 33, { align: 'center' });
 
       doc.setDrawColor(...TEAL);
       doc.setLineWidth(0.6);
@@ -141,7 +127,7 @@ export function InventoryReportView({ allReports, selectedReport, onReportChange
     return () => {
       isCancelled = true;
     };
-  }, [monthRecords, isLoading, fromMonthStr, toMonthStr, hdpeTotal, chemicalTotal, colorTotal, grandTotal]);
+  }, [monthRecords, isLoading, period.label, hdpeTotal, chemicalTotal, colorTotal, grandTotal]);
 
   const handleDownloadXlsx = async () => {
     if (isLoading) return;
@@ -152,8 +138,7 @@ export function InventoryReportView({ allReports, selectedReport, onReportChange
       const wsData: any[][] = [];
 
       wsData.push(['INVENTORY STOCK REPORT']);
-      const periodText = fromMonthStr === toMonthStr ? getMonthName(fromMonthStr) : `${getMonthName(fromMonthStr)} - ${getMonthName(toMonthStr)}`;
-      wsData.push([`Period: ${periodText}`]);
+      wsData.push([`Period: ${period.label}`]);
       wsData.push([]);
       
       wsData.push([`HDPE: ${hdpeTotal.toFixed(2)} kg`, `Chemical: ${chemicalTotal.toFixed(2)} kg`, `Color: ${colorTotal.toFixed(2)} kg`]);
@@ -175,8 +160,7 @@ export function InventoryReportView({ allReports, selectedReport, onReportChange
       const ws = utils.aoa_to_sheet(wsData);
       utils.book_append_sheet(wb, ws, 'Inventory');
 
-      const period = fromMonthStr === toMonthStr ? fromMonthStr : `${fromMonthStr}_to_${toMonthStr}`;
-      writeFile(wb, `Anitha_Knits_Inventory_Report_${period}.xlsx`);
+      writeFile(wb, `Anitha_Knits_Inventory_Report_${period.fileSuffix}.xlsx`);
     } catch (err) {
       console.error(err);
     } finally {
@@ -188,8 +172,7 @@ export function InventoryReportView({ allReports, selectedReport, onReportChange
     if (pdfBlobUrl) {
       const a = document.createElement('a');
       a.href = pdfBlobUrl;
-      const period = fromMonthStr === toMonthStr ? fromMonthStr : `${fromMonthStr}_to_${toMonthStr}`;
-      a.download = `Anitha_Knits_Inventory_Report_${period}.pdf`;
+      a.download = `Anitha_Knits_Inventory_Report_${period.fileSuffix}.pdf`;
       document.body.appendChild(a);
       a.click();
       document.body.removeChild(a);
@@ -202,11 +185,8 @@ export function InventoryReportView({ allReports, selectedReport, onReportChange
       allReports={allReports}
       selectedReport={selectedReport}
       onReportChange={onReportChange}
-      fromMonthStr={fromMonthStr}
-      toMonthStr={toMonthStr}
-      onFromMonthChange={setFromMonthStr}
-      onToMonthChange={setToMonthStr}
-      showMonthPicker={true}
+      period={period}
+      showPeriodPicker={true}
       pdfBlobUrl={pdfBlobUrl}
       isGenerating={isGenerating}
       isGeneratingXlsx={isGeneratingXlsx}

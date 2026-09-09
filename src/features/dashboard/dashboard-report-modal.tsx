@@ -1,7 +1,8 @@
+import { useState } from 'react';
 import { Dialog, DialogClose, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Table, TableBody, TableCell, TableFooter, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { FileDown, X } from 'lucide-react';
+import { FileDown, FileSpreadsheet, Loader2, X } from 'lucide-react';
 
 const TEAL: [number, number, number] = [0, 77, 64]; // #004D40 — this app's primary accent
 const TEAL_TINT: [number, number, number] = [232, 245, 240]; // light teal for footer/total rows
@@ -91,6 +92,7 @@ export function DashboardReportModal({
 
   const hasData = extruderRows.length > 0 || loomsRows.length > 0 || fabricRows.length > 0
     || yarnBalanceRows.length > 0 || koraBalanceRows.length > 0 || fabricStockRows.length > 0 || fabricDeliveredRows.length > 0;
+  const [isGeneratingXlsx, setIsGeneratingXlsx] = useState(false);
 
   const handleDownloadPDF = async () => {
     if (!hasData) return;
@@ -170,6 +172,43 @@ export function DashboardReportModal({
     doc.save(`${reportTitle.replace(/\s+/g, '_')}_${monthStr}.pdf`);
   };
 
+  const handleDownloadXlsx = async () => {
+    if (!hasData) return;
+    setIsGeneratingXlsx(true);
+    try {
+      const { utils, writeFile } = await import('xlsx');
+      const wb = utils.book_new();
+      const wsData: any[][] = [];
+
+      const variantSection = (title: string, rows: VariantRow[], valueHeader: string) => {
+        if (rows.length === 0) return;
+        const total = rows.reduce((s, r) => s + r.weight, 0);
+        wsData.push([title]);
+        wsData.push(['Size', 'Color', 'Chemical', valueHeader]);
+        rows.forEach((r) => wsData.push([r.size, r.color, r.chemical, r.weight]));
+        wsData.push(['Total', '', '', total]);
+        wsData.push([]);
+      };
+
+      variantSection('Extruder Production', extruderRows, 'Weight (kg)');
+      variantSection('Looms Production', loomsRows, 'Weight (kg)');
+      variantSection('Fabric Checking', fabricRows, 'Weight (kg)');
+      variantSection('Yarn Balance', yarnBalanceRows, 'Balance (kg)');
+      variantSection('Kora Balance', koraBalanceRows, 'Balance (kg)');
+      variantSection('Fabric Stock', fabricStockRows, 'Stock (kg)');
+      variantSection('Fabric Delivered', fabricDeliveredRows, 'Weight (kg)');
+
+      const ws = utils.aoa_to_sheet(wsData);
+      utils.book_append_sheet(wb, ws, reportTitle.substring(0, 31));
+
+      writeFile(wb, `${reportTitle.replace(/\s+/g, '_')}_${monthStr}.xlsx`);
+    } catch (err) {
+      console.error(err);
+    } finally {
+      setIsGeneratingXlsx(false);
+    }
+  };
+
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent showCloseButton={false} className="max-w-5xl sm:max-w-5xl max-h-[85vh] flex flex-col p-0 border border-gray-300 overflow-hidden bg-white print:max-w-none print:h-auto print:border-none">
@@ -182,6 +221,10 @@ export function DashboardReportModal({
               {reportTitle} Overview
             </DialogTitle>
             <div className="flex items-center gap-3">
+              <Button size="sm" onClick={handleDownloadXlsx} disabled={!hasData || isGeneratingXlsx} className="gap-2 bg-[#004D40] text-white hover:bg-[#00382e]">
+                {isGeneratingXlsx ? <Loader2 className="w-4 h-4 animate-spin" /> : <FileSpreadsheet className="w-4 h-4" />} Download XLSX
+              </Button>
+
               <Button size="sm" onClick={handleDownloadPDF} disabled={!hasData} className="gap-2 bg-[#004D40] text-white hover:bg-[#00382e]">
                 <FileDown className="w-4 h-4" /> Download PDF
               </Button>

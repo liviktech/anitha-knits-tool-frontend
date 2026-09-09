@@ -1,8 +1,10 @@
 import { useMemo } from 'react';
 import { useMonthlyDashboard } from '@/features/dashboard/dashboard-queries';
 
-export interface DeliveryBreakdownRow {
-  label: string;
+export interface DeliveryVariantRow {
+  size: { name: string };
+  color: { name: string };
+  chemical: { name: string };
   delivered: number;
 }
 
@@ -12,57 +14,38 @@ export function useProductionPdfData(fromMonthStr: string, toMonthStr: string, i
   return useMemo(() => {
     if (!dashboardData) return { isLoading: true, data: null };
 
-    const extruderByColor = dashboardData.extruderProduction.byColor;
-    const extruderBySize = dashboardData.extruderProduction.bySize;
-    const extruderByChemical = dashboardData.extruderProduction.byChemical;
+    const extruderByVariantChemical = dashboardData.extruderProduction.byVariantChemical;
     const extruderTotal = dashboardData.production.extruder.outputKg;
 
-    const loomsByColor = dashboardData.loomsProduction.byColor;
-    const loomsBySize = dashboardData.loomsProduction.bySize;
-    const loomsByChemical = dashboardData.loomsProduction.byChemical;
+    const loomsByVariantChemical = dashboardData.loomsProduction.byVariantChemical;
     const loomsTotal = dashboardData.production.looms.outputKg;
 
-    const fabricByColor = dashboardData.fabricProduction.byColor;
-    const fabricBySize = dashboardData.fabricProduction.bySize;
-    const fabricByChemical = dashboardData.fabricProduction.byChemical;
+    const fabricByVariantChemical = dashboardData.fabricProduction.byVariantChemical;
     const fabricTotal = dashboardData.production.fabricChecking.outputKg;
 
-    const colorDeliveryMap = new Map<string, { label: string; delivered: number }>();
-    const sizeDeliveryMap = new Map<string, { label: string; delivered: number }>();
-
+    const deliveryMap = new Map<string, DeliveryVariantRow>();
     dashboardData.loadSent.items.forEach((item) => {
       const kg = item.loadSent?.fabricWeight ?? 0;
-      
-      const colorEntry = colorDeliveryMap.get(item.color.id) ?? { label: item.color.name, delivered: 0 };
-      colorEntry.delivered += kg;
-      colorDeliveryMap.set(item.color.id, colorEntry);
-
-      const sizeEntry = sizeDeliveryMap.get(item.size.id) ?? { label: item.size.name, delivered: 0 };
-      sizeEntry.delivered += kg;
-      sizeDeliveryMap.set(item.size.id, sizeEntry);
+      const chemicalName = item.chemical?.name ?? 'Unknown';
+      const key = `${item.color.id}_${item.size.id}_${item.chemical?.id ?? 'none'}`;
+      const entry = deliveryMap.get(key) ?? { size: { name: item.size.name }, color: { name: item.color.name }, chemical: { name: chemicalName }, delivered: 0 };
+      entry.delivered += kg;
+      deliveryMap.set(key, entry);
     });
 
-    const deliveryByColor = Array.from(colorDeliveryMap.values());
-    const deliveryBySize = Array.from(sizeDeliveryMap.values());
+    const deliveryByVariantChemical = Array.from(deliveryMap.values());
     const deliveryTotal = dashboardData.loadSent.totals.fabricWeightKg;
 
     return {
       isLoading,
       data: {
-        extruderByColor,
-        extruderBySize,
-        extruderByChemical,
+        extruderByVariantChemical,
         extruderTotal,
-        loomsByColor,
-        loomsBySize,
-        loomsByChemical,
+        loomsByVariantChemical,
         loomsTotal,
-        fabricByColor,
-        fabricBySize,
-        fabricByChemical,
+        fabricByVariantChemical,
         fabricTotal,
-        deliveryByColor,
-        deliveryBySize,
+        deliveryByVariantChemical,
         deliveryTotal,
       }
     };

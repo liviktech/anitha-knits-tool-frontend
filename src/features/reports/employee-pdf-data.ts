@@ -2,9 +2,16 @@ import { useMemo } from 'react';
 import { useEmployees, useSavedPayrollRecords, usePayrollSummary, useMarketValueAllocations, buildPayrollRows } from '@/features/employee/employee-queries';
 import { useAttendanceRecords } from '@/features/employee/attendance-queries';
 
-export function useEmployeePdfData(fromMonthStr: string, toMonthStr: string) {
-  const [yearFrom, monthFrom] = fromMonthStr.split('-');
-  const [yearTo, monthTo] = toMonthStr.split('-');
+/**
+ * @param dateFromStr Exact "YYYY-MM-DD" start date, used for the Attendance Report — works for
+ *   either a whole month (1st to last day) or an exact day-level range.
+ * @param dateToStr Exact "YYYY-MM-DD" end date, used for the Attendance Report.
+ * @param payrollMonthStr The single "YYYY-MM" month used for the Payroll Report — the backend
+ *   only supports a per-calendar-month payroll query, so Payroll always uses this instead of
+ *   the (possibly day-level) attendance date range.
+ */
+export function useEmployeePdfData(dateFromStr: string, dateToStr: string, payrollMonthStr: string) {
+  const [yearTo, monthTo] = payrollMonthStr.split('-');
   const yearNumTo = Number(yearTo);
   const monthNumTo = Number(monthTo);
 
@@ -12,14 +19,11 @@ export function useEmployeePdfData(fromMonthStr: string, toMonthStr: string) {
   const { data: allEmployeesData = [], isLoading: isLoadingEmployees } = useEmployees();
 
   // For Attendance Report
-  const dateFromStr = `${yearFrom}-${monthFrom.padStart(2, '0')}-01`;
-  const lastDayTo = new Date(yearNumTo, monthNumTo, 0).getDate();
-  const dateToStr = `${yearTo}-${monthTo.padStart(2, '0')}-${lastDayTo}`;
   const { data: attendanceData, isLoading: isLoadingAttendance } = useAttendanceRecords(dateFromStr, dateToStr);
 
   // For Payroll Report
-  // NOTE: Backend for payroll may only support a single month query. We use `toMonthStr` to fetch that specific month for now.
-  // Aggregating multiple months of payroll would require backend API changes.
+  // NOTE: Backend for payroll may only support a single month query, so Payroll is always
+  // month-scoped (see payrollMonthStr above) regardless of the Attendance Report's period mode.
   const { data: savedRecords = [], isLoading: isLoadingSaved } = useSavedPayrollRecords(monthNumTo, yearNumTo);
   const { data: payrollSummary = [], isLoading: isLoadingSummary } = usePayrollSummary(monthNumTo, yearNumTo);
   const { data: marketValueAllocations = {}, isLoading: isLoadingMarketValue } = useMarketValueAllocations(monthNumTo, yearNumTo);
@@ -56,8 +60,8 @@ export function useEmployeePdfData(fromMonthStr: string, toMonthStr: string) {
     });
 
     const filteredRecords = records.filter((r) => {
-      const m = r.date.substring(0, 7);
-      return m >= fromMonthStr && m <= toMonthStr;
+      const d = r.date.slice(0, 10);
+      return d >= dateFromStr && d <= dateToStr;
     });
 
     const presentCount = filteredRecords.filter(r => r.status === 'Day shift' || r.status === 'Night shift').length;
@@ -134,8 +138,8 @@ export function useEmployeePdfData(fromMonthStr: string, toMonthStr: string) {
     savedRecords,
     payrollSummary,
     marketValueAllocations,
-    fromMonthStr,
-    toMonthStr,
+    dateFromStr,
+    dateToStr,
     isLoadingEmployees,
     isLoadingAttendance,
     isLoadingSaved,

@@ -110,15 +110,15 @@ function InventoryReceiveTab({ onBack }: { onBack: () => void }) {
             <Input type="number" className="h-8 w-28 text-right" value={totalKg.toFixed(2)} readOnly />
             <span className="text-gray-400">kg</span>
           </div>
-          {canAdd && (
-            <Button
-              size="sm"
-              className="h-8 gap-1 rounded-full bg-[#004D40] text-white hover:bg-[#00332a]"
-              onClick={openCreate}
-            >
-              <Plus className="h-3 w-3" /> Add received stock
-            </Button>
-          )}
+          <Button
+            size="sm"
+            className="h-8 gap-1 rounded-full bg-[#004D40] text-white hover:bg-[#00332a] disabled:opacity-50 disabled:cursor-not-allowed"
+            disabled={!canAdd}
+            title={canAdd ? undefined : 'You do not have permission to add stock'}
+            onClick={openCreate}
+          >
+            <Plus className="h-3 w-3" /> Add received stock
+          </Button>
         </div>
       </div>
 
@@ -287,15 +287,15 @@ function LoadSentTab({ onBack }: { onBack: () => void }) {
             <span className="font-bold text-gray-900">{totalKg.toFixed(2)}</span>
             <span className="text-xs text-gray-400">kg</span>
           </div>
-          {canAdd && (
-            <Button
-              size="sm"
-              className="h-8 gap-1.5 rounded-full bg-orange-600 text-white hover:bg-orange-700 shadow-sm"
-              onClick={openCreate}
-            >
-              <Plus className="h-3.5 w-3.5" /> Add sent stock
-            </Button>
-          )}
+          <Button
+            size="sm"
+            className="h-8 gap-1.5 rounded-full bg-orange-600 text-white hover:bg-orange-700 shadow-sm disabled:opacity-50 disabled:cursor-not-allowed"
+            disabled={!canAdd}
+            title={canAdd ? undefined : 'You do not have permission to add sent stock'}
+            onClick={openCreate}
+          >
+            <Plus className="h-3.5 w-3.5" /> Add sent stock
+          </Button>
         </div>
       </div>
 
@@ -376,16 +376,12 @@ function LoadSentTab({ onBack }: { onBack: () => void }) {
                   <TableCell className="text-center">{getLoadSentWeight(r).toFixed(2)}</TableCell>
                   <TableCell className="text-center">
                     <div className="flex items-center justify-center gap-2">
-                      {canEdit && (
-                        <Button variant="ghost" size="icon-sm" className="rounded-full bg-blue-50 text-blue-500 hover:bg-blue-100" aria-label="Edit row" onClick={() => openEdit(r)}title="Edit Inventory">
-                          <Edit2 className="h-3.5 w-3.5" />
-                        </Button>
-                      )}
-                      {canDelete && (
-                        <Button variant="ghost" size="icon-sm" className="rounded-full bg-red-50 text-red-500 hover:bg-red-100" aria-label="Delete row" onClick={() => setDeleteTarget(r)}title="Delete Inventory">
-                          <Trash2 className="h-3.5 w-3.5" />
-                        </Button>
-                      )}
+                      <Button variant="ghost" size="icon-sm" className="rounded-full bg-blue-50 text-blue-500 hover:bg-blue-100 disabled:opacity-50 disabled:cursor-not-allowed" disabled={!canEdit} aria-label="Edit row" onClick={() => openEdit(r)} title="Edit Inventory">
+                        <Edit2 className="h-3.5 w-3.5" />
+                      </Button>
+                      <Button variant="ghost" size="icon-sm" className="rounded-full bg-red-50 text-red-500 hover:bg-red-100 disabled:opacity-50 disabled:cursor-not-allowed" disabled={!canDelete} aria-label="Delete row" onClick={() => setDeleteTarget(r)} title="Delete Inventory">
+                        <Trash2 className="h-3.5 w-3.5" />
+                      </Button>
                     </div>
                   </TableCell>
                 </TableRow>
@@ -722,16 +718,12 @@ function StockSummaryCard({ month, onEditDate, onDeleteDate }: { month: string; 
                       {totalCols === 0 && <td className="border border-gray-300 px-3 py-1"></td>}
                       <td className="border border-gray-300 px-3 py-1 text-center">
                         <div className="flex items-center justify-center gap-1">
-                          {canEdit && (
-                            <Button variant="ghost" size="icon-sm" className="h-6 w-6 rounded-full text-blue-600 hover:bg-blue-50" onClick={() => onEditDate(group.date, group.groupId, dayRecords)}>
-                              <Edit2 className="h-3 w-3" />
-                            </Button>
-                          )}
-                          {canDelete && (
-                            <Button variant="ghost" size="icon-sm" className="h-6 w-6 rounded-full text-red-600 hover:bg-red-50" onClick={() => onDeleteDate(group.groupId, dayRecords)}>
-                              <Trash2 className="h-3 w-3" />
-                            </Button>
-                          )}
+                          <Button variant="ghost" size="icon-sm" className="h-6 w-6 rounded-full text-blue-600 hover:bg-blue-50 disabled:opacity-50 disabled:cursor-not-allowed" disabled={!canEdit} onClick={() => onEditDate(group.date, group.groupId, dayRecords)}>
+                            <Edit2 className="h-3 w-3" />
+                          </Button>
+                          <Button variant="ghost" size="icon-sm" className="h-6 w-6 rounded-full text-red-600 hover:bg-red-50 disabled:opacity-50 disabled:cursor-not-allowed" disabled={!canDelete} onClick={() => onDeleteDate(group.groupId, dayRecords)}>
+                            <Trash2 className="h-3 w-3" />
+                          </Button>
                         </div>
                       </td>
                     </tr>
@@ -897,15 +889,15 @@ export function InventoryPage() {
               <Download className="w-3 h-3" />
               REPORT
             </Button>
-            {canAddStock && (
-              <Button
-                className="flex items-center gap-2 bg-[#004D40] hover:bg-[#00382e] text-white rounded-md px-3 py-2 h-auto text-[12px] font-bold tracking-wide shadow-[0_1px_2px_rgba(0,45,35,0.2)]"
-                onClick={openAdd}
-              >
-                <Plus className="w-3 h-3" />
-                ADD STOCK
-              </Button>
-            )}
+            <Button
+              className="flex items-center gap-2 bg-[#004D40] hover:bg-[#00382e] text-white rounded-md px-3 py-2 h-auto text-[12px] font-bold tracking-wide shadow-[0_1px_2px_rgba(0,45,35,0.2)] disabled:opacity-50 disabled:cursor-not-allowed"
+              disabled={!canAddStock}
+              title={canAddStock ? undefined : 'You do not have permission to add stock'}
+              onClick={openAdd}
+            >
+              <Plus className="w-3 h-3" />
+              ADD STOCK
+            </Button>
           </div>
         )}
       </div>

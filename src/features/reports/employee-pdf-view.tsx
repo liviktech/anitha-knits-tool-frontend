@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { useEmployeePdfData } from './employee-pdf-data';
 import { ReportLayout } from './report-layout';
+import { useReportPeriod } from './report-period';
 
 const TEAL: [number, number, number] = [0, 77, 64];
 const TEAL_TINT: [number, number, number] = [232, 245, 240];
@@ -20,13 +21,6 @@ function formatDateDisplay(isoDate: string) {
   return date.toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' });
 }
 
-function getMonthName(monthStr: string) {
-  if (!monthStr) return '';
-  const [year, month] = monthStr.split('-').map(Number);
-  const date = new Date(year, month - 1, 1);
-  return date.toLocaleDateString('en-IN', { month: 'long', year: 'numeric' });
-}
-
 interface EmployeePdfViewProps {
   tab: string; // 'employee_directory' | 'attendance_report' | 'payroll_report'
   allReports?: { id: string; label: string; moduleId: string }[];
@@ -35,16 +29,20 @@ interface EmployeePdfViewProps {
 }
 
 export function EmployeePdfView({ tab, allReports, selectedReport, onReportChange }: EmployeePdfViewProps) {
-  const [fromMonthStr, setFromMonthStr] = useState(() => {
-    const d = new Date();
-    return `${d.getFullYear()}-${(d.getMonth() + 1).toString().padStart(2, '0')}`;
-  });
-  const [toMonthStr, setToMonthStr] = useState(() => {
-    const d = new Date();
-    return `${d.getFullYear()}-${(d.getMonth() + 1).toString().padStart(2, '0')}`;
-  });
+  const period = useReportPeriod();
 
-  const data = useEmployeePdfData(fromMonthStr, toMonthStr);
+  // Payroll is always scoped to a single calendar month (the backend only aggregates payroll
+  // per month, ignoring any "from" bound), so force Month mode and collapse From/To to the same
+  // month whenever the user is viewing (or switches to) the Payroll tab — otherwise the picker
+  // and the displayed period label could show a range while the report itself only reflects
+  // the "to" month.
+  useEffect(() => {
+    if (tab !== 'payroll_report') return;
+    if (period.mode === 'date') period.setMode('month');
+    if (period.fromMonthStr !== period.toMonthStr) period.setFromMonthStr(period.toMonthStr);
+  }, [tab, period.mode, period.fromMonthStr, period.toMonthStr]);
+
+  const data = useEmployeePdfData(period.effectiveFrom, period.effectiveTo, period.toMonthStr);
   const isLoading = data.isLoading;
   const [pdfBlobUrl, setPdfBlobUrl] = useState<string | null>(null);
   const [isGenerating, setIsGenerating] = useState(false);
@@ -89,8 +87,7 @@ export function EmployeePdfView({ tab, allReports, selectedReport, onReportChang
       if (tab === 'employee_directory') {
         doc.text(`As of ${formatDateDisplay(new Date().toISOString())}`, centerX, y, { align: 'center' });
       } else {
-        const periodText = fromMonthStr === toMonthStr ? getMonthName(fromMonthStr) : `${getMonthName(fromMonthStr)} - ${getMonthName(toMonthStr)}`;
-        doc.text(`Period: ${periodText}`, centerX, y, { align: 'center' });
+        doc.text(`Period: ${period.label}`, centerX, y, { align: 'center' });
       }
       y += 5;
 
@@ -219,7 +216,7 @@ export function EmployeePdfView({ tab, allReports, selectedReport, onReportChang
     return () => {
       isCancelled = true;
     };
-  }, [data, isLoading, tab, fromMonthStr, toMonthStr]);
+  }, [data, isLoading, tab, period.label]);
 
   const handleDownloadXlsx = async () => {
     if (!data) return;
@@ -238,8 +235,7 @@ export function EmployeePdfView({ tab, allReports, selectedReport, onReportChang
       if (tab === 'employee_directory') {
         wsData.push([`As of ${formatDateDisplay(new Date().toISOString())}`]);
       } else {
-        const periodText = fromMonthStr === toMonthStr ? getMonthName(fromMonthStr) : `${getMonthName(fromMonthStr)} - ${getMonthName(toMonthStr)}`;
-        wsData.push([`Period: ${periodText}`]);
+        wsData.push([`Period: ${period.label}`]);
       }
       wsData.push([]);
 
@@ -292,8 +288,7 @@ export function EmployeePdfView({ tab, allReports, selectedReport, onReportChang
       const ws = utils.aoa_to_sheet(wsData);
       utils.book_append_sheet(wb, ws, displayTitle.substring(0, 31));
 
-      const period = fromMonthStr === toMonthStr ? fromMonthStr : `${fromMonthStr}_to_${toMonthStr}`;
-      writeFile(wb, `Anitha_Knits_${tab}_${period}.xlsx`);
+      writeFile(wb, `Anitha_Knits_${tab}_${period.fileSuffix}.xlsx`);
     } catch (err) {
       console.error(err);
     } finally {
@@ -306,14 +301,13 @@ export function EmployeePdfView({ tab, allReports, selectedReport, onReportChang
   else if (tab === 'attendance_report') displayTitle = 'Attendance Report';
   else if (tab === 'payroll_report') displayTitle = 'Payroll Report';
 
-  const showMonthPicker = tab !== 'employee_directory';
+  const showPeriodPicker = tab !== 'employee_directory';
 
   const handleDownload = () => {
     if (pdfBlobUrl) {
       const a = document.createElement('a');
       a.href = pdfBlobUrl;
-      const period = fromMonthStr === toMonthStr ? fromMonthStr : `${fromMonthStr}_to_${toMonthStr}`;
-      a.download = `Anitha_Knits_${tab}_${period}.pdf`;
+      a.download = `Anitha_Knits_${tab}_${period.fileSuffix}.pdf`;
       document.body.appendChild(a);
       a.click();
       document.body.removeChild(a);
@@ -326,11 +320,9 @@ export function EmployeePdfView({ tab, allReports, selectedReport, onReportChang
       allReports={allReports}
       selectedReport={selectedReport}
       onReportChange={onReportChange}
-      fromMonthStr={fromMonthStr}
-      toMonthStr={toMonthStr}
-      onFromMonthChange={setFromMonthStr}
-      onToMonthChange={setToMonthStr}
-      showMonthPicker={showMonthPicker}
+      period={period}
+      showPeriodPicker={showPeriodPicker}
+      supportsDateMode={tab !== 'payroll_report'}
       pdfBlobUrl={pdfBlobUrl}
       isGenerating={isGenerating}
       isGeneratingXlsx={isGeneratingXlsx}

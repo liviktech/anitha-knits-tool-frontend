@@ -252,8 +252,8 @@ export function RightsSubTab({
   };
 
   return (
-    <div className="rounded-xl border border-gray-400 bg-white shadow-sm overflow-hidden flex flex-col">
-      <div className="border-b border-emerald-400 p-3 bg-white flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+    <div className="rounded-xl border border-gray-400 bg-white shadow-sm overflow-hidden flex flex-col flex-1 min-h-0">
+      <div className="border-b border-emerald-400 p-3 bg-white flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between shrink-0">
         <div className="flex items-center gap-2">
           <div className="relative">
             <Search className="w-3.5 h-3.5 absolute left-2.5 top-1/2 -translate-y-1/2 text-gray-500" />
@@ -287,7 +287,7 @@ export function RightsSubTab({
         </Button>
       </div>
 
-      <div className="overflow-x-auto">
+      <div className="overflow-x-auto overflow-y-auto flex-1 min-h-0">
         <Table className="border-collapse font-hanken">
           <TableHeader className="bg-emerald-50/30 sticky top-0 z-10">
             <TableRow className="border-b border-gray-300">
@@ -376,7 +376,7 @@ export function RightsSubTab({
       </div>
 
       {/* Table Footer matching Employees Tab */}
-      <div className="p-3 border-t border-gray-400 bg-emerald-50/20 text-xs text-gray-700 flex flex-wrap justify-between items-center gap-3 px-4">
+      <div className="shrink-0 p-3 border-t border-gray-400 bg-emerald-50/20 text-xs text-gray-700 flex flex-wrap justify-between items-center gap-3 px-4">
         <span>
           Showing {filteredRights.length === 0 ? 0 : (rightsPage - 1) * pageSize + 1}-
           {Math.min(rightsPage * pageSize, filteredRights.length)} of {filteredRights.length} rights

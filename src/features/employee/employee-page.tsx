@@ -589,28 +589,26 @@ const EmployeeDirectoryTab = forwardRef<EmployeeDirectoryTabRef>((_props, ref) =
                     </TableCell>
                     <TableCell className="pl-2 pr-3 py-2 text-center">
                       <div className="flex items-center justify-center gap-1.5">
-                        {canEdit && (
-                          <Button
-                            variant="ghost"
-                            size="icon-sm"
-                            className="h-7 w-7 rounded-full bg-blue-50 text-blue-600 hover:bg-blue-100 cursor-pointer"
-                            aria-label="Edit employee"
-                            onClick={() => openEditModal(emp)}
-                          >
-                            <Edit2 className="h-3.5 w-3.5" />
-                          </Button>
-                        )}
-                        {canDelete && (
-                          <Button
-                            variant="ghost"
-                            size="icon-sm"
-                            className="h-7 w-7 rounded-full bg-red-50 text-red-600 hover:bg-red-100 cursor-pointer"
-                            aria-label="Delete employee"
-                            onClick={() => setDeleteTarget(emp)}
-                          >
-                            <Trash2 className="h-3.5 w-3.5" />
-                          </Button>
-                        )}
+                        <Button
+                          variant="ghost"
+                          size="icon-sm"
+                          className="h-7 w-7 rounded-full bg-blue-50 text-blue-600 hover:bg-blue-100 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
+                          disabled={!canEdit}
+                          aria-label="Edit employee"
+                          onClick={() => openEditModal(emp)}
+                        >
+                          <Edit2 className="h-3.5 w-3.5" />
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="icon-sm"
+                          className="h-7 w-7 rounded-full bg-red-50 text-red-600 hover:bg-red-100 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
+                          disabled={!canDelete}
+                          aria-label="Delete employee"
+                          onClick={() => setDeleteTarget(emp)}
+                        >
+                          <Trash2 className="h-3.5 w-3.5" />
+                        </Button>
                       </div>
                     </TableCell>
                   </TableRow>
@@ -882,18 +880,17 @@ const EmployeeDirectoryTab = forwardRef<EmployeeDirectoryTabRef>((_props, ref) =
             <Button variant="outline" size="sm" onClick={() => setViewTarget(null)} className="h-8 text-xs">
               Close
             </Button>
-            {canEdit && (
-              <Button
-                size="sm"
-                className="h-8 bg-[#004D40] hover:bg-[#00332a] text-white text-xs font-medium px-4"
-                onClick={() => {
-                  if (viewTarget) openEditModal(viewTarget);
-                  setViewTarget(null);
-                }}
-              >
-                Edit
-              </Button>
-            )}
+            <Button
+              size="sm"
+              className="h-8 bg-[#004D40] hover:bg-[#00332a] text-white text-xs font-medium px-4 disabled:opacity-50 disabled:cursor-not-allowed"
+              disabled={!canEdit}
+              onClick={() => {
+                if (viewTarget) openEditModal(viewTarget);
+                setViewTarget(null);
+              }}
+            >
+              Edit
+            </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
@@ -963,15 +960,15 @@ export function EmployeePage() {
               <Download className="w-3 h-3" />
               REPORT
             </Button>
-            {canMarkAttendance && (
-              <Button
-                className="flex items-center gap-2 bg-[#004D40] hover:bg-[#00382e] text-white rounded-md px-3 py-2 h-auto text-[12px] font-bold tracking-wide shadow-[0_1px_2px_rgba(0,45,35,0.2)]"
-                onClick={() => attendanceRef.current?.openAddModal()}
-              >
-                <Plus className="w-3 h-3" />
-                ADD ATTENDANCE
-              </Button>
-            )}
+            <Button
+              className="flex items-center gap-2 bg-[#004D40] hover:bg-[#00382e] text-white rounded-md px-3 py-2 h-auto text-[12px] font-bold tracking-wide shadow-[0_1px_2px_rgba(0,45,35,0.2)] disabled:opacity-50 disabled:cursor-not-allowed"
+              disabled={!canMarkAttendance}
+              title={canMarkAttendance ? undefined : 'You do not have permission to add attendance'}
+              onClick={() => attendanceRef.current?.openAddModal()}
+            >
+              <Plus className="w-3 h-3" />
+              ADD ATTENDANCE
+            </Button>
           </div>
         )}
         {activeTab === 'directory' && canSeeDirectory && (
@@ -984,15 +981,15 @@ export function EmployeePage() {
               <Download className="w-3 h-3" />
               REPORT
             </Button>
-            {canAddEmployee && (
-              <Button
-                className="flex items-center gap-2 bg-[#004D40] hover:bg-[#00382e] text-white rounded-md px-3 py-2 h-auto text-[12px] font-bold tracking-wide shadow-[0_1px_2px_rgba(0,45,35,0.2)]"
-                onClick={() => directoryRef.current?.openCreateModal()}
-              >
-                <Plus className="w-3 h-3" />
-                ADD EMPLOYEE
-              </Button>
-            )}
+            <Button
+              className="flex items-center gap-2 bg-[#004D40] hover:bg-[#00382e] text-white rounded-md px-3 py-2 h-auto text-[12px] font-bold tracking-wide shadow-[0_1px_2px_rgba(0,45,35,0.2)] disabled:opacity-50 disabled:cursor-not-allowed"
+              disabled={!canAddEmployee}
+              title={canAddEmployee ? undefined : 'You do not have permission to add employees'}
+              onClick={() => directoryRef.current?.openCreateModal()}
+            >
+              <Plus className="w-3 h-3" />
+              ADD EMPLOYEE
+            </Button>
           </div>
         )}
         {activeTab === 'payroll' && (

@@ -11,10 +11,10 @@ import { currentMonthStr as todayMonthStr } from '@/lib/date-utils';
 import { RawMaterialsSection, RawMaterialCard } from './card';
 import { DashboardReportModal } from './dashboard-report-modal';
 import { DashboardWastageReportModal } from './dashboard-wastage-report-modal';
-import { useDashboardData, buildWastageChemicalRows } from './dashboard-data-hooks';
+import { useDashboardData, buildWastageChemicalRows, buildSampleWastageTotals } from './dashboard-data-hooks';
 import { ProductionSummaryTab } from './production-summary-tab';
 import { SampleProductionTab } from './sample-production-tab';
-import { WastageTabContent } from './wastage-summary-tab';
+import { WastageTabContent, type WastageMode } from './wastage-summary-tab';
 
 export function DashboardDesign() {
   const { user } = useAuth();
@@ -24,6 +24,7 @@ export function DashboardDesign() {
   const [isManualRefreshing, setIsManualRefreshing] = useState(false);
   const [activeTab, setActiveTab] = useState<'production' | 'wastage' | 'sample'>('production');
   const [isReportModalOpen, setIsReportModalOpen] = useState(false);
+  const [wastageMode, setWastageMode] = useState<WastageMode>('production');
 
   const currentMonthStr = format(filterDate, 'yyyy-MM');
 
@@ -185,6 +186,8 @@ export function DashboardDesign() {
                       loomsWasteByColor={data.loomsWasteByColor}
                       fabricWasteByColor={data.fabricWasteByColor}
                       obWastage={data.obWastage}
+                      wastageMode={wastageMode}
+                      onWastageModeChange={setWastageMode}
                     />
                   </TabsContent>
                 </div>
@@ -196,19 +199,48 @@ export function DashboardDesign() {
       </div>
 
       {/* Report modals */}
-      {activeTab === 'wastage' ? (
+      {activeTab === 'wastage' ? (() => {
+        const isProdWastage = wastageMode === 'production';
+        const { sampleLooseWaste, sampleLums, sampleLoomsWasteByColor, sampleFabricWasteByColor } = buildSampleWastageTotals(
+          data.sampleExtruderData, data.sampleLoomsData, data.sampleFabricData, currentMonthStr,
+        );
+        return (
         <DashboardWastageReportModal
           open={isReportModalOpen}
           onOpenChange={setIsReportModalOpen}
           monthStr={currentMonthStr}
-          extruderDetail={buildWastageChemicalRows(data.extruderProductionsData, 'extruder', currentMonthStr)}
-          extruderTotal={data.lumsWasteKg + data.looseWasteKg}
-          loomsDetail={buildWastageChemicalRows(data.loomsProductionsData, 'looms', currentMonthStr)}
-          loomsTotal={data.loomsWasteByColor.reduce((sum, r) => sum + r.loomsWaste, 0)}
-          fabricDetail={buildWastageChemicalRows(data.fabricCheckingData, 'fabric', currentMonthStr)}
-          fabricTotal={data.fabricWasteByColor.reduce((sum, r) => sum + r.fabricWaste + r.bitWaste, 0)}
+          extruderDetail={buildWastageChemicalRows(
+            isProdWastage ? data.extruderProductionsData : data.sampleExtruderData,
+            'extruder',
+            currentMonthStr,
+            isProdWastage ? data.obWastage : [],
+          )}
+          extruderTotal={isProdWastage ? data.lumsWasteKg + data.looseWasteKg : sampleLums + sampleLooseWaste}
+          loomsDetail={buildWastageChemicalRows(
+            isProdWastage ? data.loomsProductionsData : data.sampleLoomsData,
+            'looms',
+            currentMonthStr,
+            isProdWastage ? data.obWastage : [],
+          )}
+          loomsTotal={
+            isProdWastage
+              ? data.loomsWasteByColor.reduce((sum, r) => sum + r.loomsWaste, 0)
+              : sampleLoomsWasteByColor.reduce((sum, r) => sum + r.loomsWaste, 0)
+          }
+          fabricDetail={buildWastageChemicalRows(
+            isProdWastage ? data.fabricCheckingData : data.sampleFabricData,
+            'fabric',
+            currentMonthStr,
+            isProdWastage ? data.obWastage : [],
+          )}
+          fabricTotal={
+            isProdWastage
+              ? data.fabricWasteByColor.reduce((sum, r) => sum + r.fabricWaste + r.bitWaste, 0)
+              : sampleFabricWasteByColor.reduce((sum, r) => sum + r.fabricWaste + r.bitWaste, 0)
+          }
         />
-      ) : (
+        );
+      })() : (
         <DashboardReportModal
           open={isReportModalOpen}
           onOpenChange={setIsReportModalOpen}

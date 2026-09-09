@@ -1,7 +1,8 @@
+import { useState } from 'react';
 import { Dialog, DialogClose, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { FileDown, X } from 'lucide-react';
+import { FileDown, FileSpreadsheet, Loader2, X } from 'lucide-react';
 import { Loader } from '@/components/shared/loader';
 import { useEmployees, getEmployeeDisplayId } from './employee-queries';
 
@@ -25,6 +26,7 @@ export function EmployeeReportModal({ open, onOpenChange }: EmployeeReportModalP
   const { data: employees = [], isLoading, isError, refetch } = useEmployees();
 
   const activeCount = employees.filter((e) => e.isActive).length;
+  const [isGeneratingXlsx, setIsGeneratingXlsx] = useState(false);
 
   const handleDownloadPDF = async () => {
     if (employees.length === 0) return;
@@ -92,6 +94,46 @@ export function EmployeeReportModal({ open, onOpenChange }: EmployeeReportModalP
     doc.save(`Employee_Directory_Report_${new Date().toISOString().slice(0, 10)}.pdf`);
   };
 
+  const handleDownloadXlsx = async () => {
+    if (employees.length === 0) return;
+    setIsGeneratingXlsx(true);
+    try {
+      const { utils, writeFile } = await import('xlsx');
+      const wb = utils.book_new();
+      const wsData: any[][] = [];
+
+      wsData.push(['ANITHA KNITS']);
+      wsData.push(['EMPLOYEE DIRECTORY REPORT']);
+      wsData.push([`As of ${formatDateDisplay(new Date().toISOString())}`]);
+      wsData.push([]);
+      wsData.push([`Total Employees: ${employees.length}`, '', '', `Active Staff: ${activeCount}`]);
+      wsData.push([]);
+      wsData.push(['ID', 'Name', 'Designation', 'Mobile Number', 'Aadhar Card', 'Date of Joining', 'Address', 'Gender', 'Status']);
+      employees.forEach((emp) => {
+        wsData.push([
+          getEmployeeDisplayId(emp),
+          emp.name || '-',
+          emp.employeeDetails?.designation || '-',
+          emp.mobile,
+          emp.employeeDetails?.aadhaarNumber || '-',
+          formatDateDisplay(emp.employeeDetails?.joiningDate || ''),
+          emp.employeeDetails?.address || '-',
+          emp.employeeDetails?.gender || '-',
+          emp.isActive ? 'Active' : 'Inactive',
+        ]);
+      });
+
+      const ws = utils.aoa_to_sheet(wsData);
+      utils.book_append_sheet(wb, ws, 'Employee Directory');
+
+      writeFile(wb, `Employee_Directory_Report_${new Date().toISOString().slice(0, 10)}.xlsx`);
+    } catch (err) {
+      console.error(err);
+    } finally {
+      setIsGeneratingXlsx(false);
+    }
+  };
+
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent showCloseButton={false} className="max-w-4xl sm:max-w-4xl max-h-[85vh] flex flex-col p-0 border border-gray-300 overflow-hidden bg-white print:max-w-none print:h-auto print:border-none">
@@ -104,6 +146,10 @@ export function EmployeeReportModal({ open, onOpenChange }: EmployeeReportModalP
               Employee Directory Report Overview
             </DialogTitle>
             <div className="flex items-center gap-3">
+              <Button size="sm" onClick={handleDownloadXlsx} disabled={isLoading || isGeneratingXlsx || employees.length === 0} className="gap-2 bg-[#004D40] text-white hover:bg-[#00382e]">
+                {isGeneratingXlsx ? <Loader2 className="w-4 h-4 animate-spin" /> : <FileSpreadsheet className="w-4 h-4" />} Download XLSX
+              </Button>
+
               <Button size="sm" onClick={handleDownloadPDF} disabled={isLoading || employees.length === 0} className="gap-2 bg-[#004D40] text-white hover:bg-[#00382e]">
                 <FileDown className="w-4 h-4" /> Download PDF
               </Button>

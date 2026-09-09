@@ -112,6 +112,28 @@ export function useDeleteCompany() {
   });
 }
 
+/** Partially updates a company (PATCH). Use to toggle isActive or change any field. */
+export function useUpdateCompany() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async ({ id, payload }: { id: string; payload: CompanyUpdatePayload }) => {
+      const response = await apiFetch(`/platform/admin/companies/${id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
+      });
+      if (!response.ok) {
+        const err = await response.json().catch(() => ({}));
+        throw new Error(err.error?.message || 'Failed to update company');
+      }
+      return response.json() as Promise<CompanyResponse>;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: companiesKeys.all });
+    },
+  });
+}
+
 export function formatCompanyDate(iso: string): string {
   return new Date(iso).toLocaleString('en-IN', {
     day: '2-digit',

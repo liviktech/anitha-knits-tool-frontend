@@ -1,7 +1,8 @@
+import { useState } from 'react';
 import { Dialog, DialogClose, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Table, TableBody, TableCell, TableFooter, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { FileDown, X } from 'lucide-react';
+import { FileDown, FileSpreadsheet, Loader2, X } from 'lucide-react';
 
 const TEAL: [number, number, number] = [0, 77, 64]; // #004D40 — this app's primary accent
 const TEAL_TINT: [number, number, number] = [232, 245, 240]; // light teal for footer/total rows
@@ -115,6 +116,7 @@ export function DashboardWastageReportModal({
 
   const hasData = extruderRows.length > 0 || loomsRows.length > 0 || fabricRows.length > 0;
   const grandTotal = extruderTotal + loomsTotal + fabricTotal;
+  const [isGeneratingXlsx, setIsGeneratingXlsx] = useState(false);
 
   const handleDownloadPDF = async () => {
     if (!hasData) return;
@@ -205,6 +207,54 @@ export function DashboardWastageReportModal({
     doc.save(`Wastage_Summary_Report_${monthStr}.pdf`);
   };
 
+  const handleDownloadXlsx = async () => {
+    if (!hasData) return;
+    setIsGeneratingXlsx(true);
+    try {
+      const { utils, writeFile } = await import('xlsx');
+      const wb = utils.book_new();
+      const wsData: any[][] = [];
+
+      if (extruderRows.length > 0) {
+        const total = extruderRows.reduce((s, r) => s + r.lums + r.yarnWaste, 0);
+        wsData.push(['Extruder Wastage']);
+        wsData.push(['Size', 'Color', 'Chemical', 'Lums (LM)', 'Loose/Yarn (LO)', 'Total']);
+        extruderRows.forEach((r) => wsData.push([r.size, r.color, r.chemical, r.lums, r.yarnWaste, r.lums + r.yarnWaste]));
+        wsData.push(['Total', '', '', '', '', total]);
+        wsData.push([]);
+      }
+
+      if (loomsRows.length > 0) {
+        const total = loomsRows.reduce((s, r) => s + r.loomsWaste, 0);
+        wsData.push(['Looms Wastage']);
+        wsData.push(['Size', 'Color', 'Chemical', 'Looms/Yarn Waste (LW)']);
+        loomsRows.forEach((r) => wsData.push([r.size, r.color, r.chemical, r.loomsWaste]));
+        wsData.push(['Total', '', '', total]);
+        wsData.push([]);
+      }
+
+      if (fabricRows.length > 0) {
+        const total = fabricRows.reduce((s, r) => s + r.fabricWaste + r.bitWaste, 0);
+        wsData.push(['Fabric Checking Wastage']);
+        wsData.push(['Size', 'Color', 'Chemical', 'Fabric Waste (FW)', 'Bit Waste (BW)', 'Total']);
+        fabricRows.forEach((r) => wsData.push([r.size, r.color, r.chemical, r.fabricWaste, r.bitWaste, r.fabricWaste + r.bitWaste]));
+        wsData.push(['Total', '', '', '', '', total]);
+        wsData.push([]);
+      }
+
+      wsData.push(['Grand Total Wastage', '', '', '', '', grandTotal]);
+
+      const ws = utils.aoa_to_sheet(wsData);
+      utils.book_append_sheet(wb, ws, 'Wastage Summary');
+
+      writeFile(wb, `Wastage_Summary_Report_${monthStr}.xlsx`);
+    } catch (err) {
+      console.error(err);
+    } finally {
+      setIsGeneratingXlsx(false);
+    }
+  };
+
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent showCloseButton={false} className="max-w-4xl sm:max-w-4xl max-h-[85vh] flex flex-col p-0 border border-gray-300 overflow-hidden bg-white print:max-w-none print:h-auto print:border-none">
@@ -217,6 +267,10 @@ export function DashboardWastageReportModal({
               Wastage Summary Report Overview
             </DialogTitle>
             <div className="flex items-center gap-3">
+              <Button size="sm" onClick={handleDownloadXlsx} disabled={!hasData || isGeneratingXlsx} className="gap-2 bg-[#004D40] text-white hover:bg-[#00382e]">
+                {isGeneratingXlsx ? <Loader2 className="w-4 h-4 animate-spin" /> : <FileSpreadsheet className="w-4 h-4" />} Download XLSX
+              </Button>
+
               <Button size="sm" onClick={handleDownloadPDF} disabled={!hasData} className="gap-2 bg-[#004D40] text-white hover:bg-[#00382e]">
                 <FileDown className="w-4 h-4" /> Download PDF
               </Button>
