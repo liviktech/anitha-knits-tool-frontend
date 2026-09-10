@@ -29,11 +29,43 @@ export const RIGHTS = {
       // on the backend (see attendanceService.upsertDailyAttendance) — there is no separate ADD.
       edit: 'employees_attendance_edit',
     },
+    payroll: {
+      view: 'employees_payroll_view',
+      add: 'employees_payroll_add',
+      edit: 'employees_payroll_edit',
+      delete: 'employees_payroll_delete',
+    },
   },
   inventory: {
     view: 'inventory_all_view',
     add: 'inventory_all_add',
     edit: 'inventory_all_edit',
     delete: 'inventory_all_delete',
+  },
+  expenses: {
+    view: 'expenses_all_view',
+    add: 'expenses_all_add',
+    edit: 'expenses_all_edit',
+    delete: 'expenses_all_delete',
+  },
+  adminPanel: {
+    productionConfig: {
+      view: 'admin_panel_production-config_view',
+      add: 'admin_panel_production-config_add',
+      edit: 'admin_panel_production-config_edit',
+      delete: 'admin_panel_production-config_delete',
+    },
+    openingBalance: {
+      view: 'admin_panel_opening-balance_view',
+      add: 'admin_panel_opening-balance_add',
+      edit: 'admin_panel_opening-balance_edit',
+      delete: 'admin_panel_opening-balance_delete',
+    },
+    rawMaterials: {
+      view: 'admin_panel_raw-materials_view',
+      add: 'admin_panel_raw-materials_add',
+      edit: 'admin_panel_raw-materials_edit',
+      delete: 'admin_panel_raw-materials_delete',
+    },
   },
 } as const;

@@ -38,6 +38,9 @@ import { Loader } from "@/components/shared/loader";
 import { TablePaginationControls, RowsPerPageSelect } from "@/components/shared/table-pagination-controls";
 import { apiFetch, extractApiErrorMessage } from "@/lib/api-client";
 import { useLookups } from "@/lib/lookups";
+import { useAuth } from "@/features/auth/auth-context";
+import { can } from "@/lib/access";
+import { RIGHTS } from "@/lib/permissions";
 import {
   expenseKeys,
   useExpenses,
@@ -96,6 +99,10 @@ function monthRange(monthStr: string): { from: string; to: string } {
 
 export function EmpExpensesPage() {
   const queryClient = useQueryClient();
+  const { user } = useAuth();
+  const canAdd = can(user, RIGHTS.expenses.add);
+  const canEdit = can(user, RIGHTS.expenses.edit);
+  const canDelete = can(user, RIGHTS.expenses.delete);
   const { data: lookups } = useLookups();
   const expenseNameSuggestions = lookups?.expenseNames.map((item) => item.name) ?? [];
 
@@ -288,7 +295,9 @@ export function EmpExpensesPage() {
             REPORT
           </Button>
           <Button
-            className="flex items-center gap-2 bg-[#004D40] hover:bg-[#00382e] text-white rounded-md px-3 py-2 h-auto text-[12px] font-bold tracking-wide shadow-[0_1px_2px_rgba(0,45,35,0.2)]"
+            className="flex items-center gap-2 bg-[#004D40] hover:bg-[#00382e] text-white rounded-md px-3 py-2 h-auto text-[12px] font-bold tracking-wide shadow-[0_1px_2px_rgba(0,45,35,0.2)] disabled:opacity-50 disabled:cursor-not-allowed"
+            disabled={!canAdd}
+            title={canAdd ? undefined : 'You do not have permission to add expenses'}
             onClick={openCreateModal}
           >
             <Plus className="w-3 h-3" />
@@ -457,7 +466,8 @@ export function EmpExpensesPage() {
                             <Button
                               variant="ghost"
                               size="icon-sm"
-                              className="h-7 w-7 rounded-full bg-blue-50 text-blue-600 hover:bg-blue-100 cursor-pointer"
+                              className="h-7 w-7 rounded-full bg-blue-50 text-blue-600 hover:bg-blue-100 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
+                              disabled={!canEdit}
                               aria-label="Edit expense"
                               onClick={() => openEditModal(expense)}
                             >
@@ -466,7 +476,8 @@ export function EmpExpensesPage() {
                             <Button
                               variant="ghost"
                               size="icon-sm"
-                              className="h-7 w-7 rounded-full bg-red-50 text-red-600 hover:bg-red-100 cursor-pointer"
+                              className="h-7 w-7 rounded-full bg-red-50 text-red-600 hover:bg-red-100 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
+                              disabled={!canDelete}
                               aria-label="Delete expense"
                               onClick={() => setDeleteTarget(expense)}
                             >

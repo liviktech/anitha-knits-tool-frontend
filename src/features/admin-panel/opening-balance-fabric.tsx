@@ -18,8 +18,16 @@ import {
   type OpeningBalanceFabricStockRecord,
   type OpeningBalanceFabricStockPayload,
 } from './opening-balance-queries';
+import { useAuth } from '@/features/auth/auth-context';
+import { can } from '@/lib/access';
+import { RIGHTS } from '@/lib/permissions';
 
 export function OpeningBalanceFabricTab() {
+  const { user } = useAuth();
+  const canAdd = can(user, RIGHTS.adminPanel.openingBalance.add);
+  const canEdit = can(user, RIGHTS.adminPanel.openingBalance.edit);
+  const canDelete = can(user, RIGHTS.adminPanel.openingBalance.delete);
+
   const queryClient = useQueryClient();
   const { data: lookupsData, isLoading: isLookupsLoading } = useLookups();
   const { data: recordsData, isLoading: isRecordsLoading } = useOpeningBalanceFabricStock('?limit=100');
@@ -101,7 +109,12 @@ export function OpeningBalanceFabricTab() {
     <div className="space-y-4">
       <div className="flex justify-between items-center">
         <h3 className="text-lg font-medium text-gray-900">Fabric Stock Opening Balance</h3>
-        <Button onClick={handleOpenAdd} className="bg-[#004D40] hover:bg-[#004D40]/90 text-white gap-2">
+        <Button
+          onClick={handleOpenAdd}
+          disabled={!canAdd}
+          title={canAdd ? undefined : 'You do not have permission to add an opening balance'}
+          className="bg-[#004D40] hover:bg-[#004D40]/90 text-white gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
+        >
           <Plus className="h-4 w-4" />
           Add Fabric Stock
         </Button>
@@ -175,10 +188,10 @@ export function OpeningBalanceFabricTab() {
                       </td>
                       <td className="px-3 py-2 align-middle">
                         <div className="flex items-center justify-center gap-1">
-                          <Button variant="ghost" size="icon" className="h-7 w-7 text-blue-600" onClick={() => handleOpenEdit(r)}>
+                          <Button variant="ghost" size="icon" className="h-7 w-7 text-blue-600 disabled:opacity-50 disabled:cursor-not-allowed" disabled={!canEdit} onClick={() => handleOpenEdit(r)}>
                             <Edit2 className="h-3.5 w-3.5" />
                           </Button>
-                          <Button variant="ghost" size="icon" className="h-7 w-7 text-red-600" onClick={() => setDeleteTarget(r)}>
+                          <Button variant="ghost" size="icon" className="h-7 w-7 text-red-600 disabled:opacity-50 disabled:cursor-not-allowed" disabled={!canDelete} onClick={() => setDeleteTarget(r)}>
                             <Trash2 className="h-3.5 w-3.5" />
                           </Button>
                         </div>

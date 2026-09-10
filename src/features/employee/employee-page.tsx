@@ -915,6 +915,7 @@ export function EmployeePage() {
   const canSeeAttendance = visibleTabs.includes('attendance');
   const canSeePayroll = visibleTabs.includes('payroll');
   const canAddEmployee = can(user, RIGHTS.employees.directory.add);
+  const canGeneratePayroll = can(user, RIGHTS.employees.payroll.add);
   const canMarkAttendance = can(user, RIGHTS.employees.attendance.edit);
 
   const [activeTab, setActiveTab] = useState('directory');
@@ -1003,7 +1004,9 @@ export function EmployeePage() {
               REPORT
             </Button>
             <Button
-              className="flex items-center gap-2 bg-[#004D40] hover:bg-[#00382e] text-white rounded-md px-3 py-2 h-auto text-[12px] font-bold tracking-wide shadow-[0_1px_2px_rgba(0,45,35,0.2)]"
+              className="flex items-center gap-2 bg-[#004D40] hover:bg-[#00382e] text-white rounded-md px-3 py-2 h-auto text-[12px] font-bold tracking-wide shadow-[0_1px_2px_rgba(0,45,35,0.2)] disabled:opacity-50 disabled:cursor-not-allowed"
+              disabled={!canGeneratePayroll}
+              title={canGeneratePayroll ? undefined : 'You do not have permission to generate payroll'}
               onClick={() => payrollRef.current?.openGenerateModal()}
             >
               <FileText className="w-3 h-3" />

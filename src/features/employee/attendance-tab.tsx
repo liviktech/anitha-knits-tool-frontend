@@ -13,6 +13,9 @@ import { EmployeeAttendanceDetailsModal } from './employee-attendance-details-mo
 import { AttendanceReportModal } from './attendance-report-modal';
 import { useEmployees, getEmployeeDisplayId } from './employee-queries';
 import { useAttendanceRecords, useUpsertAttendance } from './attendance-queries';
+import { useAuth } from '@/features/auth/auth-context';
+import { can } from '@/lib/access';
+import { RIGHTS } from '@/lib/permissions';
 
 
 
@@ -37,7 +40,8 @@ export interface AttendanceTabRef {
 }
 
 export const AttendanceTab = forwardRef<AttendanceTabRef>((_props, ref) => {
-
+  const { user } = useAuth();
+  const canEdit = can(user, RIGHTS.employees.attendance.edit);
 
   const [searchQuery, setSearchQuery] = useState('');
   const [monthFilter, setMonthFilter] = useState(() => format(new Date(), 'yyyy-MM'));
@@ -340,7 +344,7 @@ export const AttendanceTab = forwardRef<AttendanceTabRef>((_props, ref) => {
                     </TableCell>
                     <TableCell className="py-3 px-5 text-right">
                       <div className="flex items-center justify-end gap-1.5">
-                        <Button variant="ghost" size="icon-sm" className="h-7 w-7 rounded-full bg-blue-50 text-blue-600 hover:bg-blue-100 cursor-pointer" aria-label="View attendance details" onClick={() => openDetailsModal(row)}>
+                        <Button variant="ghost" size="icon-sm" className="h-7 w-7 rounded-full bg-blue-50 text-blue-600 hover:bg-blue-100 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed" disabled={!canEdit} aria-label="View attendance details" onClick={() => openDetailsModal(row)}>
                           <Edit2 className="h-3.5 w-3.5" />
                         </Button>
                       </div>

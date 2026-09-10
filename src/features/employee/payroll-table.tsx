@@ -6,6 +6,9 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Loader } from '@/components/shared/loader';
 import { TablePaginationControls, RowsPerPageSelect } from '@/components/shared/table-pagination-controls';
 import { useEmployees, usePayrollSummary, useSavedPayrollRecords, useMarketValueAllocations, buildPayrollRows, getEmployeeDisplayId } from './employee-queries';
+import { useAuth } from '@/features/auth/auth-context';
+import { can } from '@/lib/access';
+import { RIGHTS } from '@/lib/permissions';
 
 export type PayrollRow = ReturnType<typeof buildPayrollRows>[number];
 
@@ -28,6 +31,11 @@ export function PayrollTable({
   onEditRow,
   onDeleteRow,
 }: PayrollTableProps) {
+  const { user } = useAuth();
+  const canEdit = can(user, RIGHTS.employees.payroll.edit);
+  const canAdd = can(user, RIGHTS.employees.payroll.add);
+  const canDelete = can(user, RIGHTS.employees.payroll.delete);
+
   const [searchQuery, setSearchQuery] = useState('');
   const [payrollPage, setPayrollPage] = useState(1);
   const [payrollPageSize, setPayrollPageSize] = useState(10);
@@ -76,10 +84,24 @@ export function PayrollTable({
             }}
             className="h-8 text-xs w-40 border-gray-400 bg-gray-50/50"
           />
-          <Button size="sm" variant="outline" className="h-8 text-sm font-semibold bg-[#004D40] hover:bg-[#00382e] hover:text-white text-white" onClick={onOpenValueModal}>
+          <Button
+            size="sm"
+            variant="outline"
+            className="h-8 text-sm font-semibold bg-[#004D40] hover:bg-[#00382e] hover:text-white text-white disabled:opacity-50 disabled:cursor-not-allowed"
+            disabled={!canEdit}
+            title={canEdit ? undefined : 'You do not have permission to edit payroll'}
+            onClick={onOpenValueModal}
+          >
             <Wallet className="w-3.5 h-3.5 mr-1" /> Machine, Market & Other
           </Button>
-          <Button size="sm" variant="outline" className="h-8 text-sm font-semibold bg-[#004D40] hover:bg-[#00382e] hover:text-white text-white" onClick={onOpenAdvanceModal}>
+          <Button
+            size="sm"
+            variant="outline"
+            className="h-8 text-sm font-semibold bg-[#004D40] hover:bg-[#00382e] hover:text-white text-white disabled:opacity-50 disabled:cursor-not-allowed"
+            disabled={!canAdd}
+            title={canAdd ? undefined : 'You do not have permission to add a salary advance'}
+            onClick={onOpenAdvanceModal}
+          >
             <Banknote className="w-3.5 h-3.5 mr-1" /> Salary Advance
           </Button>
         </div>
@@ -132,7 +154,8 @@ export function PayrollTable({
                         variant="ghost"
                         size="icon"
                         aria-label="Edit payroll record"
-                        className="h-7 w-7 text-blue-600 hover:bg-blue-50"
+                        className="h-7 w-7 text-blue-600 hover:bg-blue-50 disabled:opacity-50 disabled:cursor-not-allowed"
+                        disabled={!canEdit}
                         onClick={() => onEditRow(row)}
                       >
                         <Edit2 className="h-3.5 w-3.5" />
@@ -141,7 +164,8 @@ export function PayrollTable({
                         variant="ghost"
                         size="icon"
                         aria-label="Delete payroll record"
-                        className="h-7 w-7 text-red-600 hover:bg-red-50"
+                        className="h-7 w-7 text-red-600 hover:bg-red-50 disabled:opacity-50 disabled:cursor-not-allowed"
+                        disabled={!canDelete}
                         onClick={() => onDeleteRow(row)}
                       >
                         <Trash2 className="h-3.5 w-3.5" />

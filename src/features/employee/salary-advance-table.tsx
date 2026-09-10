@@ -9,6 +9,9 @@ import { DeleteConfirmDialog } from '@/components/shared/delete-confirm-dialog';
 import { TablePaginationControls, RowsPerPageSelect } from '@/components/shared/table-pagination-controls';
 import { useSalaryAdvances, useDeleteSalaryAdvance, getEmployeeDisplayId, type SalaryAdvanceRecord, type SalaryAdvanceStatus } from './employee-queries';
 import { SalaryAdvanceModal } from './salary-advance-modal';
+import { useAuth } from '@/features/auth/auth-context';
+import { can } from '@/lib/access';
+import { RIGHTS } from '@/lib/permissions';
 
 function formatDateDisplay(isoDate: string) {
   if (!isoDate) return '-';
@@ -29,6 +32,11 @@ interface SalaryAdvanceTableProps {
 }
 
 export function SalaryAdvanceTable({ onOpenAdvanceModal }: SalaryAdvanceTableProps) {
+  const { user } = useAuth();
+  const canAdd = can(user, RIGHTS.employees.payroll.add);
+  const canEdit = can(user, RIGHTS.employees.payroll.edit);
+  const canDelete = can(user, RIGHTS.employees.payroll.delete);
+
   const { data: salaryAdvances = [], isLoading: isAdvancesLoading } = useSalaryAdvances();
   const { mutate: deleteAdvance, isPending: isDeletingAdvance } = useDeleteSalaryAdvance();
 
@@ -90,7 +98,14 @@ export function SalaryAdvanceTable({ onOpenAdvanceModal }: SalaryAdvanceTablePro
           </Select>
         </div>
 
-        <Button size="sm" variant="outline" className="h-8 text-sm font-semibold bg-[#004D40] hover:bg-[#00382e] hover:text-white text-white" onClick={onOpenAdvanceModal}>
+        <Button
+          size="sm"
+          variant="outline"
+          className="h-8 text-sm font-semibold bg-[#004D40] hover:bg-[#00382e] hover:text-white text-white disabled:opacity-50 disabled:cursor-not-allowed"
+          disabled={!canAdd}
+          title={canAdd ? undefined : 'You do not have permission to grant a salary advance'}
+          onClick={onOpenAdvanceModal}
+        >
           <Banknote className="w-3.5 h-3.5 mr-1" /> Grant Salary Advance
         </Button>
       </div>
@@ -153,7 +168,8 @@ export function SalaryAdvanceTable({ onOpenAdvanceModal }: SalaryAdvanceTablePro
                         variant="ghost"
                         size="icon"
                         aria-label="Edit salary advance"
-                        className="h-7 w-7 text-blue-600 hover:bg-blue-50"
+                        className="h-7 w-7 text-blue-600 hover:bg-blue-50 disabled:opacity-50 disabled:cursor-not-allowed"
+                        disabled={!canEdit}
                         onClick={() => setEditingAdvance(adv)}
                       >
                         <Edit2 className="h-3.5 w-3.5" />
@@ -162,7 +178,8 @@ export function SalaryAdvanceTable({ onOpenAdvanceModal }: SalaryAdvanceTablePro
                         variant="ghost"
                         size="icon"
                         aria-label="Delete salary advance"
-                        className="h-7 w-7 text-red-600 hover:bg-red-50"
+                        className="h-7 w-7 text-red-600 hover:bg-red-50 disabled:opacity-50 disabled:cursor-not-allowed"
+                        disabled={!canDelete}
                         onClick={() => setDeleteAdvanceTarget(adv)}
                       >
                         <Trash2 className="h-3.5 w-3.5" />

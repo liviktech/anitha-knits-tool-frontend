@@ -8,6 +8,9 @@ import {
 import { Loader } from '@/components/shared/loader';
 import { DeleteConfirmDialog } from '@/components/shared/delete-confirm-dialog';
 import { AddConfigurationDialog } from './add-configuration-dialog';
+import { useAuth } from '@/features/auth/auth-context';
+import { can } from '@/lib/access';
+import { RIGHTS } from '@/lib/permissions';
 import {
   useCreateProductionConfig,
   useDeleteProductionConfig,
@@ -45,6 +48,11 @@ function toEditPayload(record: ColorConsumptionStandard): ColorConsumptionStanda
 }
 
 export function ProductionConfigTab() {
+  const { user } = useAuth();
+  const canAdd = can(user, RIGHTS.adminPanel.productionConfig.add);
+  const canEdit = can(user, RIGHTS.adminPanel.productionConfig.edit);
+  const canDelete = can(user, RIGHTS.adminPanel.productionConfig.delete);
+
   const [isAddOpen, setIsAddOpen] = useState(false);
   const [editingRecord, setEditingRecord] = useState<ColorConsumptionStandard | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<ColorConsumptionStandard | null>(null);
@@ -287,7 +295,9 @@ export function ProductionConfigTab() {
           <button
             type="button"
             onClick={handleOpenAdd}
-            className="inline-flex items-center gap-2 rounded-lg bg-[#004D40] px-4 py-2.5 text-[12px] font-semibold text-white shadow-sm transition-colors hover:bg-[#003D33]"
+            disabled={!canAdd}
+            title={canAdd ? undefined : 'You do not have permission to add a configuration'}
+            className="inline-flex items-center gap-2 rounded-lg bg-[#004D40] px-4 py-2.5 text-[12px] font-semibold text-white shadow-sm transition-colors hover:bg-[#003D33] disabled:opacity-50 disabled:cursor-not-allowed"
           >
             <Plus className="h-4 w-4" />
             Add
@@ -436,7 +446,8 @@ export function ProductionConfigTab() {
                           type="button"
                           title="Edit"
                           onClick={() => handleOpenEdit(item)}
-                          className="rounded-md p-1.5 text-[#004D40] transition-colors hover:bg-[#004D40]/10"
+                          disabled={!canEdit}
+                          className="rounded-md p-1.5 text-[#004D40] transition-colors hover:bg-[#004D40]/10 disabled:opacity-50 disabled:cursor-not-allowed"
                         >
                           <Edit2 className="h-4 w-4" />
                         </button>
@@ -445,7 +456,8 @@ export function ProductionConfigTab() {
                           type="button"
                           title="Delete"
                           onClick={() => setDeleteTarget(item)}
-                          className="rounded-md p-1.5 text-red-500 transition-colors hover:bg-red-50"
+                          disabled={!canDelete}
+                          className="rounded-md p-1.5 text-red-500 transition-colors hover:bg-red-50 disabled:opacity-50 disabled:cursor-not-allowed"
                         >
                           <Trash2 className="h-4 w-4" />
                         </button>
