@@ -65,23 +65,22 @@ export function DashboardPdfView({ tab, allReports, selectedReport, onReportChan
   const toggleSection = (key: SectionKey) =>
     setVisibleSections((prev) => ({ ...prev, [key]: !prev[key] }));
 
-  const hasData = !!data && (
-    isWastage
-      ? [
-          visibleSections.extruderWastage && data.extruderWasteVariantRows.length > 0,
-          visibleSections.loomsWastage && data.loomsWasteVariantRows.length > 0,
-          visibleSections.fabricWastage && data.fabricWasteVariantRows.length > 0,
-        ].some(Boolean)
-      : [
-          visibleSections.extruderProduction && data.extruderVariantRows.length > 0,
-          visibleSections.loomsProduction && data.loomsVariantRows.length > 0,
-          visibleSections.fabricChecking && data.fabricVariantRows.length > 0,
-          visibleSections.yarnBalance && data.yarnBalanceVariantRows.length > 0,
-          visibleSections.koraBalance && data.koraBalanceVariantRows.length > 0,
-          visibleSections.fabricStock && data.fabricStockVariantRows.length > 0,
-          visibleSections.fabricDelivered && data.fabricDeliveredVariantRows.length > 0,
-        ].some(Boolean)
-  );
+  // How many rows each section actually has for the current period — drives both the "no
+  // preview" state and which checkboxes in "Sections to Include" are selectable at all.
+  const sectionRowCount: Record<SectionKey, number> = {
+    extruderProduction: data?.extruderVariantRows.length ?? 0,
+    loomsProduction: data?.loomsVariantRows.length ?? 0,
+    fabricChecking: data?.fabricVariantRows.length ?? 0,
+    yarnBalance: data?.yarnBalanceVariantRows.length ?? 0,
+    koraBalance: data?.koraBalanceVariantRows.length ?? 0,
+    fabricStock: data?.fabricStockVariantRows.length ?? 0,
+    fabricDelivered: data?.fabricDeliveredVariantRows.length ?? 0,
+    extruderWastage: data?.extruderWasteVariantRows.length ?? 0,
+    loomsWastage: data?.loomsWasteVariantRows.length ?? 0,
+    fabricWastage: data?.fabricWasteVariantRows.length ?? 0,
+  };
+
+  const hasData = allSectionDefs.some((s) => visibleSections[s.key] && sectionRowCount[s.key] > 0);
 
   const [pdfBlobUrl, setPdfBlobUrl] = useState<string | null>(null);
   const [isGenerating, setIsGenerating] = useState(false);
@@ -411,30 +410,39 @@ export function DashboardPdfView({ tab, allReports, selectedReport, onReportChan
       }}
       sectionsPanel={
         <div className="flex flex-col gap-1.5">
-          {allSectionDefs.map(({ key, label }) => (
-            <button
-              key={key}
-              onClick={() => toggleSection(key)}
-              className={`flex items-center gap-2.5 rounded-lg px-3 py-2 text-left transition-all border ${
-                visibleSections[key]
-                  ? 'bg-[#004D40]/5 border-[#004D40]/20 text-[#004D40]'
-                  : 'bg-transparent border-transparent text-gray-400 hover:bg-gray-50'
-              }`}
-            >
-              <span
-                className={`w-4 h-4 rounded border-2 flex items-center justify-center shrink-0 transition-all ${
-                  visibleSections[key] ? 'bg-[#004D40] border-[#004D40]' : 'border-gray-300'
+          {allSectionDefs.map(({ key, label }) => {
+            const available = sectionRowCount[key] > 0;
+            const checked = available && visibleSections[key];
+            return (
+              <button
+                key={key}
+                type="button"
+                onClick={() => available && toggleSection(key)}
+                disabled={!available}
+                className={`flex items-center gap-2.5 rounded-lg px-3 py-2 text-left transition-all border ${
+                  !available
+                    ? 'bg-transparent border-transparent text-gray-300 cursor-not-allowed'
+                    : checked
+                      ? 'bg-[#004D40]/5 border-[#004D40]/20 text-[#004D40]'
+                      : 'bg-transparent border-transparent text-gray-400 hover:bg-gray-50'
                 }`}
               >
-                {visibleSections[key] && (
-                  <svg className="w-2.5 h-2.5 text-white" fill="none" viewBox="0 0 10 10">
-                    <path d="M1.5 5L4 7.5L8.5 2.5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
-                  </svg>
-                )}
-              </span>
-              <span className="text-[12px] font-medium leading-tight">{label}</span>
-            </button>
-          ))}
+                <span
+                  className={`w-4 h-4 rounded border-2 flex items-center justify-center shrink-0 transition-all ${
+                    checked ? 'bg-[#004D40] border-[#004D40]' : available ? 'border-gray-300' : 'border-gray-200'
+                  }`}
+                >
+                  {checked && (
+                    <svg className="w-2.5 h-2.5 text-white" fill="none" viewBox="0 0 10 10">
+                      <path d="M1.5 5L4 7.5L8.5 2.5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+                    </svg>
+                  )}
+                </span>
+                <span className="text-[12px] font-medium leading-tight">{label}</span>
+                {!available && <span className="text-[10px] ml-auto italic">no data</span>}
+              </button>
+            );
+          })}
         </div>
       }
     />
