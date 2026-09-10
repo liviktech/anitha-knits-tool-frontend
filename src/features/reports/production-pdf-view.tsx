@@ -149,6 +149,8 @@ export function ProductionPdfView({ tab, allReports, selectedReport, onReportCha
   const toggleSection = (key: SectionKey) =>
     setVisibleSections((prev) => ({ ...prev, [key]: !prev[key] }));
 
+  const hasData = !!data && buildSections(data).some((s) => visibleSections[s.key]);
+
   useEffect(() => {
     if (isLoading || !data) return;
 
@@ -286,6 +288,7 @@ export function ProductionPdfView({ tab, allReports, selectedReport, onReportCha
       onReportChange={onReportChange}
       period={period}
       showPeriodPicker={true}
+      hasData={hasData}
       pdfBlobUrl={pdfBlobUrl}
       isGenerating={isGenerating}
       isGeneratingXlsx={isGeneratingXlsx}

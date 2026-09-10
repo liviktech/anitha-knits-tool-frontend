@@ -65,6 +65,24 @@ export function DashboardPdfView({ tab, allReports, selectedReport, onReportChan
   const toggleSection = (key: SectionKey) =>
     setVisibleSections((prev) => ({ ...prev, [key]: !prev[key] }));
 
+  const hasData = !!data && (
+    isWastage
+      ? [
+          visibleSections.extruderWastage && data.extruderWasteVariantRows.length > 0,
+          visibleSections.loomsWastage && data.loomsWasteVariantRows.length > 0,
+          visibleSections.fabricWastage && data.fabricWasteVariantRows.length > 0,
+        ].some(Boolean)
+      : [
+          visibleSections.extruderProduction && data.extruderVariantRows.length > 0,
+          visibleSections.loomsProduction && data.loomsVariantRows.length > 0,
+          visibleSections.fabricChecking && data.fabricVariantRows.length > 0,
+          visibleSections.yarnBalance && data.yarnBalanceVariantRows.length > 0,
+          visibleSections.koraBalance && data.koraBalanceVariantRows.length > 0,
+          visibleSections.fabricStock && data.fabricStockVariantRows.length > 0,
+          visibleSections.fabricDelivered && data.fabricDeliveredVariantRows.length > 0,
+        ].some(Boolean)
+  );
+
   const [pdfBlobUrl, setPdfBlobUrl] = useState<string | null>(null);
   const [isGenerating, setIsGenerating] = useState(false);
   const [isGeneratingXlsx, setIsGeneratingXlsx] = useState(false);
@@ -377,6 +395,7 @@ export function DashboardPdfView({ tab, allReports, selectedReport, onReportChan
       onReportChange={onReportChange}
       period={period}
       showPeriodPicker={true}
+      hasData={hasData}
       pdfBlobUrl={pdfBlobUrl}
       isGenerating={isGenerating}
       isGeneratingXlsx={isGeneratingXlsx}
