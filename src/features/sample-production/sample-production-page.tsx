@@ -16,7 +16,7 @@ import extruderIcon from '@/assets/extruder-icon.png';
 import loomsIcon from '@/assets/looms-icon.png';
 import { sumWastageByCode } from '@/lib/api-types';
 import { useAuth } from '@/features/auth/auth-context';
-import { canDeleteProductionRecord } from '@/lib/production-permissions';
+import { canCreateProductionRecord, canDeleteProductionRecord } from '@/lib/production-permissions';
 import { useExtruderProductions, extruderKeys } from '@/features/extruder/extruder-queries';
 import { useLoomsProductions, loomsKeys } from '@/features/looms/loom-queries';
 import { useFabricCheckingRecords, fabricCheckingKeys } from '@/features/fabric/fabric-queries';
@@ -156,6 +156,7 @@ export function SampleProductionPage() {
   const queryClient = useQueryClient();
   const { user } = useAuth();
   const canDeleteProduction = canDeleteProductionRecord(user);
+  const canCreateProduction = canCreateProductionRecord(user);
   const [view, setView] = useState<View>({ kind: 'list' });
   const [monthFilter, setMonthFilter] = useState<Date>(new Date());
   const [deleteTargetDate, setDeleteTargetDate] = useState<string | null>(null);
@@ -375,7 +376,9 @@ export function SampleProductionPage() {
             REPORT
           </Button>
           <Button
-            className="flex items-center gap-2 bg-[#004D40] hover:bg-[#00382e] text-white rounded-md px-3 py-2 h-auto text-[12px] font-bold tracking-wide shadow-[0_1px_2px_rgba(0,45,35,0.2)] cursor-pointer"
+            className="flex items-center gap-2 bg-[#004D40] hover:bg-[#00382e] text-white rounded-md px-3 py-2 h-auto text-[12px] font-bold tracking-wide shadow-[0_1px_2px_rgba(0,45,35,0.2)] disabled:opacity-50 disabled:cursor-not-allowed"
+            disabled={!canCreateProduction}
+            title={canCreateProduction ? undefined : 'You do not have permission to add production entries'}
             onClick={() => setView({ kind: 'entry', date: null })}
           >
             <Plus className="w-3 h-3" /> ADD NEW ENTRY

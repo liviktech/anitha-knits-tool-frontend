@@ -14,6 +14,9 @@ import {
 } from './raw-materials-queries';
 import { useModules, useTabs } from './roles-tab-queries';
 import { ModulesManagementPanel, ModulesCard } from './modules-management';
+import { useAuth } from '@/features/auth/auth-context';
+import { can } from '@/lib/access';
+import { RIGHTS } from '@/lib/permissions';
 
 interface CategoryMeta {
   key: LookupResource;
@@ -83,6 +86,12 @@ function formatLastUpdated(iso: string) {
 type TabKey = LookupResource | 'modules';
 
 export function RawMaterialsTab() {
+  const { user } = useAuth();
+  const isAdmin = user?.kind === 'company-user' && user.role === 'ADMIN';
+  const canAdd = can(user, RIGHTS.adminPanel.rawMaterials.add);
+  const canEdit = can(user, RIGHTS.adminPanel.rawMaterials.edit);
+  const canDelete = can(user, RIGHTS.adminPanel.rawMaterials.delete);
+
   const [selectedKey, setSelectedKey] = useState<TabKey>('brands');
   const modulesQuery = useModules();
   const tabsQuery = useTabs();
@@ -232,16 +241,19 @@ export function RawMaterialsTab() {
             );
           })}
 
-          {/* Modules card */}
-          <ModulesCard
-            modules={modulesData}
-            tabs={tabsData}
-            isSelected={selectedKey === 'modules'}
-            onClick={() => setSelectedKey('modules')}
-          />
+          {/* Modules card — manages the Module/Tab system itself, so it's admin-only
+              regardless of the raw-materials right, same reasoning as Roles & Rights. */}
+          {isAdmin && (
+            <ModulesCard
+              modules={modulesData}
+              tabs={tabsData}
+              isSelected={selectedKey === 'modules'}
+              onClick={() => setSelectedKey('modules')}
+            />
+          )}
         </div>
 
-        {selectedKey === 'modules' ? (
+        {selectedKey === 'modules' && isAdmin ? (
           <ModulesManagementPanel />
         ) : (
           <section className="overflow-hidden rounded-xl border border-gray-400 bg-white shadow-sm">
@@ -258,7 +270,9 @@ export function RawMaterialsTab() {
               <button
                 type="button"
                 onClick={handleOpenAdd}
-                className="inline-flex items-center gap-2 rounded-lg bg-[#004D40] px-4 py-2 text-[12px] font-semibold text-white shadow-sm transition-colors hover:bg-[#003D33]"
+                disabled={!canAdd}
+                title={canAdd ? undefined : 'You do not have permission to add an item'}
+                className="inline-flex items-center gap-2 rounded-lg bg-[#004D40] px-4 py-2 text-[12px] font-semibold text-white shadow-sm transition-colors hover:bg-[#003D33] disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 <Plus className="h-4 w-4" />
                 Add {selectedMeta.singular}
@@ -286,10 +300,10 @@ export function RawMaterialsTab() {
                         <td className="whitespace-nowrap px-5 py-1.5 text-right text-[12px] text-gray-500">{formatLastUpdated(item.updatedAt)}</td>
                         <td className="whitespace-nowrap px-5 py-1.5">
                           <div className="flex justify-end gap-1">
-                            <button type="button" title="Edit" onClick={() => handleOpenEdit(item)} className="rounded-md p-1.5 text-[#004D40] transition-colors hover:bg-[#004D40]/10">
+                            <button type="button" title="Edit" onClick={() => handleOpenEdit(item)} disabled={!canEdit} className="rounded-md p-1.5 text-[#004D40] transition-colors hover:bg-[#004D40]/10 disabled:opacity-50 disabled:cursor-not-allowed">
                               <Edit2 className="h-4 w-4" />
                             </button>
-                            <button type="button" title="Delete" onClick={() => setDeleteTarget(item)} className="rounded-md p-1.5 text-red-500 transition-colors hover:bg-red-50">
+                            <button type="button" title="Delete" onClick={() => setDeleteTarget(item)} disabled={!canDelete} className="rounded-md p-1.5 text-red-500 transition-colors hover:bg-red-50 disabled:opacity-50 disabled:cursor-not-allowed">
                               <Trash2 className="h-4 w-4" />
                             </button>
                           </div>

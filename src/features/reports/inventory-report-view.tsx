@@ -187,6 +187,7 @@ export function InventoryReportView({ allReports, selectedReport, onReportChange
       onReportChange={onReportChange}
       period={period}
       showPeriodPicker={true}
+      hasData={monthRecords.length > 0}
       pdfBlobUrl={pdfBlobUrl}
       isGenerating={isGenerating}
       isGeneratingXlsx={isGeneratingXlsx}

@@ -211,6 +211,7 @@ export function ExpenseReportView({ allReports, selectedReport, onReportChange }
       onReportChange={onReportChange}
       period={period}
       showPeriodPicker={true}
+      hasData={reportData.length > 0}
       pdfBlobUrl={pdfBlobUrl}
       isGenerating={isGenerating}
       isGeneratingXlsx={isGeneratingXlsx}

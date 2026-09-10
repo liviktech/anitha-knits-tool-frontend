@@ -44,6 +44,16 @@ export function EmployeePdfView({ tab, allReports, selectedReport, onReportChang
 
   const data = useEmployeePdfData(period.effectiveFrom, period.effectiveTo, period.toMonthStr);
   const isLoading = data.isLoading;
+
+  // attendanceRows/payrollRows always carry one row per employee (zeroed out where there's no
+  // record), so their .length alone can't tell "no data for this period" from "no employees" —
+  // check the actual counts/values instead.
+  const hasData = tab === 'employee_directory'
+    ? data.employees.length > 0
+    : tab === 'attendance_report'
+      ? data.presentCount + data.absentCount + data.halfDayCount > 0
+      : data.payrollRows.some((r) => r.grossSalary > 0 || r.netSalary > 0);
+
   const [pdfBlobUrl, setPdfBlobUrl] = useState<string | null>(null);
   const [isGenerating, setIsGenerating] = useState(false);
   const [isGeneratingXlsx, setIsGeneratingXlsx] = useState(false);
@@ -323,6 +333,7 @@ export function EmployeePdfView({ tab, allReports, selectedReport, onReportChang
       period={period}
       showPeriodPicker={showPeriodPicker}
       supportsDateMode={tab !== 'payroll_report'}
+      hasData={hasData}
       pdfBlobUrl={pdfBlobUrl}
       isGenerating={isGenerating}
       isGeneratingXlsx={isGeneratingXlsx}
